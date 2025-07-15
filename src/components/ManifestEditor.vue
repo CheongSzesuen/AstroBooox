@@ -4,8 +4,9 @@
     <div v-if="!projectDirectory" class="directory-prompt">
       <div class="prompt-content">
         <h3>请选择项目文件夹</h3>
-        <p>为了正确管理资源文件，请先选择您的项目文件夹</p>
-        <button @click="selectProjectDirectory">选择文件夹</button>
+        <p>为了更快捷地生成manifest，请先选择您的项目文件夹。</p>
+        <p>确保所有的文件都已经放在该文件夹下。</p>
+        <button class="add-button" @click="selectProjectDirectory">选择文件夹</button>
       </div>
     </div>
 
@@ -14,7 +15,7 @@
       <!-- 顶部项目路径显示 -->
       <div class="project-path">
         <span>当前项目路径: {{ projectDirectory.name }}</span>
-        <button @click="selectProjectDirectory">更改文件夹</button>
+        <button class="remove-button" @click="selectProjectDirectory">更改文件夹</button>
       </div>
 
       <div class="editor-container">
@@ -32,23 +33,23 @@
               <textarea v-model="manifest.item.description" placeholder="应用简介"></textarea>
             </div>
             <div class="form-group">
-              <label>预览图路径（支持多张）</label>
+              <label>预览图（支持多选）</label>
               <div v-for="(preview, index) in manifest.item.preview" :key="index" class="array-item">
                 <input v-model="manifest.item.preview[index]" readonly />
-                <button @click="removePreview(index)">删除</button>
+                <button class="remove-button" @click="removePreview(index)">删除</button>
               </div>
-              <button @click="selectMultiplePreviews">+ 添加预览图</button>
+              <button class="add-button" @click="selectMultiplePreviews">+ 添加预览图</button>
             </div>
             <div class="form-group">
-              <label>图标路径</label>
+              <label>图标</label>
               <div class="file-input-group">
                 <input v-model="manifest.item.icon" readonly />
-                <button @click="selectFile('icon')">选择文件</button>
+                <button class="add-button" @click="selectFile('icon')">选择文件</button>
               </div>
             </div>
             <div class="form-group">
-              <label>源码仓库 URL（可选）</label>
-              <input v-model="manifest.item.source_url" placeholder="https://github.com/yourname/yourrepo" />
+              <label>开源仓库 URL（可选）</label>
+              <input v-model="manifest.item.source_url" placeholder="开源项目将有更多机会得到推荐" />
             </div>
           </div>
 
@@ -64,14 +65,14 @@
                 <label>作者主页（可选）</label>
                 <input v-model="author.author_url" placeholder="https://example.com" />
               </div>
-              <button @click="removeAuthor(index)">删除</button>
+              <button class="remove-button" @click="removeAuthor(index)">删除</button>
             </div>
-            <button @click="addAuthor">+ 添加作者</button>
+            <button class="add-button" @click="addAuthor">+ 添加作者</button>
           </div>
 
           <!-- 设备下载信息部分 -->
           <div class="form-section">
-            <h3>设备下载信息</h3>
+            <h3>支持设备信息</h3>
             <div v-for="(download, deviceCode) in manifest.downloads" :key="deviceCode" class="download-group">
               <h4>{{ getDeviceDisplayName(deviceCode) }}</h4>
               <div class="form-group">
@@ -79,20 +80,34 @@
                 <input v-model="download.version" placeholder="1.0.0" />
               </div>
               <div class="form-group">
-                <label>资源文件路径</label>
+                <label>资源文件</label>
                 <div class="file-input-group">
                   <input v-model="download.file_name" readonly />
-                  <button @click="selectFile('download', deviceCode)">选择文件</button>
+                  <button class="add-button" @click="selectFile('download', deviceCode)">选择文件</button>
                 </div>
               </div>
-              <button @click="removeDownload(deviceCode)">删除</button>
+              <button class="remove-button" @click="removeDownload(deviceCode)">删除</button>
             </div>
-            <button @click="openDeviceSelector">+ 添加设备下载</button>
+            <button class="add-button" @click="openDeviceSelector">+ 添加支持的设备</button>
           </div>
         </div>
 
-        <!-- 右侧 JSON 预览 -->
+        <!-- 右侧 JSON 预览和操作按钮 -->
         <div class="preview-container">
+          <div class="preview-actions">
+            <button class="add-button" @click="saveManifest">
+              <svg width="16" height="16" viewBox="0 0 24 24">
+                <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" fill="currentColor"/>
+              </svg>
+              保存
+            </button>
+            <button class="add-button" @click="copyToClipboard">
+              <svg width="16" height="16" viewBox="0 0 24 24">
+                <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
+              </svg>
+              复制
+            </button>
+          </div>
           <JsonPreview :data="manifest" />
         </div>
       </div>
@@ -114,8 +129,31 @@
             </div>
           </div>
           <div class="modal-actions">
-            <button @click="cancelDeviceSelection">取消</button>
-            <button @click="confirmDeviceSelection" :disabled="selectedDevices.length === 0">确认</button>
+            <button @click="cancelDeviceSelection" class="add-button">取消</button>
+            <button @click="confirmDeviceSelection" class="add-button" :disabled="selectedDevices.length === 0">确认</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 覆盖确认对话框 -->
+      <div v-if="showOverwriteDialog" class="modal-overlay">
+        <div class="modal-content">
+          <h3>确认覆盖文件</h3>
+          <p>项目目录中已存在 manifest.json 文件，确定要覆盖吗？</p>
+          <div class="modal-actions">
+            <button class="remove-button" @click="cancelOverwrite">取消</button>
+            <button class="add-button" @click="confirmOverwrite">确认</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 自定义提示框 -->
+      <div v-if="showAlert" class="modal-overlay">
+        <div class="modal-content alert-content">
+          <h3>{{ alertTitle }}</h3>
+          <p>{{ alertMessage }}</p>
+          <div class="modal-actions">
+            <button class="add-button" @click="closeAlert">确定</button>
           </div>
         </div>
       </div>
@@ -135,11 +173,19 @@ interface Device {
 
 interface FileSystemDirectoryHandle {
   name: string
+  getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle>
+  getFile(name: string): Promise<File>
 }
 
 interface FileSystemFileHandle {
   getFile(): Promise<File>
   name: string
+  createWritable(options?: { keepExistingData?: boolean }): Promise<FileSystemWritableFileStream>
+}
+
+interface FileSystemWritableFileStream {
+  write(data: string | BufferSource | Blob | ArrayBufferView | ArrayBuffer): Promise<void>
+  close(): Promise<void>
 }
 
 declare global {
@@ -178,6 +224,10 @@ export default defineComponent({
     const showDeviceSelector = ref(false)
     const selectedDevices = ref<string[]>([])
     const projectDirectory = ref<FileSystemDirectoryHandle | null>(null)
+    const showOverwriteDialog = ref(false)
+    const showAlert = ref(false)
+    const alertTitle = ref('')
+    const alertMessage = ref('')
 
     const supportedDevices: Device[] = [
       { codename: "n66", name: "Xiaomi Smart Band 9" },
@@ -193,6 +243,87 @@ export default defineComponent({
       { codename: "o65", name: "REDMI Watch 5" },
       { codename: "o65m", name: "REDMI Watch 5 eSIM" }
     ]
+
+    // 显示自定义提示
+    const showCustomAlert = (title: string, message: string): void => {
+      alertTitle.value = title
+      alertMessage.value = message
+      showAlert.value = true
+    }
+
+    // 关闭自定义提示
+    const closeAlert = (): void => {
+      showAlert.value = false
+    }
+
+    // 复制到剪贴板
+    const copyToClipboard = async (): Promise<void> => {
+      try {
+        const manifestData = JSON.stringify(manifest.value, null, 2)
+        await navigator.clipboard.writeText(manifestData)
+        showCustomAlert('操作成功', '已复制到剪贴板')
+      } catch (error) {
+        console.error('复制失败:', error)
+        showCustomAlert('操作失败', '复制失败，请检查控制台')
+      }
+    }
+
+    // 保存 manifest.json 到项目根目录
+    const saveManifest = async (): Promise<void> => {
+      if (!projectDirectory.value) {
+        showCustomAlert('操作失败', '请先选择项目目录')
+        return
+      }
+
+      try {
+        // 检查文件是否已存在
+        try {
+          await projectDirectory.value.getFileHandle('manifest.json', { create: false })
+          // 文件存在，显示覆盖确认对话框
+          showOverwriteDialog.value = true
+        } catch {
+          // 文件不存在，直接保存
+          await performSave()
+          showCustomAlert('操作成功', 'manifest.json 已成功保存')
+        }
+      } catch (error) {
+        console.error('保存文件失败:', error)
+        showCustomAlert('操作失败', '保存文件失败，请检查控制台')
+      }
+    }
+
+    // 执行保存操作
+    const performSave = async (): Promise<void> => {
+      if (!projectDirectory.value) return
+
+      try {
+        const manifestData = JSON.stringify(manifest.value, null, 2)
+        const fileHandle = await projectDirectory.value.getFileHandle('manifest.json', { create: true })
+        const writable = await fileHandle.createWritable()
+        await writable.write(manifestData)
+        await writable.close()
+      } catch (error) {
+        console.error('保存文件失败:', error)
+        throw error
+      }
+    }
+
+    // 确认覆盖
+    const confirmOverwrite = async (): Promise<void> => {
+      showOverwriteDialog.value = false
+      try {
+        await performSave()
+        showCustomAlert('操作成功', 'manifest.json 已成功覆盖')
+      } catch (error) {
+        console.error('覆盖文件失败:', error)
+        showCustomAlert('操作失败', '覆盖文件失败，请检查控制台')
+      }
+    }
+
+    // 取消覆盖
+    const cancelOverwrite = (): void => {
+      showOverwriteDialog.value = false
+    }
 
     // 获取设备显示名称
     const getDeviceDisplayName = (codename: string): string => {
@@ -219,8 +350,15 @@ export default defineComponent({
     const toggleDeviceSelection = (device: Device): void => {
       if (isDeviceSelected(device)) {
         selectedDevices.value = selectedDevices.value.filter(d => d !== device.codename)
+        delete manifest.value.downloads[device.codename]
       } else {
         selectedDevices.value = [...selectedDevices.value, device.codename]
+        if (!manifest.value.downloads[device.codename]) {
+          manifest.value.downloads[device.codename] = {
+            version: '1.0.0',
+            file_name: ''
+          }
+        }
       }
     }
 
@@ -233,30 +371,17 @@ export default defineComponent({
 
     // 确认设备选择
     const confirmDeviceSelection = (): void => {
-      const newDownloads: Record<string, any> = {}
-      
-      selectedDevices.value.forEach(codename => {
-        newDownloads[codename] = manifest.value.downloads[codename] || {
-          version: '1.0.0',
-          file_name: ''
-        }
-      })
-      
-      manifest.value.downloads = newDownloads
-      selectedDevices.value = []
       showDeviceSelector.value = false
     }
 
     // 取消设备选择
     const cancelDeviceSelection = (): void => {
       showDeviceSelector.value = false
-      selectedDevices.value = []
     }
 
     // 删除设备
     const removeDownload = (deviceCode: string): void => {
       delete manifest.value.downloads[deviceCode]
-      
       if (showDeviceSelector.value) {
         selectedDevices.value = selectedDevices.value.filter(d => d !== deviceCode)
       }
@@ -271,15 +396,19 @@ export default defineComponent({
         })
         projectDirectory.value = directoryHandle
       } catch (error) {
-        console.error('Error selecting directory:', error)
-        alert('选择文件夹失败，请重试')
+        if (error.name !== 'AbortError') {
+          console.error('选择目录错误:', error)
+          showCustomAlert('操作失败', '选择文件夹失败，请重试')
+        } else {
+          showCustomAlert('操作提示', '未切换文件夹')
+        }
       }
     }
 
     // 选择多个预览图
     const selectMultiplePreviews = async (): Promise<void> => {
       if (!projectDirectory.value) {
-        alert('请先选择项目目录')
+        showCustomAlert('操作失败', '请先选择项目目录')
         return
       }
 
@@ -307,20 +436,25 @@ export default defineComponent({
         )
 
         if (uniqueNewPreviews.length === 0) {
-          alert('您选择的文件已经存在于预览图列表中')
+          showCustomAlert('操作提示', '您选择的文件已经存在于预览图列表中')
           return
         }
 
         manifest.value.item.preview = [...manifest.value.item.preview, ...uniqueNewPreviews]
       } catch (error) {
-        console.error('Error selecting files:', error)
+        if (error.name !== 'AbortError') {
+          console.error('选择文件错误:', error)
+          showCustomAlert('操作失败', '选择文件失败，请检查控制台')
+        } else {
+          showCustomAlert('操作提示', '未导入文件')
+        }
       }
     }
 
     // 选择单个文件
     const selectFile = async (type: 'icon' | 'download', deviceCode?: string): Promise<void> => {
       if (!projectDirectory.value) {
-        alert('请先选择项目目录')
+        showCustomAlert('操作失败', '请先选择项目目录')
         return
       }
 
@@ -340,7 +474,12 @@ export default defineComponent({
           }
         }
       } catch (error) {
-        console.error('Error selecting file:', error)
+        if (error.name !== 'AbortError') {
+          console.error('选择文件错误:', error)
+          showCustomAlert('操作失败', '选择文件失败，请检查控制台')
+        } else {
+          showCustomAlert('操作提示', '未导入文件')
+        }
       }
     }
 
@@ -365,6 +504,15 @@ export default defineComponent({
       showDeviceSelector,
       selectedDevices,
       supportedDevices,
+      showOverwriteDialog,
+      showAlert,
+      alertTitle,
+      alertMessage,
+      saveManifest,
+      copyToClipboard,
+      confirmOverwrite,
+      cancelOverwrite,
+      closeAlert,
       getDeviceDisplayName,
       isDeviceSelected,
       toggleDeviceSelection,
@@ -384,6 +532,7 @@ export default defineComponent({
 </script>
 
 <style scoped>
+/* 基础样式 */
 .manifest-editor {
   display: flex;
   flex-direction: column;
@@ -391,6 +540,45 @@ export default defineComponent({
   width: 100%;
   box-sizing: border-box;
   padding: 1rem;
+}
+
+/* 按钮样式 */
+button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.remove-button {
+  background: #ffebee;
+  color: #f44336;
+}
+
+.remove-button:hover {
+  background: #ffcdd2;
+}
+
+.add-button {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.add-button:hover {
+  background: #c8e6c9;
+}
+
+button svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* 项目目录提示样式 */
@@ -436,15 +624,6 @@ export default defineComponent({
   align-items: center;
 }
 
-.project-path button {
-  padding: 0.25rem 0.75rem;
-  background: #e0e0e0;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
 /* 编辑器容器 */
 .editor-container {
   display: flex;
@@ -473,6 +652,15 @@ export default defineComponent({
   padding: 1rem;
   border-radius: 8px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 预览操作按钮 */
+.preview-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 /* 表单部分 */
@@ -526,19 +714,6 @@ textarea {
   box-sizing: border-box;
 }
 
-/* 按钮样式 */
-button {
-  margin-top: 0.5rem;
-  padding: 0.4rem 0.8rem;
-  border: none;
-  background: #42b983;
-  color: white;
-  cursor: pointer;
-  border-radius: 4px;
-  font-weight: bold;
-  white-space: nowrap;
-}
-
 /* 文件输入组 */
 .file-input-group {
   display: flex;
@@ -553,37 +728,6 @@ button {
 
 .file-input-group button {
   flex-shrink: 0;
-  white-space: nowrap;
-}
-
-/* 移除按钮 */
-.remove-btn {
-  width: 2rem;
-  height: 2rem;
-  border: none;
-  background: #ffebee;
-  color: #f44336;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-/* 添加按钮 */
-.add-btn {
-  align-self: flex-start;
-  padding: 0.5rem 0.75rem;
-  border: none;
-  background: #f0f0f0;
-  color: #333;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: all 0.2s;
   white-space: nowrap;
 }
 
@@ -611,6 +755,11 @@ button {
   overflow-y: auto;
 }
 
+.alert-content {
+  max-width: 400px;
+  text-align: center;
+}
+
 /* 设备列表 */
 .device-list {
   display: grid;
@@ -624,6 +773,11 @@ button {
   border: 1px solid #ddd;
   border-radius: 4px;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.device-item:hover {
+  background: #f5f5f5;
 }
 
 .device-item.selected {

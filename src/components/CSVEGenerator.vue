@@ -4,23 +4,23 @@
       <div class="editor-container">
         <!-- 表单容器 -->
         <div class="form-container">
-          <!-- 应用信息部分 -->
+          <!-- 资源信息部分 -->
           <div class="form-section">
-            <h3>应用信息</h3>
+            <h3>资源信息</h3>
             <div class="form-group">
-              <label>应用名称</label>
+              <label>资源名称</label>
               <input v-model="csvData.name" placeholder="例如：WeatherPlus" />
             </div>
             <div class="form-group">
-              <label>图标 URL <span class="hint-text">(最小为96×96)</span></label>
-              <input v-model="csvData.iconUrl" placeholder="https://example.com/icon.png" />
+              <label>图标 URL <span class="hint-text">(最小为96×96,AstroBox会自动割圆)</span></label>
+              <input v-model="csvData.iconUrl" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/图标名" />
             </div>
             <div class="form-group">
               <label>封面 URL <span class="hint-text">(推荐比例3:2)</span></label>
-              <input v-model="csvData.coverUrl" placeholder="https://example.com/cover.png" />
+              <input v-model="csvData.coverUrl" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/封面名" />
             </div>
             <div class="form-group">
-              <label>应用类型</label>
+              <label>资源类型</label>
               <select v-model="csvData.appType">
                 <option value="quickapp">快应用 (quickapp)</option>
                 <option value="watchface">表盘 (watchface)</option>
@@ -32,13 +32,13 @@
           <div class="form-section">
             <h3>分类与设备</h3>
             <div class="form-group">
-              <label>应用分类</label>
+              <label>资源标签</label>
               <div class="array-input">
                 <div v-for="(category, index) in csvData.categories" :key="index" class="array-item">
                   <input v-model="csvData.categories[index]" placeholder="例如：天气" />
-                  <button @click="removeCategory(index)" class="remove-btn">×</button>
+                  <button @click="removeCategory(index)" class="remove-button">×</button>
                 </div>
-                <button @click="addCategory" class="add-btn">+ 添加分类</button>
+                <button @click="addCategory" class="add-button">+ 添加标签</button>
               </div>
             </div>
             <div class="form-group">
@@ -50,9 +50,9 @@
                     placeholder="请点击下方按钮添加设备" 
                     readonly
                   />
-                  <button @click="removeDevice(index)" class="remove-btn">×</button>
+                  <button @click="removeDevice(index)" class="remove-button">×</button>
                 </div>
-                <button @click="openDeviceSelector" class="add-btn">+ 添加设备</button>
+                <button @click="openDeviceSelector" class="add-button">+ 添加设备</button>
               </div>
             </div>
           </div>
@@ -75,13 +75,18 @@
           </div>
 
           <!-- CSV预览区域 -->
-          <div class="preview-section">
+          <div class="form-section">
             <h3>生成的 CSV</h3>
             <div class="preview-content">
               <pre>{{ generatedCSV }}</pre>
             </div>
-            <div class="copy-section">
-              <button @click="copyToClipboard" class="copy-btn">复制到剪贴板</button>
+            <div class="preview-actions">
+              <button @click="copyToClipboard" class="add-button">
+                <svg width="16" height="16" viewBox="0 0 24 24">
+                  <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
+                </svg>
+                复制到剪贴板
+              </button>
             </div>
           </div>
         </div>
@@ -104,8 +109,19 @@
             </div>
           </div>
           <div class="modal-actions">
-            <button @click="cancelDeviceSelection">取消</button>
-            <button @click="confirmDeviceSelection" :disabled="selectedDevices.length === 0">确认</button>
+            <button @click="cancelDeviceSelection" class="add-button">取消</button>
+            <button @click="confirmDeviceSelection" class="add-button" :disabled="selectedDevices.length === 0">确认</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 自定义提示框 -->
+      <div v-if="showAlert" class="modal-overlay">
+        <div class="modal-content alert-content">
+          <h3>{{ alertTitle }}</h3>
+          <p>{{ alertMessage }}</p>
+          <div class="modal-actions">
+            <button class="add-button" @click="closeAlert">确定</button>
           </div>
         </div>
       </div>
@@ -130,6 +146,9 @@ const csvData = ref({
 const showDeviceSelector = ref(false)
 const selectedDevices = ref<string[]>([]) // 临时选择的设备
 const currentDevices = ref<string[]>([]) // 当前实际选择的设备
+const showAlert = ref(false)
+const alertTitle = ref('')
+const alertMessage = ref('')
 
 // 支持的设备列表
 const supportedDevices = [
@@ -146,6 +165,18 @@ const supportedDevices = [
   { codename: "o65", name: "REDMI Watch 5" },
   { codename: "o65m", name: "REDMI Watch 5 eSIM" }
 ]
+
+// 显示自定义提示
+const showCustomAlert = (title: string, message: string): void => {
+  alertTitle.value = title
+  alertMessage.value = message
+  showAlert.value = true
+}
+
+// 关闭自定义提示
+const closeAlert = (): void => {
+  showAlert.value = false
+}
 
 // 生成 CSV 字符串
 const generatedCSV = computed(() => {
@@ -241,10 +272,10 @@ const removeDevice = (index: number) => {
 const copyToClipboard = async () => {
   try {
     await navigator.clipboard.writeText(generatedCSV.value)
-    alert('CSV 数据已复制到剪贴板！')
+    showCustomAlert('操作成功', 'CSV 数据已复制到剪贴板！')
   } catch (err) {
     console.error('复制失败:', err)
-    alert('复制失败，请手动复制')
+    showCustomAlert('操作失败', '复制失败，请手动复制')
   }
 }
 
@@ -261,6 +292,7 @@ watch(() => csvData.value.devices, (newVal) => {
   height: 100%;
   width: 100%;
   box-sizing: border-box;
+  padding: 1rem;
 }
 
 .editor-content {
@@ -268,6 +300,7 @@ watch(() => csvData.value.devices, (newVal) => {
   flex-direction: column;
   height: 100%;
   width: 100%;
+  gap: 1rem;
 }
 
 .editor-container {
@@ -279,11 +312,11 @@ watch(() => csvData.value.devices, (newVal) => {
 
 .form-container {
   flex: 1;
+  min-width: 0;
   background: #f5f5f5;
   padding: 1rem;
   border-radius: 8px;
   overflow-y: auto;
-  height: 100%;
 }
 
 .form-section {
@@ -317,6 +350,7 @@ input, select, textarea {
   font-family: inherit;
   font-size: 1rem;
   color: #333;
+  box-sizing: border-box;
 }
 
 input::placeholder,
@@ -331,26 +365,6 @@ select {
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: 1rem;
-}
-
-button {
-  margin-top: 0.5rem;
-  padding: 0.4rem 0.8rem;
-  border: none;
-  background: #42b983;
-  color: white;
-  cursor: pointer;
-  border-radius: 4px;
-  font-weight: bold;
-}
-
-button:hover {
-  background: #369d6d;
-}
-
-button:disabled {
-  background: #cccccc;
-  cursor: not-allowed;
 }
 
 .array-input {
@@ -370,7 +384,9 @@ button:disabled {
   padding: 0.5rem 0.75rem;
 }
 
-.remove-btn {
+.remove-button {
+  margin: 0;
+  padding: 0;
   width: 2rem;
   height: 2rem;
   border: none;
@@ -385,43 +401,46 @@ button:disabled {
   transition: all 0.2s;
 }
 
-.remove-btn:hover {
+.remove-button:hover {
   background: #ffcdd2;
 }
 
-.add-btn {
-  align-self: flex-start;
-  padding: 0.5rem 0.75rem;
+.add-button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
   border: none;
-  background: #f0f0f0;
-  color: #333;
-  border-radius: 4px;
+  background: #e8f5e9;
+  color: #2e7d32;
   cursor: pointer;
-  font-size: 0.875rem;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   transition: all 0.2s;
 }
 
-.add-btn:hover {
-  background: #e0e0e0;
+.add-button:hover {
+  background: #c8e6c9;
 }
 
-.preview-section {
-  margin-top: 2rem;
-  padding: 1rem;
-  background: #fff;
-  border-radius: 6px;
+.add-button svg {
+  width: 16px;
+  height: 16px;
 }
 
 .preview-content {
-  background: #1e1e1e;
-  color: #dcdcdc;
+  background: #f8f9fa;
+  color: #333;
   padding: 1rem;
   border-radius: 4px;
   overflow: auto;
-  margin-bottom: 1rem;
-  font-family: 'MiSans', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.5;
+  border: 1px solid #e1e4e8;
 }
 
 pre {
@@ -430,24 +449,10 @@ pre {
   word-wrap: break-word;
 }
 
-.copy-section {
+.preview-actions {
   display: flex;
   justify-content: flex-end;
-}
-
-.copy-btn {
-  padding: 0.5rem 1rem;
-  background: #42b983;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background 0.2s;
-}
-
-.copy-btn:hover {
-  background: #369d6d;
+  margin-top: 1rem;
 }
 
 .modal-overlay {
@@ -471,6 +476,11 @@ pre {
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
+}
+
+.alert-content {
+  max-width: 400px;
+  text-align: center;
 }
 
 .device-list {
@@ -512,10 +522,9 @@ pre {
   margin-top: 1rem;
 }
 
-@media (max-width: 768px) {
-  .device-list {
-    grid-template-columns: 1fr;
-  }
+.empty {
+  color: #6a737d;
+  font-style: italic;
 }
 
 a {
@@ -525,5 +534,15 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .editor-container {
+    flex-direction: column;
+  }
+  
+  .device-list {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
