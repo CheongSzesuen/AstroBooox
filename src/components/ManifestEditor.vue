@@ -63,7 +63,7 @@
               </div>
               <div class="form-group">
                 <label>作者主页（可选）</label>
-                <input v-model="author.author_url" placeholder="https://example.com" />
+                <input v-model="author.author_url" placeholder="https://github.com/用户名" />
               </div>
               <button class="remove-button" @click="removeAuthor(index)">删除</button>
             </div>
@@ -262,9 +262,9 @@ export default defineComponent({
         const manifestData = JSON.stringify(manifest.value, null, 2)
         await navigator.clipboard.writeText(manifestData)
         showCustomAlert('操作成功', '已复制到剪贴板')
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('复制失败:', error)
-        showCustomAlert('操作失败', '复制失败，请检查控制台')
+        showCustomAlert('操作失败', error instanceof Error ? error.message : '复制失败，请检查控制台')
       }
     }
 
@@ -281,14 +281,17 @@ export default defineComponent({
           await projectDirectory.value.getFileHandle('manifest.json', { create: false })
           // 文件存在，显示覆盖确认对话框
           showOverwriteDialog.value = true
-        } catch {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'NotFoundError') {
+            throw error
+          }
           // 文件不存在，直接保存
           await performSave()
           showCustomAlert('操作成功', 'manifest.json 已成功保存')
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('保存文件失败:', error)
-        showCustomAlert('操作失败', '保存文件失败，请检查控制台')
+        showCustomAlert('操作失败', error instanceof Error ? error.message : '保存文件失败，请检查控制台')
       }
     }
 
@@ -302,9 +305,9 @@ export default defineComponent({
         const writable = await fileHandle.createWritable()
         await writable.write(manifestData)
         await writable.close()
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('保存文件失败:', error)
-        throw error
+        throw error instanceof Error ? error : new Error('保存文件失败')
       }
     }
 
@@ -314,9 +317,9 @@ export default defineComponent({
       try {
         await performSave()
         showCustomAlert('操作成功', 'manifest.json 已成功覆盖')
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('覆盖文件失败:', error)
-        showCustomAlert('操作失败', '覆盖文件失败，请检查控制台')
+        showCustomAlert('操作失败', error instanceof Error ? error.message : '覆盖文件失败，请检查控制台')
       }
     }
 
@@ -395,10 +398,10 @@ export default defineComponent({
           mode: 'readwrite'
         })
         projectDirectory.value = directoryHandle
-      } catch (error) {
-        if (error.name !== 'AbortError') {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name !== 'AbortError') {
           console.error('选择目录错误:', error)
-          showCustomAlert('操作失败', '选择文件夹失败，请重试')
+          showCustomAlert('操作失败', error.message || '选择文件夹失败，请重试')
         } else {
           showCustomAlert('操作提示', '未切换文件夹')
         }
@@ -441,10 +444,10 @@ export default defineComponent({
         }
 
         manifest.value.item.preview = [...manifest.value.item.preview, ...uniqueNewPreviews]
-      } catch (error) {
-        if (error.name !== 'AbortError') {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name !== 'AbortError') {
           console.error('选择文件错误:', error)
-          showCustomAlert('操作失败', '选择文件失败，请检查控制台')
+          showCustomAlert('操作失败', error.message || '选择文件失败，请检查控制台')
         } else {
           showCustomAlert('操作提示', '未导入文件')
         }
@@ -473,10 +476,10 @@ export default defineComponent({
             manifest.value.downloads[deviceCode].file_name = file.name
           }
         }
-      } catch (error) {
-        if (error.name !== 'AbortError') {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name !== 'AbortError') {
           console.error('选择文件错误:', error)
-          showCustomAlert('操作失败', '选择文件失败，请检查控制台')
+          showCustomAlert('操作失败', error.message || '选择文件失败，请检查控制台')
         } else {
           showCustomAlert('操作提示', '未导入文件')
         }
