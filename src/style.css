@@ -1,0 +1,49 @@
+/* src/style.css */
+/* 小米字体定义 */
+@font-face {
+  font-family: 'MiSans';
+  src: url('/fonts/woff2/MiSans-Regular.woff2') format('woff2'),
+       url('/fonts/woff/MiSans-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MiSans';
+  src: url('/fonts/woff2/MiSans-Medium.woff2') format('woff2'),
+       url('/fonts/woff/MiSans-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MiSans';
+  src: url('/fonts/woff2/MiSans-Semibold.woff2') format('woff2'),
+       url('/fonts/woff/MiSans-Semibold.woff') format('woff');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MiSans';
+  src: url('/fonts/woff2/MiSans-Bold.woff2') format('woff2'),
+       url('/fonts/woff/MiSans-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 基础字体设置 */
+body {
+  font-family: 'MiSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* 确保所有元素继承字体 */
+button, input, textarea, select {
+  font-family: inherit;
+}
