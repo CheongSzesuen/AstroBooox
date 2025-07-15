@@ -124,13 +124,40 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed } from 'vue'
+import { defineComponent, ref } from 'vue'
 import JsonPreview from '../components/JsonPreview.vue'
 import { Manifest } from '../type/manifest'
 
 interface Device {
   codename: string
   name: string
+}
+
+interface FileSystemDirectoryHandle {
+  name: string
+}
+
+interface FileSystemFileHandle {
+  getFile(): Promise<File>
+  name: string
+}
+
+declare global {
+  interface Window {
+    showDirectoryPicker(options?: { 
+      id?: string
+      mode?: 'read' | 'readwrite' 
+    }): Promise<FileSystemDirectoryHandle>
+    
+    showOpenFilePicker(options?: {
+      multiple?: boolean
+      startIn?: FileSystemDirectoryHandle
+      types?: Array<{
+        description?: string
+        accept: Record<string, string[]>
+      }>
+    }): Promise<FileSystemFileHandle[]>
+  }
 }
 
 export default defineComponent({
@@ -149,10 +176,9 @@ export default defineComponent({
     })
 
     const showDeviceSelector = ref(false)
-    const selectedDevices = ref<string[]>([]) // 临时选择的设备
+    const selectedDevices = ref<string[]>([])
     const projectDirectory = ref<FileSystemDirectoryHandle | null>(null)
 
-    // 支持的设备列表（包含所有变体）
     const supportedDevices: Device[] = [
       { codename: "n66", name: "Xiaomi Smart Band 9" },
       { codename: "n66", name: "Xiaomi Smart Band 9 NFC" },
@@ -169,7 +195,7 @@ export default defineComponent({
     ]
 
     // 获取设备显示名称
-    const getDeviceDisplayName = (codename: string) => {
+    const getDeviceDisplayName = (codename: string): string => {
       const devices = supportedDevices.filter(d => d.codename === codename)
       if (devices.length === 0) return codename
       
@@ -180,18 +206,17 @@ export default defineComponent({
         return `${devices[0].name} [${codename}]${version}`
       }
       
-      // 显示所有设备名称，用/分隔
       const deviceNames = devices.map(d => d.name).join(" / ")
       return `${deviceNames} [${codename}]${version}`
     }
 
     // 检查设备是否被选中
-    const isDeviceSelected = (device: Device) => {
+    const isDeviceSelected = (device: Device): boolean => {
       return selectedDevices.value.includes(device.codename)
     }
 
     // 切换设备选择状态
-    const toggleDeviceSelection = (device: Device) => {
+    const toggleDeviceSelection = (device: Device): void => {
       if (isDeviceSelected(device)) {
         selectedDevices.value = selectedDevices.value.filter(d => d !== device.codename)
       } else {
@@ -199,61 +224,51 @@ export default defineComponent({
       }
     }
 
-    // 打开设备选择器 - 修复：初始化时添加已选择的设备
-    const openDeviceSelector = () => {
-      // 获取当前已添加的设备codename
+    // 打开设备选择器
+    const openDeviceSelector = (): void => {
       const currentDeviceCodes = Object.keys(manifest.value.downloads)
-      // 初始化selectedDevices为当前已选择的设备
       selectedDevices.value = [...currentDeviceCodes]
       showDeviceSelector.value = true
     }
 
     // 确认设备选择
-    const confirmDeviceSelection = () => {
-      // 创建新的downloads对象
+    const confirmDeviceSelection = (): void => {
       const newDownloads: Record<string, any> = {}
       
-      // 添加新选择的设备
       selectedDevices.value.forEach(codename => {
-        // 保留原有设备信息或创建新条目
         newDownloads[codename] = manifest.value.downloads[codename] || {
           version: '1.0.0',
           file_name: ''
         }
       })
       
-      // 更新manifest.downloads
       manifest.value.downloads = newDownloads
-      
-      // 重置并关闭选择器
       selectedDevices.value = []
       showDeviceSelector.value = false
     }
 
     // 取消设备选择
-    const cancelDeviceSelection = () => {
+    const cancelDeviceSelection = (): void => {
       showDeviceSelector.value = false
+      selectedDevices.value = []
     }
 
     // 删除设备
-    const removeDownload = (deviceCode: string) => {
+    const removeDownload = (deviceCode: string): void => {
       delete manifest.value.downloads[deviceCode]
       
-      // 如果设备选择对话框是打开的，也更新selectedDevices
       if (showDeviceSelector.value) {
         selectedDevices.value = selectedDevices.value.filter(d => d !== deviceCode)
       }
     }
 
-    // 其他方法保持不变...
-    const selectProjectDirectory = async () => {
+    // 选择项目目录
+    const selectProjectDirectory = async (): Promise<void> => {
       try {
-        // @ts-ignore - 实验性API
         const directoryHandle = await window.showDirectoryPicker({
           id: 'projectDirectory',
           mode: 'readwrite'
         })
-        
         projectDirectory.value = directoryHandle
       } catch (error) {
         console.error('Error selecting directory:', error)
@@ -261,14 +276,14 @@ export default defineComponent({
       }
     }
 
-    const selectMultiplePreviews = async () => {
+    // 选择多个预览图
+    const selectMultiplePreviews = async (): Promise<void> => {
       if (!projectDirectory.value) {
         alert('请先选择项目目录')
         return
       }
 
       try {
-        // @ts-ignore - 实验性API
         const fileHandles = await window.showOpenFilePicker({
           startIn: projectDirectory.value,
           multiple: true,
@@ -281,24 +296,19 @@ export default defineComponent({
         })
 
         const newPreviews = await Promise.all(
-          fileHandles.map(async fileHandle => {
+          fileHandles.map(async (fileHandle: FileSystemFileHandle) => {
             const file = await fileHandle.getFile()
             return file.name
           })
         )
 
-        // 过滤掉已存在的文件
         const uniqueNewPreviews = newPreviews.filter(
-          preview => !manifest.value.item.preview.includes(preview)
+          (preview: string) => !manifest.value.item.preview.includes(preview)
         )
 
         if (uniqueNewPreviews.length === 0) {
           alert('您选择的文件已经存在于预览图列表中')
           return
-        }
-
-        if (newPreviews.length !== uniqueNewPreviews.length) {
-          alert(`已过滤 ${newPreviews.length - uniqueNewPreviews.length} 个重复文件`)
         }
 
         manifest.value.item.preview = [...manifest.value.item.preview, ...uniqueNewPreviews]
@@ -307,14 +317,14 @@ export default defineComponent({
       }
     }
 
-    const selectFile = async (type: 'icon' | 'download', deviceCode?: string) => {
+    // 选择单个文件
+    const selectFile = async (type: 'icon' | 'download', deviceCode?: string): Promise<void> => {
       if (!projectDirectory.value) {
         alert('请先选择项目目录')
         return
       }
 
       try {
-        // @ts-ignore - 实验性API
         const fileHandles = await window.showOpenFilePicker({
           startIn: projectDirectory.value,
           multiple: false
@@ -325,27 +335,27 @@ export default defineComponent({
         if (type === 'icon') {
           manifest.value.item.icon = file.name
         } else if (type === 'download' && deviceCode) {
-          // 更新所有相同codename的设备
-          Object.keys(manifest.value.downloads).forEach(code => {
-            if (code === deviceCode) {
-              manifest.value.downloads[code].file_name = file.name
-            }
-          })
+          if (manifest.value.downloads[deviceCode]) {
+            manifest.value.downloads[deviceCode].file_name = file.name
+          }
         }
       } catch (error) {
         console.error('Error selecting file:', error)
       }
     }
 
-    const removePreview = (index: number) => {
+    // 删除预览图
+    const removePreview = (index: number): void => {
       manifest.value.item.preview.splice(index, 1)
     }
 
-    const addAuthor = () => {
+    // 添加作者
+    const addAuthor = (): void => {
       manifest.value.item.author.push({ name: '' })
     }
 
-    const removeAuthor = (index: number) => {
+    // 删除作者
+    const removeAuthor = (index: number): void => {
       manifest.value.item.author.splice(index, 1)
     }
 

@@ -15,13 +15,13 @@
 
 <script lang="ts">
 import { defineComponent, ref, computed } from 'vue'
-
+import { Manifest } from '../type/manifest'
 type JsonData = Record<string, any> | Array<any> | string | number | boolean | null
 
 export default defineComponent({
   props: {
     data: {
-      type: [Object, Array, String, Number, Boolean, null] as () => JsonData,
+      type: Object as () => Manifest | Record<string, any>,
       required: true
     }
   },

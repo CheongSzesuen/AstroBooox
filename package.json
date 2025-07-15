@@ -13,7 +13,8 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
-    "@types/node": "^24.0.13",
+    "@types/node": "^24.0.14",
+    "@types/web-app-manifest": "^1.0.9",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
     "monaco-editor": "^0.52.2",
