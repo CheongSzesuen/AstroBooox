@@ -24,14 +24,35 @@
             </div>
             <div class="form-group">
               <label>预览图（支持多选）</label>
-              <div v-for="(preview, index) in manifest.item.preview" :key="index" class="preview-item">
-                <input v-model="manifest.item.preview[index]" readonly />
-                <button class="round-remove-button" @click="removePreview(index)">
-                  <svg width="16" height="16" viewBox="0 0 24 24">
-                    <path d="M19 13H5v-2h14v2z" fill="currentColor"/>
-                  </svg>
-                </button>
-              </div>
+              <draggable 
+                v-model="manifest.item.preview" 
+                handle=".drag-handle"
+                item-key="index"
+                class="preview-list"
+                ghost-class="ghost-item"
+                chosen-class="chosen-item"
+                @start="onDragStart"
+                @end="onDragEnd"
+                @move="handleDragMove"
+              >
+                <template #item="{element, index}">
+                  <div class="preview-item">
+                    <div class="drag-handle-container">
+                      <div class="drag-handle">
+                        <svg width="16" height="16" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M460.670707 795.79798V287.418182c0-28.056566-22.755556-50.812121-50.812121-50.812121s-50.812121 22.755556-50.812121 50.812121v508.379798c0 28.056566 22.755556 50.812121 50.812121 50.812121s50.812121-22.755556 50.812121-50.812121zM613.236364 236.606061c-28.056566 0-50.812121 22.755556-50.812122 50.812121v508.379798c0 28.056566 22.755556 50.812121 50.812122 50.812121s50.812121-22.755556 50.812121-50.812121V287.418182c0-28.056566-22.755556-50.812121-50.812121-50.812121z" fill="#0e467c"></path>
+                        </svg>
+                      </div>
+                    </div>
+                    <input :value="element" readonly />
+                    <button class="round-remove-button" @click="removePreview(index)">
+                      <svg width="16" height="16" viewBox="0 0 24 24">
+                        <path d="M19 13H5v-2h14v2z" fill="currentColor"/>
+                      </svg>
+                    </button>
+                  </div>
+                </template>
+              </draggable>
               <button class="add-button" @click="selectMultiplePreviews">+ 添加预览图</button>
             </div>
             <div class="form-group">
@@ -157,9 +178,10 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, PropType, watch, onMounted } from 'vue'
+import { defineComponent, ref, PropType, watch, onMounted, onUnmounted } from 'vue'
 import JsonPreview from './JsonPreview.vue'
 import { Manifest } from '../type/manifest'
+import draggable from 'vuedraggable'
 
 interface Device {
   codename: string
@@ -202,7 +224,7 @@ declare global {
 }
 
 export default defineComponent({
-  components: { JsonPreview },
+  components: { JsonPreview, draggable },
   props: {
     projectDirectory: {
       type: Object as PropType<FileSystemDirectoryHandle | null>,
@@ -253,6 +275,106 @@ export default defineComponent({
       { codename: "o65", name: "REDMI Watch 5" },
       { codename: "o65m", name: "REDMI Watch 5 eSIM" }
     ]
+
+    // 滚动相关变量
+    const scrollInterval = ref<number | null>(null)
+    const baseScrollSpeed = 5 // 基础滚动速度
+    const scrollThreshold = 100 // 触发滚动的阈值
+    const isDragging = ref(false)
+    const navHeight = ref(0) // 存储导航栏高度
+
+    // 获取导航栏高度
+    const getNavHeight = () => {
+      const nav = document.querySelector('.project-path') as HTMLElement
+      if (nav) {
+        navHeight.value = nav.offsetHeight
+      }
+    }
+
+    // 拖拽开始
+    const onDragStart = (): void => {
+      isDragging.value = true
+      getNavHeight() // 获取当前导航栏高度
+    }
+
+    // 拖拽结束
+    const onDragEnd = (): void => {
+      isDragging.value = false
+      clearScroll()
+    }
+
+    // 计算动态滚动速度
+    const calculateDynamicSpeed = (distance: number, direction: 'up' | 'down'): number => {
+      // 距离越小速度越快（越靠近边缘）
+      const minDistance = 20 // 最小距离
+      const maxDistance = scrollThreshold // 最大距离
+      
+      // 确保距离在合理范围内
+      distance = Math.max(minDistance, Math.min(distance, maxDistance))
+      
+      // 计算速度比例 (0-1)
+      const speedRatio = 1 - (distance - minDistance) / (maxDistance - minDistance)
+      
+      // 应用非线性曲线（二次方）
+      const curvedRatio = Math.pow(speedRatio, 2)
+      
+      // 计算最终速度 (基础速度 * 比例 * 方向系数)
+      return baseScrollSpeed * (1 + curvedRatio * 2) * (direction === 'down' ? 1 : 0.8)
+    }
+
+    // 处理拖拽移动事件
+    const handleDragMove = (event: any): void => {
+      const { dragged } = event
+      const draggedRect = dragged.getBoundingClientRect()
+      const windowHeight = window.innerHeight
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+
+      // 清除之前的滚动定时器
+      if (scrollInterval.value) {
+        clearInterval(scrollInterval.value)
+        scrollInterval.value = null
+      }
+
+      // 计算距离导航栏底部的距离
+      const distanceToNavBottom = draggedRect.top - navHeight.value
+      
+      // 检查是否需要向上滚动（靠近导航栏底部）
+      if (distanceToNavBottom < scrollThreshold && scrollTop > 0) {
+        // 计算动态速度
+        const speed = calculateDynamicSpeed(distanceToNavBottom, 'up')
+        
+        scrollInterval.value = window.setInterval(() => {
+          const currentScroll = window.pageYOffset || document.documentElement.scrollTop
+          const scrollAmount = Math.min(speed, currentScroll)
+          window.scrollBy({
+            top: -scrollAmount,
+            behavior: 'instant'
+          })
+        }, 16)
+      }
+      // 检查是否需要向下滚动（靠近窗口底部）
+      else if (draggedRect.bottom > windowHeight - scrollThreshold) {
+        // 计算距离窗口底部的距离
+        const distanceToBottom = windowHeight - draggedRect.bottom
+        // 计算动态速度
+        const speed = calculateDynamicSpeed(distanceToBottom, 'down')
+        
+        scrollInterval.value = window.setInterval(() => {
+          window.scrollBy({
+            top: speed,
+            behavior: 'instant'
+          })
+        }, 16)
+      }
+    }
+
+    // 拖拽结束时清除滚动定时器
+    const clearScroll = (): void => {
+      if (scrollInterval.value) {
+        clearInterval(scrollInterval.value)
+        scrollInterval.value = null
+      }
+    }
 
     // 显示自定义提示
     const showCustomAlert = (
@@ -571,6 +693,21 @@ export default defineComponent({
       if (props.projectDirectory) {
         checkAndLoadManifest()
       }
+      // 添加拖拽结束事件监听
+      document.addEventListener('dragend', clearScroll)
+      document.addEventListener('mouseup', clearScroll)
+      getNavHeight() // 初始获取导航栏高度
+      window.addEventListener('resize', getNavHeight) // 窗口大小变化时重新获取
+    })
+
+    // 组件卸载时移除事件监听
+    onUnmounted(() => {
+      document.removeEventListener('dragend', clearScroll)
+      document.removeEventListener('mouseup', clearScroll)
+      window.removeEventListener('resize', getNavHeight)
+      if (scrollInterval.value) {
+        clearInterval(scrollInterval.value)
+      }
     })
 
     // 添加对projectDirectory变化的监听
@@ -607,7 +744,10 @@ export default defineComponent({
       selectFile,
       removePreview,
       addAuthor,
-      removeAuthor
+      removeAuthor,
+      handleDragMove,
+      onDragStart,
+      onDragEnd
     }
   }
 })
@@ -811,16 +951,54 @@ textarea {
   white-space: nowrap;
 }
 
+/* 预览图列表样式 */
+.preview-list {
+  margin-bottom: 0.5rem;
+}
+
 /* 预览图项目样式 */
 .preview-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
+  background: #f8f8f8;
+  padding: 0.5rem;
+  border-radius: 4px;
+  height: 40px; /* 固定高度 */
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .preview-item input {
   flex: 1;
+}
+
+/* 拖拽把手容器样式 */
+.drag-handle-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 80%; /* 与表单等高 */
+  background-color: #bbdefb;
+  border-radius: 4px;
+  transition: background-color 0.5s;
+  padding: 4px 0; /* 上下内边距 */
+}
+
+/* 拖拽把手样式 */
+.drag-handle {
+  cursor: move;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* 拖拽把手悬停和拖拽时的样式 */
+.draggable-source--is-dragging .drag-handle-container {
+  background-color: #4a6b8a;
 }
 
 /* 圆形删除按钮 - 仅用于预览图部分 */
@@ -954,6 +1132,69 @@ textarea {
   color: #666;
   font-size: 0.9rem;
   font-weight: normal;
+}
+
+/* 拖拽时的幽灵项样式 */
+.ghost-item {
+  opacity: 0.5;
+  background: #e3f2fd;
+  border: 2px dashed #1565c0;
+}
+
+/* 被拖拽项的样式 */
+.chosen-item {
+  opacity: 0.8;
+  transform: scale(1.02);
+}
+
+/* 拖拽时目标位置的样式 */
+.preview-list.sortable-chosen {
+  position: relative;
+  margin-top: 100px;
+}
+
+.preview-list.sortable-chosen::before {
+  content: "";
+  display: block;
+  height: 40px;
+  margin: 4px 0;
+  background: #e3f2fd;
+  border-radius: 4px;
+  border: 2px dashed #1565c0;
+  box-sizing: border-box;
+}
+
+/* 拖拽目标项的样式 */
+.drop-target {
+  position: relative;
+}
+
+.drop-target::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 40px;
+  margin: 4px 0;
+  background: #e3f2fd;
+  border-radius: 4px;
+  border: 2px dashed #1565c0;
+  box-sizing: border-box;
+  z-index: 1;
+}
+
+/* 确保预览项之间有足够的间距 */
+.preview-item {
+  margin-bottom: 8px;
+}
+
+/* 拖拽时提升其他项的层级 */
+.preview-list > * {
+  transition: transform 0.2s;
+}
+
+.preview-list.sortable-ghost + * {
+  transform: translateY(48px);
 }
 
 /* 响应式设计 */
