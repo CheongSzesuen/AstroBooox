@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <!-- 导航栏 -->
+    <!-- 导航栏保持不变 -->
     <nav class="navbar" role="navigation" aria-label="主菜单">
       <div class="nav-buttons">
         <button 
@@ -26,9 +26,28 @@
       </div>
     </nav>
 
+    <!-- 手机设备提示 -->
+    <div v-if="deviceType === 'phone' && mode === 'manifest'" class="phone-prompt">
+      <div class="prompt-content">
+        <h3>手机设备限制</h3>
+        <p>本功能在手机设备上不可用。</p>
+        <p>请使用平板或桌面电脑访问以获得完整功能。</p>
+      </div>
+    </div>
+
+    <!-- 目录选择提示（仅非手机设备显示） -->
+    <div v-else-if="!projectDirectory && mode === 'manifest' && deviceType !== 'phone'" class="directory-prompt">
+      <div class="prompt-content">
+        <h3>请选择项目文件夹</h3>
+        <p>为了更快捷地生成manifest，请先选择您的项目文件夹。</p>
+        <p>确保所有的文件都已经放在该文件夹下。</p>
+        <button class="add-button" @click="selectProjectDirectory">选择文件夹</button>
+      </div>
+    </div>
+
     <!-- 内容区域 -->
     <main class="content">
-      <component :is="currentComponent" />
+      <component :is="currentComponent" :project-directory="projectDirectory" :device-type="deviceType" />
     </main>
 
     <!-- 页脚 -->
@@ -54,7 +73,7 @@
           </div>
         </div>
         <p class="copyright">
-          © 2025 <a href="https://github.com/WaiJade" target="_blank" rel="noopener noreferrer">WaiJade</a> Open Source On GitHub
+          © 2025 <a href="https://github.com/CheongSzesuen" target="_blank" rel="noopener noreferrer">WaiJade</a> Open Source On GitHub
         </p>
       </div>
     </footer>
@@ -62,10 +81,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ManifestEditor from '../components/ManifestEditor.vue'
 import CSVEGenerator from '../components/CSVEGenerator.vue'
-import type { AppMode } from '../type/manifest'
+import type { AppMode, FileSystemDirectoryHandle, DeviceType } from '../type/manifest'
 
 const mode = ref<AppMode>('manifest')
 const setMode = (newMode: AppMode) => {
@@ -76,10 +95,54 @@ const currentComponent = computed(() => {
   return mode.value === 'manifest' ? ManifestEditor : CSVEGenerator
 })
 
-// 使用须知展开状态
 const showTerms = ref(false)
 const toggleTerms = () => {
   showTerms.value = !showTerms.value
+}
+
+const projectDirectory = ref<FileSystemDirectoryHandle | null>(null)
+const deviceType = ref<DeviceType>('desktop')
+
+// 检测设备类型
+const detectDeviceType = (): DeviceType => {
+  const userAgent = navigator.userAgent.toLowerCase()
+  const isMobile = /mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(userAgent)
+  const isTablet = /ipad|tablet|playbook|silk|kindle/i.test(userAgent)
+  
+  // 通过屏幕宽度进一步区分手机和平板
+  const screenWidth = window.innerWidth
+  if (isMobile && !isTablet && screenWidth < 768) {
+    return 'phone'
+  } else if (isTablet || (isMobile && screenWidth >= 768)) {
+    return 'tablet'
+  }
+  return 'desktop'
+}
+
+// 响应式检查设备类型
+const checkDeviceType = () => {
+  deviceType.value = detectDeviceType()
+  window.addEventListener('resize', () => {
+    deviceType.value = detectDeviceType()
+  })
+}
+
+onMounted(() => {
+  checkDeviceType()
+})
+
+const selectProjectDirectory = async (): Promise<void> => {
+  try {
+    const directoryHandle = await window.showDirectoryPicker({
+      id: 'projectDirectory',
+      mode: 'readwrite'
+    }) as unknown as FileSystemDirectoryHandle
+    projectDirectory.value = directoryHandle
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name !== 'AbortError') {
+      console.error('选择目录错误:', error)
+    }
+  }
 }
 </script>
 
@@ -108,7 +171,56 @@ const toggleTerms = () => {
   position: relative;
 }
 
-/* 导航栏样式 - 磨砂玻璃效果 */
+/* 手机提示样式 */
+.phone-prompt {
+  position: fixed;
+  top: 48px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 900;
+  padding: 1rem;
+}
+
+.phone-prompt .prompt-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+}
+
+/* 目录选择提示样式 */
+.directory-prompt {
+  position: fixed;
+  top: 48px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 900;
+}
+
+.prompt-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+}
+
+/* 导航栏样式 - 保持不变 */
 .navbar {
   position: fixed;
   top: 0;
@@ -136,7 +248,6 @@ const toggleTerms = () => {
   gap: 1rem;
 }
 
-/* 导航按钮样式 */
 .navbar button {
   display: flex;
   align-items: center;
@@ -229,6 +340,47 @@ button:focus-visible {
   color: var(--color-primary);
 }
 
+/* 按钮样式 - 修改为与其他页面一致 */
+button:not(.navbar button) {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.remove-button {
+  background: #e3f2fd;  /* 浅蓝色背景 */
+  color: #1565c0;      /* 深蓝色文字 */
+  border: none;
+}
+
+.remove-button:hover {
+  background: #bbdefb;  /* 悬停时稍深的蓝色 */
+}
+
+.add-button {
+  background: #e3f2fd;  /* 浅蓝色背景 */
+  color: #1565c0;      /* 深蓝色文字 */
+  border: none;
+}
+
+.add-button:hover {
+  background: #bbdefb;  /* 悬停时稍深的蓝色 */
+}
+
+button svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* 使用须知样式 */
 .terms-container {
   position: relative;
@@ -297,5 +449,12 @@ button:focus-visible {
 
 .copyright a:hover {
   text-decoration: underline;
+}
+
+/* 响应式调整 */
+@media (max-width: 1024px) {
+  .prompt-content {
+    padding: 1.5rem;
+  }
 }
 </style>

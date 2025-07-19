@@ -9,7 +9,7 @@
             <h3>资源信息</h3>
             <div class="form-group">
               <label>资源名称</label>
-              <input v-model="csvData.name" placeholder="例如：WeatherPlus" />
+              <input v-model="csvData.name" placeholder="WeatherPlus" />
             </div>
             <div class="form-group">
               <label>图标 URL <span class="hint-text">(最小为96×96,AstroBox会自动割圆)</span></label>
@@ -34,9 +34,13 @@
             <div class="form-group">
               <label>资源标签</label>
               <div class="array-input">
-                <div v-for="(category, index) in csvData.categories" :key="index" class="array-item">
-                  <input v-model="csvData.categories[index]" placeholder="例如：天气" />
-                  <button @click="removeCategory(index)" class="remove-button">×</button>
+                <div v-for="(category, index) in csvData.categories" :key="index" class="preview-item">
+                  <input v-model="csvData.categories[index]" placeholder="天气" />
+                  <button @click="removeCategory(index)" class="round-remove-button">
+                    <svg width="16" height="16" viewBox="0 0 24 24">
+                      <path d="M19 13H5v-2h14v2z" fill="currentColor"/>
+                    </svg>
+                  </button>
                 </div>
                 <button @click="addCategory" class="add-button">+ 添加标签</button>
               </div>
@@ -44,13 +48,17 @@
             <div class="form-group">
               <label>支持设备</label>
               <div class="array-input">
-                <div v-for="(deviceCode, index) in csvData.devices" :key="index" class="array-item">
+                <div v-for="(deviceCode, index) in csvData.devices" :key="index" class="preview-item">
                   <input 
                     :value="getDeviceDisplayName(deviceCode)"
                     placeholder="请点击下方按钮添加设备" 
                     readonly
                   />
-                  <button @click="removeDevice(index)" class="remove-button">×</button>
+                  <button @click="removeDevice(index)" class="round-remove-button">
+                    <svg width="16" height="16" viewBox="0 0 24 24">
+                      <path d="M19 13H5v-2h14v2z" fill="currentColor"/>
+                    </svg>
+                  </button>
                 </div>
                 <button @click="openDeviceSelector" class="add-button">+ 添加设备</button>
               </div>
@@ -64,7 +72,7 @@
               <label>创建的 资源.json 路径</label>
               <input 
                 v-model="csvData.manifestPath" 
-                placeholder="例如：yourname/AppName.json"
+                placeholder="yourname/AppName.json"
               />
               <p class="hint-text">
                 注意：此文件不是manifest页面生成的，是在fork官方软件源仓库
@@ -286,6 +294,22 @@ watch(() => csvData.value.devices, (newVal) => {
 </script>
 
 <style scoped>
+/* 更新颜色变量 */
+:root {
+  --color-primary: #0e467c;
+  --color-primary-light: rgba(14, 70, 124, 0.1);
+  --color-primary-hover: #0c3a6b;
+  --color-text: #1f2937;
+  --color-text-light: #6b7280;
+  --color-bg: #ffffff;
+  --color-bg-secondary: #f9fafb;
+  --color-border: #e5e7eb;
+  --color-hover-border: #d1d5db;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .csv-generator {
   display: flex;
   flex-direction: column;
@@ -353,6 +377,11 @@ input, select, textarea {
   box-sizing: border-box;
 }
 
+input:focus, select:focus, textarea:focus {
+  border-color: #0e467c;
+  box-shadow: 0 0 0 2px rgba(14, 70, 124, 0.2);
+}
+
 input::placeholder,
 textarea::placeholder {
   color: #999;
@@ -373,25 +402,25 @@ select {
   gap: 0.5rem;
 }
 
-.array-item {
+.preview-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.array-item input {
+.preview-item input {
   flex-grow: 1;
   padding: 0.5rem 0.75rem;
 }
 
-.remove-button {
+.round-remove-button {
   margin: 0;
   padding: 0;
   width: 2rem;
   height: 2rem;
   border: none;
-  background: #ffebee;
-  color: #f44336;
+  background: #f8e6e6;
+  color: #8b0000;
   border-radius: 50%;
   cursor: pointer;
   font-size: 1rem;
@@ -401,16 +430,21 @@ select {
   transition: all 0.2s;
 }
 
-.remove-button:hover {
-  background: #ffcdd2;
+.round-remove-button:hover {
+  background: #f0cfcf;
+}
+
+.round-remove-button svg {
+  width: 16px;
+  height: 16px;
 }
 
 .add-button {
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
   border: none;
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: #e6f0f8;
+  color: #0e467c;
   cursor: pointer;
   border-radius: 4px;
   font-weight: 500;
@@ -423,7 +457,7 @@ select {
 }
 
 .add-button:hover {
-  background: #c8e6c9;
+  background: #cfe0f0;
 }
 
 .add-button svg {
@@ -432,7 +466,7 @@ select {
 }
 
 .preview-content {
-  background: #f8f9fa;
+  background: #f5f9fd;
   color: #333;
   padding: 1rem;
   border-radius: 4px;
@@ -440,7 +474,6 @@ select {
   font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.5;
-  border: 1px solid #e1e4e8;
 }
 
 pre {
@@ -492,27 +525,31 @@ pre {
 
 .device-item {
   padding: 1rem;
-  border: 1px solid #ddd;
   border-radius: 4px;
   cursor: pointer;
+  background: #e8f4fd;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(14, 70, 124, 0.1);
 }
 
 .device-item:hover {
-  background: #f5f5f5;
+  background: #d0e5fa;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(14, 70, 124, 0.1);
 }
 
 .device-item.selected {
-  background: #e6f7ee;
-  border-color: #42b983;
+  background: #b3d6f7;
 }
 
 .device-name {
   font-weight: bold;
+  color: #0e467c;
 }
 
 .device-codename {
   font-size: 0.8rem;
-  color: #666;
+  color: #4a6b8a;
 }
 
 .modal-actions {
@@ -528,11 +565,13 @@ pre {
 }
 
 a {
-  color: #42b983;
+  color: #0e467c;
   text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 a:hover {
+  color: #0a3560;
   text-decoration: underline;
 }
 
@@ -543,6 +582,10 @@ a:hover {
   
   .device-list {
     grid-template-columns: 1fr;
+  }
+  
+  .device-item {
+    padding: 0.8rem;
   }
 }
 </style>

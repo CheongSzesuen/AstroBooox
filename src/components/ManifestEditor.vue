@@ -1,17 +1,7 @@
 <template>
   <div class="manifest-editor">
-    <!-- 项目目录选择提示 -->
-    <div v-if="!projectDirectory" class="directory-prompt">
-      <div class="prompt-content">
-        <h3>请选择项目文件夹</h3>
-        <p>为了更快捷地生成manifest，请先选择您的项目文件夹。</p>
-        <p>确保所有的文件都已经放在该文件夹下。</p>
-        <button class="add-button" @click="selectProjectDirectory">选择文件夹</button>
-      </div>
-    </div>
-
     <!-- 主编辑区域 -->
-    <div v-else class="editor-content">
+    <div v-if="projectDirectory" class="editor-content">
       <!-- 顶部项目路径显示 -->
       <div class="project-path">
         <span>当前项目路径: {{ projectDirectory.name }}</span>
@@ -34,16 +24,20 @@
             </div>
             <div class="form-group">
               <label>预览图（支持多选）</label>
-              <div v-for="(preview, index) in manifest.item.preview" :key="index" class="array-item">
+              <div v-for="(preview, index) in manifest.item.preview" :key="index" class="preview-item">
                 <input v-model="manifest.item.preview[index]" readonly />
-                <button class="remove-button" @click="removePreview(index)">删除</button>
+                <button class="round-remove-button" @click="removePreview(index)">
+                  <svg width="16" height="16" viewBox="0 0 24 24">
+                    <path d="M19 13H5v-2h14v2z" fill="currentColor"/>
+                  </svg>
+                </button>
               </div>
               <button class="add-button" @click="selectMultiplePreviews">+ 添加预览图</button>
             </div>
             <div class="form-group">
               <label>图标</label>
               <div class="file-input-group">
-                <input v-model="manifest.item.icon" readonly />
+                <input v-model="manifest.item.icon" placeholder="icon.png" readonly />
                 <button class="add-button" @click="selectFile('icon')">选择文件</button>
               </div>
             </div>
@@ -162,8 +156,8 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue'
-import JsonPreview from '../components/JsonPreview.vue'
+import { defineComponent, ref, PropType } from 'vue'
+import JsonPreview from './JsonPreview.vue'
 import { Manifest } from '../type/manifest'
 
 interface Device {
@@ -208,7 +202,14 @@ declare global {
 
 export default defineComponent({
   components: { JsonPreview },
-  setup() {
+  props: {
+    projectDirectory: {
+      type: Object as PropType<FileSystemDirectoryHandle | null>,
+      default: null
+    }
+  },
+  emits: ['update:projectDirectory'],
+  setup(props, { emit }) {
     const manifest = ref<Manifest>({
       item: {
         name: '',
@@ -223,7 +224,6 @@ export default defineComponent({
 
     const showDeviceSelector = ref(false)
     const selectedDevices = ref<string[]>([])
-    const projectDirectory = ref<FileSystemDirectoryHandle | null>(null)
     const showOverwriteDialog = ref(false)
     const showAlert = ref(false)
     const alertTitle = ref('')
@@ -270,7 +270,7 @@ export default defineComponent({
 
     // 保存 manifest.json 到项目根目录
     const saveManifest = async (): Promise<void> => {
-      if (!projectDirectory.value) {
+      if (!props.projectDirectory) {
         showCustomAlert('操作失败', '请先选择项目目录')
         return
       }
@@ -278,7 +278,7 @@ export default defineComponent({
       try {
         // 检查文件是否已存在
         try {
-          await projectDirectory.value.getFileHandle('manifest.json', { create: false })
+          await props.projectDirectory.getFileHandle('manifest.json', { create: false })
           // 文件存在，显示覆盖确认对话框
           showOverwriteDialog.value = true
         } catch (error: unknown) {
@@ -297,11 +297,11 @@ export default defineComponent({
 
     // 执行保存操作
     const performSave = async (): Promise<void> => {
-      if (!projectDirectory.value) return
+      if (!props.projectDirectory) return
 
       try {
         const manifestData = JSON.stringify(manifest.value, null, 2)
-        const fileHandle = await projectDirectory.value.getFileHandle('manifest.json', { create: true })
+        const fileHandle = await props.projectDirectory.getFileHandle('manifest.json', { create: true })
         const writable = await fileHandle.createWritable()
         await writable.write(manifestData)
         await writable.close()
@@ -397,7 +397,7 @@ export default defineComponent({
           id: 'projectDirectory',
           mode: 'readwrite'
         })
-        projectDirectory.value = directoryHandle
+        emit('update:projectDirectory', directoryHandle)
       } catch (error: unknown) {
         if (error instanceof Error && error.name !== 'AbortError') {
           console.error('选择目录错误:', error)
@@ -410,14 +410,14 @@ export default defineComponent({
 
     // 选择多个预览图
     const selectMultiplePreviews = async (): Promise<void> => {
-      if (!projectDirectory.value) {
+      if (!props.projectDirectory) {
         showCustomAlert('操作失败', '请先选择项目目录')
         return
       }
 
       try {
         const fileHandles = await window.showOpenFilePicker({
-          startIn: projectDirectory.value,
+          startIn: props.projectDirectory,
           multiple: true,
           types: [{
             description: '图片文件',
@@ -456,14 +456,14 @@ export default defineComponent({
 
     // 选择单个文件
     const selectFile = async (type: 'icon' | 'download', deviceCode?: string): Promise<void> => {
-      if (!projectDirectory.value) {
+      if (!props.projectDirectory) {
         showCustomAlert('操作失败', '请先选择项目目录')
         return
       }
 
       try {
         const fileHandles = await window.showOpenFilePicker({
-          startIn: projectDirectory.value,
+          startIn: props.projectDirectory,
           multiple: false
         })
         
@@ -503,7 +503,6 @@ export default defineComponent({
 
     return {
       manifest,
-      projectDirectory,
       showDeviceSelector,
       selectedDevices,
       supportedDevices,
@@ -542,7 +541,6 @@ export default defineComponent({
   height: 100%;
   width: 100%;
   box-sizing: border-box;
-  padding: 1rem;
 }
 
 /* 按钮样式 */
@@ -562,50 +560,28 @@ button {
 }
 
 .remove-button {
-  background: #ffebee;
-  color: #f44336;
+  background: #e3f2fd;  /* 浅蓝色背景 */
+  color: #1565c0;      /* 深蓝色文字 */
+  border: none;
 }
 
 .remove-button:hover {
-  background: #ffcdd2;
+  background: #bbdefb;  /* 悬停时稍深的蓝色 */
 }
 
 .add-button {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: #e3f2fd;  /* 浅蓝色背景 */
+  color: #1565c0;      /* 深蓝色文字 */
+  border: none;
 }
 
 .add-button:hover {
-  background: #c8e6c9;
+  background: #bbdefb;  /* 悬停时稍深的蓝色 */
 }
 
 button svg {
   width: 16px;
   height: 16px;
-}
-
-/* 项目目录提示样式 */
-.directory-prompt {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.prompt-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  max-width: 500px;
-  width: 90%;
-  text-align: center;
 }
 
 /* 编辑器内容样式 */
@@ -702,6 +678,27 @@ input, textarea, select {
   box-sizing: border-box;
 }
 
+/* 占位符样式 - 新增部分 */
+input::placeholder,
+textarea::placeholder {
+  color: #999;
+  font-style: italic;
+  opacity: 1; /* 确保在Firefox中也能正常显示 */
+}
+
+/* 兼容IE和Edge */
+input:-ms-input-placeholder,
+textarea:-ms-input-placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+input::-ms-input-placeholder,
+textarea::-ms-input-placeholder {
+  color: #999;
+  font-style: italic;
+}
+
 textarea {
   resize: vertical;
   min-height: 60px;
@@ -734,6 +731,45 @@ textarea {
   white-space: nowrap;
 }
 
+/* 预览图项目样式 */
+.preview-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.preview-item input {
+  flex: 1;
+}
+
+/* 圆形删除按钮 - 仅用于预览图部分 */
+.round-remove-button {
+  margin: 0;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: #f8e6e6;
+  color: #8b0000;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.round-remove-button:hover {
+  background: #f0cfcf;
+}
+
+.round-remove-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* 模态框样式 */
 .modal-overlay {
   position: fixed;
@@ -763,7 +799,7 @@ textarea {
   text-align: center;
 }
 
-/* 设备列表 */
+/* 设备列表样式 - 更新部分 */
 .device-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -773,19 +809,31 @@ textarea {
 
 .device-item {
   padding: 1rem;
-  border: 1px solid #ddd;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s;
+  background: #e8f4fd; /* 浅蓝色背景 */
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(14, 70, 124, 0.1); /* 添加轻微阴影 */
 }
 
 .device-item:hover {
-  background: #f5f5f5;
+  background: #d0e5fa; /* 悬停时稍深的蓝色 */
+  transform: translateY(-2px); /* 添加轻微上浮效果 */
+  box-shadow: 0 4px 8px rgba(14, 70, 124, 0.1);
 }
 
 .device-item.selected {
-  background: #e6f7ee;
-  border-color: #42b983;
+  background: #b3d6f7; /* 选中状态更深的蓝色 */
+}
+
+.device-name {
+  font-weight: bold;
+   color: #0e467c; /*主蓝色文字 */
+}
+
+.device-codename {
+  font-size: 0.8rem;
+  color: #4a6b8a; /* 蓝色系灰色 */
 }
 
 /* 模态框操作按钮 */
@@ -796,22 +844,26 @@ textarea {
   margin-top: 1rem;
 }
 
+.modal-actions .add-button {
+  background: #e6f0f8; /* 浅蓝色背景 */
+  color: #0e467c; /* 主蓝色文字 */
+}
+
+.modal-actions .add-button:hover {
+  background: #cfe0f0; /* 稍深的蓝色悬停背景 */
+}
+
+.modal-actions .add-button:disabled {
+  background: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
 /* 提示文本 */
 .hint-text {
   color: #666;
   font-size: 0.9rem;
   font-weight: normal;
-}
-
-/* 设备名称和代号样式 */
-.device-name {
-  font-weight: bold;
-  margin-bottom: 0.25rem;
-}
-
-.device-codename {
-  color: #666;
-  font-size: 0.85rem;
 }
 
 /* 响应式设计 */
@@ -828,6 +880,10 @@ textarea {
   
   .device-list {
     grid-template-columns: 1fr;
+  }
+  
+  .device-item {
+    padding: 0.8rem;
   }
 }
 </style>
