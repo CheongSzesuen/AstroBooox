@@ -780,13 +780,13 @@ button {
 }
 
 .remove-button {
-  background: #e3f2fd;  /* 浅蓝色背景 */
-  color: #1565c0;      /* 深蓝色文字 */
+  background: #f8e6e6;  
+  color: #8b0000;      
   border: none;
 }
 
 .remove-button:hover {
-  background: #bbdefb;  /* 悬停时稍深的蓝色 */
+  background: #f0cfcf;  /* 悬停时稍深的蓝色 */
 }
 
 .add-button {
