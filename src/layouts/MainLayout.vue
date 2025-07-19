@@ -141,8 +141,23 @@ const selectProjectDirectory = async (): Promise<void> => {
   } catch (error: unknown) {
     if (error instanceof Error && error.name !== 'AbortError') {
       console.error('选择目录错误:', error)
+      showCustomAlert('操作失败', error.message || '选择文件夹失败，请重试')
     }
   }
+}
+
+const alertTitle = ref('')
+const alertMessage = ref('')
+const showAlert = ref(false)
+
+const showCustomAlert = (title: string, message: string): void => {
+  alertTitle.value = title
+  alertMessage.value = message
+  showAlert.value = true
+}
+
+const closeAlert = (): void => {
+  showAlert.value = false
 }
 </script>
 

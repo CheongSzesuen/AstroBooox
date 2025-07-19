@@ -147,7 +147,8 @@
           <h3>{{ alertTitle }}</h3>
           <p>{{ alertMessage }}</p>
           <div class="modal-actions">
-            <button class="add-button" @click="closeAlert">确定</button>
+            <button v-if="alertType === 'confirm'" class="remove-button" @click="closeAlert(false)">取消</button>
+            <button class="add-button" @click="closeAlert(true)">{{ alertType === 'confirm' ? '确定' : '我知道了' }}</button>
           </div>
         </div>
       </div>
@@ -156,7 +157,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, PropType } from 'vue'
+import { defineComponent, ref, PropType, watch, onMounted } from 'vue'
 import JsonPreview from './JsonPreview.vue'
 import { Manifest } from '../type/manifest'
 
@@ -206,6 +207,10 @@ export default defineComponent({
     projectDirectory: {
       type: Object as PropType<FileSystemDirectoryHandle | null>,
       default: null
+    },
+    deviceType: {
+      type: String as PropType<'desktop' | 'tablet' | 'phone'>,
+      default: 'desktop'
     }
   },
   emits: ['update:projectDirectory'],
@@ -228,6 +233,11 @@ export default defineComponent({
     const showAlert = ref(false)
     const alertTitle = ref('')
     const alertMessage = ref('')
+    const alertType = ref<'alert' | 'confirm'>('alert')
+    const alertCallbacks = ref<{
+      onConfirm?: () => void
+      onCancel?: () => void
+    }>({})
 
     const supportedDevices: Device[] = [
       { codename: "n66", name: "Xiaomi Smart Band 9" },
@@ -245,15 +255,30 @@ export default defineComponent({
     ]
 
     // 显示自定义提示
-    const showCustomAlert = (title: string, message: string): void => {
+    const showCustomAlert = (
+      title: string, 
+      message: string, 
+      type: 'alert' | 'confirm' = 'alert',
+      onConfirm?: () => void, 
+      onCancel?: () => void
+    ): void => {
       alertTitle.value = title
       alertMessage.value = message
+      alertType.value = type
       showAlert.value = true
+      // 存储回调函数
+      alertCallbacks.value = { onConfirm, onCancel }
     }
 
     // 关闭自定义提示
-    const closeAlert = (): void => {
+    const closeAlert = (confirmed: boolean): void => {
       showAlert.value = false
+      if (confirmed && alertCallbacks.value.onConfirm) {
+        alertCallbacks.value.onConfirm()
+      } else if (!confirmed && alertCallbacks.value.onCancel) {
+        alertCallbacks.value.onCancel()
+      }
+      alertCallbacks.value = {}
     }
 
     // 复制到剪贴板
@@ -390,6 +415,52 @@ export default defineComponent({
       }
     }
 
+    // 检查并加载现有的manifest.json
+    const checkAndLoadManifest = async (): Promise<void> => {
+      if (!props.projectDirectory) return
+
+      try {
+        // 尝试获取manifest.json文件
+        const fileHandle = await props.projectDirectory.getFileHandle('manifest.json')
+        const file = await fileHandle.getFile()
+        const content = await file.text()
+        
+        // 解析JSON内容
+        try {
+          const parsedManifest = JSON.parse(content)
+          
+          // 显示确认对话框
+          showCustomAlert(
+            '检测到manifest.json',
+            '文件夹中已存在manifest.json文件，是否要加载并编辑现有文件？',
+            'confirm',
+            () => {
+              // 用户确认加载
+              manifest.value = parsedManifest
+            },
+            () => {
+              // 用户取消，保持空manifest
+            }
+          )
+        } catch (parseError) {
+          console.error('解析manifest.json失败:', parseError)
+          showCustomAlert(
+            '解析失败',
+            'manifest.json文件格式不正确，无法解析。请检查文件内容或创建新的manifest。'
+          )
+        }
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name !== 'NotFoundError') {
+          console.error('读取manifest.json失败:', error)
+          showCustomAlert(
+            '读取失败',
+            `无法读取manifest.json文件: ${error.message || '未知错误'}`
+          )
+        }
+        // 文件不存在，不做任何操作
+      }
+    }
+
     // 选择项目目录
     const selectProjectDirectory = async (): Promise<void> => {
       try {
@@ -402,8 +473,6 @@ export default defineComponent({
         if (error instanceof Error && error.name !== 'AbortError') {
           console.error('选择目录错误:', error)
           showCustomAlert('操作失败', error.message || '选择文件夹失败，请重试')
-        } else {
-          showCustomAlert('操作提示', '未切换文件夹')
         }
       }
     }
@@ -448,8 +517,6 @@ export default defineComponent({
         if (error instanceof Error && error.name !== 'AbortError') {
           console.error('选择文件错误:', error)
           showCustomAlert('操作失败', error.message || '选择文件失败，请检查控制台')
-        } else {
-          showCustomAlert('操作提示', '未导入文件')
         }
       }
     }
@@ -480,8 +547,6 @@ export default defineComponent({
         if (error instanceof Error && error.name !== 'AbortError') {
           console.error('选择文件错误:', error)
           showCustomAlert('操作失败', error.message || '选择文件失败，请检查控制台')
-        } else {
-          showCustomAlert('操作提示', '未导入文件')
         }
       }
     }
@@ -501,6 +566,20 @@ export default defineComponent({
       manifest.value.item.author.splice(index, 1)
     }
 
+    // 在组件挂载时检查manifest.json
+    onMounted(() => {
+      if (props.projectDirectory) {
+        checkAndLoadManifest()
+      }
+    })
+
+    // 添加对projectDirectory变化的监听
+    watch(() => props.projectDirectory, (newDir) => {
+      if (newDir) {
+        checkAndLoadManifest()
+      }
+    })
+
     return {
       manifest,
       showDeviceSelector,
@@ -510,6 +589,7 @@ export default defineComponent({
       showAlert,
       alertTitle,
       alertMessage,
+      alertType,
       saveManifest,
       copyToClipboard,
       confirmOverwrite,
@@ -795,8 +875,18 @@ textarea {
 }
 
 .alert-content {
-  max-width: 400px;
+  max-width: 500px;
   text-align: center;
+}
+
+.alert-content h3 {
+  color: #0e467c;
+  margin-bottom: 1rem;
+}
+
+.alert-content p {
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
 }
 
 /* 设备列表样式 - 更新部分 */
