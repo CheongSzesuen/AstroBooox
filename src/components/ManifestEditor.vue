@@ -168,7 +168,7 @@
           <h3>{{ alertTitle }}</h3>
           <p>{{ alertMessage }}</p>
           <div class="modal-actions">
-            <button v-if="alertType === 'confirm'" class="remove-button" @click="closeAlert(false)">取消</button>
+            <button v-if="alertType === 'confirm'" class="add-button" @click="closeAlert(false)">取消</button>
             <button class="add-button" @click="closeAlert(true)">{{ alertType === 'confirm' ? '确定' : '我知道了' }}</button>
           </div>
         </div>
