@@ -294,22 +294,7 @@ watch(() => csvData.value.devices, (newVal) => {
 </script>
 
 <style scoped>
-/* 更新颜色变量 */
-:root {
-  --color-primary: #0e467c;
-  --color-primary-light: rgba(14, 70, 124, 0.1);
-  --color-primary-hover: #0c3a6b;
-  --color-text: #1f2937;
-  --color-text-light: #6b7280;
-  --color-bg: #ffffff;
-  --color-bg-secondary: #f9fafb;
-  --color-border: #e5e7eb;
-  --color-hover-border: #d1d5db;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
+/* 基础样式 */
 .csv-generator {
   display: flex;
   flex-direction: column;
@@ -575,17 +560,88 @@ a:hover {
   text-decoration: underline;
 }
 
+/* 移动设备响应式样式 */
 @media (max-width: 768px) {
+  .csv-generator {
+    padding: 0.5rem;
+    width: 100%;
+  }
+
+  .editor-content {
+    padding: 0 0.5rem;
+    width: 100%;
+  }
+
   .editor-container {
     flex-direction: column;
+    min-height: auto;
   }
-  
+
+  .form-container {
+    padding: 0.75rem;
+    border-radius: 0;
+    width: 100%;
+  }
+
+  .form-section {
+    padding: 0.75rem;
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: 1rem;
+  }
+
+  input, select, textarea {
+    width: calc(100% - 1rem);
+    max-width: 100%;
+  }
+
   .device-list {
     grid-template-columns: 1fr;
+    gap: 0.5rem;
   }
-  
-  .device-item {
-    padding: 0.8rem;
+
+  .modal-content {
+    width: 95%;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+
+  .preview-content {
+    padding: 0.75rem;
+  }
+
+  .array-input {
+    gap: 0.5rem;
+  }
+
+  .preview-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .preview-item input {
+    width: 100%;
+  }
+
+  .round-remove-button {
+    align-self: flex-end;
+    margin-top: 0.25rem;
+  }
+
+  /* 确保所有按钮在移动设备上宽度一致 */
+  .add-button, .round-remove-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* 调整模态框按钮布局 */
+  .modal-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .modal-actions button {
+    width: 100%;
   }
 }
 </style>
