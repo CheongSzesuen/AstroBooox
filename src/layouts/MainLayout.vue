@@ -60,7 +60,8 @@
         </div>
         <div class="prompt-body">
           <p>为了更快捷地生成manifest，请先选择您的项目文件夹。</p>
-          <p class="hint-text">确保所有的文件都已经放在该文件夹下。</p>
+          <p class="hint-text">确保所有的资源文件都已经放在该文件夹或子文件夹下。</p>
+          <p class="hint-text">现已修复好FSA模式的非根目录文件处理方法。</p>
         </div>
         <div class="prompt-actions">
           <button class="select-button" @click="selectProjectDirectory">

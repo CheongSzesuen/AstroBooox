@@ -217,9 +217,14 @@ interface Device {
   name: string
 }
 
-interface FileSystemDirectoryHandle {
-  readonly kind: 'directory'
+interface FileSystemHandle {
+  readonly kind: 'file' | 'directory'
   readonly name: string
+  isSameEntry(other: FileSystemHandle): Promise<boolean>
+}
+
+interface FileSystemDirectoryHandle extends FileSystemHandle {
+  readonly kind: 'directory'
   getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle>
   getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<FileSystemDirectoryHandle>
   removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>
@@ -228,9 +233,8 @@ interface FileSystemDirectoryHandle {
   [Symbol.asyncIterator](): AsyncIterableIterator<[string, FileSystemHandle]>
 }
 
-interface FileSystemFileHandle {
+interface FileSystemFileHandle extends FileSystemHandle {
   readonly kind: 'file'
-  readonly name: string
   getFile(): Promise<File>
   createWritable(options?: { keepExistingData?: boolean }): Promise<FileSystemWritableFileStream>
 }
@@ -319,6 +323,20 @@ export default defineComponent({
       { codename: "o65", name: "REDMI Watch 5" },
       { codename: "o65m", name: "REDMI Watch 5 eSIM" }
     ]
+
+    // 计算相对路径
+    const calculateRelativePath = async (fileHandle: FileSystemFileHandle): Promise<string> => {
+      if (!props.projectDirectory || isOPFSMode.value) return fileHandle.name
+      
+      try {
+        const pathArray = await props.projectDirectory.resolve(fileHandle)
+        if (!pathArray) return fileHandle.name
+        return pathArray.join('/')
+      } catch (error) {
+        console.error('计算相对路径失败:', error)
+        return fileHandle.name
+      }
+    }
 
     // 显示自定义提示
     const showCustomAlert = (
@@ -414,7 +432,7 @@ export default defineComponent({
       }
     }
 
-    // 取消编辑提示 - 修改后只关闭弹窗不重置内容
+    // 取消编辑提示
     const cancelEditPrompt = (): void => {
       showEditPrompt.value = false
     }
@@ -579,7 +597,8 @@ export default defineComponent({
               return {
                 name,
                 kind: 'file',
-                getFile: async () => new File([], name)
+                getFile: async () => new File([], name),
+                isSameEntry: async (other: any) => false
               }
             },
             getFile: async (name: string) => {
@@ -615,19 +634,22 @@ export default defineComponent({
               }
             }]
           })
+          
           const newPreviews = await Promise.all(
             fileHandles.map(async (fileHandle: FileSystemFileHandle) => {
-              const file = await fileHandle.getFile()
-              return file.name
+              return await calculateRelativePath(fileHandle)
             })
           )
+          
           const uniqueNewPreviews = newPreviews.filter(
             (preview: string) => !manifest.value.item.preview.includes(preview)
           )
+          
           if (uniqueNewPreviews.length === 0) {
             showCustomAlert('操作提示', '您选择的文件已经存在于预览图列表中')
             return
           }
+          
           manifest.value.item.preview = [...manifest.value.item.preview, ...uniqueNewPreviews]
         } catch (error: unknown) {
           if (error instanceof Error && error.name !== 'AbortError') {
@@ -671,12 +693,13 @@ export default defineComponent({
             startIn: props.projectDirectory,
             multiple: false
           })
-          const file = await fileHandles[0].getFile()
+          const relativePath = await calculateRelativePath(fileHandles[0])
+          
           if (type === 'icon') {
-            manifest.value.item.icon = file.name
+            manifest.value.item.icon = relativePath
           } else if (type === 'download' && deviceCode) {
             if (manifest.value.downloads[deviceCode]) {
-              manifest.value.downloads[deviceCode].file_name = file.name
+              manifest.value.downloads[deviceCode].file_name = relativePath
             }
           }
         } catch (error: unknown) {
