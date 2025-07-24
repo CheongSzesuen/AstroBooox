@@ -13,15 +13,16 @@
         <div class="prompt-body">
           <p>本功能在手机设备上不可用。</p>
           <p class="hint-text">请使用平板或桌面电脑访问以获得完整功能。</p>
+          <p class="hint-text">并且建议使用Edge或者Chrome浏览器体验最完全的功能。</p>
         </div>
-        <div class="prompt-actions">
+        <!-- <div class="prompt-actions">
           <button class="confirm-button" @click="closePhonePrompt">
             <svg width="20" height="20" viewBox="0 0 24 24" class="check-icon">
               <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
             </svg>
             我知道了
           </button>
-        </div>
+        </div> -->
       </div>
     </div>
     
@@ -36,6 +37,7 @@
         <div class="prompt-body">
           <p>当前浏览器不支持文件系统访问API，将使用OPFS模式，无法直接保存文件。</p>
           <p class="hint-text">建议使用Edge或Chrome浏览器以获得完整功能。</p>
+          <p class="hint-text">目前OPFS无法处理导入的图片不在根目录的情况，必须把所有需要的文件放在项目根目录</p>
         </div>
         <div class="prompt-actions">
           <button class="confirm-button" @click="continueWithOPFS">
