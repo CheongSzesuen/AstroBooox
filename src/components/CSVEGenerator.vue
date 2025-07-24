@@ -615,33 +615,48 @@ a:hover {
   }
 
   .preview-item {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .preview-item input {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
+    width: auto;
   }
 
   .round-remove-button {
-    align-self: flex-end;
-    margin-top: 0.25rem;
+    width: 2rem;
+    height: 2rem;
+    margin-top: 0;
+    align-self: auto;
+    flex-shrink: 0;
   }
 
-  /* 确保所有按钮在移动设备上宽度一致 */
-  .add-button, .round-remove-button {
-    width: 100%;
+  .add-button {
+    width: auto;
     justify-content: center;
   }
 
-  /* 调整模态框按钮布局 */
   .modal-actions {
-    flex-direction: column;
+    flex-direction: row;
     gap: 0.5rem;
   }
 
   .modal-actions button {
-    width: 100%;
+    width: auto;
+    flex: 1;
+  }
+
+  /* 确保表单组间距合适 */
+  .form-group {
+    margin-bottom: 0.75rem;
+  }
+  
+  /* 调整提示文本大小 */
+  .hint-text {
+    font-size: 0.7rem;
   }
 }
 </style>
