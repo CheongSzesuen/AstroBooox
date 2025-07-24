@@ -1,18 +1,16 @@
-import { NextRequest } from "next/server";
-
 export const config = {
   runtime: "edge", // 声明使用 Edge Function
 };
 
-export default async function handler(req: NextRequest) {
+export default async function handler(request: Request) {  // 使用标准 Request 类型
   // 目标网站（替换成你的 Cloudflare Pages 地址）
-  const targetUrl = "https://astrobooox.pages.dev/" + req.nextUrl.pathname;
+  const targetUrl = "https://astrobooox.pages.dev" + new URL(request.url).pathname;
 
   try {
     const response = await fetch(targetUrl, {
       headers: {
         // 可选：传递原始请求头
-        "User-Agent": req.headers.get("User-Agent") || "",
+        "User-Agent": request.headers.get("User-Agent") || "",
       },
     });
 
