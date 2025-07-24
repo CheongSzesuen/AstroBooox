@@ -1,7 +1,5 @@
-// type/manifest.ts
-
 /**
- * 作者信息
+ • 作者信息
  */
 export interface Author {
   name: string;
@@ -9,7 +7,7 @@ export interface Author {
 }
 
 /**
- * 下载项信息
+ • 下载项信息
  */
 export interface DownloadItem {
   version: string;
@@ -17,7 +15,7 @@ export interface DownloadItem {
 }
 
 /**
- * 应用项目信息
+ • 应用项目信息
  */
 export interface AppItem {
   name: string;
@@ -29,7 +27,7 @@ export interface AppItem {
 }
 
 /**
- * Manifest 主结构
+ • Manifest 主结构
  */
 export interface Manifest {
   item: AppItem;
@@ -37,17 +35,17 @@ export interface Manifest {
 }
 
 /**
- * 应用模式
+ • 应用模式
  */
 export type AppMode = 'manifest' | 'csv';
 
 /**
- * 设备类型
+ • 设备类型
  */
 export type DeviceType = 'desktop' | 'tablet' | 'phone';
 
 /**
- * 文件系统相关类型
+ • 文件系统相关类型
  */
 export interface FileSystemHandle {
   readonly kind: 'file' | 'directory';
@@ -58,7 +56,7 @@ export interface FileSystemHandle {
 export interface FileSystemFileHandle extends FileSystemHandle {
   readonly kind: 'file';
   getFile(): Promise<File>;
-  createWritable(options?: FileSystemCreateWritableOptions): Promise<FileSystemWritableFileStream>;
+  createWritable(options?: { keepExistingData?: boolean }): Promise<FileSystemWritableFileStream>;
 }
 
 export interface FileSystemDirectoryHandle extends FileSystemHandle {
@@ -100,7 +98,6 @@ declare global {
       id?: string;
       mode?: 'read' | 'readwrite';
     }): Promise<FileSystemDirectoryHandle>;
-
     showOpenFilePicker(options?: {
       multiple?: boolean;
       types?: Array<{

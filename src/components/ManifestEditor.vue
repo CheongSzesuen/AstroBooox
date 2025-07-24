@@ -1,15 +1,27 @@
 <template>
   <div class="manifest-editor">
-    <!-- 主编辑区域 -->
+    <!-- 完整项目路径和操作按钮部分 -->
     <div v-if="projectDirectory" class="editor-content">
-      <!-- 顶部项目路径显示 -->
       <div class="project-path">
-        <span>当前项目路径: {{ projectDirectory.name }}</span>
-        <button class="remove-button" @click="selectProjectDirectory">更改文件夹</button>
-      </div>
-
+  <span>当前项目路径: {{ projectDirectory.name }} ({{ isFsaSupported ? 'FSA' : 'OPFS' }})</span>
+  <button 
+    class="remove-button" 
+    :class="{ 'disabled-button': isOPFSMode }"
+    @click="selectProjectDirectory"
+    :disabled="isOPFSMode"
+  >
+    更改文件夹
+  </button>
+  <button class="find-manifest-button" @click="findManifest">
+    <svg width="16" height="16" viewBox="0 0 24 24">
+      <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill="currentColor"/>
+    </svg>
+    查找manifest.json
+  </button>
+</div>
+      
       <div class="editor-container">
-        <!-- 左侧图形化表单 -->
+        <!-- 完整的表单容器 -->
         <div class="form-container">
           <!-- 应用信息部分 -->
           <div class="form-section">
@@ -31,9 +43,8 @@
                 class="preview-list"
                 ghost-class="ghost-item"
                 chosen-class="chosen-item"
-                @start="onDragStart"
-                @end="onDragEnd"
-                @move="handleDragMove"
+                @start="handleDragStart"
+                @end="handleDragEnd"
               >
                 <template #item="{element, index}">
                   <div class="preview-item">
@@ -67,7 +78,7 @@
               <input v-model="manifest.item.source_url" placeholder="开源项目将有更多机会得到推荐" />
             </div>
           </div>
-
+          
           <!-- 作者信息部分 -->
           <div class="form-section">
             <h3>作者信息</h3>
@@ -84,8 +95,8 @@
             </div>
             <button class="add-button" @click="addAuthor">+ 添加作者</button>
           </div>
-
-          <!-- 设备下载信息部分 -->
+          
+          <!-- 支持设备信息部分 -->
           <div class="form-section">
             <h3>支持设备信息</h3>
             <div v-for="(download, deviceCode) in manifest.downloads" :key="deviceCode" class="download-group">
@@ -106,71 +117,89 @@
             <button class="add-button" @click="openDeviceSelector">+ 添加支持的设备</button>
           </div>
         </div>
-
-        <!-- 右侧 JSON 预览和操作按钮 -->
+        
+        <!-- JSON预览部分 -->
         <div class="preview-container">
           <div class="preview-actions">
-            <button class="add-button" @click="saveManifest">
-              <svg width="16" height="16" viewBox="0 0 24 24">
-                <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" fill="currentColor"/>
-              </svg>
-              保存
-            </button>
-            <button class="add-button" @click="copyToClipboard">
-              <svg width="16" height="16" viewBox="0 0 24 24">
-                <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
-              </svg>
-              复制
-            </button>
-          </div>
+  <button class="add-button" :class="{ 'disabled-button': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
+    <svg width="16" height="16" viewBox="0 0 24 24">
+      <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" fill="currentColor"/>
+    </svg>
+    保存
+  </button>
+  <button class="add-button" @click="downloadManifest">
+    <svg width="16" height="16" viewBox="0 0 24 24">
+      <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/>
+    </svg>
+    下载
+  </button>
+  <button class="add-button" @click="copyToClipboard">
+    <svg width="16" height="16" viewBox="0 0 24 24">
+      <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
+    </svg>
+    复制
+  </button>
+</div>
           <JsonPreview :data="manifest" />
         </div>
       </div>
-
-      <!-- 设备选择对话框 -->
-      <div v-if="showDeviceSelector" class="modal-overlay">
-        <div class="modal-content">
-          <h3>选择设备 <span class="hint-text">(可多选)</span></h3>
-          <div class="device-list">
-            <div 
-              v-for="device in supportedDevices" 
-              :key="device.codename + device.name"
-              class="device-item"
-              :class="{ selected: isDeviceSelected(device) }"
-              @click="toggleDeviceSelection(device)"
-            >
-              <div class="device-name">{{ device.name }}</div>
-              <div class="device-codename">{{ device.codename }}</div>
-            </div>
-          </div>
-          <div class="modal-actions">
-            <button @click="cancelDeviceSelection" class="add-button">取消</button>
-            <button @click="confirmDeviceSelection" class="add-button" :disabled="selectedDevices.length === 0">确认</button>
+    </div>
+    
+    <!-- 设备选择对话框 -->
+    <div v-if="showDeviceSelector" class="modal-overlay">
+      <div class="modal-content">
+        <h3>选择设备 <span class="hint-text">(可多选)</span></h3>
+        <div class="device-list">
+          <div 
+            v-for="device in supportedDevices" 
+            :key="device.codename + device.name"
+            class="device-item"
+            :class="{ selected: isDeviceSelected(device) }"
+            @click="toggleDeviceSelection(device)"
+          >
+            <div class="device-name">{{ device.name }}</div>
+            <div class="device-codename">{{ device.codename }}</div>
           </div>
         </div>
-      </div>
-
-      <!-- 覆盖确认对话框 -->
-      <div v-if="showOverwriteDialog" class="modal-overlay">
-        <div class="modal-content">
-          <h3>确认覆盖文件</h3>
-          <p>项目目录中已存在 manifest.json 文件，确定要覆盖吗？</p>
-          <div class="modal-actions">
-            <button class="remove-button" @click="cancelOverwrite">取消</button>
-            <button class="add-button" @click="confirmOverwrite">确认</button>
-          </div>
+        <div class="modal-actions">
+          <button @click="cancelDeviceSelection" class="add-button">取消</button>
+          <button @click="confirmDeviceSelection" class="add-button" :disabled="selectedDevices.length === 0">确认</button>
         </div>
       </div>
-
-      <!-- 自定义提示框 -->
-      <div v-if="showAlert" class="modal-overlay">
-        <div class="modal-content alert-content">
-          <h3>{{ alertTitle }}</h3>
-          <p>{{ alertMessage }}</p>
-          <div class="modal-actions">
-            <button v-if="alertType === 'confirm'" class="add-button" @click="closeAlert(false)">取消</button>
-            <button class="add-button" @click="closeAlert(true)">{{ alertType === 'confirm' ? '确定' : '我知道了' }}</button>
-          </div>
+    </div>
+    
+    <!-- 覆盖确认对话框 -->
+    <div v-if="showOverwriteDialog" class="modal-overlay">
+      <div class="modal-content">
+        <h3>确认覆盖文件</h3>
+        <p>项目目录中已存在 manifest.json 文件，确定要覆盖吗？</p>
+        <div class="modal-actions">
+          <button class="remove-button" @click="cancelOverwrite">取消</button>
+          <button class="add-button" @click="confirmOverwrite">确认</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 自定义提示框 -->
+    <div v-if="showAlert" class="modal-overlay">
+      <div class="modal-content alert-content">
+        <h3>{{ alertTitle }}</h3>
+        <p>{{ alertMessage }}</p>
+        <div class="modal-actions">
+          <button v-if="alertType === 'confirm'" class="add-button" @click="closeAlert(false)">取消</button>
+          <button class="add-button" @click="closeAlert(true)">{{ alertType === 'confirm' ? '确定' : '我知道了' }}</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 编辑提示弹窗 -->
+    <div v-if="showEditPrompt" class="modal-overlay">
+      <div class="modal-content alert-content">
+        <h3>{{ isFsaSupported ? '检测到manifest.json' : '进入manifest编辑模式' }}</h3>
+        <p>{{ isFsaSupported ? '文件夹中已存在manifest.json文件，是否要加载并编辑现有文件？' : '是否要加载并编辑现有的manifest.json文件？' }}</p>
+        <div class="modal-actions">
+          <button class="remove-button" @click="cancelEditPrompt">取消</button>
+          <button class="add-button" @click="confirmEditPrompt">确定</button>
         </div>
       </div>
     </div>
@@ -178,7 +207,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, PropType, watch, onMounted, onUnmounted } from 'vue'
+import { defineComponent, ref, PropType, watch, onMounted, computed } from 'vue'
 import JsonPreview from './JsonPreview.vue'
 import { Manifest } from '../type/manifest'
 import draggable from 'vuedraggable'
@@ -189,14 +218,20 @@ interface Device {
 }
 
 interface FileSystemDirectoryHandle {
-  name: string
+  readonly kind: 'directory'
+  readonly name: string
   getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle>
-  getFile(name: string): Promise<File>
+  getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<FileSystemDirectoryHandle>
+  removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>
+  resolve(possibleDescendant: FileSystemHandle): Promise<string[] | null>
+  entries(): AsyncIterableIterator<[string, FileSystemHandle]>
+  [Symbol.asyncIterator](): AsyncIterableIterator<[string, FileSystemHandle]>
 }
 
 interface FileSystemFileHandle {
+  readonly kind: 'file'
+  readonly name: string
   getFile(): Promise<File>
-  name: string
   createWritable(options?: { keepExistingData?: boolean }): Promise<FileSystemWritableFileStream>
 }
 
@@ -211,7 +246,6 @@ declare global {
       id?: string
       mode?: 'read' | 'readwrite' 
     }): Promise<FileSystemDirectoryHandle>
-    
     showOpenFilePicker(options?: {
       multiple?: boolean
       startIn?: FileSystemDirectoryHandle
@@ -233,10 +267,15 @@ export default defineComponent({
     deviceType: {
       type: String as PropType<'desktop' | 'tablet' | 'phone'>,
       default: 'desktop'
+    },
+    isFsaSupported: {
+      type: Boolean,
+      default: true
     }
   },
-  emits: ['update:projectDirectory'],
+  emits: ['update:projectDirectory', 'manifest-loaded'],
   setup(props, { emit }) {
+    // 定义响应式数据
     const manifest = ref<Manifest>({
       item: {
         name: '',
@@ -260,7 +299,12 @@ export default defineComponent({
       onConfirm?: () => void
       onCancel?: () => void
     }>({})
+    const showEditPrompt = ref(false)
 
+    // 计算属性：是否是OPFS模式
+    const isOPFSMode = computed(() => !props.isFsaSupported)
+
+    // 支持的设备列表
     const supportedDevices: Device[] = [
       { codename: "n66", name: "Xiaomi Smart Band 9" },
       { codename: "n66", name: "Xiaomi Smart Band 9 NFC" },
@@ -276,106 +320,6 @@ export default defineComponent({
       { codename: "o65m", name: "REDMI Watch 5 eSIM" }
     ]
 
-    // 滚动相关变量
-    const scrollInterval = ref<number | null>(null)
-    const baseScrollSpeed = 5 // 基础滚动速度
-    const scrollThreshold = 100 // 触发滚动的阈值
-    const isDragging = ref(false)
-    const navHeight = ref(0) // 存储导航栏高度
-
-    // 获取导航栏高度
-    const getNavHeight = () => {
-      const nav = document.querySelector('.project-path') as HTMLElement
-      if (nav) {
-        navHeight.value = nav.offsetHeight
-      }
-    }
-
-    // 拖拽开始
-    const onDragStart = (): void => {
-      isDragging.value = true
-      getNavHeight() // 获取当前导航栏高度
-    }
-
-    // 拖拽结束
-    const onDragEnd = (): void => {
-      isDragging.value = false
-      clearScroll()
-    }
-
-    // 计算动态滚动速度
-    const calculateDynamicSpeed = (distance: number, direction: 'up' | 'down'): number => {
-      // 距离越小速度越快（越靠近边缘）
-      const minDistance = 20 // 最小距离
-      const maxDistance = scrollThreshold // 最大距离
-      
-      // 确保距离在合理范围内
-      distance = Math.max(minDistance, Math.min(distance, maxDistance))
-      
-      // 计算速度比例 (0-1)
-      const speedRatio = 1 - (distance - minDistance) / (maxDistance - minDistance)
-      
-      // 应用非线性曲线（二次方）
-      const curvedRatio = Math.pow(speedRatio, 2)
-      
-      // 计算最终速度 (基础速度 * 比例 * 方向系数)
-      return baseScrollSpeed * (1 + curvedRatio * 2) * (direction === 'down' ? 1 : 0.8)
-    }
-
-    // 处理拖拽移动事件
-    const handleDragMove = (event: any): void => {
-      const { dragged } = event
-      const draggedRect = dragged.getBoundingClientRect()
-      const windowHeight = window.innerHeight
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop
-
-      // 清除之前的滚动定时器
-      if (scrollInterval.value) {
-        clearInterval(scrollInterval.value)
-        scrollInterval.value = null
-      }
-
-      // 计算距离导航栏底部的距离
-      const distanceToNavBottom = draggedRect.top - navHeight.value
-      
-      // 检查是否需要向上滚动（靠近导航栏底部）
-      if (distanceToNavBottom < scrollThreshold && scrollTop > 0) {
-        // 计算动态速度
-        const speed = calculateDynamicSpeed(distanceToNavBottom, 'up')
-        
-        scrollInterval.value = window.setInterval(() => {
-          const currentScroll = window.pageYOffset || document.documentElement.scrollTop
-          const scrollAmount = Math.min(speed, currentScroll)
-          window.scrollBy({
-            top: -scrollAmount,
-            behavior: 'instant'
-          })
-        }, 16)
-      }
-      // 检查是否需要向下滚动（靠近窗口底部）
-      else if (draggedRect.bottom > windowHeight - scrollThreshold) {
-        // 计算距离窗口底部的距离
-        const distanceToBottom = windowHeight - draggedRect.bottom
-        // 计算动态速度
-        const speed = calculateDynamicSpeed(distanceToBottom, 'down')
-        
-        scrollInterval.value = window.setInterval(() => {
-          window.scrollBy({
-            top: speed,
-            behavior: 'instant'
-          })
-        }, 16)
-      }
-    }
-
-    // 拖拽结束时清除滚动定时器
-    const clearScroll = (): void => {
-      if (scrollInterval.value) {
-        clearInterval(scrollInterval.value)
-        scrollInterval.value = null
-      }
-    }
-
     // 显示自定义提示
     const showCustomAlert = (
       title: string, 
@@ -388,11 +332,10 @@ export default defineComponent({
       alertMessage.value = message
       alertType.value = type
       showAlert.value = true
-      // 存储回调函数
       alertCallbacks.value = { onConfirm, onCancel }
     }
 
-    // 关闭自定义提示
+    // 关闭提示
     const closeAlert = (confirmed: boolean): void => {
       showAlert.value = false
       if (confirmed && alertCallbacks.value.onConfirm) {
@@ -401,6 +344,79 @@ export default defineComponent({
         alertCallbacks.value.onCancel()
       }
       alertCallbacks.value = {}
+    }
+
+    // 查找manifest.json文件
+    const findManifest = async (): Promise<void> => {
+      if (props.isFsaSupported && props.projectDirectory) {
+        try {
+          const fileHandle = await props.projectDirectory.getFileHandle('manifest.json', { create: false })
+          if (fileHandle) {
+            showEditPrompt.value = true
+          }
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'NotFoundError') {
+            console.error('读取manifest.json失败:', error)
+            showCustomAlert('读取失败', error.message || '读取manifest.json文件失败')
+          }
+        }
+      } else {
+        showEditPrompt.value = true
+      }
+    }
+
+    // 确认编辑提示
+    const confirmEditPrompt = (): void => {
+      showEditPrompt.value = false
+      if (isOPFSMode.value) {
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.accept = '.json'
+        input.onchange = async (e: Event) => {
+          const files = (e.target as HTMLInputElement).files
+          if (files && files.length > 0) {
+            const file = files[0]
+            if (file.name !== 'manifest.json') {
+              showCustomAlert('文件错误', '请上传名为manifest.json的文件')
+              return
+            }
+            
+            try {
+              const content = await file.text()
+              const parsedManifest = JSON.parse(content)
+              manifest.value = parsedManifest
+              emit('manifest-loaded')
+            } catch (error) {
+              console.error('解析manifest.json失败:', error)
+              showCustomAlert('解析失败', 'manifest.json文件格式不正确，无法解析。请检查文件内容。')
+            }
+          }
+        }
+        input.click()
+      } else if (props.projectDirectory) {
+        props.projectDirectory.getFileHandle('manifest.json', { create: false })
+          .then(async (fileHandle) => {
+            const file = await fileHandle.getFile()
+            const content = await file.text()
+            try {
+              const parsedManifest = JSON.parse(content)
+              manifest.value = parsedManifest
+              emit('manifest-loaded')
+            } catch (parseError) {
+              console.error('解析manifest.json失败:', parseError)
+              showCustomAlert('解析失败', 'manifest.json文件格式不正确，无法解析。请检查文件内容。')
+            }
+          })
+          .catch(error => {
+            console.error('读取manifest.json失败:', error)
+            showCustomAlert('读取失败', error.message || '读取manifest.json文件失败')
+          })
+      }
+    }
+
+    // 取消编辑提示 - 修改后只关闭弹窗不重置内容
+    const cancelEditPrompt = (): void => {
+      showEditPrompt.value = false
     }
 
     // 复制到剪贴板
@@ -415,24 +431,34 @@ export default defineComponent({
       }
     }
 
-    // 保存 manifest.json 到项目根目录
+    // 下载manifest.json
+    const downloadManifest = (): void => {
+      const manifestData = JSON.stringify(manifest.value, null, 2)
+      const blob = new Blob([manifestData], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'manifest.json'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }
+
+    // 保存manifest.json
     const saveManifest = async (): Promise<void> => {
-      if (!props.projectDirectory) {
-        showCustomAlert('操作失败', '请先选择项目目录')
+      if (!props.projectDirectory || isOPFSMode.value) {
+        showCustomAlert('操作失败', '当前浏览器不支持直接保存功能')
         return
       }
-
       try {
-        // 检查文件是否已存在
         try {
           await props.projectDirectory.getFileHandle('manifest.json', { create: false })
-          // 文件存在，显示覆盖确认对话框
           showOverwriteDialog.value = true
         } catch (error: unknown) {
           if (error instanceof Error && error.name !== 'NotFoundError') {
             throw error
           }
-          // 文件不存在，直接保存
           await performSave()
           showCustomAlert('操作成功', 'manifest.json 已成功保存')
         }
@@ -445,7 +471,6 @@ export default defineComponent({
     // 执行保存操作
     const performSave = async (): Promise<void> => {
       if (!props.projectDirectory) return
-
       try {
         const manifestData = JSON.stringify(manifest.value, null, 2)
         const fileHandle = await props.projectDirectory.getFileHandle('manifest.json', { create: true })
@@ -479,14 +504,11 @@ export default defineComponent({
     const getDeviceDisplayName = (codename: string): string => {
       const devices = supportedDevices.filter(d => d.codename === codename)
       if (devices.length === 0) return codename
-      
       const download = manifest.value.downloads[codename]
       const version = download?.version ? ` (${download.version})` : ''
-      
       if (devices.length === 1) {
         return `${devices[0].name} [${codename}]${version}`
       }
-      
       const deviceNames = devices.map(d => d.name).join(" / ")
       return `${deviceNames} [${codename}]${version}`
     }
@@ -537,60 +559,35 @@ export default defineComponent({
       }
     }
 
-    // 检查并加载现有的manifest.json
-    const checkAndLoadManifest = async (): Promise<void> => {
-      if (!props.projectDirectory) return
-
-      try {
-        // 尝试获取manifest.json文件
-        const fileHandle = await props.projectDirectory.getFileHandle('manifest.json')
-        const file = await fileHandle.getFile()
-        const content = await file.text()
-        
-        // 解析JSON内容
-        try {
-          const parsedManifest = JSON.parse(content)
-          
-          // 显示确认对话框
-          showCustomAlert(
-            '检测到manifest.json',
-            '文件夹中已存在manifest.json文件，是否要加载并编辑现有文件？',
-            'confirm',
-            () => {
-              // 用户确认加载
-              manifest.value = parsedManifest
-            },
-            () => {
-              // 用户取消，保持空manifest
-            }
-          )
-        } catch (parseError) {
-          console.error('解析manifest.json失败:', parseError)
-          showCustomAlert(
-            '解析失败',
-            'manifest.json文件格式不正确，无法解析。请检查文件内容或创建新的manifest。'
-          )
-        }
-      } catch (error: unknown) {
-        if (error instanceof Error && error.name !== 'NotFoundError') {
-          console.error('读取manifest.json失败:', error)
-          showCustomAlert(
-            '读取失败',
-            `无法读取manifest.json文件: ${error.message || '未知错误'}`
-          )
-        }
-        // 文件不存在，不做任何操作
-      }
-    }
-
     // 选择项目目录
     const selectProjectDirectory = async (): Promise<void> => {
+      if (isOPFSMode.value) return
+      
       try {
-        const directoryHandle = await window.showDirectoryPicker({
-          id: 'projectDirectory',
-          mode: 'readwrite'
-        })
-        emit('update:projectDirectory', directoryHandle)
+        if (window.showDirectoryPicker) {
+          const directoryHandle = await window.showDirectoryPicker({
+            id: 'projectDirectory',
+            mode: 'readwrite'
+          })
+          emit('update:projectDirectory', directoryHandle)
+        } else {
+          const virtualHandle = {
+            name: 'OPFS_虚拟项目目录',
+            kind: 'directory',
+            isSameEntry: async (other: any) => false,
+            getFileHandle: async (name: string) => {
+              return {
+                name,
+                kind: 'file',
+                getFile: async () => new File([], name)
+              }
+            },
+            getFile: async (name: string) => {
+              return new File([], name)
+            }
+          } as unknown as FileSystemDirectoryHandle
+          emit('update:projectDirectory', virtualHandle)
+        }
       } catch (error: unknown) {
         if (error instanceof Error && error.name !== 'AbortError') {
           console.error('选择目录错误:', error)
@@ -605,71 +602,105 @@ export default defineComponent({
         showCustomAlert('操作失败', '请先选择项目目录')
         return
       }
-
-      try {
-        const fileHandles = await window.showOpenFilePicker({
-          startIn: props.projectDirectory,
-          multiple: true,
-          types: [{
-            description: '图片文件',
-            accept: {
-              'image/*': ['.png', '.jpg', '.jpeg', '.webp']
-            }
-          }]
-        })
-
-        const newPreviews = await Promise.all(
-          fileHandles.map(async (fileHandle: FileSystemFileHandle) => {
-            const file = await fileHandle.getFile()
-            return file.name
+      
+      if (props.isFsaSupported) {
+        try {
+          const fileHandles = await window.showOpenFilePicker({
+            startIn: props.projectDirectory,
+            multiple: true,
+            types: [{
+              description: '图片文件',
+              accept: {
+                'image/*': ['.png', '.jpg', '.jpeg', '.webp']
+              }
+            }]
           })
-        )
-
-        const uniqueNewPreviews = newPreviews.filter(
-          (preview: string) => !manifest.value.item.preview.includes(preview)
-        )
-
-        if (uniqueNewPreviews.length === 0) {
-          showCustomAlert('操作提示', '您选择的文件已经存在于预览图列表中')
-          return
+          const newPreviews = await Promise.all(
+            fileHandles.map(async (fileHandle: FileSystemFileHandle) => {
+              const file = await fileHandle.getFile()
+              return file.name
+            })
+          )
+          const uniqueNewPreviews = newPreviews.filter(
+            (preview: string) => !manifest.value.item.preview.includes(preview)
+          )
+          if (uniqueNewPreviews.length === 0) {
+            showCustomAlert('操作提示', '您选择的文件已经存在于预览图列表中')
+            return
+          }
+          manifest.value.item.preview = [...manifest.value.item.preview, ...uniqueNewPreviews]
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
+            console.error('选择文件错误:', error)
+            showCustomAlert('操作失败', error.message || '选择文件失败，请检查控制台')
+          }
         }
-
-        manifest.value.item.preview = [...manifest.value.item.preview, ...uniqueNewPreviews]
-      } catch (error: unknown) {
-        if (error instanceof Error && error.name !== 'AbortError') {
-          console.error('选择文件错误:', error)
-          showCustomAlert('操作失败', error.message || '选择文件失败，请检查控制台')
+      } else {
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.multiple = true
+        input.accept = 'image/*'
+        input.onchange = async (e: Event) => {
+          const files = (e.target as HTMLInputElement).files
+          if (files && files.length > 0) {
+            const newPreviews = Array.from(files).map(file => file.name)
+            const uniqueNewPreviews = newPreviews.filter(
+              preview => !manifest.value.item.preview.includes(preview)
+            )
+            if (uniqueNewPreviews.length === 0) {
+              showCustomAlert('操作提示', '您选择的文件已经存在于预览图列表中')
+              return
+            }
+            manifest.value.item.preview = [...manifest.value.item.preview, ...uniqueNewPreviews]
+          }
         }
+        input.click()
       }
     }
 
-    // 选择单个文件
+    // 选择文件
     const selectFile = async (type: 'icon' | 'download', deviceCode?: string): Promise<void> => {
       if (!props.projectDirectory) {
         showCustomAlert('操作失败', '请先选择项目目录')
         return
       }
-
-      try {
-        const fileHandles = await window.showOpenFilePicker({
-          startIn: props.projectDirectory,
-          multiple: false
-        })
-        
-        const file = await fileHandles[0].getFile()
-        
-        if (type === 'icon') {
-          manifest.value.item.icon = file.name
-        } else if (type === 'download' && deviceCode) {
-          if (manifest.value.downloads[deviceCode]) {
-            manifest.value.downloads[deviceCode].file_name = file.name
+      
+      if (props.isFsaSupported) {
+        try {
+          const fileHandles = await window.showOpenFilePicker({
+            startIn: props.projectDirectory,
+            multiple: false
+          })
+          const file = await fileHandles[0].getFile()
+          if (type === 'icon') {
+            manifest.value.item.icon = file.name
+          } else if (type === 'download' && deviceCode) {
+            if (manifest.value.downloads[deviceCode]) {
+              manifest.value.downloads[deviceCode].file_name = file.name
+            }
+          }
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
+            console.error('选择文件错误:', error)
+            showCustomAlert('操作失败', error.message || '选择文件失败，请检查控制台')
           }
         }
-      } catch (error: unknown) {
-        if (error instanceof Error && error.name !== 'AbortError') {
-          console.error('选择文件错误:', error)
-          showCustomAlert('操作失败', error.message || '选择文件失败，请检查控制台')
+      } else {
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.onchange = async (e: Event) => {
+          const file = (e.target as HTMLInputElement).files?.[0]
+          if (file) {
+            if (type === 'icon') {
+              manifest.value.item.icon = file.name
+            } else if (type === 'download' && deviceCode) {
+              if (manifest.value.downloads[deviceCode]) {
+                manifest.value.downloads[deviceCode].file_name = file.name
+              }
+            }
+          }
         }
+        input.click()
       }
     }
 
@@ -688,35 +719,31 @@ export default defineComponent({
       manifest.value.item.author.splice(index, 1)
     }
 
-    // 在组件挂载时检查manifest.json
+    // 拖拽开始
+    const handleDragStart = (): void => {
+      // 拖拽开始时的处理
+    }
+
+    // 拖拽结束
+    const handleDragEnd = (): void => {
+      // 拖拽结束时的处理
+    }
+
+    // 组件挂载时检查manifest.json
     onMounted(() => {
       if (props.projectDirectory) {
-        checkAndLoadManifest()
-      }
-      // 添加拖拽结束事件监听
-      document.addEventListener('dragend', clearScroll)
-      document.addEventListener('mouseup', clearScroll)
-      getNavHeight() // 初始获取导航栏高度
-      window.addEventListener('resize', getNavHeight) // 窗口大小变化时重新获取
-    })
-
-    // 组件卸载时移除事件监听
-    onUnmounted(() => {
-      document.removeEventListener('dragend', clearScroll)
-      document.removeEventListener('mouseup', clearScroll)
-      window.removeEventListener('resize', getNavHeight)
-      if (scrollInterval.value) {
-        clearInterval(scrollInterval.value)
+        findManifest()
       }
     })
 
-    // 添加对projectDirectory变化的监听
+    // 监听projectDirectory变化
     watch(() => props.projectDirectory, (newDir) => {
       if (newDir) {
-        checkAndLoadManifest()
+        findManifest()
       }
     })
 
+    // 返回所有方法和数据
     return {
       manifest,
       showDeviceSelector,
@@ -727,8 +754,11 @@ export default defineComponent({
       alertTitle,
       alertMessage,
       alertType,
+      showEditPrompt,
+      isOPFSMode,
       saveManifest,
       copyToClipboard,
+      downloadManifest,
       confirmOverwrite,
       cancelOverwrite,
       closeAlert,
@@ -745,16 +775,17 @@ export default defineComponent({
       removePreview,
       addAuthor,
       removeAuthor,
-      handleDragMove,
-      onDragStart,
-      onDragEnd
+      findManifest,
+      confirmEditPrompt,
+      cancelEditPrompt,
+      handleDragStart,
+      handleDragEnd
     }
   }
 })
 </script>
 
 <style scoped>
-/* 基础样式 */
 .manifest-editor {
   display: flex;
   flex-direction: column;
@@ -763,7 +794,232 @@ export default defineComponent({
   box-sizing: border-box;
 }
 
-/* 按钮样式 */
+.editor-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  gap: 1rem;
+}
+
+.project-path {
+  background: #f0f0f0;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.project-path span {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.find-manifest-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #e3f2fd;
+  color: #1565c0;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.find-manifest-button:hover {
+  background: #cfe0f0;
+}
+
+.find-manifest-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.editor-container {
+  display: flex;
+  flex: 1;
+  gap: 2rem;
+  overflow: hidden;
+  min-height: 500px;
+}
+
+.form-container {
+  flex: 1;
+  min-width: 0;
+  background: #f5f5f5;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-y: auto;
+}
+
+.preview-container {
+  width: 40%;
+  max-width: 40%;
+  min-width: 300px;
+  background: #f5f5f5;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.form-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #fff;
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #1e293b;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+  color: #1e293b;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 1rem;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.file-input-group {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.file-input-group input {
+  flex: 1;
+  min-width: 0;
+}
+
+.preview-list {
+  margin-bottom: 0.5rem;
+}
+
+.preview-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: #f8f8f8;
+  padding: 0.5rem;
+  border-radius: 4px;
+  height: 40px;
+}
+
+.preview-item input {
+  flex: 1;
+  background: transparent;
+  border: none;
+}
+
+.drag-handle-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 100%;
+  background-color: #bbdefb;
+  border-radius: 4px;
+  cursor: move;
+  padding: 4px 0;
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.round-remove-button {
+  margin: 0;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f8e6e6;
+  color: #8b0000;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.round-remove-button:hover {
+  background: #f0cfcf;
+}
+
+.round-remove-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.author-group {
+  border: 1px solid #eee;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 4px;
+  position: relative;
+}
+
+.download-group {
+  border: 1px solid #eee;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 4px;
+}
+
+.download-group h4 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: #1e293b;
+}
+
 button {
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
@@ -780,250 +1036,31 @@ button {
 }
 
 .remove-button {
-  background: #f8e6e6;  
-  color: #8b0000;      
-  border: none;
+  background: #f8e6e6;
+  color: #8b0000;
 }
 
 .remove-button:hover {
-  background: #f0cfcf;  /* 悬停时稍深的蓝色 */
-}
-
-.add-button {
-  background: #e3f2fd;  /* 浅蓝色背景 */
-  color: #1565c0;      /* 深蓝色文字 */
-  border: none;
-}
-
-.add-button:hover {
-  background: #bbdefb;  /* 悬停时稍深的蓝色 */
-}
-
-button svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* 编辑器内容样式 */
-.editor-content {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  gap: 1rem;
-}
-
-/* 项目路径样式 */
-.project-path {
-  background: #f0f0f0;
-  padding: 0.75rem 1rem;
-  border-radius: 4px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* 编辑器容器 */
-.editor-container {
-  display: flex;
-  flex: 1;
-  gap: 2rem;
-  overflow: hidden;
-  min-height: 500px;
-}
-
-/* 表单容器 */
-.form-container {
-  flex: 1;
-  min-width: 0;
-  background: #f5f5f5;
-  padding: 1rem;
-  border-radius: 8px;
-  overflow-y: auto;
-}
-
-/* JSON预览容器 */
-.preview-container {
-  width: 40%;
-  max-width: 40%;
-  min-width: 300px;
-  background: #f5f5f5;
-  padding: 1rem;
-  border-radius: 8px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 预览操作按钮 */
-.preview-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-/* 表单部分 */
-.form-section {
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background: #fff;
-  border-radius: 6px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* 表单组 */
-.form-group {
-  margin-bottom: 1rem;
-  width: 100%;
-}
-
-/* 标签样式 */
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: bold;
-  width: 100%;
-}
-
-/* 输入框和文本域 */
-input, textarea, select {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 1rem;
-  color: #333;
-  box-sizing: border-box;
-}
-
-/* 占位符样式 - 新增部分 */
-input::placeholder,
-textarea::placeholder {
-  color: #999;
-  font-style: italic;
-  opacity: 1; /* 确保在Firefox中也能正常显示 */
-}
-
-/* 兼容IE和Edge */
-input:-ms-input-placeholder,
-textarea:-ms-input-placeholder {
-  color: #999;
-  font-style: italic;
-}
-
-input::-ms-input-placeholder,
-textarea::-ms-input-placeholder {
-  color: #999;
-  font-style: italic;
-}
-
-textarea {
-  resize: vertical;
-  min-height: 60px;
-}
-
-/* 数组项样式 */
-.array-item, .author-group, .download-group {
-  border: 1px solid #eee;
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
-  border-radius: 4px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* 文件输入组 */
-.file-input-group {
-  display: flex;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.file-input-group input {
-  flex: 1;
-  min-width: 0;
-}
-
-.file-input-group button {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-/* 预览图列表样式 */
-.preview-list {
-  margin-bottom: 0.5rem;
-}
-
-/* 预览图项目样式 */
-.preview-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  background: #f8f8f8;
-  padding: 0.5rem;
-  border-radius: 4px;
-  height: 40px; /* 固定高度 */
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.preview-item input {
-  flex: 1;
-}
-
-/* 拖拽把手容器样式 */
-.drag-handle-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 80%; /* 与表单等高 */
-  background-color: #bbdefb;
-  border-radius: 4px;
-  transition: background-color 0.5s;
-  padding: 4px 0; /* 上下内边距 */
-}
-
-/* 拖拽把手样式 */
-.drag-handle {
-  cursor: move;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-}
-
-/* 拖拽把手悬停和拖拽时的样式 */
-.draggable-source--is-dragging .drag-handle-container {
-  background-color: #4a6b8a;
-}
-
-/* 圆形删除按钮 - 仅用于预览图部分 */
-.round-remove-button {
-  margin: 0;
-  padding: 0;
-  width: 2rem;
-  height: 2rem;
-  border: none;
-  background: #f8e6e6;
-  color: #8b0000;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.round-remove-button:hover {
   background: #f0cfcf;
 }
 
-.round-remove-button svg {
+.add-button {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.add-button:hover {
+  background: #bbdefb;
+}
+
+.disabled-button {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #e9ecef !important;
+  color: #6c757d !important;
+}
+
+button svg {
   width: 16px;
   height: 16px;
 }
@@ -1052,6 +1089,11 @@ textarea {
   overflow-y: auto;
 }
 
+.modal-content h3 {
+  margin-top: 0;
+  color: #0e467c;
+}
+
 .alert-content {
   max-width: 500px;
   text-align: center;
@@ -1067,7 +1109,7 @@ textarea {
   line-height: 1.5;
 }
 
-/* 设备列表样式 - 更新部分 */
+/* 设备列表样式 */
 .device-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -1079,29 +1121,30 @@ textarea {
   padding: 1rem;
   border-radius: 4px;
   cursor: pointer;
-  background: #e8f4fd; /* 浅蓝色背景 */
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(14, 70, 124, 0.1); /* 添加轻微阴影 */
+  background: #e8f4fd;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(14, 70, 124, 0.1);
 }
 
 .device-item:hover {
-  background: #d0e5fa; /* 悬停时稍深的蓝色 */
-  transform: translateY(-2px); /* 添加轻微上浮效果 */
+  background: #d0e5fa;
+  transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(14, 70, 124, 0.1);
 }
 
 .device-item.selected {
-  background: #b3d6f7; /* 选中状态更深的蓝色 */
+  background: #b3d6f7;
 }
 
 .device-name {
   font-weight: bold;
-   color: #0e467c; /*主蓝色文字 */
+  color: #0e467c;
+  margin-bottom: 0.25rem;
 }
 
 .device-codename {
   font-size: 0.8rem;
-  color: #4a6b8a; /* 蓝色系灰色 */
+  color: #4a6b8a;
 }
 
 /* 模态框操作按钮 */
@@ -1109,16 +1152,16 @@ textarea {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
 .modal-actions .add-button {
-  background: #e6f0f8; /* 浅蓝色背景 */
-  color: #0e467c; /* 主蓝色文字 */
+  background: #e3f2fd;
+  color: #1565c0;
 }
 
 .modal-actions .add-button:hover {
-  background: #cfe0f0; /* 稍深的蓝色悬停背景 */
+  background: #bbdefb;
 }
 
 .modal-actions .add-button:disabled {
@@ -1127,77 +1170,22 @@ textarea {
   cursor: not-allowed;
 }
 
-/* 提示文本 */
 .hint-text {
-  color: #666;
-  font-size: 0.9rem;
-  font-weight: normal;
+  color: #64748b;
+  font-size: 0.875rem;
 }
 
-/* 拖拽时的幽灵项样式 */
 .ghost-item {
   opacity: 0.5;
   background: #e3f2fd;
   border: 2px dashed #1565c0;
 }
 
-/* 被拖拽项的样式 */
 .chosen-item {
   opacity: 0.8;
   transform: scale(1.02);
 }
 
-/* 拖拽时目标位置的样式 */
-.preview-list.sortable-chosen {
-  position: relative;
-  margin-top: 100px;
-}
-
-.preview-list.sortable-chosen::before {
-  content: "";
-  display: block;
-  height: 40px;
-  margin: 4px 0;
-  background: #e3f2fd;
-  border-radius: 4px;
-  border: 2px dashed #1565c0;
-  box-sizing: border-box;
-}
-
-/* 拖拽目标项的样式 */
-.drop-target {
-  position: relative;
-}
-
-.drop-target::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 40px;
-  margin: 4px 0;
-  background: #e3f2fd;
-  border-radius: 4px;
-  border: 2px dashed #1565c0;
-  box-sizing: border-box;
-  z-index: 1;
-}
-
-/* 确保预览项之间有足够的间距 */
-.preview-item {
-  margin-bottom: 8px;
-}
-
-/* 拖拽时提升其他项的层级 */
-.preview-list > * {
-  transition: transform 0.2s;
-}
-
-.preview-list.sortable-ghost + * {
-  transform: translateY(48px);
-}
-
-/* 响应式设计 */
 @media (max-width: 768px) {
   .editor-container {
     flex-direction: column;
@@ -1205,8 +1193,8 @@ textarea {
   
   .form-container,
   .preview-container {
-    max-width: 100%;
     width: 100%;
+    max-width: 100%;
   }
   
   .device-list {
@@ -1215,6 +1203,22 @@ textarea {
   
   .device-item {
     padding: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .project-path {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .find-manifest-button {
+    width: 100%;
+  }
+  
+  .modal-content {
+    padding: 1rem;
   }
 }
 </style>
