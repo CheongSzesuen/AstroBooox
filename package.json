@@ -18,10 +18,8 @@
     "@types/web-app-manifest": "^1.0.9",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
-    "monaco-editor": "^0.52.2",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
-    "vue-monaco": "^1.2.2",
     "vue-tsc": "^2.2.12"
   }
 }
