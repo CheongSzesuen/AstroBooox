@@ -3,22 +3,22 @@
     <!-- 完整项目路径和操作按钮部分 -->
     <div v-if="projectDirectory" class="editor-content">
       <div class="project-path">
-  <span>当前项目路径: {{ projectDirectory.name }} ({{ isFsaSupported ? 'FSA' : 'OPFS' }})</span>
-  <button 
-    class="remove-button" 
-    :class="{ 'disabled-button': isOPFSMode }"
-    @click="selectProjectDirectory"
-    :disabled="isOPFSMode"
-  >
-    更改文件夹
-  </button>
-  <button class="find-manifest-button" @click="findManifest">
-    <svg width="16" height="16" viewBox="0 0 24 24">
-      <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill="currentColor"/>
-    </svg>
-    查找manifest.json
-  </button>
-</div>
+        <span>当前项目路径: {{ projectDirectory.name }} ({{ isFsaSupported ? 'FSA' : 'OPFS' }})</span>
+        <button 
+          class="remove-button" 
+          :class="{ 'disabled-button': isOPFSMode }"
+          @click="selectProjectDirectory"
+          :disabled="isOPFSMode"
+        >
+          更改文件夹
+        </button>
+        <button class="find-manifest-button" @click="findManifest">
+          <svg width="16" height="16" viewBox="0 0 24 24">
+            <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill="currentColor"/>
+          </svg>
+          查找manifest.json
+        </button>
+      </div>
       
       <div class="editor-container">
         <!-- 完整的表单容器 -->
@@ -121,26 +121,74 @@
         <!-- JSON预览部分 -->
         <div class="preview-container">
           <div class="preview-actions">
-  <button class="add-button" :class="{ 'disabled-button': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
-    <svg width="16" height="16" viewBox="0 0 24 24">
-      <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" fill="currentColor"/>
-    </svg>
-    保存
-  </button>
-  <button class="add-button" @click="downloadManifest">
-    <svg width="16" height="16" viewBox="0 0 24 24">
-      <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/>
-    </svg>
-    下载
-  </button>
-  <button class="add-button" @click="copyToClipboard">
-    <svg width="16" height="16" viewBox="0 0 24 24">
-      <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
-    </svg>
-    复制
-  </button>
-</div>
+            <button class="add-button" :class="{ 'disabled-button': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
+              <svg width="16" height="16" viewBox="0 0 24 24">
+                <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" fill="currentColor"/>
+              </svg>
+              保存
+            </button>
+            <button class="add-button" @click="downloadManifest">
+              <svg width="16" height="16" viewBox="0 0 24 24">
+                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/>
+              </svg>
+              下载
+            </button>
+            <button class="add-button" @click="copyToClipboard">
+              <svg width="16" height="16" viewBox="0 0 24 24">
+                <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
+              </svg>
+              复制
+            </button>
+          </div>
           <JsonPreview :data="manifest" />
+        </div>
+      </div>
+    </div>
+    
+    <!-- 声明弹窗 -->
+    <div v-if="showDeclaration" class="modal-overlay">
+      <div class="modal-content declaration-content">
+        <h3>AstroBox 官方社区源资源审核标准</h3>
+        <div class="declaration-text" @scroll="checkScrollPosition">
+          <h4>一、资源结构与清单合规性</h4>
+          <ol>
+            <li>是否正确在index.csv行末添加自己的资源信息</li>
+            <li>csv中添加的icon链接是否可正常访问</li>
+            <li>csv中添加的cover链接是否可正常访问</li>
+            <li>csv中的兼容设备列表、tags的分隔符使用是否正确</li>
+            <li>csv中指向的资源json是否真实存在</li>
+            <li>资源json所处的文件夹是否命名合理，json本身是否命名合理</li>
+            <li>资源json指向的目标仓库是否真实存在</li>
+            <li>目标仓库中的manifest.json是否按要求填写，格式是否符合标准json规范</li>
+            <li>manifest.json中的资源名称是否与csv中的资源名称完全相同</li>
+            <li>manifest.json中downloads map中的设备代号是否真实存在，是否存在填了o66没填o66nfc之类的情况（类似情况可以先不merge，先提醒并得到确认）</li>
+            <li>downloads map中的目标文件名是否在仓库中真实存在（特别注意）</li>
+            <li>manifest.json中author数组中每个作者author_url的目标指向页面是否合规、是否存在不良内容</li>
+            <li>存在任何问题都必须直接在Pull Request中与提交者公开、透明地进行沟通，如无任何问题，可以继续进行资源质量检查。</li>
+          </ol>
+
+          <h4>二、资源质量与版权</h4>
+          <ol>
+            <li>资源不是搬运/转载/盗传</li>
+            <li>资源的创意没有明显的剽窃性（这属于主观判断，不要直接关闭Pull Request，由审核员共同探讨是否应该进行merge）</li>
+            <li>资源的icon与cover设计是否合理得当、符合大众审美（icon不要求死追严打，cover若出现低质、简陋的情况，直接在Pull Request中对提交者作出修改意见）（可以参考下面的示例）</li>
+            <li>资源本体在支持的设备上基本功能是否运行正常（一般情况下适当测试一个设备即可，剩余问题用户会自己去拷打作者）</li>
+            <li>资源若使用了某些知名IP素材，必须在preview中留一张图来进行版权声明（这里不是要求提交者拥有素材版权，而是必须证明素材、IP本身与AstroBox以及小米无关）</li>
+          </ol>
+
+          <h4>三、资源数量和付费资源（2025.7.6日公告）</h4>
+          <ol>
+            <li>任何作者在 AstroBox 官方源上传的免费资源数量必须是付费资源的 2 倍以上</li>
+            <li>对于存在任何应用内购买或类型为试用的资源，必须标注为付费</li>
+            <li>付费资源将在首页被明显标注，并允许被用户一键过滤。</li>
+          </ol>
+
+          <h4 style="text-align: right;">文档来自官方</h4>
+          
+        </div>
+        <div class="declaration-actions">
+          <button class="declaration-disagree" @click="disagreeDeclaration">听不懂私密达</button>
+          <button class="declaration-agree" :class="{ 'disabled-button': !isDeclarationScrolledToBottom }" @click="agreeDeclaration" :disabled="!isDeclarationScrolledToBottom">听懂了</button>
         </div>
       </div>
     </div>
@@ -291,7 +339,7 @@ export default defineComponent({
       },
       downloads: {}
     })
-
+    const DECLARATION_EXPIRE_DAYS = 7; // 7天后需要重新确认声明
     const showDeviceSelector = ref(false)
     const selectedDevices = ref<string[]>([])
     const showOverwriteDialog = ref(false)
@@ -304,6 +352,8 @@ export default defineComponent({
       onCancel?: () => void
     }>({})
     const showEditPrompt = ref(false)
+    const showDeclaration = ref(true)
+    const isDeclarationScrolledToBottom = ref(false)
 
     // 计算属性：是否是OPFS模式
     const isOPFSMode = computed(() => !props.isFsaSupported)
@@ -362,6 +412,36 @@ export default defineComponent({
         alertCallbacks.value.onCancel()
       }
       alertCallbacks.value = {}
+    }
+
+    // 检查滚动位置
+    const checkScrollPosition = (e: Event): void => {
+  const el = e.target as HTMLElement
+  // 使用阈值判断，允许1像素的误差
+  const threshold = 1
+  const isBottom = Math.abs(el.scrollHeight - el.scrollTop - el.clientHeight) <= threshold
+  isDeclarationScrolledToBottom.value = isBottom
+  // console.log('滚动检测:', {
+  //   scrollHeight: el.scrollHeight,
+  //   scrollTop: el.scrollTop,
+  //   clientHeight: el.clientHeight,
+  //   isBottom
+  // })
+}
+
+    // 同意声明
+    const agreeDeclaration = (): void => {
+    showDeclaration.value = false;
+    const now = new Date().getTime();
+    localStorage.setItem('hasAgreedToDeclaration', 'true');
+    localStorage.setItem('declarationAgreedAt', now.toString());
+    }
+
+    // 不同意声明
+    const disagreeDeclaration = (): void => {
+      showCustomAlert('什么？你不同意？', '？玩你的自定义工具去', 'alert', () => {
+        // window.location.href = 'https://www.bandbbs.cn/'
+      })
     }
 
     // 查找manifest.json文件
@@ -754,10 +834,27 @@ export default defineComponent({
 
     // 组件挂载时检查manifest.json
     onMounted(() => {
-      if (props.projectDirectory) {
-        findManifest()
-      }
-    })
+  // 检查声明是否过期
+  const hasAgreed = localStorage.getItem('hasAgreedToDeclaration');
+  const agreedAt = localStorage.getItem('declarationAgreedAt');
+  
+  if (hasAgreed === 'true' && agreedAt) {
+    const now = new Date().getTime();
+    const daysPassed = (now - parseInt(agreedAt)) / (1000 * 60 * 60 * 24);
+    
+    if (daysPassed > DECLARATION_EXPIRE_DAYS) {
+      localStorage.removeItem('hasAgreedToDeclaration');
+      localStorage.removeItem('declarationAgreedAt');
+      showDeclaration.value = true;
+    } else {
+      showDeclaration.value = false;
+    }
+  }
+
+  if (props.projectDirectory) {
+    findManifest();
+  }
+});
 
     // 监听projectDirectory变化
     watch(() => props.projectDirectory, (newDir) => {
@@ -778,6 +875,8 @@ export default defineComponent({
       alertMessage,
       alertType,
       showEditPrompt,
+      showDeclaration,
+      isDeclarationScrolledToBottom,
       isOPFSMode,
       saveManifest,
       copyToClipboard,
@@ -801,6 +900,9 @@ export default defineComponent({
       findManifest,
       confirmEditPrompt,
       cancelEditPrompt,
+      agreeDeclaration,
+      disagreeDeclaration,
+      checkScrollPosition,
       handleDragStart,
       handleDragEnd
     }
@@ -1132,6 +1234,63 @@ button svg {
   line-height: 1.5;
 }
 
+/* 声明弹窗样式 */
+.declaration-content {
+  max-width: 800px;
+  padding: 2rem;
+}
+
+.declaration-text {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 1rem;
+  margin: 0;
+  /* 添加以下样式确保正确计算 */
+  box-sizing: border-box;
+  border: 1px solid #dee2e6;
+}
+
+.declaration-text h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #0e467c;
+}
+
+.declaration-text ol {
+  padding-left: 1.5rem;
+}
+
+.declaration-text li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.declaration-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+}
+
+.declaration-agree {
+  background: #e3f2fd;
+  color: #1565c0;
+  padding: 0.75rem 1.5rem;
+}
+
+.declaration-agree:hover {
+  background: #bbdefb;
+}
+
+.declaration-disagree {
+  background: #f8e6e6;
+  color: #8b0000;
+  padding: 0.75rem 1.5rem;
+}
+
+.declaration-disagree:hover {
+  background: #f0cfcf;
+}
+
 /* 设备列表样式 */
 .device-list {
   display: grid;
@@ -1242,6 +1401,20 @@ button svg {
   
   .modal-content {
     padding: 1rem;
+  }
+  
+  .declaration-content {
+    padding: 1rem;
+  }
+  
+  .declaration-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .declaration-agree,
+  .declaration-disagree {
+    width: 100%;
   }
 }
 </style>

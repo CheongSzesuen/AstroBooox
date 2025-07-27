@@ -12,11 +12,11 @@
               <input v-model="csvData.name" placeholder="WeatherPlus" />
             </div>
             <div class="form-group">
-              <label>图标 URL <span class="hint-text">(最佳为200×200,AstroBox会自动割圆) </span><span class="hint-text">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span></label>
+              <label>图标 URL <span class="hint-text">(最佳为200×200,AstroBox会自动割圆。若设计简陋、低质会被打回) </span><span class="hint-text">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span></label>
               <input v-model="csvData.icon" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/图标名" />
             </div>
             <div class="form-group">
-              <label>封面 URL <span class="hint-text">(比例3:2显示最佳，分辨率不要过大，1200x800足矣) </span><span class="hint-text">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span></label>
+              <label>封面 URL <span class="hint-text">(比例3:2显示最佳，分辨率不要过大，1200x800足矣。若设计简陋、低质会被打回。) </span><span class="hint-text">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span></label>
               <input v-model="csvData.cover" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/封面名" />
             </div>
             <div class="form-row">
