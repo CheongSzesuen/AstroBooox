@@ -12,19 +12,31 @@
               <input v-model="csvData.name" placeholder="WeatherPlus" />
             </div>
             <div class="form-group">
-              <label>图标 URL <span class="hint-text">(最小为96×96,AstroBox会自动割圆)</span></label>
-              <input v-model="csvData.iconUrl" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/图标名" />
+              <label>图标 URL <span class="hint-text">(最佳为200×200,AstroBox会自动割圆) </span><span class="hint-text">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span></label>
+              <input v-model="csvData.icon" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/图标名" />
             </div>
             <div class="form-group">
-              <label>封面 URL <span class="hint-text">(推荐比例3:2)</span></label>
-              <input v-model="csvData.coverUrl" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/封面名" />
+              <label>封面 URL <span class="hint-text">(比例3:2显示最佳，分辨率不要过大，1200x800足矣) </span><span class="hint-text">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span></label>
+              <input v-model="csvData.cover" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/封面名" />
             </div>
-            <div class="form-group">
-              <label>资源类型</label>
-              <select v-model="csvData.appType">
-                <option value="quickapp">快应用 (quickapp)</option>
-                <option value="watchface">表盘 (watchface)</option>
-              </select>
+            <div class="form-row">
+              <div class="form-group half-width">
+                <label>资源类型</label>
+                <select v-model="csvData.restype">
+                  <option value="">请选择资源类型</option>
+                  <option value="quickapp">快应用 (quickapp)</option>
+                  <option value="watchface">表盘 (watchface)</option>
+                </select>
+              </div>
+              <div class="form-group half-width">
+                <label>付费类型<span class="hint-text">（体验版请选择“应用内付费”）</span></label>
+                <select v-model="csvData.paymentType">
+                  <option value="">请选择付费类型</option>
+                  <option value="free">免费(感谢你作出的贡献)</option>
+                  <option value="force_paid">强制付费(force_paid)</option>
+                  <option value="paid">应用内付费(paid)</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -34,19 +46,19 @@
             <div class="form-group">
               <label>资源标签</label>
               <div class="array-input">
-                <div v-for="(category, index) in csvData.categories" :key="index" class="preview-item">
-                  <input v-model="csvData.categories[index]" placeholder="天气" />
-                  <button @click="removeCategory(index)" class="round-remove-button">
+                <div v-for="(tag, index) in csvData.tags" :key="index" class="preview-item">
+                  <input v-model="csvData.tags[index]" placeholder="天气" />
+                  <button @click="removeTag(index)" class="round-remove-button">
                     <svg width="16" height="16" viewBox="0 0 24 24">
                       <path d="M19 13H5v-2h14v2z" fill="currentColor"/>
                     </svg>
                   </button>
                 </div>
-                <button @click="addCategory" class="add-button">+ 添加标签</button>
+                <button @click="addTag" class="add-button">+ 添加标签</button>
               </div>
             </div>
             <div class="form-group">
-              <label>支持设备</label>
+              <label>支持设备<span class="hint-text">（注意环10和环10nfc是否都支持）</span></label>
               <div class="array-input">
                 <div v-for="(deviceCode, index) in csvData.devices" :key="index" class="preview-item">
                   <input 
@@ -71,13 +83,13 @@
             <div class="form-group">
               <label>创建的 资源.json 路径</label>
               <input 
-                v-model="csvData.manifestPath" 
+                v-model="csvData.path" 
                 placeholder="yourname/AppName.json"
               />
               <p class="hint-text">
-                注意：此文件不是manifest页面生成的，是在fork官方软件源仓库
+                注意：此文件不是manifest页面生成的，是你在fork官方软件源仓库
                 <a href="https://github.com/AstralSightStudios/AstroBox-Repo" target="_blank">AstroBox-Repo</a>
-                后，在resources/目录下新建以你名字或昵称命名的文件夹内创建的.json文件。内容类似{"manifest_ver": 1,"repo_url": "https://github.com/你的用户名/你的资源仓库"
+                后，新建的manifest文件，路径如下：resources/你的昵称/资源名.json文件。内容类似{"manifest_ver": 1,"repo_url": "https://github.com/你的用户名/你的资源仓库"
               </p>
             </div>
           </div>
@@ -89,7 +101,7 @@
               <pre>{{ generatedCSV }}</pre>
             </div>
             <div class="preview-actions">
-              <button @click="copyToClipboard" class="add-button">
+              <button @click="validateAndCopy" class="add-button">
                 <svg width="16" height="16" viewBox="0 0 24 24">
                   <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
                 </svg>
@@ -126,10 +138,22 @@
       <!-- 自定义提示框 -->
       <div v-if="showAlert" class="modal-overlay">
         <div class="modal-content alert-content">
-          <h3>{{ alertTitle }}</h3>
-          <p>{{ alertMessage }}</p>
-          <div class="modal-actions">
-            <button class="add-button" @click="closeAlert">确定</button>
+          <div class="prompt-header">
+            <svg width="48" height="48" viewBox="0 0 24 24" class="warning-icon">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#d97706"/>
+            </svg>
+            <h3>{{ alertTitle }}</h3>
+          </div>
+          <div class="prompt-body">
+            <p>{{ alertMessage }}</p>
+          </div>
+          <div class="prompt-actions">
+            <button class="confirm-button" @click="closeAlert">
+              <svg width="20" height="20" viewBox="0 0 24 24" class="check-icon">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+              </svg>
+              确定
+            </button>
           </div>
         </div>
       </div>
@@ -143,12 +167,13 @@ import { ref, computed, watch } from 'vue'
 // CSV 数据结构
 const csvData = ref({
   name: '',
-  iconUrl: '',
-  coverUrl: '',
-  appType: 'quickapp',
-  categories: [''],
+  icon: '',
+  cover: '',
+  restype: '',
+  paymentType: '',
+  tags: [''],
   devices: [''],
-  manifestPath: ''
+  path: ''
 })
 
 const showDeviceSelector = ref(false)
@@ -186,15 +211,95 @@ const closeAlert = (): void => {
   showAlert.value = false
 }
 
+// 验证URL格式
+const validateUrlFormat = (url: string): boolean => {
+  return url.startsWith('https://raw.githubusercontent.com/')
+}
+
+// 验证表单
+const validateForm = (): boolean => {
+  if (!csvData.value.name) {
+    showCustomAlert('表单验证失败', '请填写资源名称')
+    return false
+  }
+  
+  if (!csvData.value.icon) {
+    showCustomAlert('表单验证失败', '请填写图标URL')
+    return false
+  }
+  
+  if (!validateUrlFormat(csvData.value.icon)) {
+    showCustomAlert('表单验证失败', '图标URL必须以 https://raw.githubusercontent.com/ 开头')
+    return false
+  }
+  
+  if (!csvData.value.cover) {
+    showCustomAlert('表单验证失败', '请填写封面URL')
+    return false
+  }
+  
+  if (!validateUrlFormat(csvData.value.cover)) {
+    showCustomAlert('表单验证失败', '封面URL必须以 https://raw.githubusercontent.com/ 开头')
+    return false
+  }
+  
+  if (!csvData.value.restype) {
+    showCustomAlert('表单验证失败', '请选择资源类型')
+    return false
+  }
+  
+  if (!csvData.value.paymentType) {
+    showCustomAlert('表单验证失败', '请选择付费类型')
+    return false
+  }
+  
+  if (csvData.value.tags.length === 0 || csvData.value.tags[0] === '') {
+    showCustomAlert('表单验证失败', '请至少添加一个资源标签')
+    return false
+  }
+  
+  if (csvData.value.devices.length === 0 || csvData.value.devices[0] === '') {
+    showCustomAlert('表单验证失败', '请至少添加一个支持设备')
+    return false
+  }
+  
+  if (!csvData.value.path) {
+    showCustomAlert('表单验证失败', '请填写资源.json路径')
+    return false
+  }
+  
+  return true
+}
+
+// 验证并复制
+const validateAndCopy = async () => {
+  if (validateForm()) {
+    await copyToClipboard()
+  }
+}
+
 // 生成 CSV 字符串
 const generatedCSV = computed(() => {
-  const { name, iconUrl, coverUrl, appType, categories, devices, manifestPath } = csvData.value
+  const { name, icon, cover, restype, paymentType, tags, devices, path } = csvData.value
   
   // 处理可能包含逗号的内容
-  const categoriesStr = categories.length > 1 ? `"${categories.join(';')}"` : categories[0]
+  const tagsStr = tags.length > 1 ? `"${tags.join(';')}"` : tags[0]
   const devicesStr = devices.length > 1 ? `"${devices.join(';')}"` : devices[0]
   
-  return [name, iconUrl, coverUrl, appType, categoriesStr, devicesStr, manifestPath].join(',')
+  // 确保所有字段都被正确分隔
+  const fields = [
+    name,
+    icon,
+    cover,
+    restype,
+    tagsStr,
+    devicesStr,
+    path,
+    paymentType === 'free' ? '' : paymentType,
+    '' // 最后一个空字段
+  ]
+  
+  return fields.join(',')
 })
 
 // 获取设备显示名称
@@ -247,14 +352,14 @@ const cancelDeviceSelection = () => {
 }
 
 // 表单操作方法
-const addCategory = () => {
-  csvData.value.categories.push('')
+const addTag = () => {
+  csvData.value.tags.push('')
 }
 
-const removeCategory = (index: number) => {
-  csvData.value.categories.splice(index, 1)
-  if (csvData.value.categories.length === 0) {
-    csvData.value.categories.push('')
+const removeTag = (index: number) => {
+  csvData.value.tags.splice(index, 1)
+  if (csvData.value.tags.length === 0) {
+    csvData.value.tags.push('')
   }
 }
 
@@ -333,6 +438,15 @@ watch(() => csvData.value.devices, (newVal) => {
   padding: 1rem;
   background: #fff;
   border-radius: 6px;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.half-width {
+  flex: 1;
 }
 
 .form-group {
@@ -501,6 +615,68 @@ pre {
   text-align: center;
 }
 
+.prompt-header {
+  background: #f8fafc;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.warning-icon {
+  background: #fef3c7;
+  padding: 0.75rem;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+}
+
+.prompt-header h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.prompt-body {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.prompt-body p {
+  margin: 0 0 0.75rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.prompt-actions {
+  padding: 0 1.5rem 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.confirm-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #e6f0f8;
+  color: #0e467c;
+}
+
+.confirm-button:hover {
+  background: #cfe0f0;
+}
+
 .device-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -588,6 +764,15 @@ a:hover {
     margin-left: 0;
     margin-right: 0;
     margin-bottom: 1rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .half-width {
+    width: 100%;
   }
 
   input, select, textarea {
