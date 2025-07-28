@@ -286,7 +286,7 @@ const generatedCSV = computed(() => {
   const tagsStr = tags.length > 1 ? `"${tags.join(';')}"` : tags[0]
   const devicesStr = devices.length > 1 ? `"${devices.join(';')}"` : devices[0]
   
-  // 确保所有字段都被正确分隔
+  // 构建字段数组
   const fields = [
     name,
     icon,
@@ -294,11 +294,18 @@ const generatedCSV = computed(() => {
     restype,
     tagsStr,
     devicesStr,
-    path,
-    paymentType === 'free' ? '' : paymentType,
-    '' // 最后一个空字段
+    path
   ]
   
+  // 如果不是免费资源，添加paymentType
+  if (paymentType !== 'free') {
+    fields.push(paymentType)
+    // 当有付费类型时，不添加最后的空字段
+    return fields.join(',')
+  }
+  
+  // 免费资源添加最后一个空字段
+  fields.push('')
   return fields.join(',')
 })
 
