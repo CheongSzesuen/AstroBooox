@@ -107,3 +107,11 @@ declare global {
     }): Promise<FileSystemFileHandle[]>;
   }
 }
+
+/**
+ * 设备信息
+ */
+export interface Device {
+  codename: string;
+  name: string;
+}

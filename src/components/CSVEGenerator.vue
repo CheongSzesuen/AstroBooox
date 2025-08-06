@@ -163,7 +163,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-
+import { Device } from '../type/manifest'
 // CSV 数据结构
 const csvData = ref({
   name: '',
