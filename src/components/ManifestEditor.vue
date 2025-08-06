@@ -358,21 +358,25 @@ export default defineComponent({
     // 计算属性：是否是OPFS模式
     const isOPFSMode = computed(() => !props.isFsaSupported)
 
-    // 支持的设备列表
-    const supportedDevices: Device[] = [
-      { codename: "n66", name: "Xiaomi Smart Band 9" },
-      { codename: "n66", name: "Xiaomi Smart Band 9 NFC" },
-      { codename: "n67", name: "Xiaomi Smart Band 9 Pro" },
-      { codename: "o66", name: "Xiaomi Smart Band 10" },
-      { codename: "o66nfc", name: "Xiaomi Smart Band 10 NFC" },
-      { codename: "n62", name: "Xiaomi Watch S3" },
-      { codename: "n62", name: "Xiaomi Watch S3 eSIM" },
-      { codename: "o62", name: "Xiaomi Watch S4" },
-      { codename: "o62m", name: "Xiaomi Watch S4 eSIM" },
-      { codename: "o63", name: "Xiaomi Watch S4 41mm" },
-      { codename: "o65", name: "REDMI Watch 5" },
-      { codename: "o65m", name: "REDMI Watch 5 eSIM" }
-    ]
+  // 支持的设备列表
+const supportedDevices: Device[] = [
+  { codename: "n66", name: "Xiaomi Smart Band 9" },
+  { codename: "n66", name: "Xiaomi Smart Band 9 NFC" },
+  { codename: "n67", name: "Xiaomi Smart Band 9 Pro" },
+  { codename: "n67", name: "Xiaomi Smart Band 9 Pro 国际版" },
+  { codename: "o66", name: "Xiaomi Smart Band 10" },
+  { codename: "o66nfc", name: "Xiaomi Smart Band 10 NFC" },
+  { codename: "n62", name: "Xiaomi Watch S3 系列" },
+  { codename: "n62", name: "Xiaomi Watch S3 系列 eSIM版" },
+  { codename: "n62", name: "Xiaomi Watch S3 系列 国际版" },
+  { codename: "o62", name: "Xiaomi Watch S4 系列" },
+  { codename: "o62", name: "Xiaomi Watch S4 系列 eSIM版" },
+  { codename: "o62m", name: "Xiaomi Watch S4 15周年纪念版" },
+  { codename: "o62", name: "Xiaomi Watch S4 系列 Sport版" },
+  { codename: "o62", name: "Xiaomi Watch S4 系列 41mm" },
+  { codename: "o65", name: "REDMI Watch 5" },
+  { codename: "o65m", name: "REDMI Watch 5 eSIM" }
+]
 
     // 计算相对路径
     const calculateRelativePath = async (fileHandle: FileSystemFileHandle): Promise<string> => {
