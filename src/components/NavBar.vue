@@ -70,7 +70,6 @@ const setMode = (newMode: 'manifest' | 'csv' | 'res-link') => {
   z-index: 1000;
   font-family: "MiSans", system-ui, sans-serif;
   height: 48px;
-  width: 100vw;
   user-select: none;
 }
 
