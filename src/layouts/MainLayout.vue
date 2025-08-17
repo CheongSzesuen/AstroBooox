@@ -92,6 +92,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import ManifestEditor from '../components/ManifestEditor.vue'
 import CSVEGenerator from '../components/CSVEGenerator.vue'
+import ResLinkGenerator from '../components/ResLinkGenerator.vue'
 import NavBar from '../components/NavBar.vue'
 import AppFooter from '../components/Footer.vue'
 import type { AppMode, DeviceType } from '../type/manifest'
@@ -138,7 +139,9 @@ const setMode = (newMode: AppMode) => {
   mode.value = newMode
 }
 const currentComponent = computed(() => {
-  return mode.value === 'manifest' ? ManifestEditor : CSVEGenerator
+  return mode.value === 'manifest'
+    ? ManifestEditor
+    : (mode.value === 'res-link' ? ResLinkGenerator : CSVEGenerator) // 嵌套了一个新的三元运算符
 })
 const projectDirectory = ref<FileSystemDirectoryHandle | null>(null)
 const deviceType = ref<DeviceType>('desktop')
