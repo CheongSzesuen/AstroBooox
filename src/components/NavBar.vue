@@ -23,6 +23,16 @@
           <span class="nav-underline"></span>
         </span>
       </button>
+      <button 
+        @click="setMode('res-link')" 
+        :class="{ active: mode === 'res-link' }"
+        :aria-pressed="mode === 'res-link' ? 'true' : 'false'"
+      >
+        <span class="nav-text">
+          <span class="nav-label">资源链接生成</span>
+          <span class="nav-underline"></span>
+        </span>
+      </button>
     </div>
   </nav>
 </template>
@@ -31,14 +41,14 @@
 
 const props = defineProps({
   mode: {
-    type: String as () => 'manifest' | 'csv',
+    type: String as () => 'manifest' | 'csv' | 'res-link',
     required: true
   }
 })
 
 const emit = defineEmits(['update:mode'])
 
-const setMode = (newMode: 'manifest' | 'csv') => {
+const setMode = (newMode: 'manifest' | 'csv' | 'res-link') => {
   emit('update:mode', newMode)
 }
 </script>
