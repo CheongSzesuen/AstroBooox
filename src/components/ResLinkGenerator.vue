@@ -56,6 +56,140 @@
               </button>
             </div>
           </div>
+
+          <!-- 徽标生成部分 -->
+          <div class="form-section">
+            <h3>徽标代码生成</h3>
+            
+            <!-- 语言选择 -->
+            <div class="form-group">
+              <label class="config-label">语言</label>
+              <div class="config-options">
+                <label class="config-option" :class="{ active: badgeLanguage === 'zhcn' }">
+                  <input 
+                    type="radio" 
+                    v-model="badgeLanguage" 
+                    value="zhcn"
+                    class="sr-only"
+                  >
+                  <span class="option-text">简体中文</span>
+                </label>
+                <label class="config-option" :class="{ active: badgeLanguage === 'en' }">
+                  <input 
+                    type="radio" 
+                    v-model="badgeLanguage" 
+                    value="en"
+                    class="sr-only"
+                  >
+                  <span class="option-text">英文</span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- 样式选择 -->
+            <div class="form-group">
+              <label class="config-label">样式</label>
+              <div class="config-options">
+                <label class="config-option" :class="{ active: badgeStyle === 'standard' }">
+                  <input 
+                    type="radio" 
+                    v-model="badgeStyle" 
+                    value="standard"
+                    class="sr-only"
+                  >
+                  <span class="option-text">标准</span>
+                </label>
+                <label class="config-option" :class="{ active: badgeStyle === 'rounded' }">
+                  <input 
+                    type="radio" 
+                    v-model="badgeStyle" 
+                    value="rounded"
+                    class="sr-only"
+                  >
+                  <span class="option-text">胶囊</span>
+                </label>
+                <label class="config-option" :class="{ active: badgeStyle === 'linked' }">
+                  <input 
+                    type="radio" 
+                    v-model="badgeStyle" 
+                    value="linked"
+                    class="sr-only"
+                  >
+                  <span class="option-text">链接</span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- 配色选择 -->
+            <div class="form-group">
+              <label class="config-label">配色</label>
+              <div class="config-options">
+                <label class="config-option" :class="{ active: badgeColor === 'black' }">
+                  <input 
+                    type="radio" 
+                    v-model="badgeColor" 
+                    value="black"
+                    class="sr-only"
+                  >
+                  <span class="option-text">黑色</span>
+                </label>
+                <label class="config-option" :class="{ active: badgeColor === 'gray' }">
+                  <input 
+                    type="radio" 
+                    v-model="badgeColor" 
+                    value="gray"
+                    class="sr-only"
+                  >
+                  <span class="option-text">灰色</span>
+                </label>
+                <label class="config-option" :class="{ active: badgeColor === 'white' }">
+                  <input 
+                    type="radio" 
+                    v-model="badgeColor" 
+                    value="white"
+                    class="sr-only"
+                  >
+                  <span class="option-text">亮色</span>
+                </label>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="config-label">徽标预览<span class="hint-text">（点击可跳转）</span></label>
+              <div class="badge-preview-container">
+                <a 
+                  v-if="resourceName.trim()"
+                  :href="generatedLink" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
+                  <img :src="badgeImageUrl" alt="徽标预览" class="badge-preview-image" />
+                </a>
+                <img 
+                  v-else
+                  :src="badgeImageUrl" 
+                  alt="徽标预览" 
+                  class="badge-preview-image" 
+                />
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="config-label">生成的HTML代码</label>
+              <div class="code-preview">
+                <pre>{{ badgeHtmlCode }}</pre>
+              </div>
+            </div>
+            
+            <div class="preview-actions">
+              <button @click="copyBadgeCode" :disabled="!resourceName.trim()" class="add-button">
+                <svg width="16" height="16" viewBox="0 0 24 24">
+                  <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
+                </svg>
+                {{ copyBadgeButtonText }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -114,6 +248,13 @@ const searchQuery = ref('');
 const allResources = ref([]);
 const filteredResources = ref([]);
 
+// 徽标相关状态
+const badgeStyle = ref('standard');
+const badgeColor = ref('black');
+const badgeLanguage = ref('zhcn');
+const copyBadgeButtonText = ref('复制代码');
+let copyBadgeTimeout = null;
+
 // 计算属性：根据 resourceName 生成最终的链接
 const generatedLink = computed(() => {
   if (resourceName.value.trim() === '') {
@@ -122,6 +263,27 @@ const generatedLink = computed(() => {
   // 对资源名称进行 URL 编码
   const encodedResourceName = encodeURIComponent(resourceName.value);
   return `${baseUrl}${encodedResourceName}${suffixUrl}`;
+});
+
+// 计算属性：生成徽标图片URL
+const badgeImageUrl = computed(() => {
+  let stylePath = '';
+  if (badgeStyle.value === 'rounded') {
+    stylePath = 'rounded/';
+  } else if (badgeStyle.value === 'linked') {
+    stylePath = 'linked/';
+  }
+  return `https://astrobox.online/goab/${badgeLanguage.value}/${stylePath}${badgeColor.value}.svg`;
+});
+
+// 计算属性：生成徽标HTML代码
+const badgeHtmlCode = computed(() => {
+  if (resourceName.value.trim() === '') {
+    return '<!-- 请输入资源名称后生成徽标代码 -->';
+  }
+  return `<a href="${generatedLink.value}" target="_blank" rel="noopener noreferrer">
+  <img src="${badgeImageUrl.value}" alt="Get it on AstroBox" height="46">
+</a>`;
 });
 
 // 点击复制按钮时的提示文本
@@ -140,11 +302,7 @@ const loadResources = async () => {
   try {
     const response = await fetch('https://cdn.jsdelivr.net/gh/AstralSightStudios/AstroBox-Repo@refs/heads/main/index.csv');
     const csvText = await response.text();
-    
-    // 处理CSV数据，过滤空行和无效数据
-    const lines = csvText.split('\n')
-      .filter(line => line.trim() !== '') // 过滤空行
-      .filter(line => line.split(',').length >= 8); // 确保有足够的数据列
+    const lines = csvText.split('\n').filter(line => line.trim() !== ''); // 过滤空行
     
     if (lines.length <= 1) {
       allResources.value = [];
@@ -158,11 +316,11 @@ const loadResources = async () => {
       .map(line => {
         const values = line.split(',');
         return headers.reduce((obj, header, index) => {
-          obj[header] = values[index] || ''; // 处理可能缺失的值
+          obj[header] = values[index] || '';
           return obj;
         }, {});
       })
-      .filter(resource => resource.name && resource.name.trim() !== ''); // 确保资源有名称
+      .filter(resource => resource.name && resource.name.trim() !== '');
     
     filteredResources.value = [...allResources.value];
   } catch (error) {
@@ -192,7 +350,7 @@ const closeResourceSearch = () => {
   showResourceSearch.value = false;
 };
 
-// 过滤资源列表
+// 过滤资源列表 (支持模糊搜索和作者名搜索)
 const filterResources = () => {
   if (!searchQuery.value) {
     filteredResources.value = [...allResources.value];
@@ -201,9 +359,7 @@ const filterResources = () => {
   
   const query = searchQuery.value.toLowerCase();
   filteredResources.value = allResources.value.filter(resource => {
-    // 检查资源名称是否匹配
     const nameMatch = resource.name.toLowerCase().includes(query);
-    // 检查作者名是否匹配
     const authorMatch = getAuthorName(resource.path).toLowerCase().includes(query);
     return nameMatch || authorMatch;
   });
@@ -217,12 +373,10 @@ const selectResource = (resource) => {
 
 // 复制链接到剪贴板
 const copyLink = () => {
-  // 检查浏览器是否支持 Clipboard API
   if (navigator.clipboard) {
     navigator.clipboard.writeText(generatedLink.value)
       .then(() => {
         copyButtonText.value = '已复制！';
-        // 1.5 秒后恢复按钮文本
         if (copyTimeout) clearTimeout(copyTimeout);
         copyTimeout = setTimeout(() => {
           copyButtonText.value = '复制链接';
@@ -233,9 +387,30 @@ const copyLink = () => {
         copyButtonText.value = '复制失败 ';
       });
   } else {
-    // 备用方案：对于不支持 Clipboard API 的浏览器
     fallbackCopyTextToClipboard(generatedLink.value);
-    copyButtonText.value = '请手动复制'; // 提示用户手动复制
+    copyButtonText.value = '请手动复制';
+  }
+};
+
+// 复制徽标代码到剪贴板
+const copyBadgeCode = () => {
+  const codeToCopy = badgeHtmlCode.value;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(codeToCopy)
+      .then(() => {
+        copyBadgeButtonText.value = '已复制！';
+        if (copyBadgeTimeout) clearTimeout(copyBadgeTimeout);
+        copyBadgeTimeout = setTimeout(() => {
+          copyBadgeButtonText.value = '复制代码';
+        }, 1500);
+      })
+      .catch(err => {
+        console.error('复制失败: ', err);
+        copyBadgeButtonText.value = '复制失败 ';
+      });
+  } else {
+    fallbackCopyTextToClipboard(codeToCopy);
+    copyBadgeButtonText.value = '请手动复制';
   }
 };
 
@@ -243,7 +418,6 @@ const copyLink = () => {
 function fallbackCopyTextToClipboard(text) {
   const textArea = document.createElement("textarea");
   textArea.value = text;
-  // 避免在屏幕上显示文本区域
   textArea.style.position = "fixed";
   textArea.style.left = "-999999px";
   document.body.appendChild(textArea);
@@ -251,7 +425,7 @@ function fallbackCopyTextToClipboard(text) {
   textArea.select();
   try {
     document.execCommand('copy');
-    copyButtonText.value = '已复制！'; // 尽管是备用，也给个反馈
+    copyButtonText.value = '已复制！';
     if (copyTimeout) clearTimeout(copyTimeout);
     copyTimeout = setTimeout(() => {
       copyButtonText.value = '复制链接';
@@ -264,9 +438,9 @@ function fallbackCopyTextToClipboard(text) {
 };
 
 const clearInput = () => {
-  resourceName.value = ''; // 核心逻辑：将 resourceName 重置为空字符串
-  copyButtonText.value = '复制链接'; // 清除后，复制按钮文字也恢复
-  if (copyTimeout) clearTimeout(copyTimeout); // 清除可能还在计时的复制成功提示
+  resourceName.value = '';
+  copyButtonText.value = '复制链接';
+  if (copyTimeout) clearTimeout(copyTimeout);
 }
 </script>
 
@@ -307,60 +481,73 @@ const clearInput = () => {
 
 .form-section {
   margin-bottom: 2rem;
-  padding: 1rem;
+  padding: 1.5rem;
   background: #fff;
   border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 label {
   display: block;
   margin-bottom: 0.5rem;
-  font-weight: bold;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.config-label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.95rem;
 }
 
 .input-with-button {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .input-with-button input {
   flex: 1;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
   font-family: inherit;
   font-size: 1rem;
-  color: #333;
+  color: #334155;
   box-sizing: border-box;
+  transition: all 0.2s;
 }
 
 .input-with-button input:focus {
   border-color: #0e467c;
-  box-shadow: 0 0 0 2px rgba(14, 70, 124, 0.2);
+  box-shadow: 0 0 0 2px rgba(14, 70, 124, 0.1);
+  outline: none;
 }
 
 .input-with-button input::placeholder {
-  color: #999;
+  color: #94a3b8;
   font-style: italic;
 }
 
 .preview-content {
-  background: #f5f9fd;
-  color: #333;
+  background: #f8fafc;
+  color: #334155;
   padding: 1rem;
-  border-radius: 4px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
   overflow: auto;
-  font-size: 14px;
+  font-size: 0.95rem;
   line-height: 1.5;
 }
 
 .hint-text {
-  color: #666;
-  font-size: 0.9rem;
+  color: #64748b;
+  font-size: 0.85rem;
   font-weight: normal;
 }
 
@@ -368,16 +555,17 @@ pre {
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
 }
 
 .preview-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
 .empty {
-  color: #6a737d;
+  color: #94a3b8;
   font-style: italic;
 }
 
@@ -397,19 +585,19 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1.25rem;
   border: none;
   background: #e6f0f8;
   color: #0e467c;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   font-weight: 500;
   white-space: nowrap;
   transition: all 0.2s;
 }
 
 .search-button:hover {
-  background: #cfe0f0;
+  background: #d0e5fa;
 }
 
 .search-button svg {
@@ -421,12 +609,12 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1.25rem;
   border: none;
   background: #f8e6e6;
   color: #8b0000;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   font-weight: 500;
   white-space: nowrap;
   transition: all 0.2s;
@@ -460,6 +648,13 @@ a:hover {
   background: #cfe0f0;
 }
 
+.add-button:disabled {
+  background-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .add-button svg {
   width: 16px;
   height: 16px;
@@ -470,6 +665,94 @@ button:disabled {
   color: #94a3b8;
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+/* 徽标配置选项样式 */
+.config-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.config-option {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.config-option:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.config-option.active {
+  background: #e6f0f8;
+  border-color: #0e467c;
+  color: #0e467c;
+  font-weight: 500;
+}
+
+.option-text {
+  pointer-events: none;
+}
+
+/* 隐藏原生radio按钮 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* 徽标预览区域 */
+.badge-preview-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px dashed #cbd5e1;
+  margin-top: 0.5rem;
+}
+
+.badge-preview-image {
+  height: 60px;
+  max-width: 100%;
+  object-fit: contain;
+  transition: all 0.3s ease;
+}
+
+/* 代码预览区域 */
+.code-preview {
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 0.5rem;
+  border: 1px solid #e2e8f0;
+  overflow-x: auto;
+}
+
+.code-preview pre {
+  margin: 0;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 0.85rem;
+  color: #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* 资源搜索对话框样式 */
@@ -492,7 +775,7 @@ button:disabled {
   border-radius: 8px;
   width: 85%;
   max-width: 800px;
-  max-height: 70vh;
+  max-height: 80vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -500,22 +783,29 @@ button:disabled {
 
 .search-input-container {
   padding: 0 0.5rem 1rem;
-  width: calc(100% - 1rem);
+  width: 100%;
   box-sizing: border-box;
 }
 
 .search-input {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
   font-size: 1rem;
   box-sizing: border-box;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  border-color: #0e467c;
+  box-shadow: 0 0 0 2px rgba(14, 70, 124, 0.1);
+  outline: none;
 }
 
 .resource-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 1rem;
   padding: 0.5rem;
   overflow-y: auto;
@@ -538,7 +828,7 @@ button:disabled {
 
 .resource-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border-color: #cbd5e1;
 }
 
@@ -555,7 +845,7 @@ button:disabled {
 }
 
 .resource-name {
-  font-weight: bold;
+  font-weight: 600;
   color: #0e467c;
   font-size: 0.95rem;
   white-space: nowrap;
@@ -586,7 +876,7 @@ button:disabled {
   grid-column: 1 / -1;
   text-align: center;
   padding: 2rem;
-  color: #718096;
+  color: #64748b;
 }
 
 .modal-actions {
@@ -594,24 +884,28 @@ button:disabled {
   justify-content: flex-end;
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid #e2e8f0;
 }
 
 /* 响应式调整 */
 @media (min-width: 1200px) {
   .resource-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   }
 }
 
 @media (max-width: 992px) {
   .modal-content {
     width: 90%;
-    max-height: 75vh;
   }
   
-  .resource-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  .config-options {
+    gap: 0.5rem;
+  }
+  
+  .config-option {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
   }
 }
 
@@ -619,12 +913,25 @@ button:disabled {
   .modal-content {
     width: 95%;
     padding: 1rem;
-    max-height: 80vh;
+    max-height: 85vh;
   }
   
   .resource-grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 0.75rem;
+  }
+  
+  .form-section {
+    padding: 1.25rem;
+  }
+  
+  .input-with-button {
+    flex-direction: column;
+  }
+  
+  .input-with-button input,
+  .input-with-button button {
+    width: 100%;
   }
 }
 
@@ -632,7 +939,6 @@ button:disabled {
   .modal-content {
     width: 98%;
     padding: 0.75rem;
-    max-height: 85vh;
   }
   
   .resource-grid {
@@ -655,20 +961,37 @@ button:disabled {
   .resource-author {
     font-size: 0.7rem;
   }
-}
-
-@media (max-width: 400px) {
-  .resource-grid {
-    grid-template-columns: 1fr;
-  }
   
-  .input-with-button {
+  .config-options {
     flex-direction: column;
   }
   
-  .input-with-button input,
-  .input-with-button button {
+  .config-option {
     width: 100%;
+    justify-content: center;
+  }
+  
+  .badge-preview-image {
+    height: 50px;
+  }
+}
+
+@media (max-width: 400px) {
+  .form-section {
+    padding: 1rem;
+  }
+  
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  .preview-actions {
+    margin-top: 1rem;
+  }
+  
+  .add-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
   }
 }
 </style>
