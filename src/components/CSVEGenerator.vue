@@ -747,112 +747,136 @@ a:hover {
   text-decoration: underline;
 }
 
-/* 移动设备响应式样式 */
+/* 移动设备响应式样式 - 重点修改部分 */
 @media (max-width: 768px) {
   .csv-generator {
     padding: 0.5rem;
     width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    overflow-x: hidden; /* 防止水平滚动 */
   }
 
   .editor-content {
-    padding: 0 0.5rem;
+    padding: 0;
     width: 100%;
+    margin: 0;
   }
 
   .editor-container {
     flex-direction: column;
     min-height: auto;
+    width: 100%;
+    margin: 0;
   }
 
   .form-container {
     padding: 0.75rem;
     border-radius: 0;
     width: 100%;
+    margin: 0;
+    box-sizing: border-box;
   }
 
   .form-section {
     padding: 0.75rem;
-    margin-left: 0;
-    margin-right: 0;
-    margin-bottom: 1rem;
+    margin: 0 0 1rem 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .form-row {
     flex-direction: column;
+    width: 100%;
     gap: 0.5rem;
+    margin: 0;
   }
 
   .half-width {
     width: 100%;
+    margin: 0;
   }
 
   input, select, textarea {
-    width: calc(100% - 1rem);
+    width: 100%;
     max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
   }
 
-  .device-list {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
+  .array-input {
+    width: 100%;
   }
 
-  .modal-content {
-    width: 95%;
-    margin: 0 auto;
-    padding: 1rem;
+  .preview-item {
+    width: 100%;
+  }
+
+  .preview-item input {
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .round-remove-button {
+    flex-shrink: 0;
   }
 
   .preview-content {
     padding: 0.75rem;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+    word-break: break-word;
   }
 
-  .array-input {
-    gap: 0.5rem;
+  pre {
+    white-space: pre-wrap;
+    word-break: break-all;
   }
 
-  .preview-item {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .preview-item input {
-    flex: 1;
-    min-width: 0;
-    width: auto;
-  }
-
-  .round-remove-button {
-    width: 2rem;
-    height: 2rem;
-    margin-top: 0;
-    align-self: auto;
-    flex-shrink: 0;
-  }
-
-  .add-button {
-    width: auto;
+  .preview-actions {
     justify-content: center;
+    width: 100%;
   }
 
-  .modal-actions {
-    flex-direction: row;
-    gap: 0.5rem;
+  .modal-content {
+    width: 95%;
+    max-width: 95%;
+    padding: 1rem;
+    box-sizing: border-box;
   }
 
-  .modal-actions button {
-    width: auto;
-    flex: 1;
+  /* 确保所有元素都不会超出屏幕 */
+  * {
+    max-width: 100%;
   }
-
-  /* 确保表单组间距合适 */
+  
+  /* 修复长文本溢出问题 */
+  .hint-text {
+    word-break: break-word;
+  }
+  
+  /* 修复表单组布局 */
   .form-group {
+    width: 100%;
     margin-bottom: 0.75rem;
   }
   
-  /* 调整提示文本大小 */
-  .hint-text {
-    font-size: 0.7rem;
+  /* 修复按钮布局 */
+  .add-button, .round-remove-button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* 修复模态框按钮布局 */
+  .modal-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .modal-actions button {
+    width: 100%;
   }
 }
 </style>

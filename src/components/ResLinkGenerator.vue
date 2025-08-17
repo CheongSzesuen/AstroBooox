@@ -1,3 +1,58 @@
+<template>
+  <div class="res-link-generator">
+    <div class="editor-content">
+      <div class="editor-container">
+        <!-- 表单容器 -->
+        <div class="form-container">
+          <!-- 资源信息部分 -->
+          <div class="form-section">
+            <h3>资源信息</h3>
+            <div class="form-group">
+              <label>资源名称</label>
+              <div class="input-with-button">
+                <input
+                  id="resourceNameInput"
+                  v-model="resourceName"
+                  placeholder="多彩线条"
+                  @keyup.enter="copyLink"
+                />
+                <button 
+                  @click="clearInput" 
+                  :disabled="!resourceName.trim()" 
+                  class="round-remove-button"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24">
+                    <path d="M19 13H5v-2h14v2z" fill="currentColor"/>
+                  </svg>
+                  清除
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>生成的链接<span class="hint-text">（点击可跳转）</span></h3>
+            <div v-if="resourceName.trim()" class="preview-content">
+              <pre><a :href="generatedLink" target="_blank" rel="noopener noreferrer">{{ generatedLink }}</a></pre>
+            </div>
+            <div v-else class="preview-content empty">
+              <pre>{{ generatedLink }}</pre>
+            </div>
+            <div class="preview-actions">
+              <button @click="copyLink" :disabled="!resourceName.trim()" class="add-button">
+                <svg width="16" height="16" viewBox="0 0 24 24">
+                  <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
+                </svg>
+                {{ copyButtonText }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup>
 import { ref, computed } from 'vue';
 
@@ -31,7 +86,7 @@ const copyLink = () => {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(generatedLink.value)
       .then(() => {
-        copyButtonText.value = '已复制！✅';
+        copyButtonText.value = '已复制！';
         // 1.5 秒后恢复按钮文本
         if (copyTimeout) clearTimeout(copyTimeout);
         copyTimeout = setTimeout(() => {
@@ -40,12 +95,12 @@ const copyLink = () => {
       })
       .catch(err => {
         console.error('复制失败: ', err);
-        copyButtonText.value = '复制失败 ❌';
+        copyButtonText.value = '复制失败 ';
       });
   } else {
     // 备用方案：对于不支持 Clipboard API 的浏览器
     fallbackCopyTextToClipboard(generatedLink.value);
-    copyButtonText.value = '请手动复制 👆'; // 提示用户手动复制
+    copyButtonText.value = '请手动复制'; // 提示用户手动复制
   }
 };
 
@@ -61,14 +116,14 @@ function fallbackCopyTextToClipboard(text) {
   textArea.select();
   try {
     document.execCommand('copy');
-    copyButtonText.value = '已复制！✅'; // 尽管是备用，也给个反馈
+    copyButtonText.value = '已复制！'; // 尽管是备用，也给个反馈
     if (copyTimeout) clearTimeout(copyTimeout);
     copyTimeout = setTimeout(() => {
       copyButtonText.value = '复制链接';
     }, 1500);
   } catch (err) {
     console.error('备用复制失败', err);
-    copyButtonText.value = '复制失败 ❌';
+    copyButtonText.value = '复制失败 ';
   }
   document.body.removeChild(textArea);
 };
@@ -80,59 +135,15 @@ const clearInput = () => {
 }
 </script>
 
-<template>
-  <div class="res-link-generator"> <div class="editor-content"> <div class="editor-container">
-        <!-- 表单容器 -->
-        <div class="form-container">
-          <!-- 资源信息部分 -->
-          <div class="form-section">
-            <h3>资源信息</h3>
-            <div class="form-group">
-              <label>资源名称</label>
-              <input
-                id="resourceNameInput"
-                v-model="resourceName"
-                placeholder="多彩线条"
-                @keyup.enter="copyLink"
-              />
-            </div>
-
-            <div class="button-group">
-              <button @click="copyLink" :disabled="!resourceName.trim()">
-                {{ copyButtonText }}
-              </button>
-              <button class="clear-button" @click="clearInput" :disabled="!resourceName.trim()">
-                清除
-              </button>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <h3>生成的链接（点击可跳转）</h3>
-            <div v-if="resourceName.trim()" class="preview-content">
-              <pre><a :href="generatedLink" target="_blank" rel="noopener noreferrer">{{ generatedLink }}</a></pre>
-            </div>
-            <div v-else class="preview-content empty"> <pre>{{ generatedLink }}</pre>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <style scoped>
-/* 替换了 `--vp-c-` 变量为新组件中常用的具体颜色值，并调整了部分布局 */
-
-/* 基础样式 - 沿用新组件的整体结构 */
+/* 基础样式 */
 .res-link-generator {
   display: flex;
   flex-direction: column;
   height: 100%;
   width: 100%;
   box-sizing: border-box;
-  padding: 1rem; /* 匹配新组件的 padding */
+  padding: 1rem;
 }
 
 .editor-content {
@@ -140,14 +151,14 @@ const clearInput = () => {
   flex-direction: column;
   height: 100%;
   width: 100%;
-  gap: 1rem; /* 匹配新组件的 gap */
+  gap: 1rem;
 }
 
 .editor-container {
   display: flex;
   flex: 1;
   overflow: hidden;
-  min-height: 500px; /* 保持新组件的最小高度 */
+  min-height: 500px;
 }
 
 .form-container {
@@ -159,215 +170,210 @@ const clearInput = () => {
   overflow-y: auto;
 }
 
-.form-section { /* 对应原组件的各个 section，例如 input-section, output-section */
-  margin-bottom: 2rem; /* 匹配新组件的 section 间距 */
+.form-section {
+  margin-bottom: 2rem;
   padding: 1rem;
-  background: #fff; /* 匹配新组件的 section 背景色 */
+  background: #fff;
   border-radius: 6px;
 }
 
-/* 输入框区域的样式 */
-.form-group { /* 对应原组件的 input-section */
-  margin-bottom: 1rem; /* 调整为新组件的 form-group 间距 */
+.form-group {
+  margin-bottom: 1rem;
 }
 
 label {
+  display: block;
+  margin-bottom: 0.5rem;
   font-weight: bold;
-  color: #1e293b; /* 匹配新组件的 label 颜色 */
-  white-space: nowrap;
-  display: block; /* 覆盖 flex 带来的行内显示，确保 label 独占一行或与 input 对齐 */
-  margin-bottom: 0.5rem; /* 新组件 label 的 margin-bottom */
 }
 
-.hint-text {
-  color: #666;
-  font-size: 0.8rem;
-  font-weight: normal;
-}
-
-input {
-  flex-grow: 1;
-  padding: 0.5rem; /* 匹配新组件的 padding */
-  border: 1px solid #ccc; /* 匹配新组件的边框颜色 */
-  border-radius: 4px; /* 匹配新组件的圆角 */
-  font-size: 1rem;
-  color: #333; /* 匹配新组件的文本颜色 */
-  background-color: #fff; /* 匹配新组件的背景色 */
-  box-shadow: none; /* 移除原组件的 box-shadow，或根据需要添加新组件的阴影 */
-  box-sizing: border-box; /* 匹配新组件的 box-sizing */
-  width: calc(100% - 1rem);
-  max-width: 100%;
-}
-
-input:focus {
-  border-color: #0e467c; /* 匹配新组件的 focus 边框颜色 */
-  box-shadow: 0 0 0 2px rgba(14, 70, 124, 0.2); /* 匹配新组件的 focus 阴影 */
-  outline: none;
-}
-
-input::placeholder {
-  color: #999; /* 匹配新组件的 placeholder 颜色 */
-  font-style: italic; /* 匹配新组件的 placeholder 样式 */
-}
-
-/* 按钮组样式 */
-.button-group {
+.input-with-button {
   display: flex;
-  gap: 10px;
-  margin-bottom: 15px; /* 保持原组件的间距 */
+  gap: 0.5rem;
 }
 
-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem 1rem; /* 匹配新组件按钮的 padding */
-  background-color: #e6f0f8; /* 匹配新组件 add-button 的背景色 */
-  color: #0e467c; /* 匹配新组件 add-button 的文本颜色 */
-  border: none;
-  border-radius: 4px; /* 匹配新组件 add-button 的圆角 */
-  cursor: pointer;
+.input-with-button input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: inherit;
   font-size: 1rem;
-  font-weight: 500;
-  transition: background-color 0.2s, opacity 0.2s;
-  min-width: 100px;
+  color: #333;
+  box-sizing: border-box;
 }
 
-button:hover {
-  background: #cfe0f0; /* 匹配新组件 add-button 的 hover 背景色 */
+.input-with-button input:focus {
+  border-color: #0e467c;
+  box-shadow: 0 0 0 2px rgba(14, 70, 124, 0.2);
 }
 
-.clear-button {
-  background-color: #f8e6e6; /* 匹配新组件 round-remove-button 的背景色 */
-  color: #8b0000; /* 匹配新组件 round-remove-button 的文本颜色 */
-  border: none; /* 移除原组件的边框 */
-}
-
-.clear-button:hover {
-  background: #f0cfcf; /* 匹配新组件 round-remove-button 的 hover 背景色 */
-}
-
-/* 添加这一条规则：当 .clear-button 禁用且被 hover 时 */
-.clear-button:disabled:hover {
-  /* 恢复到 disabled 状态的背景色和颜色，或者设为完全透明的背景 */
-  background-color: #e2e8f0; /* 与 button:disabled 的背景色保持一致 */
-  color: #94a3b8; /* 与 button:disabled 的文字颜色保持一致 */
-  cursor: not-allowed; /* 确保鼠标仍然是禁止图标 */
-}
-
-button:disabled {
-  background-color: #e2e8f0; /* 匹配新组件 modal-actions 按钮的 disabled 状态 */
-  color: #94a3b8; /* 匹配新组件 modal-actions 按钮的 disabled 状态 */
-  cursor: not-allowed;
-  opacity: 0.7; /* 保持原组件的透明度 */
-}
-
-
-/* 输出部分样式 */
-.preview-content { /* 对应原组件的 output-section */
-  margin-top: 0; /* 移除原组件的 margin-top，因为 .form-section 已经有 margin-bottom */
-  padding: 1rem; /* 匹配新组件的 padding */
-  background: #f5f9fd; /* 匹配新组件的背景色 */
-  border: 1px dashed #e2e8f0; /* 匹配新组件的边框样式 */
-  border-radius: 6px; /* 保持原组件的圆角 */
-  word-break: break-all;
-  overflow: auto; /* 匹配新组件的 overflow */
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace; /* 匹配新组件的字体 */
-  font-size: 14px; /* 匹配新组件的字体大小 */
-  line-height: 1.5; /* 匹配新组件的行高 */
-}
-
-pre {
-  margin: 0; /* 匹配新组件的 pre 样式 */
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family: sans-serif;
-}
-
-.output-section h4 { /* 移除这个样式，因为现在用 h3 了 */
-  display: none; /* 隐藏原组件的 h4 标题 */
-}
-
-a {
-  color: #0e467c; /* 匹配新组件的链接颜色 */
-  text-decoration: none;
-  word-break: break-all;
-  transition: color 0.2s ease;
-  font-family: sans-serif; /* 匹配新组件的过渡效果 */
-}
-
-a:hover {
-  color: #0a3560; /* 匹配新组件的链接 hover 颜色 */
-  text-decoration: underline;
-}
-
-.placeholder-text.empty { /* 将原组件的 placeholder-text 与新组件的 empty 类合并 */
-  color: #6a737d; /* 匹配新组件的 empty 文本颜色 */
+.input-with-button input::placeholder {
+  color: #999;
   font-style: italic;
 }
 
-/* 移动设备响应式样式 - 沿用新组件的响应式处理 */
+.preview-content {
+  background: #f5f9fd;
+  color: #333;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow: auto;
+  /* font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace; */
+  font-size: 14px;
+  line-height: 1.5;
+}
+.hint-text {
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: normal;
+}
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.empty {
+  color: #6a737d;
+  font-style: italic;
+}
+
+a {
+  color: #0e467c;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: #0a3560;
+  text-decoration: underline;
+}
+
+/* 按钮样式 */
+.round-remove-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  background: #f8e6e6;
+  color: #8b0000;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.round-remove-button:hover {
+  background: #f0cfcf;
+}
+
+.round-remove-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  background: #e6f0f8;
+  color: #0e467c;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.add-button:hover {
+  background: #cfe0f0;
+}
+
+.add-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+button:disabled {
+  background-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* 移动设备响应式样式 - 重点修改部分 */
 @media (max-width: 768px) {
   .res-link-generator {
     padding: 0.5rem;
     width: 100%;
+    box-sizing: border-box; /* 新增 */
   }
 
   .editor-content {
-    padding: 0 0.5rem;
+    padding: 0;
     width: 100%;
+    margin: 0;
   }
 
   .editor-container {
     flex-direction: column;
     min-height: auto;
+    width: 100%;
   }
 
   .form-container {
     padding: 0.75rem;
     border-radius: 0;
     width: 100%;
+    margin: 0;
+    box-sizing: border-box; /* 新增 */
   }
 
   .form-section {
     padding: 0.75rem;
-    margin-left: 0;
-    margin-right: 0;
-    margin-bottom: 1rem;
+    margin: 0 0 1rem 0; /* 简化边距 */
+    width: 100%;
+    box-sizing: border-box; /* 新增 */
   }
 
-  .form-row { /* 这在你的原组件中没有用到，但保留是为了兼容新组件的结构，以防将来需要 */
+  .input-with-button {
     flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .half-width { /* 同上 */
     width: 100%;
   }
 
-  input, select, textarea {
-    width: calc(100% - 1rem); /* 调整宽度以适应 padding */
-    max-width: 100%;
+  .input-with-button input,
+  .input-with-button button {
+    width: 100%;
+    box-sizing: border-box; /* 新增 */
   }
-
-  /* .device-list, .modal-content 等新组件特有的样式在此处不相关，无需引入 */
 
   .preview-content {
     padding: 0.75rem;
+    width: 100%;
+    box-sizing: border-box; /* 新增 */
+    overflow-x: auto; /* 允许水平滚动 */
   }
 
-  .button-group {
-    flex-direction: column; /* 在移动端让按钮垂直堆叠 */
-    gap: 0.5rem;
+  .preview-actions {
+    justify-content: center;
+    width: 100%;
   }
 
-  button {
-    width: 100%; /* 按钮填充整个宽度 */
-    min-width: auto;
-  }
-
-  .form-group {
-    margin-bottom: 0.75rem;
+  /* 确保长链接不会撑开容器 */
+  pre {
+    white-space: pre-wrap;
+    word-break: break-all;
   }
 }
 </style>
