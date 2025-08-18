@@ -1,6 +1,6 @@
 # AstroBooox - 提交数据生成工具
 
-AstroBooox 是一个用于生成AstroBox应用提交数据的工具，支持 Manifest 和 CSV 两种模式，帮助开发者快速创建符合规范的提交数据。
+AstroBooox 是一个用于生成AstroBox应用提交数据的工具，支持 Manifest 和 CSV 两种模式，帮助开发者快速创建符合规范的AstroBox资源提交数据。
 
 ## 功能特性
 
@@ -19,44 +19,31 @@ AstroBooox 是一个用于生成AstroBox应用提交数据的工具，支持 Man
 
 ## 项目结构
 
+```bash
+.
+├── App.vue
+├── assets
+│   └── vue.svg
+├── components
+│   ├── CSVEGenerator.vue     #CSV语句生成页面
+│   ├── Footer.vue           #页脚组件 
+│   ├── JsonPreview.vue      #JSON预览组件
+│   ├── ManifestEditor.vue   #Manifest编辑页面
+│   ├── NavBar.vue           #导航栏组件
+│   └── ResLinkGenerator.vue #资源链接和徽标代码生成页面
+├── layouts
+│   └── MainLayout.vue
+├── main.ts
+├── router
+│   └── index.ts
+├── style.css
+├── type
+│   └── manifest.ts
+└── vite-env.d.ts
 ```
-AstroBooox
-├── index.html
-├── package.json
-├── package-lock.json
-├── public
-│   ├── favicon.svg
-│   ├── fonts
-│   │   ├── woff
-│   │   └── woff2
-│   └── vite.svg
-├── README.md
-├── src
-│   ├── App.vue
-│   ├── assets
-│   │   └── vue.svg
-│   ├── components
-│   │   ├── CSVEGenerator.vue #CSV编辑页面
-│   │   ├── Footer.vue        #Footer组件
-│   │   ├── JsonPreview.vue   #Json实时预览组件
-│   │   ├── ManifestEditor.vue #manifest编辑组件
-│   │   └── NavBar.vue          #nab组件
-│   ├── layouts
-│   │   └── MainLayout.vue     #布局组件
-│   ├── main.ts
-│   ├── router
-│   │   └── index.ts
-│   ├── style.css
-│   ├── type
-│   │   └── manifest.ts
-│   └── vite-env.d.ts
-├── tsconfig.app.json
-├── tsconfig.json
-├── tsconfig.node.json
-└── vite.config.ts
-```
+
 ## 在线使用
-[AstroBooox](https://astrobooox.pages.dev/) 在线网站，由CloudFlare pages托管和部署。
+[AstroBooox](https://astrobooox.pages.dev/) 在线网站，由CloudFlare pages托管和部署，需要梯子。
 ## 本地安装与运行
 
 1. 克隆仓库
