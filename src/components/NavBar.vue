@@ -1,4 +1,3 @@
-<!-- src/components/NavBar.vue -->
 <template>
   <nav class="navbar" role="navigation" aria-label="主菜单">
     <div class="nav-buttons">
@@ -33,22 +32,31 @@
           <span class="nav-underline"></span>
         </span>
       </button>
+      <button 
+        @click="setMode('code-review')" 
+        :class="{ active: mode === 'code-review' }"
+        :aria-pressed="mode === 'code-review' ? 'true' : 'false'"
+      >
+        <span class="nav-text">
+          <span class="nav-label">代码审查</span>
+          <span class="nav-underline"></span>
+        </span>
+      </button>
     </div>
   </nav>
 </template>
 
 <script setup lang="ts">
-
 const props = defineProps({
   mode: {
-    type: String as () => 'manifest' | 'csv' | 'res-link',
+    type: String as () => 'manifest' | 'csv' | 'res-link' | 'code-review',
     required: true
   }
 })
 
 const emit = defineEmits(['update:mode'])
 
-const setMode = (newMode: 'manifest' | 'csv' | 'res-link') => {
+const setMode = (newMode: 'manifest' | 'csv' | 'res-link' | 'code-review') => {
   emit('update:mode', newMode)
 }
 </script>
@@ -76,7 +84,7 @@ const setMode = (newMode: 'manifest' | 'csv' | 'res-link') => {
 .nav-buttons {
   display: flex;
   gap: 2rem;
-  align-items: baseline; /* 确保基线对齐 */
+  align-items: baseline;
 }
 
 .navbar button {
@@ -90,12 +98,10 @@ const setMode = (newMode: 'manifest' | 'csv' | 'res-link') => {
   transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 单独设置manifest按钮样式 */
 .manifest-btn {
-  font-size: 1.02rem; /* 比默认稍大 */
+  font-size: 1.02rem;
 }
 
-/* CSV按钮保持默认大小 */
 .navbar button:not(.manifest-btn) {
   font-size: 0.9375rem;
 }

@@ -96,6 +96,7 @@ import ResLinkGenerator from '../components/ResLinkGenerator.vue'
 import NavBar from '../components/NavBar.vue'
 import AppFooter from '../components/Footer.vue'
 import type { AppMode, DeviceType } from '../type/manifest'
+import FuckCodeReview from '../components/FuckCodeReview.vue'
 
 // 定义完整的文件系统接口
 interface FileSystemHandle {
@@ -139,9 +140,18 @@ const setMode = (newMode: AppMode) => {
   mode.value = newMode
 }
 const currentComponent = computed(() => {
-  return mode.value === 'manifest'
-    ? ManifestEditor
-    : (mode.value === 'res-link' ? ResLinkGenerator : CSVEGenerator) // 嵌套了一个新的三元运算符
+  switch (mode.value) {
+    case 'manifest':
+      return ManifestEditor
+    case 'csv':
+      return CSVEGenerator
+    case 'res-link':
+      return ResLinkGenerator
+    case 'code-review':
+      return FuckCodeReview
+    default:
+      return ManifestEditor
+  }
 })
 const projectDirectory = ref<FileSystemDirectoryHandle | null>(null)
 const deviceType = ref<DeviceType>('desktop')
