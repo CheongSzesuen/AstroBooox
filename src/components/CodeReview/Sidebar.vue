@@ -1,10 +1,6 @@
 <template>
   <div class="sidebar" :class="{ 'sidebar-collapsed': isCollapsed }">
-    <div class="sidebar-header">
-      <h2 v-if="!isCollapsed">PR列表</h2>
-    </div>
-    
-    <div v-if="loading" class="loading">加载PR列表中...</div>
+    <div v-if="loading" class="loading">加载中...</div>
     <div v-else-if="pullRequests.length === 0" class="empty-state">
       <p>没有找到Pull Request</p>
       <button @click="$emit('refresh')" class="refresh-btn">重试</button>
@@ -108,23 +104,13 @@ defineEmits(['select', 'toggle', 'refresh'])
   width: 60px;
 }
 
-.sidebar-header {
-  padding: 8px 12px;
-  margin-bottom: 12px;
-}
-
-.sidebar-header h2 {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-}
-
 /* 自定义滚动条样式 - 只保留垂直滚动条 */
 .sidebar:not(.sidebar-collapsed) .pr-list {
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 4px;
   margin-right: -12px;
+  flex: 1;
 }
 
 .sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar {
@@ -142,11 +128,13 @@ defineEmits(['select', 'toggle', 'refresh'])
 
 .sidebar-collapsed .pr-list {
   overflow: hidden;
+  flex: 1;
 }
 
 .pr-list {
   flex: 1;
-  padding: 8px 0;
+  min-height: 0;
+  padding-top: 8px; /* 补偿移除header后的顶部间距 */
 }
 
 .pr-item {
@@ -230,6 +218,7 @@ defineEmits(['select', 'toggle', 'refresh'])
   cursor: pointer;
   transition: all 0.3s ease;
   background-color: #f9fafb;
+  margin-top: auto; /* 关键：确保始终固定在底部 */
 }
 
 .sidebar-footer:hover {
@@ -281,6 +270,10 @@ defineEmits(['select', 'toggle', 'refresh'])
   text-align: center;
   color: #6b7280;
   font-size: 14px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .empty-state {
@@ -288,9 +281,10 @@ defineEmits(['select', 'toggle', 'refresh'])
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 100%;
+  flex: 1;
   color: #6b7280;
   gap: 1rem;
+  padding: 16px;
 }
 
 .refresh-btn {

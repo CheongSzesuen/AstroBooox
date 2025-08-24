@@ -112,7 +112,7 @@ defineEmits(['refresh'])
   justify-content: space-between;
   align-items: flex-start;
   padding-bottom: 16px;
-  border-bottom: 1px solid #e1e4e8;
+  /* border-bottom: 1px solid #e1e4e8; */
   margin-bottom: 16px;
 }
 

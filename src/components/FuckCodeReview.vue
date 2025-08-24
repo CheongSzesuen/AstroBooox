@@ -27,7 +27,7 @@
           </button>
           <a href="https://github.com/CheongSzesuen/AstroBooox/issues" target="_blank" class="issue-link">
             <svg width="20" height="20" viewBox="0 0 24 24" class="github-icon">
-              <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.167 6.839 9.49.5.09.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.027 1.531 1.027.892 1.524 2.341 1.084 2.91.828.091-.644.349-1.085.635-1.334-2.214-.253-4.542-1.11-4.542-4.937 0-1.091.39-1.984 1.029-2.683-.103-.254-.447-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.837-2.332 4.682-4.552 4.93.359.309.678.917.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48A10.017 10.017 0 0022 12c0-5.523-4.477-10-10-10z" fill="currentColor"/>
+              <path d="M12 2C6.475 2 2 6.475 2 12c0 4.42 2.865 8.167 6.839 9.49.5.09.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.027 1.531 1.027.892 1.524 2.341 1.084 2.91.828.091-.644.349-1.085.635-1.334-2.214-.253-4.542-1.11-4.542-4.937 0-1.091.39-1.984 1.029-2.683-.103-.254-.447-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.837-2.332 4.682-4.552 4.93.359.309.678.917.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48A10.017 10.017 0 0022 12c0-5.523-4.477-10-10-10z" fill="currentColor"/>
             </svg>
             提交反馈
           </a>
@@ -62,8 +62,38 @@
         <div v-if="loadingDetails" class="loading">加载PR详情中...</div>
 
         <div v-else>
-          <div class="section">
-            <h3>变更的文件</h3>
+          <!-- 新增Tab导航 -->
+          <div class="tabnav-container">
+            <nav class="tabnav-tabs">
+              <button 
+                class="tabnav-tab"
+                :class="{ 'selected': activeTab === 'analysis' }"
+                @click="activeTab = 'analysis'"
+              >
+                <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-checklist d-none d-md-inline-block">
+                  <path d="M2.5 1.75v11.5c0 .138.112.25.25.25h3.17a.75.75 0 0 1 0 1.5H2.75A1.75 1.75 0 0 1 1 13.25V1.75C1 .784 1.784 0 2.75 0h8.5C12.216 0 13 .784 13 1.75v7.736a.75.75 0 0 1-1.5 0V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13.274 9.537v-.001l-4.557 4.45a.75.75 0 0 1-1.055-.008l-1.943-1.95a.75.75 0 0 1 1.062-1.058l1.419 1.425 4.026-3.932a.75.75 0 1 1 1.048 1.074ZM4.75 4h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM4 7.75A.75.75 0 0 1 4.75 7h2a.75.75 0 0 1 0 1.5h-2A.75.75 0 0 1 4 7.75Z"></path>
+                </svg>
+                  Analysis
+                <span v-if="analyzedData" class="counter">1</span>
+              </button>
+              <button 
+                class="tabnav-tab"
+                :class="{ 'selected': activeTab === 'files' }"
+                @click="activeTab = 'files'"
+              >
+                <svg class="octicon octicon-file-diff" viewBox="0 0 16 16" width="16" height="16">
+                  <path d="M1 1.75C1 .784 1.784 0 2.75 0h7.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16H2.75A1.75 1.75 0 0 1 1 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V4.664a.25.25 0 0 0-.073-.177l-2.914-2.914a.25.25 0 0 0-.177-.073ZM8 3.25a.75.75 0 0 1 .75.75v1.5h1.5a.75.75 0 0 1 0 1.5h-1.5v1.5a.75.75 0 0 1-1.5 0V7h-1.5a.75.75 0 0 1 0-1.5h1.5V4A.75.75 0 0 1 8 3.25Zm-3 8a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Z"></path>
+                </svg>
+                Files changed
+                <span v-if="changedFiles.length > 0" class="counter">{{ changedFiles.length }}</span>
+              </button>
+
+              
+            </nav>
+          </div>
+
+          <!-- 文件变更内容 -->
+          <div v-show="activeTab === 'files'" class="tab-content">
             <div class="file-changes">
               <div v-for="file in changedFiles" :key="file.filename" class="file-item">
                 <div class="file-name">{{ file.filename }}</div>
@@ -72,148 +102,150 @@
             </div>
           </div>
 
-          <div v-if="errorMessage" class="error-message">
-            {{ errorMessage }}
-          </div>
-
-          <div v-if="analyzedData" class="analysis-results">
-            <div class="analysis-section">
-              <h3>PR变更分析</h3>
-              
-              <div v-if="analyzedData.csvChange" class="csv-analysis">
-                <h4>CSV变更</h4>
-                <div class="form-layout">
-                  <div class="form-row">
-                    <div class="form-label">资源名:</div>
-                    <div class="form-value">{{ analyzedData.csvChange.appName || '未提供' }}</div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-label">图标:</div>
-                    <div class="form-value">
-                      <a v-if="analyzedData.csvChange.iconUrl" :href="analyzedData.csvChange.iconUrl" target="_blank" class="resource-link">
-                        {{ analyzedData.csvChange.iconUrl }}
-                      </a>
-                      <span v-else>未提供</span>
-                    </div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-label">头图:</div>
-                    <div class="form-value">
-                      <a v-if="analyzedData.csvChange.previewUrl" :href="analyzedData.csvChange.previewUrl" target="_blank" class="resource-link">
-                        {{ analyzedData.csvChange.previewUrl }}
-                      </a>
-                      <span v-else>未提供</span>
-                    </div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-label">类型:</div>
-                    <div class="form-value">{{ analyzedData.csvChange.type || '未提供' }}</div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-label">标签:</div>
-                    <div class="form-value">{{ analyzedData.csvChange.tags || '未提供' }}</div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-label">支持设备:</div>
-                    <div class="form-value">{{ analyzedData.csvChange.supportedDevices || '未提供' }}</div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-label">JSON路径:</div>
-                    <div class="form-value">{{ analyzedData.csvChange.resourceFile || '未提供' }}</div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-label">付费类型:</div>
-                    <div class="form-value">{{ analyzedData.csvChange.paidType || '未提供' }}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div v-if="analyzedData.resourceChange" class="resource-analysis">
-                <h4>资源文件变更</h4>
-                <div class="json-viewer">
-                  <pre>{{ JSON.stringify(analyzedData.resourceChange, null, 2) }}</pre>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="repoData" class="analysis-section">
-              <h3>仓库信息分析</h3>
-              <div class="repo-info">
-                <div class="form-row">
-                  <div class="form-label">仓库URL:</div>
-                  <div class="form-value">
-                    <a v-if="repoData.repo_url" :href="repoData.repo_url" target="_blank" class="resource-link">
-                      {{ repoData.repo_url }}
-                    </a>
-                    <span v-else>未提供</span>
-                  </div>
-                </div>
+          <!-- 数据分析内容 -->
+          <div v-show="activeTab === 'analysis'" class="tab-content">
+            <div v-if="analyzedData" class="analysis-results">
+              <div class="analysis-section">
+                <h3>PR变更分析</h3>
                 
-                <div v-if="manifestData" class="manifest-info">
-                  <h4>Manifest 内容</h4>
+                <div v-if="analyzedData.csvChange" class="csv-analysis">
+                  <h4>CSV变更</h4>
                   <div class="form-layout">
                     <div class="form-row">
-                      <div class="form-label">应用名称:</div>
-                      <div class="form-value">{{ manifestData.item.name || '未提供' }}</div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-label">描述:</div>
-                      <div class="form-value">{{ manifestData.item.description || '未提供' }}</div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-label">作者:</div>
-                      <div class="form-value">
-                        <template v-if="manifestData.item.author?.length">
-                          <a v-for="author in manifestData.item.author" 
-                            :key="author.name"
-                            :href="author.author_url" 
-                            target="_blank"
-                            class="author-link">
-                            {{ author.name || '匿名作者' }}
-                          </a>
-                        </template>
-                        <span v-else>未提供</span>
-                      </div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-label">支持的设备:</div>
-                      <div class="form-value">
-                        <template v-if="manifestData.downloads && Object.keys(manifestData.downloads).length">
-                          <span v-for="(device, index) in Object.keys(manifestData.downloads)" :key="device">
-                            {{ device }}{{ index < Object.keys(manifestData.downloads).length - 1 ? ', ' : '' }}
-                          </span>
-                        </template>
-                        <span v-else>未提供</span>
-                      </div>
+                      <div class="form-label">资源名:</div>
+                      <div class="form-value">{{ analyzedData.csvChange.appName || '未提供' }}</div>
                     </div>
                     <div class="form-row">
                       <div class="form-label">图标:</div>
                       <div class="form-value">
-                        <a v-if="manifestData.item.icon" :href="getFullImageUrl(manifestData.item.icon)" target="_blank" class="resource-link">
-                          {{ manifestData.item.icon }}
+                        <a v-if="analyzedData.csvChange.iconUrl" :href="analyzedData.csvChange.iconUrl" target="_blank" class="resource-link">
+                          {{ analyzedData.csvChange.iconUrl }}
                         </a>
                         <span v-else>未提供</span>
                       </div>
                     </div>
                     <div class="form-row">
-                      <div class="form-label">预览图:</div>
+                      <div class="form-label">头图:</div>
                       <div class="form-value">
-                        <template v-if="manifestData.item.preview?.length">
-                          <div v-for="preview in manifestData.item.preview" :key="preview">
-                            <a :href="getFullImageUrl(preview)" target="_blank" class="resource-link">
-                              {{ preview }}
-                            </a>
-                          </div>
-                        </template>
+                        <a v-if="analyzedData.csvChange.previewUrl" :href="analyzedData.csvChange.previewUrl" target="_blank" class="resource-link">
+                          {{ analyzedData.csvChange.previewUrl }}
+                        </a>
                         <span v-else>未提供</span>
                       </div>
                     </div>
+                    <div class="form-row">
+                      <div class="form-label">类型:</div>
+                      <div class="form-value">{{ analyzedData.csvChange.type || '未提供' }}</div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-label">标签:</div>
+                      <div class="form-value">{{ analyzedData.csvChange.tags || '未提供' }}</div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-label">支持设备:</div>
+                      <div class="form-value">{{ analyzedData.csvChange.supportedDevices || '未提供' }}</div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-label">JSON路径:</div>
+                      <div class="form-value">{{ analyzedData.csvChange.resourceFile || '未提供' }}</div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-label">付费类型:</div>
+                      <div class="form-value">{{ analyzedData.csvChange.paidType || '未提供' }}</div>
+                    </div>
                   </div>
                 </div>
-                <div v-else class="error">
-                  无法获取或解析manifest.json文件
+
+                <div v-if="analyzedData.resourceChange" class="resource-analysis">
+                  <h4>资源文件变更</h4>
+                  <div class="json-viewer">
+                    <pre>{{ JSON.stringify(analyzedData.resourceChange, null, 2) }}</pre>
+                  </div>
                 </div>
               </div>
+
+              <div v-if="repoData" class="analysis-section">
+                <h3>仓库信息分析</h3>
+                <div class="repo-info">
+                  <div class="form-row">
+                    <div class="form-label">仓库URL:</div>
+                    <div class="form-value">
+                      <a v-if="repoData.repo_url" :href="repoData.repo_url" target="_blank" class="resource-link">
+                        {{ repoData.repo_url }}
+                      </a>
+                      <span v-else>未提供</span>
+                    </div>
+                  </div>
+                  
+                  <div v-if="manifestData" class="manifest-info">
+                    <h4>Manifest 内容</h4>
+                    <div class="form-layout">
+                      <div class="form-row">
+                        <div class="form-label">应用名称:</div>
+                        <div class="form-value">{{ manifestData.item.name || '未提供' }}</div>
+                      </div>
+                      <div class="form-row">
+                        <div class="form-label">描述:</div>
+                        <div class="form-value">{{ manifestData.item.description || '未提供' }}</div>
+                      </div>
+                      <div class="form-row">
+                        <div class="form-label">作者:</div>
+                        <div class="form-value">
+                          <template v-if="manifestData.item.author?.length">
+                            <a v-for="author in manifestData.item.author" 
+                              :key="author.name"
+                              :href="author.author_url" 
+                              target="_blank"
+                              class="author-link">
+                              {{ author.name || '匿名作者' }}
+                            </a>
+                          </template>
+                          <span v-else>未提供</span>
+                        </div>
+                      </div>
+                      <div class="form-row">
+                        <div class="form-label">支持的设备:</div>
+                        <div class="form-value">
+                          <template v-if="manifestData.downloads && Object.keys(manifestData.downloads).length">
+                            <span v-for="(device, index) in Object.keys(manifestData.downloads)" :key="device">
+                              {{ device }}{{ index < Object.keys(manifestData.downloads).length - 1 ? ', ' : '' }}
+                            </span>
+                          </template>
+                          <span v-else>未提供</span>
+                        </div>
+                      </div>
+                      <div class="form-row">
+                        <div class="form-label">图标:</div>
+                        <div class="form-value">
+                          <a v-if="manifestData.item.icon" :href="getFullImageUrl(manifestData.item.icon)" target="_blank" class="resource-link">
+                            {{ manifestData.item.icon }}
+                          </a>
+                          <span v-else>未提供</span>
+                        </div>
+                      </div>
+                      <div class="form-row">
+                        <div class="form-label">预览图:</div>
+                        <div class="form-value">
+                          <template v-if="manifestData.item.preview?.length">
+                            <div v-for="preview in manifestData.item.preview" :key="preview">
+                              <a :href="getFullImageUrl(preview)" target="_blank" class="resource-link">
+                                {{ preview }}
+                              </a>
+                            </div>
+                          </template>
+                          <span v-else>未提供</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="error">
+                    无法获取或解析manifest.json文件
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-state">
+              <p>暂无数据分析结果</p>
             </div>
           </div>
         </div>
@@ -333,6 +365,7 @@ const errorMessage = ref('')
 const isSidebarCollapsed = ref(false)
 const isFirstSelection = ref(true)
 const showFeatureNotice = ref(true)
+const activeTab = ref<'files' | 'analysis'>('files')
 
 // 关闭功能通知
 const closeFeatureNotice = () => {
@@ -740,10 +773,11 @@ const getFullImageUrl = (relativePath: string): string => {
 const formatDate = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString()
 }
+
+defineEmits(['refresh'])
 </script>
 
 <style scoped>
-/* 基础布局 */
 .code-review-container {
   display: flex;
   height: 100vh;
@@ -751,7 +785,6 @@ const formatDate = (dateString: string): string => {
   overflow: auto;
 }
 
-/* 功能通知弹窗样式 */
 .feature-notice {
   position: fixed;
   top: 0;
@@ -878,7 +911,6 @@ const formatDate = (dateString: string): string => {
   height: 20px;
 }
 
-/* 主内容区 */
 .main-content {
   margin-left: 320px;
   padding: 20px;
@@ -891,15 +923,6 @@ const formatDate = (dateString: string): string => {
   margin-left: 100px;
 }
 
-/* 加载状态 */
-.loading {
-  padding: 16px;
-  text-align: center;
-  color: #6b7280;
-  font-size: 14px;
-}
-
-/* 空状态 */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -916,7 +939,91 @@ const formatDate = (dateString: string): string => {
   text-align: center;
 }
 
-/* 文件变更 */
+.loading {
+  padding: 16px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.error-message {
+  padding: 1rem;
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+.tabnav-container {
+  border-bottom: 1px solid #d0d7de;
+  margin-bottom: 16px;
+}
+
+.tabnav-tabs {
+  display: flex;
+  margin-bottom: -1px;
+  overflow: hidden;
+}
+
+.tabnav-tab {
+  position: relative;
+  padding: 8px 16px;
+  font-size: 14px;
+  line-height: 20px;
+  color: #57606a;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.tabnav-tab:hover {
+  color: #0969da;
+}
+
+.tabnav-tab.selected {
+  color: #0969da;
+  background-color: #ffffff;
+  border-color: #d0d7de;
+  border-bottom-color: #ffffff;
+}
+
+.tabnav-tab .octicon {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  color: #57606a;
+  background-color: rgba(175, 184, 193, 0.2);
+  border-radius: 50%;
+  margin-left: 4px;
+}
+
+.tabnav-tab.selected .counter {
+  background-color: rgba(9, 105, 218, 0.1);
+  color: #0969da;
+}
+
+.tab-content {
+  padding: 16px;
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+}
+
 .file-changes {
   border: 1px solid #e5e7eb;
   border-radius: 6px;
@@ -947,16 +1054,6 @@ const formatDate = (dateString: string): string => {
   white-space: nowrap;
 }
 
-/* 错误信息 */
-.error-message {
-  padding: 1rem;
-  background-color: #fee2e2;
-  color: #dc2626;
-  border-radius: 0.5rem;
-  margin: 1rem 0;
-}
-
-/* 分析结果 */
 .analysis-results {
   display: flex;
   flex-wrap: wrap;
@@ -974,19 +1071,20 @@ const formatDate = (dateString: string): string => {
   border-bottom: 1px solid #e5e7eb;
 }
 
-/* CSV分析 */
+.csv-analysis {
+  margin-top: 1rem;
+}
+
 .csv-analysis h4 {
   margin: 1.5rem 0 1rem;
   font-size: 1.1rem;
   color: #374151;
 }
 
-/* 表单布局 */
 .form-layout {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-top: 1rem;
 }
 
 .form-row {
@@ -1006,14 +1104,16 @@ const formatDate = (dateString: string): string => {
   word-break: break-word;
 }
 
-/* 资源分析 */
+.resource-analysis {
+  margin-top: 1.5rem;
+}
+
 .resource-analysis h4 {
   margin: 1.5rem 0 1rem;
   font-size: 1.1rem;
   color: #374151;
 }
 
-/* JSON查看器 */
 .json-viewer {
   background-color: #f8fafc;
   border: 1px solid #e5e7eb;
@@ -1032,7 +1132,6 @@ const formatDate = (dateString: string): string => {
   word-break: break-word;
 }
 
-/* 仓库信息 */
 .repo-info {
   margin-top: 1.5rem;
 }
@@ -1047,7 +1146,6 @@ const formatDate = (dateString: string): string => {
   color: #4b5563;
 }
 
-/* 链接样式 */
 .resource-link {
   color: #3b82f6;
   text-decoration: none;
@@ -1068,7 +1166,6 @@ const formatDate = (dateString: string): string => {
   text-decoration: underline;
 }
 
-/* 响应式调整 */
 @media (max-width: 768px) {
   .main-content {
     margin-left: 280px;
@@ -1091,6 +1188,21 @@ const formatDate = (dateString: string): string => {
     min-width: auto;
     padding-right: 0;
     margin-bottom: 0.25rem;
+  }
+  
+  .tabnav-tabs {
+    padding: 0 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .tabnav-tab {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  .tab-content {
+    padding: 12px;
   }
 }
 
