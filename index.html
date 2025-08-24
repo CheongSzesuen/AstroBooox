@@ -17,23 +17,22 @@
     <script type="module" src="/src/main.ts"></script>
 
 <script>
-      (function() {
-        const id = import.meta.env.VITE_CLARITY_ID;
-        
-        if (!id) {
-          console.log("[Clarity] ID not configured");
-          return;
-        }
+  (function() {
+    const id = window.__CLARITY_ID__;
+    if (!id) {
+      console.log("[Clarity] ID not configured");
+      return;
+    }
 
-        (function(c,l,a,r,i,t,y){
-          c[a] = c[a] || function() { (c[a].q = c[a].q || []).push(arguments) };
-          t = l.createElement(r);
-          t.async = 1;
-          t.src = "https://www.clarity.ms/tag/" + i;
-          y = l.getElementsByTagName(r)[0];
-          y.parentNode.insertBefore(t, y);
-        })(window, document, "clarity", "script", id);
-      })();
-    </script>
+    (function(c,l,a,r,i,t,y){
+      c[a] = c[a] || function() { (c[a].q = c[a].q || []).push(arguments) };
+      t = l.createElement(r);
+      t.async = 1;
+      t.src = "https://www.clarity.ms/tag/" + i;
+      y = l.getElementsByTagName(r)[0];
+      y.parentNode.insertBefore(t, y);
+    })(window, document, "clarity", "script", id);
+  })();
+</script>
   </body>
 </html>
