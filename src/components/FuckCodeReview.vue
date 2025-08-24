@@ -62,192 +62,26 @@
         <div v-if="loadingDetails" class="loading">加载PR详情中...</div>
 
         <div v-else>
-          <!-- 新增Tab导航 -->
-          <div class="tabnav-container">
-            <nav class="tabnav-tabs">
-              <button 
-                class="tabnav-tab"
-                :class="{ 'selected': activeTab === 'analysis' }"
-                @click="activeTab = 'analysis'"
-              >
-                <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-checklist d-none d-md-inline-block">
-                  <path d="M2.5 1.75v11.5c0 .138.112.25.25.25h3.17a.75.75 0 0 1 0 1.5H2.75A1.75 1.75 0 0 1 1 13.25V1.75C1 .784 1.784 0 2.75 0h8.5C12.216 0 13 .784 13 1.75v7.736a.75.75 0 0 1-1.5 0V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13.274 9.537v-.001l-4.557 4.45a.75.75 0 0 1-1.055-.008l-1.943-1.95a.75.75 0 0 1 1.062-1.058l1.419 1.425 4.026-3.932a.75.75 0 1 1 1.048 1.074ZM4.75 4h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM4 7.75A.75.75 0 0 1 4.75 7h2a.75.75 0 0 1 0 1.5h-2A.75.75 0 0 1 4 7.75Z"></path>
-                </svg>
-                  Analysis
-                <span v-if="analyzedData" class="counter">1</span>
-              </button>
-              <button 
-                class="tabnav-tab"
-                :class="{ 'selected': activeTab === 'files' }"
-                @click="activeTab = 'files'"
-              >
-                <svg class="octicon octicon-file-diff" viewBox="0 0 16 16" width="16" height="16">
-                  <path d="M1 1.75C1 .784 1.784 0 2.75 0h7.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16H2.75A1.75 1.75 0 0 1 1 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V4.664a.25.25 0 0 0-.073-.177l-2.914-2.914a.25.25 0 0 0-.177-.073ZM8 3.25a.75.75 0 0 1 .75.75v1.5h1.5a.75.75 0 0 1 0 1.5h-1.5v1.5a.75.75 0 0 1-1.5 0V7h-1.5a.75.75 0 0 1 0-1.5h1.5V4A.75.75 0 0 1 8 3.25Zm-3 8a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Z"></path>
-                </svg>
-                Files changed
-                <span v-if="changedFiles.length > 0" class="counter">{{ changedFiles.length }}</span>
-              </button>
-
-              
-            </nav>
-          </div>
+          <!-- 使用PR标签导航组件 -->
+          <PRTabs
+            v-model:active-tab="activeTab"
+            :analyzed-data="analyzedData"
+            :changed-files="changedFiles"
+          />
 
           <!-- 文件变更内容 -->
-          <div v-show="activeTab === 'files'" class="tab-content">
-            <div class="file-changes">
-              <div v-for="file in changedFiles" :key="file.filename" class="file-item">
-                <div class="file-name">{{ file.filename }}</div>
-                <div class="file-status">{{ file.status }} ({{ file.changes }} changes)</div>
-              </div>
-            </div>
-          </div>
+          <FilesTabContent
+            v-show="activeTab === 'files'"
+            :changed-files="changedFiles"
+          />
 
           <!-- 数据分析内容 -->
-          <div v-show="activeTab === 'analysis'" class="tab-content">
-            <div v-if="analyzedData" class="analysis-results">
-              <div class="analysis-section">
-                <h3>PR变更分析</h3>
-                
-                <div v-if="analyzedData.csvChange" class="csv-analysis">
-                  <h4>CSV变更</h4>
-                  <div class="form-layout">
-                    <div class="form-row">
-                      <div class="form-label">资源名:</div>
-                      <div class="form-value">{{ analyzedData.csvChange.appName || '未提供' }}</div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-label">图标:</div>
-                      <div class="form-value">
-                        <a v-if="analyzedData.csvChange.iconUrl" :href="analyzedData.csvChange.iconUrl" target="_blank" class="resource-link">
-                          {{ analyzedData.csvChange.iconUrl }}
-                        </a>
-                        <span v-else>未提供</span>
-                      </div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-label">头图:</div>
-                      <div class="form-value">
-                        <a v-if="analyzedData.csvChange.previewUrl" :href="analyzedData.csvChange.previewUrl" target="_blank" class="resource-link">
-                          {{ analyzedData.csvChange.previewUrl }}
-                        </a>
-                        <span v-else>未提供</span>
-                      </div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-label">类型:</div>
-                      <div class="form-value">{{ analyzedData.csvChange.type || '未提供' }}</div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-label">标签:</div>
-                      <div class="form-value">{{ analyzedData.csvChange.tags || '未提供' }}</div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-label">支持设备:</div>
-                      <div class="form-value">{{ analyzedData.csvChange.supportedDevices || '未提供' }}</div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-label">JSON路径:</div>
-                      <div class="form-value">{{ analyzedData.csvChange.resourceFile || '未提供' }}</div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-label">付费类型:</div>
-                      <div class="form-value">{{ analyzedData.csvChange.paidType || '未提供' }}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div v-if="analyzedData.resourceChange" class="resource-analysis">
-                  <h4>资源文件变更</h4>
-                  <div class="json-viewer">
-                    <pre>{{ JSON.stringify(analyzedData.resourceChange, null, 2) }}</pre>
-                  </div>
-                </div>
-              </div>
-
-              <div v-if="repoData" class="analysis-section">
-                <h3>仓库信息分析</h3>
-                <div class="repo-info">
-                  <div class="form-row">
-                    <div class="form-label">仓库URL:</div>
-                    <div class="form-value">
-                      <a v-if="repoData.repo_url" :href="repoData.repo_url" target="_blank" class="resource-link">
-                        {{ repoData.repo_url }}
-                      </a>
-                      <span v-else>未提供</span>
-                    </div>
-                  </div>
-                  
-                  <div v-if="manifestData" class="manifest-info">
-                    <h4>Manifest 内容</h4>
-                    <div class="form-layout">
-                      <div class="form-row">
-                        <div class="form-label">应用名称:</div>
-                        <div class="form-value">{{ manifestData.item.name || '未提供' }}</div>
-                      </div>
-                      <div class="form-row">
-                        <div class="form-label">描述:</div>
-                        <div class="form-value">{{ manifestData.item.description || '未提供' }}</div>
-                      </div>
-                      <div class="form-row">
-                        <div class="form-label">作者:</div>
-                        <div class="form-value">
-                          <template v-if="manifestData.item.author?.length">
-                            <a v-for="author in manifestData.item.author" 
-                              :key="author.name"
-                              :href="author.author_url" 
-                              target="_blank"
-                              class="author-link">
-                              {{ author.name || '匿名作者' }}
-                            </a>
-                          </template>
-                          <span v-else>未提供</span>
-                        </div>
-                      </div>
-                      <div class="form-row">
-                        <div class="form-label">支持的设备:</div>
-                        <div class="form-value">
-                          <template v-if="manifestData.downloads && Object.keys(manifestData.downloads).length">
-                            <span v-for="(device, index) in Object.keys(manifestData.downloads)" :key="device">
-                              {{ device }}{{ index < Object.keys(manifestData.downloads).length - 1 ? ', ' : '' }}
-                            </span>
-                          </template>
-                          <span v-else>未提供</span>
-                        </div>
-                      </div>
-                      <div class="form-row">
-                        <div class="form-label">图标:</div>
-                        <div class="form-value">
-                          <a v-if="manifestData.item.icon" :href="getFullImageUrl(manifestData.item.icon)" target="_blank" class="resource-link">
-                            {{ manifestData.item.icon }}
-                          </a>
-                          <span v-else>未提供</span>
-                        </div>
-                      </div>
-                      <div class="form-row">
-                        <div class="form-label">预览图:</div>
-                        <div class="form-value">
-                          <template v-if="manifestData.item.preview?.length">
-                            <div v-for="preview in manifestData.item.preview" :key="preview">
-                              <a :href="getFullImageUrl(preview)" target="_blank" class="resource-link">
-                                {{ preview }}
-                              </a>
-                            </div>
-                          </template>
-                          <span v-else>未提供</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div v-else class="error">
-                    无法获取或解析manifest.json文件
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="empty-state">
-              <p>暂无数据分析结果</p>
-            </div>
-          </div>
+          <AnalysisTabContent
+            v-show="activeTab === 'analysis'"
+            :analyzed-data="analyzedData"
+            :repo-data="repoData"
+            :manifest-data="manifestData"
+          />
         </div>
       </div>
     </div>
@@ -265,86 +99,19 @@ import axios, {
 } from 'axios'
 import Sidebar from '@/components/CodeReview/Sidebar.vue'
 import PRHeader from '@/components/CodeReview/PRHeader.vue'
+import PRTabs from '@/components/CodeReview/PRTabs.vue'
+import FilesTabContent from '@/components/CodeReview/PRTabs/FilesTabContent.vue'
+import AnalysisTabContent from '@/components/CodeReview/PRTabs/AnalysisTabContent.vue'
 import { api } from '../utils/githubClient'
-
-// 类型定义
-interface GitHubUser {
-  login: string
-  avatar_url: string
-  html_url: string
-}
-
-interface PullRequest {
-  id: number
-  number: number
-  title: string
-  user: GitHubUser
-  created_at: string
-  html_url: string
-  head: {
-    sha: string
-    label: string
-  }
-  base: {
-    label: string
-  }
-  commits?: number
-  state: string
-}
-
-interface FileChange {
-  filename: string
-  status: string
-  changes: number
-  patch?: string
-  contents_url: string
-}
-
-interface CSVChange {
-  appName: string
-  iconUrl: string
-  previewUrl: string
-  type: string
-  tags: string
-  supportedDevices: string
-  resourceFile: string
-  paidType: string
-}
-
-interface ResourceChange {
-  manifest_ver: number
-  repo_url: string
-}
-
-interface AnalyzedData {
-  csvChange?: CSVChange
-  resourceChange?: ResourceChange
-}
-
-interface ManifestAuthor {
-  name: string
-  author_url: string
-}
-
-interface ManifestItem {
-  name: string
-  description: string
-  preview: string[]
-  icon: string
-  source_url: string
-  author: ManifestAuthor[]
-}
-
-interface ManifestDownload {
-  version: string
-  file_name: string
-}
-
-interface ManifestData {
-  item: ManifestItem
-  downloads: Record<string, ManifestDownload>
-}
-
+import type { 
+  PullRequest, 
+  FileChange, 
+  AnalyzedData,
+  RepoData,
+  ManifestData,
+  CSVChange,
+  ResourceChange
+} from '@/type/codeReview'
 // 常量定义
 const REPO_OWNER = 'AstralSightStudios'
 const REPO_NAME = 'AstroBox-Repo'
@@ -357,7 +124,7 @@ const pullRequests = ref<PullRequest[]>([])
 const selectedPR = ref<PullRequest | null>(null)
 const changedFiles = ref<FileChange[]>([])
 const analyzedData = ref<AnalyzedData | null>(null)
-const repoData = ref<ResourceChange | null>(null)
+const repoData = ref<RepoData | null>(null)
 const manifestData = ref<ManifestData | null>(null)
 const loadingPRs = ref(false)
 const loadingDetails = ref(false)
@@ -365,7 +132,7 @@ const errorMessage = ref('')
 const isSidebarCollapsed = ref(false)
 const isFirstSelection = ref(true)
 const showFeatureNotice = ref(true)
-const activeTab = ref<'files' | 'analysis'>('files')
+const activeTab = ref<'files' | 'analysis'>('analysis')
 
 // 关闭功能通知
 const closeFeatureNotice = () => {
@@ -382,20 +149,6 @@ const getErrorMessage = (error: unknown): string => {
 // 添加 AxiosError 类型检查函数
 const isAxiosError = (error: unknown): error is AxiosError => {
   return (error as AxiosError).isAxiosError === true
-}
-
-// 监控速率限制状态
-const monitorRateLimit = (rateLimit: {limit: number, remaining: number, reset: number}) => {
-  const { remaining, limit, reset } = rateLimit
-  const resetTime = new Date(reset * 1000).toLocaleTimeString()
-  
-  if (remaining < 100) {
-    console.warn(`Rate limit warning: ${remaining}/${limit} remaining (resets at ${resetTime})`)
-  }
-  
-  if (remaining === 0) {
-    throw new Error(`Rate limit reached (resets at ${resetTime})`)
-  }
 }
 
 onMounted(() => {
@@ -954,218 +707,6 @@ defineEmits(['refresh'])
   margin: 1rem 0;
 }
 
-.tabnav-container {
-  border-bottom: 1px solid #d0d7de;
-  margin-bottom: 16px;
-}
-
-.tabnav-tabs {
-  display: flex;
-  margin-bottom: -1px;
-  overflow: hidden;
-}
-
-.tabnav-tab {
-  position: relative;
-  padding: 8px 16px;
-  font-size: 14px;
-  line-height: 20px;
-  color: #57606a;
-  background-color: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px 6px 0 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.tabnav-tab:hover {
-  color: #0969da;
-}
-
-.tabnav-tab.selected {
-  color: #0969da;
-  background-color: #ffffff;
-  border-color: #d0d7de;
-  border-bottom-color: #ffffff;
-}
-
-.tabnav-tab .octicon {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
-}
-
-.counter {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1;
-  color: #57606a;
-  background-color: rgba(175, 184, 193, 0.2);
-  border-radius: 50%;
-  margin-left: 4px;
-}
-
-.tabnav-tab.selected .counter {
-  background-color: rgba(9, 105, 218, 0.1);
-  color: #0969da;
-}
-
-.tab-content {
-  padding: 16px;
-  border-top: 0;
-  border-radius: 0 0 6px 6px;
-}
-
-.file-changes {
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.file-item:last-child {
-  border-bottom: none;
-}
-
-.file-name {
-  flex: 1;
-  font-family: 'Courier New', monospace;
-  word-break: break-all;
-}
-
-.file-status {
-  margin: 0 1rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-  white-space: nowrap;
-}
-
-.analysis-results {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
-}
-
-.analysis-section {
-  flex: 1;
-  min-width: 400px;
-}
-
-.analysis-section h3 {
-  margin-top: 0;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.csv-analysis {
-  margin-top: 1rem;
-}
-
-.csv-analysis h4 {
-  margin: 1.5rem 0 1rem;
-  font-size: 1.1rem;
-  color: #374151;
-}
-
-.form-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-row {
-  display: flex;
-  align-items: flex-start;
-}
-
-.form-label {
-  font-weight: 500;
-  min-width: 120px;
-  padding-right: 1rem;
-  color: #4b5563;
-}
-
-.form-value {
-  flex: 1;
-  word-break: break-word;
-}
-
-.resource-analysis {
-  margin-top: 1.5rem;
-}
-
-.resource-analysis h4 {
-  margin: 1.5rem 0 1rem;
-  font-size: 1.1rem;
-  color: #374151;
-}
-
-.json-viewer {
-  background-color: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 1rem;
-  margin-top: 1rem;
-  overflow-x: auto;
-}
-
-.json-viewer pre {
-  margin: 0;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.repo-info {
-  margin-top: 1.5rem;
-}
-
-.manifest-info {
-  margin-top: 1.5rem;
-}
-
-.manifest-info h4 {
-  margin: 1rem 0;
-  font-size: 1rem;
-  color: #4b5563;
-}
-
-.resource-link {
-  color: #3b82f6;
-  text-decoration: none;
-  word-break: break-all;
-}
-
-.resource-link:hover {
-  text-decoration: underline;
-}
-
-.author-link {
-  color: #3b82f6;
-  text-decoration: none;
-  margin-right: 0.5rem;
-}
-
-.author-link:hover {
-  text-decoration: underline;
-}
-
 @media (max-width: 768px) {
   .main-content {
     margin-left: 280px;
@@ -1173,61 +714,6 @@ defineEmits(['refresh'])
   
   .sidebar-collapsed ~ .main-content {
     margin-left: 80px;
-  }
-  
-  .analysis-section {
-    min-width: 100%;
-  }
-  
-  .form-row {
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-  
-  .form-label {
-    min-width: auto;
-    padding-right: 0;
-    margin-bottom: 0.25rem;
-  }
-  
-  .tabnav-tabs {
-    padding: 0 8px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  .tabnav-tab {
-    padding: 8px 12px;
-    font-size: 13px;
-  }
-  
-  .tab-content {
-    padding: 12px;
-  }
-}
-
-@media (max-width: 640px) {
-  .notice-content {
-    width: calc(100% - 1rem);
-  }
-  
-  .notice-header {
-    padding: 1rem;
-  }
-  
-  .notice-body {
-    padding: 1rem;
-  }
-  
-  .notice-actions {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .confirm-button,
-  .issue-link {
-    width: 100%;
-    justify-content: center;
   }
 }
 </style>
