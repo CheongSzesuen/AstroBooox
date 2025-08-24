@@ -13,7 +13,7 @@
           <p>目前版本为基础版本，更方便的功能还在更新</p>
           <ul class="notice-list">
             <li>手机端响应有问题</li>
-            <li>自动检验pr数据未做</li>
+            <li>自动检验PR数据未做</li>
             <li>后续会持续更新优化</li>
           </ul>
           <p class="hint-text">如有任何建议或发现问题，欢迎提交Issue或直接联系我</p>
@@ -67,20 +67,22 @@
         </div>
       </div>
       
-      <!-- 底部切换按钮区域 -->
+      <!-- 修改后的底部切换按钮区域 -->
       <div class="sidebar-footer" @click="toggleSidebar">
-        <div class="toggle-area">
-          <svg class="arrow-icon" viewBox="0 0 24 24">
-            <path 
-              :d="isSidebarCollapsed ? 'M9 18L15 12L9 6' : 'M15 18L9 12L15 6'" 
-              stroke="currentColor" 
-              stroke-width="2" 
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </div>
-      </div>
+    <span class="collapse-text" v-if="!isSidebarCollapsed">折叠侧栏</span>
+    <svg class="arrow-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path 
+        :transform="isSidebarCollapsed ? '' : 'rotate(90 512 512)'"
+        d="M493.504 558.144a31.904 31.904 0 0 0 45.28 0l308.352-308.352a31.968 31.968 0 1 0-45.248-45.248L516.16 490.272 221.984 196.128a31.968 31.968 0 1 0-45.248 45.248l316.768 316.768z" 
+        fill="#3b82f6"
+      />
+      <path 
+        :transform="isSidebarCollapsed ? '' : 'rotate(90 512 512)'"
+        d="M801.888 460.576L516.16 746.304 222.016 452.16a31.968 31.968 0 1 0-45.248 45.248l316.768 316.768a31.904 31.904 0 0 0 45.28 0l308.352-308.352a32 32 0 1 0-45.28-45.248z" 
+        fill="#3b82f6"
+      />
+    </svg>
+  </div>
     </div>
 
     <!-- 主内容区 -->
@@ -261,6 +263,7 @@
     </div>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
@@ -850,7 +853,8 @@ const formatDate = (dateString: string): string => {
 
 .hint-text {
   color: #64748b;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
+  font-weight: normal;
 }
 
 .notice-actions {
@@ -916,9 +920,13 @@ const formatDate = (dateString: string): string => {
   flex-direction: column;
   padding: 12px;
   z-index: 100;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-x: hidden;
   overflow-y: overlay;
+}
+
+.sidebar-collapsed {
+  width: 60px;
 }
 
 /* 自定义滚动条样式 */
@@ -936,10 +944,6 @@ const formatDate = (dateString: string): string => {
 
 .sidebar::-webkit-scrollbar-thumb:hover {
   background-color: #a8a8a8;
-}
-
-.sidebar-collapsed {
-  width: 60px;
 }
 
 /* 侧边栏头部 */
@@ -1033,32 +1037,48 @@ const formatDate = (dateString: string): string => {
   margin-right: 8px;
 }
 
-/* 侧边栏底部 */
-.sidebar-footer {
-  padding: 12px 0;
-  border-top: 1px solid #f3f4f6;
-  cursor: pointer;
+.pr-date {
+  font-size: 13px;
+  color: #9ca3af;
 }
 
-.toggle-area {
+/* 修改后的侧边栏底部样式 */
+.sidebar-footer {
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 40px;
-  border-radius: 6px;
-  transition: background-color 0.2s;
+  justify-content: space-between;
+  padding: 16px;
+  border-top: 1px solid #f3f4f6;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.toggle-area:hover {
-  background-color: #f3f4f6;
+.sidebar-footer:hover {
+  background-color: #f8fafc;
 }
 
-/* 箭头图标 */
+.collapse-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #64748b;
+  transition: all 0.3s ease;
+}
+
 .arrow-icon {
   width: 24px;
   height: 24px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* 侧栏展开时箭头朝左(90度旋转) */
+.sidebar:not(.sidebar-collapsed) .arrow-icon {
+  transform: rotate(360deg);
+}
+
+/* 侧栏收缩时箭头朝右(0度旋转) */
+.sidebar-collapsed .arrow-icon {
+  transform: rotate(270deg);
+}
 /* 主内容区 */
 .main-content {
   margin-left: 320px;
@@ -1091,6 +1111,12 @@ const formatDate = (dateString: string): string => {
   gap: 1rem;
 }
 
+.empty-state h3 {
+  margin: 0;
+  font-weight: 500;
+  text-align: center;
+}
+
 /* PR头部 */
 .pr-header {
   display: flex;
@@ -1099,6 +1125,11 @@ const formatDate = (dateString: string): string => {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid #e5e7eb;
+}
+
+.pr-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
 }
 
 /* 文件变更 */
@@ -1122,12 +1153,23 @@ const formatDate = (dateString: string): string => {
 .file-name {
   flex: 1;
   font-family: 'Courier New', monospace;
+  word-break: break-all;
 }
 
 .file-status {
   margin: 0 1rem;
   font-size: 0.875rem;
   color: #6b7280;
+  white-space: nowrap;
+}
+
+/* 错误信息 */
+.error-message {
+  padding: 1rem;
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
 }
 
 /* 分析结果 */
@@ -1140,6 +1182,19 @@ const formatDate = (dateString: string): string => {
 .analysis-section {
   flex: 1;
   min-width: 400px;
+}
+
+.analysis-section h3 {
+  margin-top: 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* CSV分析 */
+.csv-analysis h4 {
+  margin: 1.5rem 0 1rem;
+  font-size: 1.1rem;
+  color: #374151;
 }
 
 /* 表单布局 */
@@ -1159,10 +1214,53 @@ const formatDate = (dateString: string): string => {
   font-weight: 500;
   min-width: 120px;
   padding-right: 1rem;
+  color: #4b5563;
 }
 
 .form-value {
   flex: 1;
+  word-break: break-word;
+}
+
+/* 资源分析 */
+.resource-analysis h4 {
+  margin: 1.5rem 0 1rem;
+  font-size: 1.1rem;
+  color: #374151;
+}
+
+/* JSON查看器 */
+.json-viewer {
+  background-color: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+.json-viewer pre {
+  margin: 0;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 仓库信息 */
+.repo-info {
+  margin-top: 1.5rem;
+}
+
+.manifest-info {
+  margin-top: 1.5rem;
+}
+
+.manifest-info h4 {
+  margin: 1rem 0;
+  font-size: 1rem;
+  color: #4b5563;
 }
 
 /* 链接样式 */
@@ -1186,32 +1284,14 @@ const formatDate = (dateString: string): string => {
   text-decoration: underline;
 }
 
-/* JSON查看器 */
-.json-viewer {
-  background-color: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 1rem;
-  margin-top: 1rem;
-  overflow-x: auto;
-}
-
-/* 错误信息 */
-.error-message {
-  padding: 1rem;
-  background-color: #fee2e2;
-  color: #dc2626;
-  border-radius: 0.5rem;
-  margin: 1rem 0;
-}
-
 /* 刷新按钮 */
 .refresh-btn {
   padding: 0.5rem 1rem;
-  background-color: #3b82f6;
-  color: white;
   border: none;
   border-radius: 4px;
+  background-color: #3b82f6;
+  color: white;
+  font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -1246,6 +1326,8 @@ const formatDate = (dateString: string): string => {
   
   .form-label {
     min-width: auto;
+    padding-right: 0;
+    margin-bottom: 0.25rem;
   }
 }
 
@@ -1271,6 +1353,20 @@ const formatDate = (dateString: string): string => {
   .issue-link {
     width: 100%;
     justify-content: center;
+  }
+  
+  .pr-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .pr-actions {
+    width: 100%;
+  }
+  
+  .refresh-btn {
+    width: 100%;
   }
 }
 </style>
