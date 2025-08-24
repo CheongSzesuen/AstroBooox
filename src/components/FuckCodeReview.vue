@@ -35,55 +35,16 @@
       </div>
     </div>
 
-    <!-- 悬浮卡片式侧边栏 -->
-    <div class="sidebar" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
-      <div class="sidebar-header">
-        <h2 v-if="!isSidebarCollapsed">PR列表</h2>
-      </div>
-      
-      <div v-if="loadingPRs" class="loading">加载PR列表中...</div>
-      <div v-else-if="pullRequests.length === 0" class="empty-state">
-        <p>没有找到Pull Request</p>
-        <button @click="fetchPullRequests" class="refresh-btn">重试</button>
-      </div>
-      <div v-else class="pr-list">
-        <div 
-          v-for="pr in pullRequests" 
-          :key="pr.id"
-          class="pr-item"
-          :class="{ active: selectedPR && pr.id === selectedPR.id }"
-          @click="selectPR(pr)"
-        >
-          <div class="avatar-container">
-            <img :src="pr.user.avatar_url" class="pr-avatar" />
-          </div>
-          <div class="pr-info" v-if="!isSidebarCollapsed">
-            <div class="pr-title">#{{ pr.number }} {{ pr.title }}</div>
-            <div class="pr-meta">
-              <span class="pr-author">by {{ pr.user.login }}</span>
-              <span class="pr-date">{{ formatDate(pr.created_at) }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- 修改后的底部切换按钮区域 -->
-      <div class="sidebar-footer" @click="toggleSidebar">
-    <span class="collapse-text" v-if="!isSidebarCollapsed">折叠侧栏</span>
-    <svg class="arrow-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
-      <path 
-        :transform="isSidebarCollapsed ? '' : 'rotate(90 512 512)'"
-        d="M493.504 558.144a31.904 31.904 0 0 0 45.28 0l308.352-308.352a31.968 31.968 0 1 0-45.248-45.248L516.16 490.272 221.984 196.128a31.968 31.968 0 1 0-45.248 45.248l316.768 316.768z" 
-        fill="#3b82f6"
-      />
-      <path 
-        :transform="isSidebarCollapsed ? '' : 'rotate(90 512 512)'"
-        d="M801.888 460.576L516.16 746.304 222.016 452.16a31.968 31.968 0 1 0-45.248 45.248l316.768 316.768a31.904 31.904 0 0 0 45.28 0l308.352-308.352a32 32 0 1 0-45.28-45.248z" 
-        fill="#3b82f6"
-      />
-    </svg>
-  </div>
-    </div>
+    <!-- 使用侧栏组件 -->
+    <Sidebar
+      :pull-requests="pullRequests"
+      :selected-pr="selectedPR"
+      :loading="loadingPRs"
+      :is-collapsed="isSidebarCollapsed"
+      @select="selectPR"
+      @toggle="toggleSidebar"
+      @refresh="fetchPullRequests"
+    />
 
     <!-- 主内容区 -->
     <div class="main-content">
@@ -92,14 +53,11 @@
       </div>
 
       <div v-else>
-        <div class="pr-header">
-          <h2>#{{ selectedPR.number }} {{ selectedPR.title }}</h2>
-          <div class="pr-actions">
-            <button @click="fetchPRDetails" class="refresh-btn">
-              刷新数据
-            </button>
-          </div>
-        </div>
+        <!-- 使用PR头部组件 -->
+        <PRHeader 
+          :pr="selectedPR"
+          @refresh="fetchPRDetails"
+        />
 
         <div v-if="loadingDetails" class="loading">加载PR详情中...</div>
 
@@ -264,7 +222,6 @@
   </div>
 </template>
 
-
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import axios, { 
@@ -274,12 +231,15 @@ import axios, {
   type AxiosError,
   AxiosHeaders
 } from 'axios'
+import Sidebar from '@/components/CodeReview/Sidebar.vue'
+import PRHeader from '@/components/CodeReview/PRHeader.vue'
 import { api } from '../utils/githubClient'
 
 // 类型定义
 interface GitHubUser {
   login: string
   avatar_url: string
+  html_url: string
 }
 
 interface PullRequest {
@@ -291,7 +251,13 @@ interface PullRequest {
   html_url: string
   head: {
     sha: string
+    label: string
   }
+  base: {
+    label: string
+  }
+  commits?: number
+  state: string
 }
 
 interface FileChange {
@@ -430,18 +396,24 @@ const fetchPullRequests = async () => {
       title: pr.title,
       user: {
         login: pr.user?.login || '未知用户',
-        avatar_url: pr.user?.avatar_url || ''
+        avatar_url: pr.user?.avatar_url || '',
+        html_url: pr.user?.html_url || ''
       },
       created_at: pr.created_at,
       html_url: pr.html_url,
       head: {
-        sha: pr.head?.sha || ''
-      }
+        sha: pr.head?.sha || '',
+        label: pr.head?.label || 'main'
+      },
+      base: {
+        label: pr.base?.label || 'main'
+      },
+      commits: pr.commits,
+      state: pr.state || 'open'
     }))
   } catch (error: unknown) {
     console.error('获取PR列表失败:', error)
     
-    // 修复类型错误
     if (isAxiosError(error)) {
       const errorData = error.response?.data as { message?: string } || {}
       if (error.response?.status === 401) {
@@ -906,205 +878,6 @@ const formatDate = (dateString: string): string => {
   height: 20px;
 }
 
-/* 悬浮卡片式侧边栏 */
-.sidebar {
-  position: fixed;
-  top: 60px;
-  bottom: 20px;
-  left: 20px;
-  width: 280px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  padding: 12px;
-  z-index: 100;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
-}
-
-.sidebar-collapsed {
-  width: 60px;
-}
-
-/* 自定义滚动条样式 - 只保留垂直滚动条 */
-.sidebar:not(.sidebar-collapsed) .pr-list {
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 4px;
-  margin-right: -12px;
-}
-
-.sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar-thumb {
-  background-color: #c1c1c1;
-  border-radius: 3px;
-}
-
-.sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar-thumb:hover {
-  background-color: #a8a8a8;
-}
-
-.sidebar-collapsed .pr-list {
-  overflow: hidden;
-}
-
-/* 侧边栏头部 */
-.sidebar-header {
-  padding: 8px 12px;
-  margin-bottom: 12px;
-}
-
-.sidebar-header h2 {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-}
-
-/* PR列表 */
-.pr-list {
-  flex: 1;
-  padding: 8px 0;
-}
-
-/* PR项 */
-.pr-item {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  margin: 4px 0;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.pr-item:hover {
-  background-color: #f3f4f6;
-}
-
-.pr-item.active {
-  background-color: #dbeafe;
-  border-left: 3px solid #3b82f6;
-}
-
-/* 头像容器 */
-.avatar-container {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-/* 头像样式 */
-.pr-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  object-fit: cover;
-  transition: all 0.3s ease;
-}
-
-.sidebar-collapsed .pr-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-}
-
-/* PR信息 */
-.pr-info {
-  margin-left: 12px;
-  flex: 1;
-  min-width: 0;
-}
-
-.pr-title {
-  font-size: 16px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 4px;
-}
-
-.pr-meta {
-  display: flex;
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.pr-author {
-  margin-right: 8px;
-}
-
-.pr-date {
-  font-size: 13px;
-  color: #9ca3af;
-}
-
-/* 修改后的侧边栏底部样式 */
-.sidebar-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  border-top: 1px solid #f3f4f6;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background-color: #f9fafb;
-}
-
-.sidebar-footer:hover {
-  background-color: #f1f5f9;
-}
-
-.collapse-text {
-  font-size: 16px;
-  font-weight: 500;
-  color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 200px;
-  opacity: 1;
-  transition: 
-    opacity 0.15s ease 0.1s,
-    max-width 0.3s ease,
-    margin-right 0.3s ease;
-}
-
-.sidebar-collapsed .collapse-text {
-  opacity: 0;
-  max-width: 0;
-  margin-right: 0;
-  transition: 
-    opacity 0.1s ease,
-    max-width 0.3s ease 0.1s,
-    margin-right 0.3s ease 0.1s;
-}
-
-.arrow-icon {
-  width: 24px;
-  height: 24px;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0;
-}
-
-/* 侧栏展开时箭头朝左(90度旋转) */
-.sidebar:not(.sidebar-collapsed) .arrow-icon {
-  transform: rotate(360deg);
-}
-
-/* 侧栏收缩时箭头朝右(0度旋转) */
-.sidebar-collapsed .arrow-icon {
-  transform: rotate(270deg);
-}
-
 /* 主内容区 */
 .main-content {
   margin-left: 320px;
@@ -1141,21 +914,6 @@ const formatDate = (dateString: string): string => {
   margin: 0;
   font-weight: 500;
   text-align: center;
-}
-
-/* PR头部 */
-.pr-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.pr-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
 }
 
 /* 文件变更 */
@@ -1310,29 +1068,8 @@ const formatDate = (dateString: string): string => {
   text-decoration: underline;
 }
 
-/* 刷新按钮 */
-.refresh-btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  background-color: #3b82f6;
-  color: white;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.refresh-btn:hover {
-  background-color: #2563eb;
-}
-
 /* 响应式调整 */
 @media (max-width: 768px) {
-  .sidebar {
-    width: 260px;
-    left: 10px;
-  }
-  
   .main-content {
     margin-left: 280px;
   }
@@ -1379,20 +1116,6 @@ const formatDate = (dateString: string): string => {
   .issue-link {
     width: 100%;
     justify-content: center;
-  }
-  
-  .pr-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-  
-  .pr-actions {
-    width: 100%;
-  }
-  
-  .refresh-btn {
-    width: 100%;
   }
 }
 </style>
