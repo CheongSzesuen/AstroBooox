@@ -921,29 +921,36 @@ const formatDate = (dateString: string): string => {
   padding: 12px;
   z-index: 100;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow-x: hidden;
-  overflow-y: overlay;
+  overflow: hidden;
 }
 
 .sidebar-collapsed {
   width: 60px;
 }
 
-/* 自定义滚动条样式 */
-.sidebar::-webkit-scrollbar {
-  width: 8px;
-  background-color: transparent;
+/* 自定义滚动条样式 - 只保留垂直滚动条 */
+.sidebar:not(.sidebar-collapsed) .pr-list {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  margin-right: -12px;
 }
 
-.sidebar::-webkit-scrollbar-thumb {
+.sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar-thumb {
   background-color: #c1c1c1;
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+  border-radius: 3px;
 }
 
-.sidebar::-webkit-scrollbar-thumb:hover {
+.sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar-thumb:hover {
   background-color: #a8a8a8;
+}
+
+.sidebar-collapsed .pr-list {
+  overflow: hidden;
 }
 
 /* 侧边栏头部 */
@@ -961,9 +968,7 @@ const formatDate = (dateString: string): string => {
 /* PR列表 */
 .pr-list {
   flex: 1;
-  overflow-y: auto;
   padding: 8px 0;
-  margin-right: -8px;
 }
 
 /* PR项 */
@@ -1051,23 +1056,43 @@ const formatDate = (dateString: string): string => {
   border-top: 1px solid #f3f4f6;
   cursor: pointer;
   transition: all 0.3s ease;
+  background-color: #f9fafb;
 }
 
 .sidebar-footer:hover {
-  background-color: #f8fafc;
+  background-color: #f1f5f9;
 }
 
 .collapse-text {
   font-size: 16px;
   font-weight: 500;
   color: #64748b;
-  transition: all 0.3s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  opacity: 1;
+  transition: 
+    opacity 0.15s ease 0.1s,
+    max-width 0.3s ease,
+    margin-right 0.3s ease;
+}
+
+.sidebar-collapsed .collapse-text {
+  opacity: 0;
+  max-width: 0;
+  margin-right: 0;
+  transition: 
+    opacity 0.1s ease,
+    max-width 0.3s ease 0.1s,
+    margin-right 0.3s ease 0.1s;
 }
 
 .arrow-icon {
   width: 24px;
   height: 24px;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
 }
 
 /* 侧栏展开时箭头朝左(90度旋转) */
@@ -1079,6 +1104,7 @@ const formatDate = (dateString: string): string => {
 .sidebar-collapsed .arrow-icon {
   transform: rotate(270deg);
 }
+
 /* 主内容区 */
 .main-content {
   margin-left: 320px;
