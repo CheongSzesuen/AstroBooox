@@ -2,8 +2,7 @@
 /* 小米字体定义 */
 @font-face {
   font-family: 'MiSans';
-  src: url('@/assets/fonts/MiSans-Regular.woff2') format('woff2'),
-       url('@/assets/fonts/MiSans-Regular.woff') format('woff');
+  src: url('@/assets/fonts/MiSans-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -11,8 +10,7 @@
 
 @font-face {
   font-family: 'MiSans';
-  src: url('@/assets/fonts/MiSans-Medium.woff2') format('woff2'),
-       url('@/assets/fonts/MiSans-Medium.woff') format('woff');
+  src: url('@/assets/fonts/MiSans-Medium.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -20,8 +18,7 @@
 
 @font-face {
   font-family: 'MiSans';
-  src: url('@/assets/fonts/MiSans-Semibold.woff2') format('woff2'),
-       url('@/assets/fonts/MiSans-Semibold.woff') format('woff');
+  src: url('@/assets/fonts/MiSans-Semibold.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -29,13 +26,11 @@
 
 @font-face {
   font-family: 'MiSans';
-  src: url('@/assets/fonts/MiSans-Bold.woff2') format('woff2'),
-       url('@/assets/fonts/MiSans-Bold.woff') format('woff');
+  src: url('@/assets/fonts/MiSans-Bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
-
 /* 基础字体设置 */
 body {
   font-family: 'MiSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
