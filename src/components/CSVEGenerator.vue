@@ -417,7 +417,7 @@ watch(() => csvData.value.devices, (newVal) => {
   height: 100%;
   width: 100%;
   box-sizing: border-box;
-  padding: 1rem;
+  padding: 1.5rem;
 }
 
 .editor-content {
@@ -425,76 +425,72 @@ watch(() => csvData.value.devices, (newVal) => {
   flex-direction: column;
   height: 100%;
   width: 100%;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .editor-container {
   display: flex;
   flex: 1;
   overflow: hidden;
-  min-height: 500px;
+  min-height: 600px;
 }
 
 .form-container {
   flex: 1;
   min-width: 0;
-  background: #f5f5f5;
-  padding: 1rem;
-  border-radius: 8px;
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-radius: 12px;
   overflow-y: auto;
 }
 
 .form-section {
-  margin-bottom: 2rem;
-  padding: 1rem;
+  margin-bottom: 2.5rem;
+  padding: 2rem;
   background: #fff;
-  border-radius: 6px;
-}
-
-.form-row {
-  display: flex;
-  gap: 1rem;
-}
-
-.half-width {
-  flex: 1;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 1.75rem;
 }
 
 label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: bold;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 1rem;
 }
 
 .hint-text {
-  color: #666;
-  font-size: 0.8rem;
+  color: #64748b;
+  font-size: 0.85rem;
   font-weight: normal;
 }
 
 input, select, textarea {
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 0.875rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   font-family: inherit;
   font-size: 1rem;
-  color: #333;
+  color: #334155;
   box-sizing: border-box;
+  transition: all 0.2s;
 }
 
 input:focus, select:focus, textarea:focus {
   border-color: #0e467c;
-  box-shadow: 0 0 0 2px rgba(14, 70, 124, 0.2);
+  box-shadow: 0 0 0 3px rgba(14, 70, 124, 0.1);
+  outline: none;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #999;
+  color: #94a3b8;
   font-style: italic;
 }
 
@@ -502,32 +498,46 @@ select {
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
-  background-position: right 0.75rem center;
+  background-position: right 1rem center;
   background-size: 1rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.half-width {
+  flex: 1;
+  min-width: 0;
 }
 
 .array-input {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .preview-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .preview-item input {
   flex-grow: 1;
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem 1rem;
 }
 
+/* 圆形移除按钮 - 重点优化部分 */
 .round-remove-button {
   margin: 0;
   padding: 0;
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem; /* 确保最小宽度 */
+  min-height: 2.5rem; /* 确保最小高度 */
+  aspect-ratio: 1/1; /* 强制保持1:1宽高比 */
   border: none;
   background: #f8e6e6;
   color: #8b0000;
@@ -538,6 +548,7 @@ select {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  flex-shrink: 0; /* 防止按钮被压缩 */
 }
 
 .round-remove-button:hover {
@@ -545,18 +556,18 @@ select {
 }
 
 .round-remove-button svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .add-button {
-  margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1.25rem;
   border: none;
   background: #e6f0f8;
   color: #0e467c;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   font-weight: 500;
   white-space: nowrap;
   display: inline-flex;
@@ -571,33 +582,35 @@ select {
 }
 
 .add-button svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .preview-content {
-  background: #f5f9fd;
-  color: #333;
-  padding: 1rem;
-  border-radius: 4px;
+  background: #f8fafc;
+  color: #334155;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
   overflow: auto;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 pre {
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
 }
 
 .preview-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
+/* 模态框样式 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -614,15 +627,64 @@ pre {
 .modal-content {
   background: white;
   padding: 2rem;
-  border-radius: 8px;
+  border-radius: 12px;
   max-width: 800px;
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
 }
 
+.device-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.device-item {
+  padding: 1.25rem;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.device-item:hover {
+  background: #e6f0f8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.device-item.selected {
+  background: #e6f0f8;
+  border-color: #0e467c;
+}
+
+.device-name {
+  font-weight: 600;
+  color: #0e467c;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.device-codename {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* 提示框样式 */
 .alert-content {
-  max-width: 400px;
+  max-width: 500px;
   text-align: center;
 }
 
@@ -632,24 +694,23 @@ pre {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   border-bottom: 1px solid #e2e8f0;
 }
 
 .warning-icon {
   background: #fef3c7;
-  padding: 0.75rem;
+  padding: 1rem;
   border-radius: 50%;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
 }
 
 .prompt-header h3 {
   margin: 0;
   color: #1e293b;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 600;
-  text-align: center;
 }
 
 .prompt-body {
@@ -658,9 +719,10 @@ pre {
 }
 
 .prompt-body p {
-  margin: 0 0 0.75rem;
+  margin: 0 0 1rem;
   color: #475569;
-  line-height: 1.5;
+  line-height: 1.6;
+  font-size: 1.05rem;
 }
 
 .prompt-actions {
@@ -670,213 +732,99 @@ pre {
 }
 
 .confirm-button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  border: none;
+  padding: 0.875rem 1.75rem;
   border-radius: 8px;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
   background: #e6f0f8;
   color: #0e467c;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
 }
 
 .confirm-button:hover {
   background: #cfe0f0;
 }
 
-.device-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin: 1rem 0;
+.confirm-button svg {
+  width: 20px;
+  height: 20px;
 }
 
-.device-item {
-  padding: 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  background: #e8f4fd;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(14, 70, 124, 0.1);
-}
-
-.device-item:hover {
-  background: #d0e5fa;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(14, 70, 124, 0.1);
-}
-
-.device-item.selected {
-  background: #b3d6f7;
-}
-
-.device-name {
-  font-weight: bold;
-  color: #0e467c;
-}
-
-.device-codename {
-  font-size: 0.8rem;
-  color: #4a6b8a;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.empty {
-  color: #6a737d;
-  font-style: italic;
-}
-
-a {
-  color: #0e467c;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-a:hover {
-  color: #0a3560;
-  text-decoration: underline;
-}
-
-/* 移动设备响应式样式 - 重点修改部分 */
+/* 响应式调整 */
 @media (max-width: 768px) {
   .csv-generator {
-    padding: 0.5rem;
-    width: 100%;
-    box-sizing: border-box;
-    margin: 0;
-    overflow-x: hidden; /* 防止水平滚动 */
+    padding: 1rem;
   }
-
-  .editor-content {
-    padding: 0;
-    width: 100%;
-    margin: 0;
-  }
-
-  .editor-container {
-    flex-direction: column;
-    min-height: auto;
-    width: 100%;
-    margin: 0;
-  }
-
+  
   .form-container {
-    padding: 0.75rem;
-    border-radius: 0;
-    width: 100%;
-    margin: 0;
-    box-sizing: border-box;
+    padding: 1rem;
   }
-
+  
   .form-section {
-    padding: 0.75rem;
-    margin: 0 0 1rem 0;
-    width: 100%;
-    box-sizing: border-box;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
   }
-
+  
   .form-row {
     flex-direction: column;
-    width: 100%;
-    gap: 0.5rem;
-    margin: 0;
+    gap: 1rem;
   }
-
+  
   .half-width {
     width: 100%;
-    margin: 0;
   }
-
-  input, select, textarea {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    margin: 0;
-  }
-
-  .array-input {
-    width: 100%;
-  }
-
-  .preview-item {
-    width: 100%;
-  }
-
-  .preview-item input {
-    width: 100%;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .round-remove-button {
-    flex-shrink: 0;
-  }
-
-  .preview-content {
-    padding: 0.75rem;
-    width: 100%;
-    box-sizing: border-box;
-    overflow-x: auto;
-    word-break: break-word;
-  }
-
-  pre {
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-
-  .preview-actions {
-    justify-content: center;
-    width: 100%;
-  }
-
+  
   .modal-content {
+    padding: 1.5rem;
     width: 95%;
-    max-width: 95%;
-    padding: 1rem;
-    box-sizing: border-box;
+  }
+  
+  .device-list {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
   }
 
-  /* 确保所有元素都不会超出屏幕 */
-  * {
-    max-width: 100%;
+  /* 移动设备下的圆形按钮调整 */
+  .round-remove-button {
+    width: 2.25rem;
+    height: 2.25rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-section {
+    padding: 1.25rem;
   }
   
-  /* 修复长文本溢出问题 */
-  .hint-text {
-    word-break: break-word;
+  input, select, textarea {
+    padding: 0.75rem;
   }
   
-  /* 修复表单组布局 */
-  .form-group {
-    width: 100%;
-    margin-bottom: 0.75rem;
+  .preview-content {
+    padding: 1rem;
   }
   
-  /* 修复按钮布局 */
-  .add-button, .round-remove-button {
-    width: 100%;
-    justify-content: center;
+  .modal-content {
+    padding: 1.25rem;
+    width: 98%;
   }
   
-  /* 修复模态框按钮布局 */
-  .modal-actions {
-    flex-direction: column;
-    gap: 0.5rem;
+  .device-list {
+    grid-template-columns: 1fr;
   }
-  
-  .modal-actions button {
-    width: 100%;
+
+  /* 小屏幕下的圆形按钮调整 */
+  .round-remove-button {
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
+    min-height: 2rem;
   }
 }
 </style>
