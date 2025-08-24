@@ -17,5 +17,5 @@ export default defineConfig({
   },
   define: {
     "window.__CLARITY_ID__": JSON.stringify(process.env.VITE_CLARITY_ID),
-  },
+  }
 })
