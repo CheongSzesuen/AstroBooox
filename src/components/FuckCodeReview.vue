@@ -42,6 +42,10 @@
       </div>
       
       <div v-if="loadingPRs" class="loading">加载PR列表中...</div>
+      <div v-else-if="pullRequests.length === 0" class="empty-state">
+        <p>没有找到Pull Request</p>
+        <button @click="fetchPullRequests" class="refresh-btn">重试</button>
+      </div>
       <div v-else class="pr-list">
         <div 
           v-for="pr in pullRequests" 
@@ -267,6 +271,7 @@ import axios, {
   type AxiosError,
   AxiosHeaders
 } from 'axios'
+import { api } from '../utils/githubClient'
 
 // 类型定义
 interface GitHubUser {
@@ -339,18 +344,9 @@ interface ManifestData {
   downloads: Record<string, ManifestDownload>
 }
 
-// 扩展 Axios 类型
-declare module 'axios' {
-  interface InternalAxiosRequestConfig {
-    _retryCount: number // 改为必选属性
-  }
-}
-
 // 常量定义
 const REPO_OWNER = 'AstralSightStudios'
 const REPO_NAME = 'AstroBox-Repo'
-const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN
-const GITHUB_API_URL = import.meta.env.VITE_GITHUB_API_URL || 'https://api.github.com'
 const DEFAULT_TIMEOUT = 15000
 const MAX_RETRIES = 3
 const RETRY_DELAY = 1000
@@ -381,104 +377,10 @@ const getErrorMessage = (error: unknown): string => {
   return '未知错误'
 }
 
+// 添加 AxiosError 类型检查函数
 const isAxiosError = (error: unknown): error is AxiosError => {
   return (error as AxiosError).isAxiosError === true
 }
-
-// 创建安全的 GitHub API 客户端
-const createGitHubClient = (): AxiosInstance => {
-  const client = axios.create({
-    baseURL: GITHUB_API_URL,
-    timeout: DEFAULT_TIMEOUT,
-    headers: {
-      'Accept': 'application/vnd.github.v3+json',
-      'X-GitHub-Api-Version': '2022-11-28'
-    }
-  })
-
-  // 请求拦截器 - 初始化 _retryCount
-  client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-    config._retryCount = config._retryCount ?? 0
-    
-    if (process.env.NODE_ENV === 'production' && !config.url?.startsWith('https://')) {
-      throw new Error('Insecure request blocked in production')
-    }
-
-    config.headers = config.headers || new AxiosHeaders()
-
-    if (GITHUB_TOKEN) {
-      config.headers.set('Authorization', `Bearer ${GITHUB_TOKEN}`)
-    }
-
-    return config
-  })
-
-  // 响应拦截器
-  client.interceptors.response.use(
-    (response: AxiosResponse) => {
-      if (response.headers['x-ratelimit-limit']) {
-        monitorRateLimit({
-          limit: parseInt(response.headers['x-ratelimit-limit']),
-          remaining: parseInt(response.headers['x-ratelimit-remaining']),
-          reset: parseInt(response.headers['x-ratelimit-reset'])
-        })
-      }
-      return response
-    },
-    async (error: AxiosError) => {
-      const originalRequest = error.config as InternalAxiosRequestConfig & { _retryCount?: number }
-      
-      if (!originalRequest) {
-        throw new Error('Invalid request configuration')
-      }
-
-      // 确保 _retryCount 存在
-      originalRequest._retryCount = originalRequest._retryCount ?? 0
-
-      const status = error.response?.status
-      const errorData: { message?: string; documentation_url?: string } = error.response?.data || {}
-      
-      // 认证失败
-      if (status === 401) {
-        console.error('GitHub auth failed:', errorData.message)
-        throw new Error('Invalid or expired GitHub token')
-      }
-      
-      // 速率限制
-      if (status === 403 && errorData.message?.includes('API rate limit exceeded')) {
-        if (originalRequest._retryCount < MAX_RETRIES) {
-          originalRequest._retryCount++
-          await new Promise(resolve => setTimeout(
-            resolve, 
-            RETRY_DELAY * originalRequest._retryCount
-          ))
-          return client(originalRequest)
-        }
-        throw new Error(`API rate limit exceeded (after ${MAX_RETRIES} retries)`)
-      }
-      
-      // 资源不存在
-      if (status === 404) {
-        console.error('Not found:', originalRequest.url)
-        throw new Error(`Resource not found: ${errorData.message || 'Unknown error'}`)
-      }
-      
-      // 其他错误
-      console.error('API request failed:', {
-        url: originalRequest.url,
-        status,
-        message: errorData.message || getErrorMessage(error),
-        docs: errorData.documentation_url
-      })
-      
-      throw new Error(errorData.message || 'GitHub API request failed')
-    }
-  )
-
-  return client
-}
-
-const api = createGitHubClient()
 
 // 监控速率限制状态
 const monitorRateLimit = (rateLimit: {limit: number, remaining: number, reset: number}) => {
@@ -495,10 +397,6 @@ const monitorRateLimit = (rateLimit: {limit: number, remaining: number, reset: n
 }
 
 onMounted(() => {
-  if (!GITHUB_TOKEN) {
-    errorMessage.value = 'GitHub Token 未配置'
-    return
-  }
   fetchPullRequests()
 })
 
@@ -507,17 +405,54 @@ const fetchPullRequests = async () => {
   errorMessage.value = ''
   
   try {
+    console.log('开始获取PR列表...')
     const { data } = await api.get(`/repos/${REPO_OWNER}/${REPO_NAME}/pulls`, {
       params: {
         state: 'open',
         sort: 'created',
-        direction: 'desc'
+        direction: 'desc',
+        per_page: 100
       }
     })
-    pullRequests.value = data
+    
+    console.log('获取到的PR数据:', data)
+    
+    if (!Array.isArray(data)) {
+      throw new Error('返回的PR数据格式不正确')
+    }
+    
+    pullRequests.value = data.map(pr => ({
+      id: pr.id,
+      number: pr.number,
+      title: pr.title,
+      user: {
+        login: pr.user?.login || '未知用户',
+        avatar_url: pr.user?.avatar_url || ''
+      },
+      created_at: pr.created_at,
+      html_url: pr.html_url,
+      head: {
+        sha: pr.head?.sha || ''
+      }
+    }))
   } catch (error: unknown) {
     console.error('获取PR列表失败:', error)
-    errorMessage.value = `获取PR列表失败: ${getErrorMessage(error)}`
+    
+    // 修复类型错误
+    if (isAxiosError(error)) {
+      const errorData = error.response?.data as { message?: string } || {}
+      if (error.response?.status === 401) {
+        errorMessage.value = 'GitHub认证失败，请检查Token是否有效'
+      } else if (error.response?.status === 404) {
+        errorMessage.value = `仓库不存在: ${REPO_OWNER}/${REPO_NAME}`
+      } else {
+        errorMessage.value = `获取PR列表失败: ${errorData.message || error.message}`
+      }
+    } else if (error instanceof Error) {
+      errorMessage.value = `获取PR列表失败: ${error.message}`
+    } else {
+      errorMessage.value = '获取PR列表失败: 未知错误'
+    }
   } finally {
     loadingPRs.value = false
   }
@@ -545,9 +480,12 @@ const fetchPRDetails = async () => {
   
   loadingDetails.value = true
   try {
+    console.log(`获取PR #${selectedPR.value.number} 的详情...`)
     const { data } = await api.get(
       `/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${selectedPR.value.number}/files`
     )
+    
+    console.log('获取到的文件变更:', data)
     changedFiles.value = data
     
     if (hasDataFiles.value) {
@@ -577,6 +515,7 @@ const isDataFile = (filename: string): boolean => {
 const analyzeFile = async (file: FileChange) => {
   errorMessage.value = ''
   try {
+    console.log(`分析文件: ${file.filename}`)
     const { data } = await api.get(file.contents_url)
     let content = ''
     if (data.content) {
@@ -712,6 +651,8 @@ const fetchRepoManifest = async (repoUrl: string) => {
   try {
     const repoPath = repoUrl.replace('https://github.com/', '')
     const [owner, repo] = repoPath.split('/')
+    
+    console.log(`获取仓库manifest: ${owner}/${repo}`)
     
     // 尝试多种获取方式
     const attempts = [
@@ -1142,10 +1083,12 @@ const formatDate = (dateString: string): string => {
 /* 空状态 */
 .empty-state {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   height: 100%;
   color: #6b7280;
+  gap: 1rem;
 }
 
 /* PR头部 */
@@ -1270,6 +1213,7 @@ const formatDate = (dateString: string): string => {
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .refresh-btn:hover {
