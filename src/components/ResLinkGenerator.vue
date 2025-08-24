@@ -61,116 +61,124 @@
           <div class="form-section">
             <h3>徽标代码生成</h3>
             
-            <!-- 语言选择 -->
-            <div class="form-group">
-              <label class="config-label">语言</label>
-              <div class="config-options">
-                <label class="config-option" :class="{ active: badgeLanguage === 'zhcn' }">
-                  <input 
-                    type="radio" 
-                    v-model="badgeLanguage" 
-                    value="zhcn"
-                    class="sr-only"
-                  >
-                  <span class="option-text">简体中文</span>
-                </label>
-                <label class="config-option" :class="{ active: badgeLanguage === 'en' }">
-                  <input 
-                    type="radio" 
-                    v-model="badgeLanguage" 
-                    value="en"
-                    class="sr-only"
-                  >
-                  <span class="option-text">英文</span>
-                </label>
+            <div class="badge-config-container">
+              <!-- 左侧：配置选项 - 占据主要空间 -->
+              <div class="badge-config-options">
+                <!-- 语言选择 -->
+                <div class="form-group">
+                  <label class="config-label">语言</label>
+                  <div class="config-options">
+                    <label class="config-option" :class="{ active: badgeLanguage === 'zhcn' }">
+                      <input 
+                        type="radio" 
+                        v-model="badgeLanguage" 
+                        value="zhcn"
+                        class="sr-only"
+                      >
+                      <span class="option-text">简体中文</span>
+                    </label>
+                    <label class="config-option" :class="{ active: badgeLanguage === 'en' }">
+                      <input 
+                        type="radio" 
+                        v-model="badgeLanguage" 
+                        value="en"
+                        class="sr-only"
+                      >
+                      <span class="option-text">英文</span>
+                    </label>
+                  </div>
+                </div>
+                
+                <!-- 样式选择 -->
+                <div class="form-group">
+                  <label class="config-label">样式</label>
+                  <div class="config-options">
+                    <label class="config-option" :class="{ active: badgeStyle === 'standard' }">
+                      <input 
+                        type="radio" 
+                        v-model="badgeStyle" 
+                        value="standard"
+                        class="sr-only"
+                      >
+                      <span class="option-text">标准</span>
+                    </label>
+                    <label class="config-option" :class="{ active: badgeStyle === 'rounded' }">
+                      <input 
+                        type="radio" 
+                        v-model="badgeStyle" 
+                        value="rounded"
+                        class="sr-only"
+                      >
+                      <span class="option-text">胶囊</span>
+                    </label>
+                    <label class="config-option" :class="{ active: badgeStyle === 'linked' }">
+                      <input 
+                        type="radio" 
+                        v-model="badgeStyle" 
+                        value="linked"
+                        class="sr-only"
+                      >
+                      <span class="option-text">链接</span>
+                    </label>
+                  </div>
+                </div>
+                
+                <!-- 配色选择 -->
+                <div class="form-group">
+                  <label class="config-label">配色</label>
+                  <div class="config-options">
+                    <label class="config-option" :class="{ active: badgeColor === 'black' }">
+                      <input 
+                        type="radio" 
+                        v-model="badgeColor" 
+                        value="black"
+                        class="sr-only"
+                      >
+                      <span class="option-text">黑色</span>
+                    </label>
+                    <label class="config-option" :class="{ active: badgeColor === 'gray' }">
+                      <input 
+                        type="radio" 
+                        v-model="badgeColor" 
+                        value="gray"
+                        class="sr-only"
+                      >
+                      <span class="option-text">灰色</span>
+                    </label>
+                    <label class="config-option" :class="{ active: badgeColor === 'white' }">
+                      <input 
+                        type="radio" 
+                        v-model="badgeColor" 
+                        value="white"
+                        class="sr-only"
+                      >
+                      <span class="option-text">亮色</span>
+                    </label>
+                  </div>
+                </div>
               </div>
-            </div>
-            
-            <!-- 样式选择 -->
-            <div class="form-group">
-              <label class="config-label">样式</label>
-              <div class="config-options">
-                <label class="config-option" :class="{ active: badgeStyle === 'standard' }">
-                  <input 
-                    type="radio" 
-                    v-model="badgeStyle" 
-                    value="standard"
-                    class="sr-only"
-                  >
-                  <span class="option-text">标准</span>
-                </label>
-                <label class="config-option" :class="{ active: badgeStyle === 'rounded' }">
-                  <input 
-                    type="radio" 
-                    v-model="badgeStyle" 
-                    value="rounded"
-                    class="sr-only"
-                  >
-                  <span class="option-text">胶囊</span>
-                </label>
-                <label class="config-option" :class="{ active: badgeStyle === 'linked' }">
-                  <input 
-                    type="radio" 
-                    v-model="badgeStyle" 
-                    value="linked"
-                    class="sr-only"
-                  >
-                  <span class="option-text">链接</span>
-                </label>
-              </div>
-            </div>
-            
-            <!-- 配色选择 -->
-            <div class="form-group">
-              <label class="config-label">配色</label>
-              <div class="config-options">
-                <label class="config-option" :class="{ active: badgeColor === 'black' }">
-                  <input 
-                    type="radio" 
-                    v-model="badgeColor" 
-                    value="black"
-                    class="sr-only"
-                  >
-                  <span class="option-text">黑色</span>
-                </label>
-                <label class="config-option" :class="{ active: badgeColor === 'gray' }">
-                  <input 
-                    type="radio" 
-                    v-model="badgeColor" 
-                    value="gray"
-                    class="sr-only"
-                  >
-                  <span class="option-text">灰色</span>
-                </label>
-                <label class="config-option" :class="{ active: badgeColor === 'white' }">
-                  <input 
-                    type="radio" 
-                    v-model="badgeColor" 
-                    value="white"
-                    class="sr-only"
-                  >
-                  <span class="option-text">亮色</span>
-                </label>
-              </div>
-            </div>
-            
-            <div class="form-group">
-              <label class="config-label">徽标预览<span class="hint-text">（点击可跳转）</span></label>
-              <div class="badge-preview-container">
-                <a 
-                  v-if="resourceName.trim()"
-                  :href="generatedLink" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  <img :src="badgeImageUrl" alt="徽标预览" class="badge-preview-image" />
-                </a>
-                <img 
-                  v-else
-                  :src="badgeImageUrl" 
-                  alt="徽标预览" 
-                  class="badge-preview-image" 
-                />
+              
+              <!-- 右侧：徽标预览 - 自适应宽度 -->
+              <div class="badge-preview-wrapper">
+                <div class="form-group">
+                  <label class="config-label">徽标预览<span class="hint-text">（点击可跳转）</span></label>
+                  <div class="badge-preview-container">
+                    <a 
+                      v-if="resourceName.trim()"
+                      :href="generatedLink" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      <img :src="badgeImageUrl" alt="徽标预览" class="badge-preview-image" />
+                    </a>
+                    <img 
+                      v-else
+                      :src="badgeImageUrl" 
+                      alt="徽标预览" 
+                      class="badge-preview-image" 
+                    />
+                  </div>
+                </div>
               </div>
             </div>
             
@@ -727,10 +735,13 @@ button:disabled {
   border-radius: 8px;
   border: 1px dashed #cbd5e1;
   margin-top: 0.5rem;
+  height: 100%;
+  box-sizing: border-box;
+  flex-grow: 1;
 }
 
 .badge-preview-image {
-  height: 60px;
+  max-height: 100%;
   max-width: 100%;
   object-fit: contain;
   transition: all 0.3s ease;
@@ -753,6 +764,29 @@ button:disabled {
   color: #334155;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* 徽标配置容器 */
+.badge-config-container {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  align-items: stretch;
+}
+
+.badge-config-options {
+  flex: 1;
+  min-width: 0;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.badge-preview-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 资源搜索对话框样式 */
@@ -933,48 +967,27 @@ button:disabled {
   .input-with-button button {
     width: 100%;
   }
+  
+  /* 窄屏设备下徽标配置改为垂直布局 */
+  .badge-config-container {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .badge-preview-wrapper {
+    order: -1;
+    width: 100%;
+  }
+  
+  .badge-config-options {
+    max-width: 100%;
+  }
+  
+  .badge-preview-container {
+    width: 100%;
+  }
 }
 
-@media (max-width: 576px) {
-  .modal-content {
-    width: 98%;
-    padding: 0.75rem;
-  }
-  
-  .resource-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 0.5rem;
-  }
-  
-  .resource-card {
-    padding: 0.75rem;
-  }
-  
-  .resource-name {
-    font-size: 0.85rem;
-  }
-  
-  .resource-type {
-    font-size: 0.6rem;
-  }
-  
-  .resource-author {
-    font-size: 0.7rem;
-  }
-  
-  .config-options {
-    flex-direction: column;
-  }
-  
-  .config-option {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .badge-preview-image {
-    height: 50px;
-  }
-}
 
 @media (max-width: 400px) {
   .form-section {
