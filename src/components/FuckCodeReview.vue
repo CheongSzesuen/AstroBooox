@@ -14,6 +14,7 @@
           <ul class="notice-list">
             <li>手机端响应有问题</li>
             <li>自动检验PR数据未做</li>
+            <li>若添加多个csv会导致manifest错误，刷新有概率成功，以后会修</li>
             <li>后续会持续更新优化</li>
           </ul>
           <p class="hint-text">如有任何建议或发现问题，欢迎提交Issue或直接联系我</p>
