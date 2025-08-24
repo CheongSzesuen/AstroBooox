@@ -2,8 +2,8 @@
 /* 小米字体定义 */
 @font-face {
   font-family: 'MiSans';
-  src: url('/fonts/woff2/MiSans-Regular.woff2') format('woff2'),
-       url('/fonts/woff/MiSans-Regular.woff') format('woff');
+  src: url('@/assets/fonts/MiSans-Regular.woff2') format('woff2'),
+       url('@/assets/fonts/MiSans-Regular.woff') format('woff');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -11,8 +11,8 @@
 
 @font-face {
   font-family: 'MiSans';
-  src: url('/fonts/woff2/MiSans-Medium.woff2') format('woff2'),
-       url('/fonts/woff/MiSans-Medium.woff') format('woff');
+  src: url('@/assets/fonts/MiSans-Medium.woff2') format('woff2'),
+       url('@/assets/fonts/MiSans-Medium.woff') format('woff');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -20,8 +20,8 @@
 
 @font-face {
   font-family: 'MiSans';
-  src: url('/fonts/woff2/MiSans-Semibold.woff2') format('woff2'),
-       url('/fonts/woff/MiSans-Semibold.woff') format('woff');
+  src: url('@/assets/fonts/MiSans-Semibold.woff2') format('woff2'),
+       url('@/assets/fonts/MiSans-Semibold.woff') format('woff');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -29,8 +29,8 @@
 
 @font-face {
   font-family: 'MiSans';
-  src: url('/fonts/woff2/MiSans-Bold.woff2') format('woff2'),
-       url('/fonts/woff/MiSans-Bold.woff') format('woff');
+  src: url('@/assets/fonts/MiSans-Bold.woff2') format('woff2'),
+       url('@/assets/fonts/MiSans-Bold.woff') format('woff');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
