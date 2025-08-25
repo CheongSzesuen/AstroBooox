@@ -14,7 +14,12 @@
         @click="$emit('select', pr)"
       >
         <div class="avatar-container">
-          <img :src="pr.user.avatar_url" class="pr-avatar" />
+          <img 
+            :src="getOptimizedAvatarUrl(pr.user)" 
+            class="pr-avatar" 
+            loading="lazy"
+            @load="cacheAvatar(pr.user)"
+          />
         </div>
         <div class="pr-info" v-if="!isCollapsed">
           <div class="pr-title">#{{ pr.number }} {{ pr.title }}</div>
@@ -45,6 +50,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import { formatDate } from '@/utils/dateUtils'
 
 interface GitHubUser {
@@ -60,7 +66,7 @@ interface PullRequest {
   created_at: string
 }
 
-defineProps({
+const props = defineProps({
   pullRequests: {
     type: Array as () => PullRequest[],
     required: true
@@ -80,6 +86,40 @@ defineProps({
 })
 
 defineEmits(['select', 'toggle', 'refresh'])
+
+// 内存缓存
+const avatarCache = new Map<string, string>()
+
+// 获取优化后的头像URL
+const getOptimizedAvatarUrl = (user: GitHubUser) => {
+  // 1. 检查内存缓存
+  if (avatarCache.has(user.login)) {
+    return avatarCache.get(user.login)!
+  }
+
+  // 2. 检查本地存储缓存
+  const cachedUrl = localStorage.getItem(`avatar_${user.login}`)
+  if (cachedUrl) {
+    avatarCache.set(user.login, cachedUrl)
+    return cachedUrl
+  }
+
+  // 3. 生成优化后的URL
+  let url = user.avatar_url
+  if (url.includes('githubusercontent.com')) {
+    url += (url.includes('?') ? '&' : '?') + 's=64&q=70'
+  }
+
+  // 存入内存缓存
+  avatarCache.set(user.login, url)
+  return url
+}
+
+// 缓存头像到本地存储
+const cacheAvatar = (user: GitHubUser) => {
+  const url = getOptimizedAvatarUrl(user)
+  localStorage.setItem(`avatar_${user.login}`, url)
+}
 </script>
 
 <style scoped>
@@ -134,7 +174,7 @@ defineEmits(['select', 'toggle', 'refresh'])
 .pr-list {
   flex: 1;
   min-height: 0;
-  padding-top: 8px; /* 补偿移除header后的顶部间距 */
+  padding-top: 8px;
 }
 
 .pr-item {
@@ -218,7 +258,7 @@ defineEmits(['select', 'toggle', 'refresh'])
   cursor: pointer;
   transition: all 0.3s ease;
   background-color: #f9fafb;
-  margin-top: auto; /* 关键：确保始终固定在底部 */
+  margin-top: auto;
 }
 
 .sidebar-footer:hover {
