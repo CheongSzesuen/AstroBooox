@@ -29,7 +29,6 @@ jobs:
         import requests
         import json
         import csv
-        import pandas as pd
         from datetime import datetime
         from urllib.parse import urljoin
         
@@ -97,50 +96,58 @@ jobs:
                 # 检查仓库是否存在
                 if not check_url(repo_url):
                     log_error(f"{name} - Repository not found: {repo_url}")
-                
-                # 获取manifest.json
-                manifest_url = f"{repo_url.replace('github.com', 'raw.githubusercontent.com')}/refs/heads/main/manifest.json"
-                try:
-                    response = requests.get(manifest_url)
-                    response.raise_for_status()
-                    manifest = json.loads(response.text)
-                    
-                    # 验证设备列表匹配
-                    manifest_devices = list(manifest.get('downloads', {}).keys())
-                    if sorted(devices) != sorted(manifest_devices):
-                        log_error(f"{name} - Devices mismatch! CSV: {devices} vs Manifest: {manifest_devices}")
-                    
-                    # 检查资源文件
-                    for preview in manifest.get('item', {}).get('preview', []):
-                        preview_url = urljoin(manifest_url.rsplit('/', 1)[0] + '/', preview)
-                        if not check_url(preview_url):
-                            log_error(f"{name} - Preview not found: {preview_url}")
-                    
-                    # 检查图标
-                    icon_url = urljoin(manifest_url.rsplit('/', 1)[0] + '/', manifest.get('item', {}).get('icon', ''))
-                    if not check_url(icon_url):
-                        log_error(f"{name} - Icon not found: {icon_url}")
-                    
-                    # 检查下载文件
-                    for device, data in manifest.get('downloads', {}).items():
-                        file_url = urljoin(manifest_url.rsplit('/', 1)[0] + '/', data.get('file_name', ''))
-                        if not check_url(file_url):
-                            log_error(f"{name} - File not found: {file_url}")
+                else:
+                    # 获取manifest.json
+                    # 注意：这里假设仓库的默认分支是main
+                    raw_base = repo_url.replace('github.com', 'raw.githubusercontent.com') + '/main/'
+                    manifest_url = raw_base + 'manifest.json'
+                    try:
+                        response = requests.get(manifest_url)
+                        response.raise_for_status()
+                        manifest = json.loads(response.text)
                         
-                        # 验证文件后缀
-                        ext = os.path.splitext(data.get('file_name', ''))[1].lower()
-                        if item['restype'] == 'quickapp' and ext != '.rpk':
-                            log_error(f"{name} - Invalid quickapp extension: {ext}")
-                        elif item['restype'] == 'watchface' and ext not in ['.bin', '.face']:
-                            log_error(f"{name} - Invalid watchface extension: {ext}")
-                
-                except Exception as e:
-                    log_error(f"{name} - Manifest check failed: {str(e)}")
-            
+                        # 验证设备列表匹配
+                        manifest_devices = list(manifest.get('downloads', {}).keys())
+                        if sorted(devices) != sorted(manifest_devices):
+                            log_error(f"{name} - Devices mismatch! CSV: {devices} vs Manifest: {manifest_devices}")
+                        
+                        # 检查资源文件
+                        item_data = manifest.get('item', {})
+                        for preview in item_data.get('preview', []):
+                            preview_url = raw_base + preview
+                            if not check_url(preview_url):
+                                log_error(f"{name} - Preview not found: {preview_url}")
+                        
+                        # 检查图标
+                        icon = item_data.get('icon')
+                        if icon:
+                            icon_url = raw_base + icon
+                            if not check_url(icon_url):
+                                log_error(f"{name} - Icon not found: {icon_url}")
+                        
+                        # 检查下载文件
+                        downloads = manifest.get('downloads', {})
+                        for device, data in downloads.items():
+                            file_name = data.get('file_name')
+                            if file_name:
+                                file_url = raw_base + file_name
+                                if not check_url(file_url):
+                                    log_error(f"{name} - File not found: {file_url}")
+                                
+                                # 验证文件后缀
+                                ext = os.path.splitext(file_name)[1].lower()
+                                restype = item['restype']
+                                if restype == 'quickapp' and ext != '.rpk':
+                                    log_error(f"{name} - Invalid quickapp extension: {ext}")
+                                elif restype == 'watchface' and ext not in ['.bin', '.face']:
+                                    log_error(f"{name} - Invalid watchface extension: {ext}")
+                    except Exception as e:
+                        log_error(f"{name} - Manifest check failed: {str(e)}")
             except Exception as e:
                 log_error(f"{name} - Resource JSON check failed: {str(e)}")
         
-        if os.path.getsize(log_file) == 0:
+        # 如果没有错误，删除空日志文件
+        if os.path.exists(log_file) and os.path.getsize(log_file) == 0:
             os.remove(log_file)
         EOF
 
@@ -149,7 +156,6 @@ jobs:
       run: |
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git add CheckLog/*
+        git add CheckLog
         git commit -m "Add daily check logs" || echo "No changes to commit"
         git push
-EOF
