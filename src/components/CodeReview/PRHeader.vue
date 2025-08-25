@@ -13,7 +13,12 @@
           Open
         </span>
         <span class="pr-author">
-          <img :src="pr.user.avatar_url" class="author-avatar" />
+          <img 
+            :src="getOptimizedAvatarUrl(pr.user)" 
+            class="author-avatar" 
+            loading="lazy"
+            @load="cacheAvatar(pr.user)"
+          />
           <a :href="pr.user.html_url" target="_blank" class="author-link">
             {{ pr.user.login }}
           </a>
@@ -87,6 +92,40 @@ const props = defineProps({
     }
   }
 })
+
+// 内存缓存
+const avatarCache = new Map<string, string>()
+
+// 获取优化后的头像URL
+const getOptimizedAvatarUrl = (user: GitHubUser) => {
+  // 1. 检查内存缓存
+  if (avatarCache.has(user.login)) {
+    return avatarCache.get(user.login)!
+  }
+
+  // 2. 检查本地存储缓存
+  const cachedUrl = localStorage.getItem(`avatar_${user.login}`)
+  if (cachedUrl) {
+    avatarCache.set(user.login, cachedUrl)
+    return cachedUrl
+  }
+
+  // 3. 生成优化后的URL
+  let url = user.avatar_url
+  if (url.includes('githubusercontent.com')) {
+    url += (url.includes('?') ? '&' : '?') + 's=40&q=60'
+  }
+
+  // 存入内存缓存
+  avatarCache.set(user.login, url)
+  return url
+}
+
+// 缓存头像到本地存储
+const cacheAvatar = (user: GitHubUser) => {
+  const url = getOptimizedAvatarUrl(user)
+  localStorage.setItem(`avatar_${user.login}`, url)
+}
 
 const timeAgo = computed(() => {
   const now = new Date()
@@ -219,6 +258,8 @@ defineEmits(['refresh'])
   width: 20px;
   height: 20px;
   border-radius: 50%;
+  object-fit: cover;
+  background-color: #f3f4f6;
 }
 
 .author-link {
@@ -265,7 +306,6 @@ defineEmits(['refresh'])
 .action-icon {
   width: 20px;
   height: 20px;
-  /* color: #3b82f6; */
   color: #1f2937;
   transition: all 0.2s;
 }
