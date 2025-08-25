@@ -27,7 +27,7 @@
     </div>
     
     <div class="sidebar-footer" @click="$emit('toggle')">
-      <span class="collapse-text" v-if="!isCollapsed">折叠侧栏</span>
+      <span class="collapse-text" v-if="!isCollapsed">折叠边栏</span>
       <svg class="arrow-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
         <path 
           :transform="isCollapsed ? '' : 'rotate(90 512 512)'"

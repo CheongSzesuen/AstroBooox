@@ -30,9 +30,17 @@
           <path d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27c40.9 17.3 77.7 42.1 109.3 73.8 9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47c-5.3 4.1-3.5 12.5 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l0.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8c-0.1 4.5 3.5 8.2 8 8.2h60c4.4 0 7.9-3.5 8-7.8zM924 512h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4S687 811.7 646 829c-42.4 17.9-87.4 27-133.9 27s-91.5-9.1-133.9-27c-40.9-17.3-77.7-42.1-109.3-73.8-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47c5.3-4.1 3.5-12.5 3 14.1l-175.7-43c5-1.2 9.9 2.6 9.9 7.7l-0.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8 0.1-4.5-3.5-8.2-8-8.2z" fill="currentColor"/>
         </svg>
       </button>
-      <a :href="pr.html_url" target="_blank" class="action-button" title="在GitHub上查看">
-        <svg class="action-icon" viewBox="0 0 24 24">
-          <path d="M12 2C6.475 2 2 6.475 2 12c0 4.42 2.865 8.167 6.839 9.49.5.09.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.027 1.531 1.027.892 1.524 2.341 1.084 2.91.828.091-.644.349-1.085.635-1.334-2.214-.253-4.542-1.11-4.542-4.937 0-1.091.39-1.984 1.029-2.683-.103-.254-.447-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.837-2.332 4.682-4.552 4.93.359.309.678.917.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48A10.017 10.017 0 0022 12c0-5.523-4.477-10-10-10z" fill="#000000"/>
+      
+      <a :href="pr.html_url" target="_blank" class="action-button github-button" title="在GitHub上查看此Pull Request">
+        <svg class="github-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path 
+            d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"
+            class="github-path-body"
+          />
+          <path 
+            d="M9 18c-4.51 2-5-2-7-2"
+            class="github-path-tail"
+          />
         </svg>
       </a>
     </div>
@@ -116,37 +124,37 @@ defineEmits(['refresh'])
 }
 
 .pr-title-container.flex-auto {
-  flex: auto !important;
+  flex: auto;
 }
 
 .pr-title.gh-header-title {
   margin-right: 150px;
-  margin-bottom: 8px !important;
+  margin-bottom: 8px;
   font-weight: 400;
   line-height: 1.125;
   word-wrap: break-word;
 }
 
 .pr-title.wb-break-word {
-  word-break: break-word !important;
-  word-wrap: break-word !important;
-  overflow-wrap: break-word !important;
+  word-break: break-word;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .pr-title.lh-condensed {
-  line-height: 1.25 !important;
+  line-height: 1.25;
 }
 
 .pr-title.f1 {
-  font-size: 26px !important;
+  font-size: 26px;
 }
 
 .pr-title.mb-2 {
-  margin-bottom: 8px !important;
+  margin-bottom: 8px;
 }
 
 .pr-title.mr-0 {
-  margin-right: 0 !important;
+  margin-right: 0;
 }
 
 .pr-title {
@@ -257,8 +265,17 @@ defineEmits(['refresh'])
 .action-icon {
   width: 20px;
   height: 20px;
-  color: #3b82f6;
+  /* color: #3b82f6; */
+  color: #1f2937;
   transition: all 0.2s;
+}
+
+.github-icon {
+  width: 20px;
+  height: 20px;
+  color: #1f2937;
+  transition: all 0.2s;
+  overflow: visible;
 }
 
 .refresh-icon {
@@ -269,13 +286,51 @@ defineEmits(['refresh'])
   transform: rotate(360deg);
 }
 
-.action-button:hover .action-icon {
+.action-button:hover .action-icon,
+.action-button:hover .github-icon {
   color: #2563eb;
+}
+
+.github-path-body,
+.github-path-tail {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0s;
+}
+
+.github-button:hover .github-path-body,
+.github-button:hover .github-path-tail {
+  stroke-dashoffset: 1000;
+  animation: draw 2s ease-in-out forwards;
+}
+
+.github-button:hover .github-path-tail {
+  animation-delay: 0.4s;
+}
+
+.github-button:not(:hover) .github-path-body,
+.github-button:not(:hover) .github-path-tail {
+  animation: none;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0s;
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 @media (min-width: 768px) {
   .pr-title.f1 {
-    font-size: 32px !important;
+    font-size: 32px;
   }
 }
 
@@ -295,7 +350,8 @@ defineEmits(['refresh'])
     height: 36px;
   }
   
-  .action-icon {
+  .action-icon,
+  .github-icon {
     width: 18px;
     height: 18px;
   }
