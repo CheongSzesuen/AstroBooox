@@ -1,0 +1,155 @@
+name: AstroBox Repo Daily Check
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 每天UTC时间0点运行（北京时间8:00）
+  workflow_dispatch:      # 允许手动触发
+
+jobs:
+  check-repo:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: pip install requests pandas
+
+    - name: Run verification script
+      env:
+        LOG_DIR: CheckLog
+      run: |
+        mkdir -p $LOG_DIR
+        python - << 'EOF'
+        import os
+        import requests
+        import json
+        import csv
+        import pandas as pd
+        from datetime import datetime
+        from urllib.parse import urljoin
+        
+        # 配置参数
+        BASE_URL = "https://raw.githubusercontent.com/AstralSightStudios/AstroBox-Repo/refs/heads/main/"
+        INDEX_URL = BASE_URL + "index.csv"
+        RESOURCES_BASE = BASE_URL + "resources/"
+        LOG_DIR = os.environ.get('LOG_DIR', 'CheckLog')
+        
+        # 创建日志文件
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        log_file = os.path.join(LOG_DIR, f"{timestamp}.log")
+        
+        def log_error(message):
+            with open(log_file, "a") as f:
+                f.write(f"[ERROR] {message}\n")
+        
+        def check_url(url):
+            try:
+                response = requests.head(url, timeout=10)
+                return response.status_code == 200
+            except Exception as e:
+                log_error(f"URL check failed: {url} - {str(e)}")
+                return False
+        
+        # 下载并解析CSV
+        try:
+            response = requests.get(INDEX_URL)
+            response.raise_for_status()
+            csv_data = response.text.splitlines()
+            reader = csv.DictReader(csv_data)
+            items = list(reader)
+        except Exception as e:
+            log_error(f"Failed to get/index.csv: {str(e)}")
+            exit(1)
+        
+        # 处理每个条目
+        for item in items:
+            name = item['name']
+            log_error(f"Checking item: {name}")
+            
+            # 检查icon和cover
+            for field in ['icon', 'cover']:
+                if not check_url(item[field]):
+                    log_error(f"{name} - Invalid {field} URL: {item[field]}")
+            
+            # 记录devices
+            devices = item['devices'].split(';')
+            log_error(f"{name} - Devices: {devices}")
+            
+            # 检查资源JSON
+            resource_path = item['path']
+            resource_url = urljoin(RESOURCES_BASE, resource_path)
+            try:
+                response = requests.get(resource_url)
+                response.raise_for_status()
+                resource_data = json.loads(response.text)
+                
+                # 验证仓库URL
+                repo_url = resource_data.get('repo_url')
+                if not repo_url:
+                    log_error(f"{name} - Missing repo_url in resource JSON")
+                    continue
+                
+                # 检查仓库是否存在
+                if not check_url(repo_url):
+                    log_error(f"{name} - Repository not found: {repo_url}")
+                
+                # 获取manifest.json
+                manifest_url = f"{repo_url.replace('github.com', 'raw.githubusercontent.com')}/refs/heads/main/manifest.json"
+                try:
+                    response = requests.get(manifest_url)
+                    response.raise_for_status()
+                    manifest = json.loads(response.text)
+                    
+                    # 验证设备列表匹配
+                    manifest_devices = list(manifest.get('downloads', {}).keys())
+                    if sorted(devices) != sorted(manifest_devices):
+                        log_error(f"{name} - Devices mismatch! CSV: {devices} vs Manifest: {manifest_devices}")
+                    
+                    # 检查资源文件
+                    for preview in manifest.get('item', {}).get('preview', []):
+                        preview_url = urljoin(manifest_url.rsplit('/', 1)[0] + '/', preview)
+                        if not check_url(preview_url):
+                            log_error(f"{name} - Preview not found: {preview_url}")
+                    
+                    # 检查图标
+                    icon_url = urljoin(manifest_url.rsplit('/', 1)[0] + '/', manifest.get('item', {}).get('icon', ''))
+                    if not check_url(icon_url):
+                        log_error(f"{name} - Icon not found: {icon_url}")
+                    
+                    # 检查下载文件
+                    for device, data in manifest.get('downloads', {}).items():
+                        file_url = urljoin(manifest_url.rsplit('/', 1)[0] + '/', data.get('file_name', ''))
+                        if not check_url(file_url):
+                            log_error(f"{name} - File not found: {file_url}")
+                        
+                        # 验证文件后缀
+                        ext = os.path.splitext(data.get('file_name', ''))[1].lower()
+                        if item['restype'] == 'quickapp' and ext != '.rpk':
+                            log_error(f"{name} - Invalid quickapp extension: {ext}")
+                        elif item['restype'] == 'watchface' and ext not in ['.bin', '.face']:
+                            log_error(f"{name} - Invalid watchface extension: {ext}")
+                
+                except Exception as e:
+                    log_error(f"{name} - Manifest check failed: {str(e)}")
+            
+            except Exception as e:
+                log_error(f"{name} - Resource JSON check failed: {str(e)}")
+        
+        if os.path.getsize(log_file) == 0:
+            os.remove(log_file)
+        EOF
+
+    - name: Commit log files
+      if: always()
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add CheckLog/*
+        git commit -m "Add daily check logs" || echo "No changes to commit"
+        git push
+EOF
