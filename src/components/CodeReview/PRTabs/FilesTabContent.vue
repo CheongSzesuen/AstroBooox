@@ -58,7 +58,7 @@
                   </svg>
                 </span>
                 <span class="ActionList-item-label ActionList-item-label--truncate">
-                  {{ getFolderPath(file.filename) }}
+                  {{ getFolderPath(file.filename).split('/').pop() }}
                 </span>
               </div>
             </li>
@@ -69,9 +69,17 @@
               class="ActionList-item js-tree-node"
               role="treeitem"
               :aria-level="getFileDepth(file.filename)"
-              :style="`--ActionList-tree-depth: ${getFileDepth(file.filename)};`"
+              :data-depth="getFileDepth(file.filename)"
             >
               <div class="ActionList-content hx_ActionList-content">
+                <!-- 缩进占位符 -->
+                <span 
+                  v-for="n in getFileDepth(file.filename)" 
+                  :key="n"
+                  class="ActionList-item-visual ActionList-item-visual--leading"
+                  style="width: 16px; min-height: 20px;"
+                ></span>
+                
                 <span class="ActionList-item-visual ActionList-item-visual--leading">
                   <svg 
                     aria-label="File" 
@@ -88,7 +96,6 @@
                 </span>
                 <span 
                   class="ActionList-item-label ActionList-item-label--truncate"
-                  :style="getFileLabelStyle(file.filename)"
                 >
                   {{ getFileName(file.filename) }}
                 </span>
@@ -172,20 +179,6 @@ const filteredFiles = computed(() => {
     file.filename.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
-
-// 获取文件标签样式
-const getFileLabelStyle = (filename: string) => {
-  const depth = getFileDepth(filename)
-  const paddingLeft = depth * 16 + 20 // 20px是图标和箭头宽度
-  const borderLeft = depth > 1 ? '1px solid #d0d7de' : 'none'
-  
-  return {
-    paddingLeft: `${paddingLeft}px`,
-    borderLeft,
-    marginLeft: '-16px', // 补偿padding
-    paddingRight: '8px'
-  }
-}
 
 // 获取文件状态图标颜色
 const getStatusIconColor = (status: string) => {
@@ -298,11 +291,18 @@ const getFileName = (filename: string) => {
 
 .ActionList-item {
   position: relative;
-  display: flex;
-  align-items: center;
-  padding: 0;
-  background-color: #ffffff;
-  border-radius: 6px;
+}
+
+/* 层级线 - 只对非根目录文件显示 */
+.ActionList-item[data-depth]:not([data-depth="0"]) .ActionList-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--depth-offset, 0) * 16px + 8px);
+  width: 1px;
+  background-color: #d0d7de;
+  z-index: 1;
 }
 
 .ActionList-content {
@@ -310,6 +310,7 @@ const getFileName = (filename: string) => {
   display: flex;
   width: 100%;
   padding: 6px 0;
+  padding-left: calc(var(--depth-offset, 0) * 16px + 20px);
   font-size: 14px;
   font-weight: 400;
   color: #24292f;
@@ -321,6 +322,11 @@ const getFileName = (filename: string) => {
   transition: background 0.1s ease;
   align-items: center;
   cursor: pointer;
+}
+
+/* 根目录文件不缩进 */
+.ActionList-item[data-depth="0"] .ActionList-content {
+  padding-left: 20px;
 }
 
 .ActionList-content:hover {
