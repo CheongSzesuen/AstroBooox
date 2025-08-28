@@ -197,120 +197,83 @@ const displayItems = computed(() => {
   }
 
   const items: DisplayItem[] = []
-  const addedFolders = new Set<string>() // 跟踪已经添加到列表的文件夹
+  const addedFolders = new Set<string>()
+  const rootFiles: FileItem[] = []
 
-  // 3. 遍历所有文件，处理其路径上的文件夹和文件本身
+  // Step 1: 收集所有相关的文件夹路径
+  const folderPaths = new Set<string>()
   filesToProcess.forEach(file => {
-    const filePath = file.filename
-    const parts = filePath.split('/')
-    let currentPath = ''
-
-    // 4. 为文件的每一级路径（文件夹）创建显示项（如果尚未添加）
-    for (let i = 0; i < parts.length - 1; i++) { // parts.length - 1 因为最后一部分是文件名
-      currentPath += (i > 0 ? '/' : '') + parts[i]
-      if (!addedFolders.has(currentPath)) {
-        // 检查这个文件夹是否需要显示（即它或其子路径下有匹配的文件）
-        const isFolderRelevant = filesToProcess.some(f =>
-          getFolderPath(f.filename) === currentPath || getFolderPath(f.filename).startsWith(currentPath + '/')
-        )
-        if (isFolderRelevant) {
-          items.push({
-            type: 'folder',
-            path: currentPath,
-            label: parts[i], // 文件夹名
-            depth: i // 文件夹深度
-          })
-          addedFolders.add(currentPath)
-        }
+    const dir = getFolderPath(file.filename)
+    if (dir) {
+      let current = ''
+      const parts = dir.split('/')
+      for (let i = 0; i < parts.length; i++) {
+        current += (i > 0 ? '/' : '') + parts[i]
+        folderPaths.add(current)
       }
-      // 如果当前路径的文件夹未展开，则停止处理更深的路径
-      if (!isFolderOpen(currentPath)) {
-        break
-      }
-    }
-
-    // 5. 添加文件本身到显示列表
-    // 确保文件的直接父文件夹已经被处理（或文件在根目录）
-    const fileDir = getFolderPath(filePath)
-    if (fileDir === '' || addedFolders.has(fileDir)) {
-       // 检查父文件夹是否展开（根目录文件除外）
-       const shouldShowFileItem = fileDir === '' || isFolderOpen(fileDir);
-       if (shouldShowFileItem) {
-          items.push({
-            type: 'file',
-            file: file, // 传递原始文件对象
-            label: parts[parts.length - 1], // 文件名
-            depth: parts.length - 1 // 文件深度
-          })
-       }
-    }
-  })
-
-  // 6. 处理根目录下的文件（没有'/'的文件）
-  if (searchQuery.value.trim() === '') { // 如果没有搜索，或者搜索结果包含根目录文件
-      const rootFiles = filesToProcess.filter(file => !file.filename.includes('/'))
-      // 如果 displayItems 中还没有根目录文件项，则添加它们
-      // 注意：上面的循环可能已经添加了根目录文件，这里主要是为了确保逻辑清晰
-      // 或者可以简化为直接在最后追加根目录文件，但需要去重或调整顺序
-      // 一个更清晰的方式是：在处理完所有非根目录文件后，再单独处理根目录文件
-      // 我们可以调整逻辑，先处理文件夹，再处理文件
-  }
-
-
-  // --- 调整逻辑：先确保所有相关文件夹都在，再添加文件 ---
-  const finalItems: DisplayItem[] = []
-  const finalAddedFolders = new Set<string>()
-  const finalProcessedFiles = new Set<string>() // 防止重复添加文件
-
-  filesToProcess.forEach(file => {
-    const filePath = file.filename
-    const parts = filePath.split('/')
-    let currentPath = ''
-
-    for (let i = 0; i < parts.length - 1; i++) {
-      currentPath += (i > 0 ? '/' : '') + parts[i]
-      if (!finalAddedFolders.has(currentPath)) {
-        const isFolderRelevant = filesToProcess.some(f =>
-          getFolderPath(f.filename) === currentPath || getFolderPath(f.filename).startsWith(currentPath + '/')
-        )
-        if (isFolderRelevant) {
-          finalItems.push({
-            type: 'folder',
-            path: currentPath,
-            label: parts[i],
-            depth: i
-          })
-          finalAddedFolders.add(currentPath)
-        }
-      }
-      if (!isFolderOpen(currentPath)) {
-        break
-      }
-    }
-  })
-
-  // 现在添加文件
-  filesToProcess.forEach(file => {
-    const filePath = file.filename
-    if (finalProcessedFiles.has(filePath)) return // 避免重复
-    const parts = filePath.split('/')
-    const fileDir = getFolderPath(filePath)
-    const fileDepth = parts.length - 1
-
-    const shouldShowFileItem = fileDir === '' || (finalAddedFolders.has(fileDir) && isFolderOpen(fileDir))
-
-    if (shouldShowFileItem) {
-      finalItems.push({
+    } else {
+      // 根目录文件
+      rootFiles.push({
         type: 'file',
         file: file,
-        label: parts[parts.length - 1],
-        depth: fileDepth
+        label: file.filename,
+        depth: 0
       })
-      finalProcessedFiles.add(filePath)
     }
   })
 
-  return finalItems
+  // Step 2: 构建文件夹项（按层级顺序）
+  const sortedFolders = Array.from(folderPaths).sort((a, b) => {
+    const depthA = a.split('/').length
+    const depthB = b.split('/').length
+    if (depthA !== depthB) return depthA - depthB
+    return a.localeCompare(b)
+  })
+
+  sortedFolders.forEach(folderPath => {
+    const parts = folderPath.split('/')
+    const depth = parts.length - 1
+    const label = parts[parts.length - 1]
+    const parentPath = parts.slice(0, -1).join('/')
+
+    // 父文件夹必须已展开或为根目录
+    if (parentPath === '' || isFolderOpen(parentPath)) {
+      items.push({
+        type: 'folder',
+        path: folderPath,
+        label,
+        depth
+      })
+      addedFolders.add(folderPath)
+    }
+  })
+
+  // Step 3: 添加文件项（包括根目录文件）
+  filesToProcess.forEach(file => {
+    const filePath = file.filename
+    const dir = getFolderPath(filePath)
+    const parts = filePath.split('/')
+    const label = parts[parts.length - 1]
+    const depth = parts.length - 1
+
+    if (dir === '') {
+      // 已在 rootFiles 中处理
+      return
+    }
+
+    // 父文件夹必须已展开
+    if (isFolderOpen(dir)) {
+      items.push({
+        type: 'file',
+        file,
+        label,
+        depth
+      })
+    }
+  })
+
+  // Step 4: 插入根目录文件在最前面
+  return [...rootFiles, ...items]
 })
 
 // 获取项目的 key（用于模板）
@@ -346,8 +309,7 @@ const isRootFile = (filename: string) => {
 // 获取文件夹路径
 const getFolderPath = (filename: string) => {
   const parts = filename.split('/')
-  if (parts.length <= 1) return '' // 根目录文件
-  return parts.slice(0, -1).join('/')
+  return parts.length <= 1 ? '' : parts.slice(0, -1).join('/')
 }
 
 // 获取文件状态图标颜色
