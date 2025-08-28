@@ -22,10 +22,10 @@
       <!-- File tree -->
       <nav aria-label="File Tree Navigation">
         <ul class="ActionList ActionList--tree ActionList--full" role="tree" aria-label="File Tree">
-          <template v-for="item in displayItems" :key="item.type + '-' + (item.path || item.file.filename)">
+          <template v-for="item in displayItems" :key="getItemKey(item)">
             <!-- 文件夹行 -->
             <li
-              v-if="item.type === 'folder'"
+              v-if="isFolderItem(item)"
               class="ActionList-item js-tree-node"
               role="treeitem"
               :data-depth="item.depth"
@@ -76,7 +76,7 @@
 
             <!-- 文件行 -->
             <li
-              v-else-if="item.type === 'file'"
+              v-else-if="isFileItem(item)"
               class="ActionList-item js-tree-node"
               role="treeitem"
               :aria-level="item.depth + 1"
@@ -140,10 +140,36 @@
 import { ref, computed } from 'vue'
 import type { FilesTabContentProps, FileChange } from '@/type/codeReview' // 确保导入 FileChange
 
+// 定义类型
+interface FolderItem {
+  type: 'folder'
+  path: string
+  label: string
+  depth: number
+}
+
+interface FileItem {
+  type: 'file'
+  file: FileChange
+  label: string
+  depth: number
+}
+
+type DisplayItem = FolderItem | FileItem
+
 const props = defineProps<FilesTabContentProps>()
 
 const searchQuery = ref('')
 const openFolders = ref<Set<string>>(new Set())
+
+// 类型守卫函数
+const isFolderItem = (item: DisplayItem): item is FolderItem => {
+  return item.type === 'folder'
+}
+
+const isFileItem = (item: DisplayItem): item is FileItem => {
+  return item.type === 'file'
+}
 
 // --- 新增和修改的逻辑 ---
 
@@ -170,7 +196,7 @@ const displayItems = computed(() => {
     )
   }
 
-  const items = []
+  const items: DisplayItem[] = []
   const addedFolders = new Set<string>() // 跟踪已经添加到列表的文件夹
 
   // 3. 遍历所有文件，处理其路径上的文件夹和文件本身
@@ -232,7 +258,7 @@ const displayItems = computed(() => {
 
 
   // --- 调整逻辑：先确保所有相关文件夹都在，再添加文件 ---
-  const finalItems = []
+  const finalItems: DisplayItem[] = []
   const finalAddedFolders = new Set<string>()
   const finalProcessedFiles = new Set<string>() // 防止重复添加文件
 
@@ -287,6 +313,28 @@ const displayItems = computed(() => {
   return finalItems
 })
 
+// 获取项目的 key（用于模板）
+const getItemKey = (item: DisplayItem): string => {
+  if (isFolderItem(item)) {
+    return `folder-${item.path}`
+  } else {
+    return `file-${item.file.filename}`
+  }
+}
+
+// 获取文件夹是否展开状态
+const isFolderOpen = (folderPath: string) => {
+  return openFolders.value.has(folderPath)
+}
+
+// 切换文件夹展开状态
+const toggleFolder = (folderPath: string) => {
+  if (openFolders.value.has(folderPath)) {
+    openFolders.value.delete(folderPath)
+  } else {
+    openFolders.value.add(folderPath)
+  }
+}
 
 // --- 辅助函数 ---
 
@@ -300,20 +348,6 @@ const getFolderPath = (filename: string) => {
   const parts = filename.split('/')
   if (parts.length <= 1) return '' // 根目录文件
   return parts.slice(0, -1).join('/')
-}
-
-// 判断文件夹是否展开
-const isFolderOpen = (folderPath: string) => {
-  return openFolders.value.has(folderPath)
-}
-
-// 切换文件夹展开状态
-const toggleFolder = (folderPath: string) => {
-  if (openFolders.value.has(folderPath)) {
-    openFolders.value.delete(folderPath)
-  } else {
-    openFolders.value.add(folderPath)
-  }
 }
 
 // 获取文件状态图标颜色
