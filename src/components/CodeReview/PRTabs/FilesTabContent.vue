@@ -197,7 +197,6 @@ const displayItems = computed(() => {
   }
 
   const items: DisplayItem[] = []
-  const addedFolders = new Set<string>()
   const rootFiles: FileItem[] = []
 
   // Step 1: 收集所有相关的文件夹路径
@@ -234,17 +233,25 @@ const displayItems = computed(() => {
     const parts = folderPath.split('/')
     const depth = parts.length - 1
     const label = parts[parts.length - 1]
-    const parentPath = parts.slice(0, -1).join('/')
 
-    // 父文件夹必须已展开或为根目录
-    if (parentPath === '' || isFolderOpen(parentPath)) {
+    // 检查所有祖先路径是否都展开
+    let isVisible = true
+    const pathParts = folderPath.split('/')
+    for (let i = 1; i < pathParts.length; i++) {
+      const parentPath = pathParts.slice(0, i).join('/')
+      if (!isFolderOpen(parentPath)) {
+        isVisible = false
+        break
+      }
+    }
+
+    if (isVisible) {
       items.push({
         type: 'folder',
         path: folderPath,
         label,
         depth
       })
-      addedFolders.add(folderPath)
     }
   })
 
@@ -261,8 +268,18 @@ const displayItems = computed(() => {
       return
     }
 
-    // 父文件夹必须已展开
-    if (isFolderOpen(dir)) {
+    // 检查所有祖先路径是否都展开
+    let isVisible = true
+    const pathParts = dir.split('/')
+    for (let i = 0; i < pathParts.length; i++) {
+      const parentPath = pathParts.slice(0, i + 1).join('/')
+      if (!isFolderOpen(parentPath)) {
+        isVisible = false
+        break
+      }
+    }
+
+    if (isVisible) {
       items.push({
         type: 'file',
         file,
@@ -292,8 +309,13 @@ const isFolderOpen = (folderPath: string) => {
 
 // 切换文件夹展开状态
 const toggleFolder = (folderPath: string) => {
-  if (openFolders.value.has(folderPath)) {
-    openFolders.value.delete(folderPath)
+  const isOpen = openFolders.value.has(folderPath)
+  if (isOpen) {
+    // 关闭当前文件夹及其所有子文件夹
+    const toRemove = Array.from(openFolders.value).filter(path =>
+      path === folderPath || path.startsWith(folderPath + '/')
+    )
+    toRemove.forEach(p => openFolders.value.delete(p))
   } else {
     openFolders.value.add(folderPath)
   }
