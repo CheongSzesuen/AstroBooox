@@ -200,7 +200,8 @@ const supportedDevices: Device[] = [
   { codename: "o62", name: "Xiaomi Watch S4 系列 Sport版" },
   { codename: "o62", name: "Xiaomi Watch S4 系列 41mm" },
   { codename: "o65", name: "REDMI Watch 5" },
-  { codename: "o65m", name: "REDMI Watch 5 eSIM" }
+  { codename: "o65m", name: "REDMI Watch 5 eSIM" },
+  { codename: "p65", name: "REDMI Watch 6" }
 ]
 
 // 显示自定义提示
