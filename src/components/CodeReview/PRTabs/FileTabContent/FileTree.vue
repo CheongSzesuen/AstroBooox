@@ -1,7 +1,7 @@
 <!-- src/components/FileTree.vue -->
 <template>
   <div class="Layout Layout--sidebarPosition-start Layout-sidebar hx_Layout--sidebar position-sticky overflow-y-auto"
-       :style="{ top: '60px', height: '555px' }">
+       :style="{ top: '0', height: '100%' }">
     <div class="Layout-sidebar">
       <!-- Search box -->
       <div class="subnav-search-container">
@@ -83,7 +83,7 @@
               :aria-level="item.depth + 1"
               :data-depth="item.depth"
             >
-              <div class="ActionList-content hx_ActionList-content">
+              <div class="ActionList-content hx_ActionList-content" @click="selectFile(item.file)">
                 <!-- 缩进占位符 -->
                 <span
                   v-for="n in item.depth"
@@ -146,6 +146,11 @@ interface Props {
   changedFiles: FileChange[]
 }
 const props = defineProps<Props>()
+
+// 定义 emits
+const emit = defineEmits<{
+  (e: 'file-selected', file: FileChange): void
+}>()
 
 // 定义类型
 interface FolderItem {
@@ -349,6 +354,11 @@ const getStatusIconColor = (status: string) => {
     default: return 'color: #57606a'
   }
 }
+
+// 选择文件并发出事件
+const selectFile = (file: FileChange) => {
+  emit('file-selected', file)
+}
 </script>
 
 <style scoped>
@@ -357,6 +367,7 @@ const getStatusIconColor = (status: string) => {
   display: grid;
   --Layout-sidebar-width: 296px;
   --Layout-gutter: 24px;
+  height: 100%;
 }
 
 .Layout--sidebarPosition-start .Layout-sidebar {
@@ -370,9 +381,8 @@ const getStatusIconColor = (status: string) => {
 }
 
 .hx_Layout--sidebar {
-  position: sticky;
-  top: 60px;
-  height: 555px;
+  position: relative;
+  height: 100%;
   box-sizing: border-box;
   overscroll-behavior: contain;
 }
