@@ -111,70 +111,37 @@ const copyFilePath = () => {
 
 <style scoped>
 .github-style-diff-view {
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  margin-bottom: 16px;
-  background-color: #fff;
-}
-
-.file-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-  border-bottom: 1px solid #d0d7de;
-  background-color: #f6f8fa;
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
-}
-
-.filename {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.file-stats {
-  margin-left: 8px;
-  font-size: 12px;
-  color: #656d76;
-}
-
-.btn-octicon {
-  display: inline-block;
-  padding: 4px;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  color: #656d76;
-  vertical-align: middle;
-}
-
-.btn-octicon:hover {
-  color: #0969da;
-  background-color: #eaeef2;
-  border-radius: 6px;
+  background-color: white;
+  border-radius: 0 0 6px 6px;
 }
 
 .diff-content {
   overflow-x: auto;
+  border-radius: 0 0 6px 6px;
+  margin-bottom: 0;
 }
 
 .diff-content.empty {
-  padding: 24px;
+  padding: 32px;
   text-align: center;
-  color: #656d76;
-  font-size: 14px;
+  color: #57606a;
+  font-style: italic;
 }
 
 .diff-lines {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   line-height: 1.4;
+  margin-bottom: 0;
 }
 
 .diff-line {
   display: flex;
+  border-bottom: 1px solid #eaeef2;
+}
+
+.diff-line:last-child {
+  border-bottom: none;
 }
 
 .diff-line.added {
@@ -212,7 +179,7 @@ const copyFilePath = () => {
 }
 
 .line-number-new {
-  border-right: 1px solid #eaeef2;
+  border-left: 1px solid #eaeef2;
 }
 
 .line-content {

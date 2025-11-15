@@ -39,8 +39,7 @@
                         'diffstat-block', 
                         i <= Math.min(5, file.changes) ? 'diffstat-block-added' : 
                         'diffstat-block-neutral'
-                      ]">
-                </span>
+                      ]"></span>
               </span>
             </div>
 
@@ -142,7 +141,7 @@ const selectFile = (file: FileChange) => {
 }
 
 .file-diff-item {
-  border-bottom: 1px solid #e1e4e8;
+  border: 1px solid #e1e4e8;
   border-radius: 6px;
   margin-bottom: 16px;
   background-color: white;
@@ -312,12 +311,11 @@ const selectFile = (file: FileChange) => {
 
 .file-diff-content {
   border-bottom: 1px solid #e1e4e8;
-  border-bottom-left-radius: 6px;
-  border-bottom-right-radius: 6px;
   overflow: hidden;
 }
 
 .github-style-diff-view {
   background-color: white;
+  border-radius: 0 0 6px 6px;
 }
 </style>
