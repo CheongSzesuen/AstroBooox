@@ -15,14 +15,48 @@
         :key="file.filename"
         class="file-diff-item"
       >
-        <div class="file-header" @click="selectFile(file)">
-          <div class="file-info">
-            <span class="file-name">{{ file.filename }}</span>
-            <span :class="['file-status', file.status]">{{ file.status }}</span>
+        <div class="file-header d-flex flex-md-row flex-column flex-md-items-center file-header--expandable sticky-file-header" 
+             @click="selectFile(file)"
+             :class="{ 'expanded': expandedFiles.has(file.filename) }">
+          <div class="file-info-container d-flex align-items-center min-width-0 flex-auto">
+            <button type="button" class="btn-octicon js-details-target" aria-label="Toggle diff contents">
+              <svg v-if="expandedFiles.has(file.filename)" aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" class="octicon octicon-chevron-down">
+                <path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"></path>
+              </svg>
+              <svg v-else aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" class="octicon octicon-chevron-right">
+                <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path>
+              </svg>
+            </button>
+
+            <div class="diffstat-summary mr-2">
+              <span class="sr-only">
+                {{ file.changes }} changes
+              </span>
+              <span class="diffstat" aria-hidden="true">
+                {{ file.changes }}
+                <span v-for="i in 5" :key="i" 
+                      :class="[
+                        'diffstat-block', 
+                        i <= Math.min(5, file.changes) ? 'diffstat-block-added' : 
+                        'diffstat-block-neutral'
+                      ]">
+                </span>
+              </span>
+            </div>
+
+            <div class="file-info Truncate flex-auto">
+              <span class="file-name Truncate-text">{{ file.filename }}</span>
+            </div>
+
+            <div class="file-status-wrapper ml-2">
+              <span :class="['file-status', file.status]">{{ file.status }}</span>
+            </div>
           </div>
-          <div class="file-stats">
-            <span class="additions" v-if="file.additions">+{{ file.additions }}</span>
-            <span class="deletions" v-if="file.deletions">-{{ file.deletions }}</span>
+
+          <div class="file-actions d-flex flex-items-center">
+            <div class="file-stats">
+              <span class="changes">{{ file.changes }} changes</span>
+            </div>
           </div>
         </div>
         <div class="file-diff-content" v-show="expandedFiles.has(file.filename)">
@@ -94,6 +128,7 @@ const selectFile = (file: FileChange) => {
   width: 300px;
   overflow-y: auto;
   border-right: none; /* 移除边框 */
+  margin-right: 20px; /* 添加右边距 */
 }
 
 .file-content {
@@ -108,33 +143,87 @@ const selectFile = (file: FileChange) => {
 
 .file-diff-item {
   border-bottom: 1px solid #e1e4e8;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .file-header {
+  z-index: 2;
+  padding: 8px 16px;
+  background-color: #f6f8fa;
+  border-bottom: 1px solid #e1e4e8;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  background-color: #f6f8fa;
 }
 
 .file-header:hover {
   background-color: #eaeff5;
 }
 
-.file-info {
+.file-header.expanded {
+  border-bottom: 1px solid #e1e4e8;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.file-info-container {
   display: flex;
   align-items: center;
-  gap: 10px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.btn-octicon {
+  display: inline-block;
+  padding: 5px;
+  margin-right: 5px;
+  line-height: 1;
+  color: #57606a;
+  vertical-align: middle;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mr-2 {
+  margin-right: 8px;
+}
+
+.ml-2 {
+  margin-left: 8px;
+}
+
+.diffstat-summary {
+  flex-shrink: 0;
+}
+
+.Truncate {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.Truncate-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-name {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: 14px;
-  color: #032f62;
   font-weight: 600;
+  color: #032f62;
+}
+
+.file-status-wrapper {
+  flex-shrink: 0;
 }
 
 .file-status {
@@ -165,21 +254,70 @@ const selectFile = (file: FileChange) => {
   color: #8250df;
 }
 
+.file-actions {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
 .file-stats {
   display: flex;
   gap: 8px;
   font-size: 12px;
 }
 
-.additions {
-  color: #28a745;
+.changes {
+  color: #57606a;
 }
 
-.deletions {
-  color: #d73a49;
+.diffstat {
+  font-size: 12px;
+  font-weight: 600;
+  color: #57606a;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.diffstat-block {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 1px;
+}
+
+.diffstat-block-added {
+  background-color: #28a745;
+}
+
+.diffstat-block-deleted {
+  background-color: #d73a49;
+}
+
+.diffstat-block-neutral {
+  background-color: #d0d7de;
+  outline: 1px solid #d0d7de;
+  outline-offset: -1px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .file-diff-content {
-  border-top: 1px solid #e1e4e8;
+  border-bottom: 1px solid #e1e4e8;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  overflow: hidden;
+}
+
+.github-style-diff-view {
+  background-color: white;
 }
 </style>
