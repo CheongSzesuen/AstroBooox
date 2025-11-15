@@ -209,6 +209,92 @@ const displayItems = computed(() => {
   const items: DisplayItem[] = []
   const rootFiles: FileItem[] = []
 
+  // 如果没有搜索查询，则显示所有文件和文件夹，但按照层级排序
+  // 即使没有打开的文件夹，也要显示所有文件
+  if (!searchQuery.value.trim()) {
+    // 首先分离出根目录文件
+    const rootFilesList: FileChange[] = []
+    const nonRootFilesList: FileChange[] = []
+    
+    filesToProcess.forEach(file => {
+      if (isRootFile(file.filename)) {
+        rootFilesList.push(file)
+      } else {
+        nonRootFilesList.push(file)
+      }
+    })
+
+    // 添加根目录文件到rootFiles数组
+    rootFilesList.forEach(file => {
+      rootFiles.push({
+        type: 'file',
+        file: file,
+        label: file.filename,
+        depth: 0
+      })
+    })
+
+    // 收集所有非根目录文件的文件夹路径
+    const folderPaths = new Set<string>()
+    nonRootFilesList.forEach(file => {
+      const dir = getFolderPath(file.filename)
+      if (dir) {
+        let current = ''
+        const parts = dir.split('/')
+        for (let i = 0; i < parts.length; i++) {
+          current += (i > 0 ? '/' : '') + parts[i]
+          folderPaths.add(current)
+        }
+      }
+    })
+
+    // 构建文件夹项（按层级顺序）
+    const sortedFolders = Array.from(folderPaths).sort((a, b) => {
+      const depthA = a.split('/').length
+      const depthB = b.split('/').length
+      if (depthA !== depthB) return depthA - depthB
+      return a.localeCompare(b)
+    })
+
+    sortedFolders.forEach(folderPath => {
+      const parts = folderPath.split('/')
+      const depth = parts.length - 1
+      const label = parts[parts.length - 1]
+
+      // 总是显示文件夹（因为我们想显示所有内容）
+      items.push({
+        type: 'folder',
+        path: folderPath,
+        label,
+        depth
+      })
+    })
+
+    // 添加所有非根目录文件项，按照路径深度排序
+    const sortedNonRootFiles = nonRootFilesList.sort((a, b) => {
+      const depthA = a.filename.split('/').length
+      const depthB = b.filename.split('/').length
+      if (depthA !== depthB) return depthA - depthB
+      return a.filename.localeCompare(b.filename)
+    })
+
+    sortedNonRootFiles.forEach(file => {
+      const parts = file.filename.split('/')
+      const label = parts[parts.length - 1]
+      const depth = parts.length - 1
+      
+      // 总是显示文件（因为我们想显示所有内容）
+      items.push({
+        type: 'file',
+        file,
+        label,
+        depth
+      })
+    })
+    
+    return [...rootFiles, ...items]
+  }
+
   // Step 1: 收集所有相关的文件夹路径
   const folderPaths = new Set<string>()
   filesToProcess.forEach(file => {
