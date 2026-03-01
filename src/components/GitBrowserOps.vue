@@ -54,7 +54,18 @@
             <div class="grid gap-3 md:grid-cols-3">
               <div class="space-y-1.5">
                 <Label for="repo-owner">仓库 Owner</Label>
-                <Input id="repo-owner" v-model="repoOwner" placeholder="your-name" />
+                <div class="flex items-center gap-2">
+                  <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                    <img
+                      v-if="ownerAvatarUrl"
+                      :src="ownerAvatarUrl"
+                      alt="Owner Avatar"
+                      class="h-full w-full object-cover"
+                    />
+                    <UserCircle v-else :size="18" weight="duotone" class="text-muted-foreground" />
+                  </div>
+                  <Input id="repo-owner" v-model="repoOwner" placeholder="your-name" class="min-w-0 flex-1" @blur="handleFetchOwnerAvatar" />
+                </div>
               </div>
               <div class="space-y-1.5">
                 <Label for="repo-name">仓库名</Label>
@@ -62,7 +73,7 @@
               </div>
               <div class="space-y-1.5">
                 <Label for="repo-branch">分支</Label>
-                <Input id="repo-branch" v-model="repoBranch" placeholder="main" />
+                <Input id="repo-branch" :model-value="repoBranch" readonly disabled />
               </div>
             </div>
 
@@ -241,7 +252,8 @@ import {
   PhFolderPlus as FolderPlus,
   PhGitBranch as GitBranch,
   PhGitCommit as GitCommit,
-  PhGitPullRequest as GitPullRequest
+  PhGitPullRequest as GitPullRequest,
+  PhUserCircle as UserCircle
 } from '@phosphor-icons/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -259,19 +271,22 @@ import {
   commitTextFile,
   createPullRequest,
   createRepository,
+  getUserByLogin,
   readRepositoryFile,
   verifyToken
 } from '@/utils/githubGitApi'
 
 const SITE_DEFAULT_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim() ?? ''
+const MAIN_BRANCH = 'main'
 
 const token = ref('')
 const isTokenVisible = ref(false)
 
 const currentUser = ref('')
+const ownerAvatarUrl = ref('')
 const repoOwner = ref('')
 const repoName = ref('')
-const repoBranch = ref('main')
+const repoBranch = ref(MAIN_BRANCH)
 
 const newRepoName = ref('')
 const newRepoDescription = ref('')
@@ -355,6 +370,7 @@ const handleVerifyToken = async (): Promise<void> => {
   await withAction('verify', async () => {
     const user = await verifyToken(requireToken())
     currentUser.value = user.login
+    ownerAvatarUrl.value = user.avatar_url || ''
 
     if (!repoOwner.value.trim()) {
       repoOwner.value = user.login
@@ -369,11 +385,27 @@ const handleCreateRepo = async (): Promise<void> => {
     const repo = await createRepository(requireToken(), newRepoName.value, newRepoDescription.value)
     repoOwner.value = repo.owner.login
     repoName.value = repo.name
-    repoBranch.value = repo.default_branch || 'main'
+    repoBranch.value = MAIN_BRANCH
+    ownerAvatarUrl.value = repo.owner.avatar_url || ownerAvatarUrl.value
 
     appendLog(`仓库创建成功: ${repo.full_name}`)
     appendLog(`仓库地址: ${repo.html_url}`)
   })
+}
+
+const handleFetchOwnerAvatar = async (): Promise<void> => {
+  if (!repoOwner.value.trim() || !token.value.trim()) {
+    return
+  }
+
+  try {
+    const user = await getUserByLogin(requireToken(), repoOwner.value.trim())
+    ownerAvatarUrl.value = user.avatar_url || ''
+    appendLog(`已更新 Owner 头像: ${user.login}`)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : '未知错误'
+    appendLog(`获取 Owner 头像失败: ${message}`)
+  }
 }
 
 const handleReadFile = async (): Promise<void> => {
@@ -382,7 +414,7 @@ const handleReadFile = async (): Promise<void> => {
       requireToken(),
       repoOwner.value.trim(),
       repoName.value.trim(),
-      repoBranch.value.trim(),
+      MAIN_BRANCH,
       filePath.value.trim()
     )
 
@@ -398,7 +430,7 @@ const handleCommitAndPush = async (): Promise<void> => {
       token: requireToken(),
       owner: repoOwner.value.trim(),
       repo: repoName.value.trim(),
-      branch: repoBranch.value.trim(),
+      branch: MAIN_BRANCH,
       filePath: filePath.value.trim(),
       fileContent: fileContent.value,
       commitMessage: commitMessage.value
@@ -418,7 +450,7 @@ const handleCreatePr = async (): Promise<void> => {
       baseRepo: prBaseRepo.value.trim(),
       baseBranch: prBaseBranch.value.trim(),
       headOwner: repoOwner.value.trim(),
-      headBranch: repoBranch.value.trim(),
+      headBranch: MAIN_BRANCH,
       title: prTitle.value,
       body: prBody.value
     })

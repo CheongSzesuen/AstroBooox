@@ -5,6 +5,7 @@ export interface GitHubUser {
   login: string
   name: string | null
   html_url: string
+  avatar_url: string
 }
 
 export interface GitHubRepository {
@@ -14,6 +15,7 @@ export interface GitHubRepository {
   html_url: string
   owner: {
     login: string
+    avatar_url?: string
   }
 }
 
@@ -117,6 +119,14 @@ export const verifyToken = async (token: string): Promise<GitHubUser> => {
     throw new Error('Token 不能为空')
   }
   return requestJson<GitHubUser>('/user', token)
+}
+
+export const getUserByLogin = async (token: string, login: string): Promise<GitHubUser> => {
+  const normalizedLogin = login.trim()
+  if (!normalizedLogin) {
+    throw new Error('Owner 不能为空')
+  }
+  return requestJson<GitHubUser>(`/users/${encodeURIComponent(normalizedLogin)}`, token)
 }
 
 export const createRepository = async (
