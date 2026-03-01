@@ -30,3 +30,6 @@ dist-ssr
 !.env.example
 /.vscode
 tsconfig.tsbuildinfo
+/homepage
+/ui
+/vue
