@@ -23,12 +23,12 @@
             ]"
             @click="toggleFile(file)"
           >
-            <div class="flex min-w-0 w-full items-center justify-between gap-1.5 font-mono text-[12px]">
+            <div class="flex min-w-0 w-full items-center gap-2 font-mono text-xs md:text-sm">
               <Button
                 variant="ghost"
                 size="icon"
                 type="button"
-                class="h-6.5 w-6.5 shrink-0"
+                class="h-7 w-7 shrink-0"
                 aria-label="Toggle diff contents"
                 @click.stop="toggleFile(file)"
               >
@@ -40,7 +40,7 @@
                 <span class="sr-only">
                   {{ file.changes }} changes
                 </span>
-                <span class="cursor-default whitespace-nowrap text-[0.68rem] font-semibold text-muted-foreground" aria-hidden="true">
+                <span class="cursor-default whitespace-nowrap text-xs font-semibold text-muted-foreground" aria-hidden="true">
                   {{ file.changes }}
                   <span
                     v-for="i in 5"
@@ -53,15 +53,11 @@
                 </span>
               </div>
 
-              <div class="min-w-0 flex-1 truncate text-[0.78rem] font-semibold text-foreground">{{ file.filename }}</div>
+              <div class="min-w-0 flex-1 truncate text-sm font-semibold text-foreground md:text-[0.92rem]">{{ file.filename }}</div>
 
-              <Badge variant="outline" class="shrink-0 rounded-full px-1.5 py-[0.1rem] text-[0.66rem] leading-tight">
+              <Badge variant="outline" class="shrink-0 rounded-full px-1.5 py-0.5 text-[0.7rem] leading-none">
                 {{ getStatusText(file.status) }}
               </Badge>
-            </div>
-
-            <div class="shrink-0 text-[0.72rem] text-muted-foreground max-[700px]:hidden">
-              {{ file.changes }} changes
             </div>
           </div>
 

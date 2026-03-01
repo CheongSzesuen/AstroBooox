@@ -24,7 +24,7 @@
       
       <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,460px)]">
         <!-- 完整的表单容器 -->
-        <div class="min-w-0 space-y-4 rounded-xl border border-border bg-muted/40 p-4">
+        <div class="min-w-0 space-y-4">
           <!-- 应用信息部分 -->
           <Card class="w-full border-border/80 shadow-sm">
             <CardHeader class="pb-3">

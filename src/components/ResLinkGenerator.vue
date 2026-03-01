@@ -1,8 +1,7 @@
 <template>
   <div class="flex min-h-full w-full flex-col">
     <div class="flex min-h-full w-full flex-col gap-4">
-      <div class="flex min-h-[500px] flex-1 overflow-hidden">
-        <div class="flex-1 min-w-0 overflow-y-auto rounded-xl border border-border bg-muted/55 p-4">
+      <div class="min-w-0">
           <div class="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
             <h3 class="mb-4 text-base font-semibold">资源信息</h3>
             <div>
@@ -157,7 +156,7 @@
 
             <div class="mb-4">
               <label class="mb-2 block text-sm font-semibold text-foreground">生成的HTML代码</label>
-              <div class="mt-2 overflow-x-auto rounded-lg border border-border bg-background p-4">
+              <div class="scrollbar-none mt-2 overflow-x-auto rounded-lg border border-border bg-background p-4">
                 <pre class="m-0 whitespace-pre-wrap break-words font-mono text-[0.85rem] text-foreground">{{ badgeHtmlCode }}</pre>
               </div>
             </div>
@@ -169,7 +168,6 @@
               </Button>
             </div>
           </div>
-        </div>
       </div>
 
       <Dialog :open="showResourceSearch" @update:open="showResourceSearch = $event">

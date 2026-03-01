@@ -1,6 +1,6 @@
 <template>
   <div class="relative w-full">
-    <div class="rounded-xl border border-border bg-muted/45 p-5 font-mono text-[15px] leading-[1.8] text-foreground">
+    <div class="rounded-xl border border-border bg-muted/35 p-4 font-mono text-sm leading-6 text-foreground md:p-5">
       <pre v-if="data" class="m-0 whitespace-pre-wrap break-words">{{ formattedJson }}</pre>
       <div v-else class="italic text-muted-foreground">预览区域</div>
     </div>

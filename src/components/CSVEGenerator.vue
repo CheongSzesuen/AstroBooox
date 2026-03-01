@@ -1,8 +1,7 @@
 <template>
   <div class="flex min-h-full w-full flex-col">
     <div class="flex min-h-full w-full flex-col gap-4">
-      <div class="flex min-h-[500px] flex-1 overflow-hidden">
-        <div class="flex-1 min-w-0 overflow-y-auto rounded-xl border border-border bg-muted/55 p-4">
+      <div class="min-w-0">
           <div class="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
             <h3 class="mb-4 text-base font-semibold">资源信息</h3>
             <div class="mb-4">
@@ -105,7 +104,7 @@
 
           <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
             <h3 class="mb-4 text-base font-semibold">生成的 CSV</h3>
-            <div class="overflow-auto rounded-lg border border-border bg-background p-4 text-sm leading-6">
+            <div class="scrollbar-none overflow-auto rounded-lg border border-border bg-background p-4 text-sm leading-6">
               <pre class="m-0 whitespace-pre-wrap break-words font-mono">{{ generatedCSV }}</pre>
             </div>
             <div class="mt-4 flex justify-end">
@@ -115,7 +114,6 @@
               </Button>
             </div>
           </div>
-        </div>
       </div>
 
       <Dialog :open="showDeviceSelector" @update:open="showDeviceSelector = $event">

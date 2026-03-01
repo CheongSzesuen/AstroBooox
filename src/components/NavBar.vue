@@ -11,7 +11,7 @@
         <span class="hidden sm:inline">AstroBooox</span>
       </a>
 
-      <div class="min-w-0 flex-1 overflow-x-auto">
+      <div class="scrollbar-none min-w-0 flex-1 overflow-x-auto">
         <div class="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-1">
           <Button
             v-for="item in navItems"

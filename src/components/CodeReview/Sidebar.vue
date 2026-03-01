@@ -6,7 +6,7 @@
     >
       <div v-if="!isCollapsed" class="min-w-0">
         <p class="truncate text-xs font-semibold text-foreground">Pull Requests</p>
-        <p class="text-[11px] text-muted-foreground">{{ pullRequests.length }} open</p>
+        <p class="text-xs text-muted-foreground">{{ pullRequests.length }} open</p>
       </div>
       <button
         type="button"
@@ -51,8 +51,8 @@
         />
 
         <div v-if="!isCollapsed" class="min-w-0 flex-1">
-          <div class="truncate text-[0.92rem] font-medium text-foreground">#{{ pr.number }} {{ pr.title }}</div>
-          <div class="mt-1 flex items-center gap-2 text-[0.74rem] text-muted-foreground">
+          <div class="truncate text-sm font-medium text-foreground">#{{ pr.number }} {{ pr.title }}</div>
+          <div class="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
             <span class="truncate">by {{ pr.user.login }}</span>
             <span>{{ formatDate(pr.created_at) }}</span>
           </div>

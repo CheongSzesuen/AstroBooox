@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="analyzedData" class="grid grid-cols-2 gap-4 max-[768px]:grid-cols-1">
+    <div v-if="analyzedData" class="grid gap-5 md:grid-cols-2">
       <Card class="min-w-0">
         <CardHeader class="border-b border-border px-4 py-3.5">
           <CardTitle class="text-base">PR变更分析</CardTitle>
@@ -9,55 +9,55 @@
           <div v-if="analyzedData.csvChange" class="mt-2">
             <h4 class="mb-3 mt-1 text-sm font-semibold text-foreground">CSV变更</h4>
             <div class="flex flex-col gap-2">
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">资源名:</div>
-                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.appName || '未提供' }}</div>
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">资源名:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">{{ analyzedData.csvChange.appName || '未提供' }}</div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">图标:</div>
-                <div class="flex-1 break-words text-[0.86rem]">
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">图标:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">
                   <a v-if="analyzedData.csvChange.iconUrl" :href="analyzedData.csvChange.iconUrl" target="_blank" class="break-all text-foreground hover:underline">
                     {{ analyzedData.csvChange.iconUrl }}
                   </a>
                   <span v-else>未提供</span>
                 </div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">头图:</div>
-                <div class="flex-1 break-words text-[0.86rem]">
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">头图:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">
                   <a v-if="analyzedData.csvChange.previewUrl" :href="analyzedData.csvChange.previewUrl" target="_blank" class="break-all text-foreground hover:underline">
                     {{ analyzedData.csvChange.previewUrl }}
                   </a>
                   <span v-else>未提供</span>
                 </div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">类型:</div>
-                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.type || '未提供' }}</div>
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">类型:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">{{ analyzedData.csvChange.type || '未提供' }}</div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">标签:</div>
-                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.tags || '未提供' }}</div>
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">标签:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">{{ analyzedData.csvChange.tags || '未提供' }}</div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">支持设备:</div>
-                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.supportedDevices || '未提供' }}</div>
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">支持设备:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">{{ analyzedData.csvChange.supportedDevices || '未提供' }}</div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">JSON路径:</div>
-                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.resourceFile || '未提供' }}</div>
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">JSON路径:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">{{ analyzedData.csvChange.resourceFile || '未提供' }}</div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">付费类型:</div>
-                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.paidType || '未提供' }}</div>
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">付费类型:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">{{ analyzedData.csvChange.paidType || '未提供' }}</div>
               </div>
             </div>
           </div>
 
           <div v-if="analyzedData.resourceChange" class="mt-4">
             <h4 class="mb-3 mt-1 text-sm font-semibold text-foreground">资源文件变更</h4>
-            <div class="mt-2 overflow-x-auto rounded-[0.6rem] border border-border bg-muted/45 p-2.5">
-              <pre class="m-0 whitespace-pre-wrap break-words font-mono text-[13px] leading-[1.45]">{{ JSON.stringify(analyzedData.resourceChange, null, 2) }}</pre>
+            <div class="scrollbar-none mt-2 overflow-x-auto rounded-[0.6rem] border border-border bg-muted/45 p-2.5">
+              <pre class="m-0 whitespace-pre-wrap break-words font-mono text-xs leading-5">{{ JSON.stringify(analyzedData.resourceChange, null, 2) }}</pre>
             </div>
           </div>
         </CardContent>
@@ -68,9 +68,9 @@
           <CardTitle class="text-base">仓库信息分析</CardTitle>
         </CardHeader>
         <CardContent class="px-4 py-4">
-          <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-            <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">仓库URL:</div>
-            <div class="flex-1 break-words text-[0.86rem]">
+          <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+            <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">仓库URL:</div>
+            <div class="min-w-0 flex-1 break-words text-sm leading-6">
               <a v-if="repoData.repo_url" :href="repoData.repo_url" target="_blank" class="break-all text-foreground hover:underline">
                 {{ repoData.repo_url }}
               </a>
@@ -81,17 +81,17 @@
           <div v-if="manifestData" class="mt-4">
             <h4 class="mb-2 mt-2 text-sm font-semibold text-muted-foreground">Manifest 内容</h4>
             <div class="flex flex-col gap-2">
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">应用名称:</div>
-                <div class="flex-1 break-words text-[0.86rem]">{{ manifestData.item.name || '未提供' }}</div>
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">应用名称:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">{{ manifestData.item.name || '未提供' }}</div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">描述:</div>
-                <div class="flex-1 break-words text-[0.86rem]">{{ manifestData.item.description || '未提供' }}</div>
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">描述:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">{{ manifestData.item.description || '未提供' }}</div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">作者:</div>
-                <div class="flex-1 break-words text-[0.86rem]">
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">作者:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">
                   <template v-if="manifestData.item.author?.length">
                     <a
                       v-for="author in manifestData.item.author"
@@ -106,9 +106,9 @@
                   <span v-else>未提供</span>
                 </div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">支持的设备:</div>
-                <div class="flex-1 break-words text-[0.86rem]">
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">支持的设备:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">
                   <template v-if="manifestData.downloads && Object.keys(manifestData.downloads).length">
                     <span v-for="(device, index) in Object.keys(manifestData.downloads)" :key="device">
                       {{ device }}{{ index < Object.keys(manifestData.downloads).length - 1 ? ', ' : '' }}
@@ -117,18 +117,18 @@
                   <span v-else>未提供</span>
                 </div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">图标:</div>
-                <div class="flex-1 break-words text-[0.86rem]">
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">图标:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">
                   <a v-if="manifestData.item.icon" :href="getFullImageUrl(manifestData.item.icon)" target="_blank" class="break-all text-foreground hover:underline">
                     {{ manifestData.item.icon }}
                   </a>
                   <span v-else>未提供</span>
                 </div>
               </div>
-              <div class="flex items-start gap-2 py-1 max-[768px]:flex-col max-[768px]:gap-1">
-                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">预览图:</div>
-                <div class="flex-1 break-words text-[0.86rem]">
+              <div class="flex flex-col gap-1.5 py-2 md:flex-row md:gap-3">
+                <div class="w-28 shrink-0 text-sm font-medium text-muted-foreground">预览图:</div>
+                <div class="min-w-0 flex-1 break-words text-sm leading-6">
                   <template v-if="manifestData.item.preview?.length">
                     <div v-for="preview in manifestData.item.preview" :key="preview">
                       <a :href="getFullImageUrl(preview)" target="_blank" class="break-all text-foreground hover:underline">

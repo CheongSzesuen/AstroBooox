@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-b-xl bg-card">
-    <div v-if="file.patch" class="overflow-x-auto rounded-b-xl">
-      <div class="font-mono text-[10.5px] leading-[1.45]">
+    <div v-if="file.patch" class="scrollbar-none overflow-x-auto rounded-b-xl">
+      <div class="font-mono text-xs leading-5">
         <div
           v-for="(line, index) in diffLines"
           :key="index"
@@ -20,7 +20,7 @@
       </div>
     </div>
 
-    <div v-else class="rounded-b-xl p-4 text-center text-[0.82rem] italic text-muted-foreground">
+    <div v-else class="rounded-b-xl p-4 text-center text-sm italic text-muted-foreground">
       <p>Binary file not shown</p>
     </div>
   </div>
@@ -72,7 +72,7 @@ const diffLines = computed(() => {
 })
 
 const lineRowClass = (line: string): string[] => [
-  'grid min-h-[1.2rem] grid-cols-[2.35rem_2.35rem_minmax(0,1fr)] border-b border-border last:border-b-0',
+  'grid min-h-[1.5rem] grid-cols-[2.75rem_2.75rem_minmax(0,1fr)] border-b border-border last:border-b-0',
   line.startsWith('@@') ? 'bg-muted/60 text-muted-foreground' : 'bg-transparent',
   (line.startsWith('+') || line.startsWith('-')) ? 'bg-muted/35' : ''
 ]
