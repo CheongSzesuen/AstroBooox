@@ -13,9 +13,7 @@
           更改文件夹
         </button>
         <button class="find-manifest-button" @click="findManifest">
-          <svg width="16" height="16" viewBox="0 0 24 24">
-            <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill="currentColor"/>
-          </svg>
+          <MagnifyingGlass :size="16" weight="bold" />
           查找manifest.json
         </button>
       </div>
@@ -50,16 +48,12 @@
                   <div class="preview-item">
                     <div class="drag-handle-container">
                       <div class="drag-handle">
-                        <svg width="16" height="16" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M460.670707 795.79798V287.418182c0-28.056566-22.755556-50.812121-50.812121-50.812121s-50.812121 22.755556-50.812121 50.812121v508.379798c0 28.056566 22.755556 50.812121 50.812121 50.812121s50.812121-22.755556 50.812121-50.812121zM613.236364 236.606061c-28.056566 0-50.812121 22.755556-50.812122 50.812121v508.379798c0 28.056566 22.755556 50.812121 50.812122 50.812121s50.812121-22.755556 50.812121-50.812121V287.418182c0-28.056566-22.755556-50.812121-50.812121-50.812121z" fill="#0e467c"></path>
-                        </svg>
+                        <DotsSixVertical :size="16" weight="bold" />
                       </div>
                     </div>
                     <input :value="element" readonly />
                     <button class="round-remove-button" @click="removePreview(index)">
-                      <svg width="16" height="16" viewBox="0 0 24 24">
-                        <path d="M19 13H5v-2h14v2z" fill="currentColor"/>
-                      </svg>
+                      <Minus :size="16" weight="bold" />
                     </button>
                   </div>
                 </template>
@@ -122,21 +116,15 @@
         <div class="preview-container">
           <div class="preview-actions">
             <button class="add-button" :class="{ 'disabled-button': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
-              <svg width="16" height="16" viewBox="0 0 24 24">
-                <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" fill="currentColor"/>
-              </svg>
+              <FloppyDisk :size="16" weight="bold" />
               保存
             </button>
             <button class="add-button" @click="downloadManifest">
-              <svg width="16" height="16" viewBox="0 0 24 24">
-                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/>
-              </svg>
+              <DownloadSimple :size="16" weight="bold" />
               下载
             </button>
             <button class="add-button" @click="copyToClipboard">
-              <svg width="16" height="16" viewBox="0 0 24 24">
-                <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
-              </svg>
+              <CopySimple :size="16" weight="bold" />
               复制
             </button>
           </div>
@@ -256,6 +244,14 @@
 
 <script lang="ts">
 import { defineComponent, ref, PropType, watch, onMounted, computed } from 'vue'
+import {
+  PhCopySimple as CopySimple,
+  PhDotsSixVertical as DotsSixVertical,
+  PhDownloadSimple as DownloadSimple,
+  PhFloppyDisk as FloppyDisk,
+  PhMagnifyingGlass as MagnifyingGlass,
+  PhMinus as Minus
+} from '@phosphor-icons/vue'
 import JsonPreview from './JsonPreview.vue'
 import { Manifest } from '../type/manifest'
 import draggable from 'vuedraggable'
@@ -310,7 +306,16 @@ declare global {
 }
 
 export default defineComponent({
-  components: { JsonPreview, draggable },
+  components: {
+    JsonPreview,
+    draggable,
+    CopySimple,
+    DotsSixVertical,
+    DownloadSimple,
+    FloppyDisk,
+    MagnifyingGlass,
+    Minus
+  },
   props: {
     projectDirectory: {
       type: Object as PropType<FileSystemDirectoryHandle | null>,

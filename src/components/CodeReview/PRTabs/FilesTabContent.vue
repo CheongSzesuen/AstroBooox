@@ -20,12 +20,8 @@
              :class="{ 'expanded': expandedFiles.has(file.filename) }">
           <div class="file-info-container d-flex align-items-center min-width-0 flex-auto">
             <button type="button" class="btn-octicon js-details-target" aria-label="Toggle diff contents">
-              <svg v-if="expandedFiles.has(file.filename)" aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" class="octicon octicon-chevron-down">
-                <path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"></path>
-              </svg>
-              <svg v-else aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" class="octicon octicon-chevron-right">
-                <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path>
-              </svg>
+              <CaretDown v-if="expandedFiles.has(file.filename)" :size="16" weight="bold" />
+              <CaretRight v-else :size="16" weight="bold" />
             </button>
 
             <div class="diffstat-summary mr-2">
@@ -68,6 +64,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { PhCaretDown as CaretDown, PhCaretRight as CaretRight } from '@phosphor-icons/vue'
 import FileTree from './FileTabContent/FileTree.vue'
 import GithubStyleDiffView from './FileTabContent/GithubStyleDiffView.vue'
 import type { FilesTabContentProps, FileChange } from '@/type/codeReview'

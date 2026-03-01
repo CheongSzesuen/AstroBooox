@@ -4,9 +4,7 @@
     <div v-if="showFeatureNotice" class="feature-notice">
       <div class="notice-content">
         <div class="notice-header">
-          <svg width="48" height="48" viewBox="0 0 24 24" class="info-icon">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="#3b82f6"/>
-          </svg>
+          <Info :size="48" weight="duotone" class="info-icon" />
           <h3>功能说明</h3>
         </div>
         <div class="notice-body">
@@ -21,15 +19,11 @@
         </div>
         <div class="notice-actions">
           <button class="confirm-button" @click="closeFeatureNotice">
-            <svg width="20" height="20" viewBox="0 0 24 24" class="check-icon">
-              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
-            </svg>
+            <Check :size="20" weight="bold" class="check-icon" />
             我知道了
           </button>
           <a href="https://github.com/CheongSzesuen/AstroBooox/issues" target="_blank" class="issue-link">
-            <svg width="20" height="20" viewBox="0 0 24 24" class="github-icon">
-              <path d="M12 2C6.475 2 2 6.475 2 12c0 4.42 2.865 8.167 6.839 9.49.5.09.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.027 1.531 1.027.892 1.524 2.341 1.084 2.91.828.091-.644.349-1.085.635-1.334-2.214-.253-4.542-1.11-4.542-4.937 0-1.091.39-1.984 1.029-2.683-.103-.254-.447-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.837-2.332 4.682-4.552 4.93.359.309.678.917.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48A10.017 10.017 0 0022 12c0-5.523-4.477-10-10-10z" fill="currentColor"/>
-            </svg>
+            <GithubLogo :size="20" weight="duotone" class="github-icon" />
             提交反馈
           </a>
         </div>
@@ -91,6 +85,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import {
+  PhCheck as Check,
+  PhGithubLogo as GithubLogo,
+  PhInfo as Info
+} from '@phosphor-icons/vue'
 import axios, { 
   type AxiosInstance,
   type AxiosResponse,

@@ -20,9 +20,7 @@
                   @click="openResourceSearch" 
                   class="search-button"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24">
-                    <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill="currentColor"/>
-                  </svg>
+                  <MagnifyingGlass :size="16" weight="bold" />
                   搜索
                 </button>
                 <button 
@@ -30,9 +28,7 @@
                   :disabled="!resourceName.trim()" 
                   class="round-remove-button"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24">
-                    <path d="M19 13H5v-2h14v2z" fill="currentColor"/>
-                  </svg>
+                  <Minus :size="16" weight="bold" />
                   清除
                 </button>
               </div>
@@ -49,9 +45,7 @@
             </div>
             <div class="preview-actions">
               <button @click="copyLink" :disabled="!resourceName.trim()" class="add-button">
-                <svg width="16" height="16" viewBox="0 0 24 24">
-                  <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
-                </svg>
+                <CopySimple :size="16" weight="bold" />
                 {{ copyButtonText }}
               </button>
             </div>
@@ -191,9 +185,7 @@
             
             <div class="preview-actions">
               <button @click="copyBadgeCode" :disabled="!resourceName.trim()" class="add-button">
-                <svg width="16" height="16" viewBox="0 0 24 24">
-                  <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
-                </svg>
+                <CopySimple :size="16" weight="bold" />
                 {{ copyBadgeButtonText }}
               </button>
             </div>
@@ -242,6 +234,11 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import {
+  PhCopySimple as CopySimple,
+  PhMagnifyingGlass as MagnifyingGlass,
+  PhMinus as Minus
+} from '@phosphor-icons/vue';
 
 // 用于存储用户输入的资源名称
 const resourceName = ref('');

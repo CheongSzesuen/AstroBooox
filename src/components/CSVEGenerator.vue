@@ -49,9 +49,7 @@
                 <div v-for="(tag, index) in csvData.tags" :key="index" class="preview-item">
                   <input v-model="csvData.tags[index]" placeholder="天气" />
                   <button @click="removeTag(index)" class="round-remove-button">
-                    <svg width="16" height="16" viewBox="0 0 24 24">
-                      <path d="M19 13H5v-2h14v2z" fill="currentColor"/>
-                    </svg>
+                    <Minus :size="16" weight="bold" />
                   </button>
                 </div>
                 <button @click="addTag" class="add-button">+ 添加标签</button>
@@ -67,9 +65,7 @@
                     readonly
                   />
                   <button @click="removeDevice(index)" class="round-remove-button">
-                    <svg width="16" height="16" viewBox="0 0 24 24">
-                      <path d="M19 13H5v-2h14v2z" fill="currentColor"/>
-                    </svg>
+                    <Minus :size="16" weight="bold" />
                   </button>
                 </div>
                 <button @click="openDeviceSelector" class="add-button">+ 添加设备</button>
@@ -102,9 +98,7 @@
             </div>
             <div class="preview-actions">
               <button @click="validateAndCopy" class="add-button">
-                <svg width="16" height="16" viewBox="0 0 24 24">
-                  <path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1z" fill="currentColor"/>
-                </svg>
+                <CopySimple :size="16" weight="bold" />
                 复制到剪贴板
               </button>
             </div>
@@ -139,9 +133,7 @@
       <div v-if="showAlert" class="modal-overlay">
         <div class="modal-content alert-content">
           <div class="prompt-header">
-            <svg width="48" height="48" viewBox="0 0 24 24" class="warning-icon">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#d97706"/>
-            </svg>
+            <WarningCircle :size="48" weight="duotone" class="warning-icon" />
             <h3>{{ alertTitle }}</h3>
           </div>
           <div class="prompt-body">
@@ -149,9 +141,7 @@
           </div>
           <div class="prompt-actions">
             <button class="confirm-button" @click="closeAlert">
-              <svg width="20" height="20" viewBox="0 0 24 24" class="check-icon">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
-              </svg>
+              <Check :size="20" weight="bold" class="check-icon" />
               确定
             </button>
           </div>
@@ -163,6 +153,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import {
+  PhCheck as Check,
+  PhCopySimple as CopySimple,
+  PhMinus as Minus,
+  PhWarningCircle as WarningCircle
+} from '@phosphor-icons/vue'
 import { Device } from '../type/manifest'
 // CSV 数据结构
 const csvData = ref({

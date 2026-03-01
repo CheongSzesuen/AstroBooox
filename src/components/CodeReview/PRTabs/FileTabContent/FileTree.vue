@@ -14,9 +14,7 @@
             v-model="searchQuery"
             autocomplete="off"
           >
-          <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" class="octicon octicon-search subnav-search-icon">
-            <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"></path>
-          </svg>
+          <MagnifyingGlass aria-hidden="true" :size="16" weight="bold" class="subnav-search-icon" />
         </div>
       </div>
 
@@ -43,31 +41,16 @@
                 </template>
 
                 <span class="ActionList-item-action ActionList-item-action--leading">
-                  <svg
+                  <CaretDown
                     aria-hidden="true"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    version="1.1"
-                    width="16"
-                    class="octicon octicon-chevron-down ActionList-item-collapseIcon"
+                    :size="16"
+                    weight="bold"
+                    class="ActionList-item-collapseIcon"
                     :class="{ 'rotate-90': !isFolderOpen(item.path) }"
-                  >
-                    <path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"></path>
-                  </svg>
+                  />
                 </span>
                 <span class="ActionList-item-visual ActionList-item-visual--leading">
-                  <svg
-                    aria-label="Directory"
-                    aria-hidden="true"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    version="1.1"
-                    width="16"
-                    class="octicon octicon-file-directory-fill"
-                    style="color: #54aeff;"
-                  >
-                    <path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"></path>
-                  </svg>
+                  <Folder aria-label="Directory" aria-hidden="true" :size="16" weight="fill" style="color: #54aeff;" />
                 </span>
                 <span class="ActionList-item-label ActionList-item-label--truncate">
                   {{ item.label }}
@@ -93,18 +76,7 @@
                 ></span>
 
                 <span class="ActionList-item-visual ActionList-item-visual--leading" style="width: 20px;">
-                  <svg
-                    aria-label="File"
-                    aria-hidden="true"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    version="1.1"
-                    width="16"
-                    class="octicon octicon-file"
-                    style="color: #57606a;"
-                  >
-                    <path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25  0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z"></path>
-                  </svg>
+                  <File aria-label="File" aria-hidden="true" :size="16" weight="duotone" style="color: #57606a;" />
                 </span>
                 <span
                   class="ActionList-item-label ActionList-item-label--truncate"
@@ -112,21 +84,14 @@
                   {{ item.label }}
                 </span>
                 <span class="ActionList-item-visual ActionList-item-visual--trailing">
-                  <svg
+                  <component
+                    :is="getStatusIconComponent(item.file.status)"
                     :title="item.file.status"
                     aria-hidden="true"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    version="1.1"
-                    width="16"
-                    class="octicon"
+                    :size="16"
+                    weight="fill"
                     :style="getStatusIconColor(item.file.status)"
-                  >
-                    <path v-if="item.file.status === 'added'" d="M2.75 1h10.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 13.25 15H2.75A1.75 1.75 0 0 1 1 13.25V2.75C1 1.784 1.784 1 2.75 1Zm10.5 1.5H2.75a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25ZM8 4a.75.75 0 0 1 .75.75v2.5h2.5a.75.75 0 0 1 0 1.5h-2.5v2.5a.75.75 0 0 1-1.5 0v-2.5h-2.5a.75.75 0 0 1 0-1.5h2.5v-2.5A.75.75 0 0 1 8 4Z"></path>
-                    <path v-else-if="item.file.status === 'removed'" d="M13.25 1c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 13.25 15H2.75A1.75 1.75 0 0 1 1 13.25V2.75C1 1.784 1.784 1 2.75 1ZM2.75 2.5a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25Zm8.5 6.25h-6.5a.75.75 0 0 1 0-1.5h6.5a.75.75 0 0 1 0 1.5Z"></path>
-                    <path v-else-if="item.file.status === 'modified'" d="M13.25 1c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 13.25 15H2.75A1.75 1.75 0 0 1 1 13.25V2.75C1 1.784 1.784 1 2.75 1ZM2.75 2.5a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25ZM8 10a2 2 0 1 1-.001-3.999A2 2 0 0 1 8 10Z"></path>
-                    <path v-else-if="item.file.status === 'renamed'" d="M13.25 1c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 13.25 15H2.75A1.75 1.75 0 0 1 1 13.25V2.75C1 1.784 1.784 1 2.75 1ZM2.75 2.5a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25Zm9.03 6.03-3.25 3.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734l1.97-1.97H4.75a.75.75 0 0 1 0-1.5h4.69L7.47 5.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l3.25 3.25a.75.75 0 0 1 0 1.06Z"></path>
-                  </svg>
+                  />
                 </span>
               </div>
             </li>
@@ -139,6 +104,16 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import {
+  PhArrowBendDownRight as ArrowBendDownRight,
+  PhCaretDown as CaretDown,
+  PhCircle as Circle,
+  PhFile as File,
+  PhFolder as Folder,
+  PhMagnifyingGlass as MagnifyingGlass,
+  PhMinusSquare as MinusSquare,
+  PhPlusSquare as PlusSquare
+} from '@phosphor-icons/vue'
 import type { FileChange } from '@/type/codeReview'
 
 // 定义 props
@@ -179,6 +154,13 @@ const isFolderItem = (item: DisplayItem): item is FolderItem => {
 
 const isFileItem = (item: DisplayItem): item is FileItem => {
   return item.type === 'file'
+}
+
+const getStatusIconComponent = (status: string) => {
+  if (status === 'added') return PlusSquare
+  if (status === 'removed') return MinusSquare
+  if (status === 'renamed') return ArrowBendDownRight
+  return Circle
 }
 
 // --- 新增和修改的逻辑 ---

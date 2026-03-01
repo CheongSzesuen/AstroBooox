@@ -33,24 +33,13 @@
     
     <div class="sidebar-footer" @click="$emit('toggle')">
       <span class="collapse-text" v-if="!isCollapsed">折叠边栏</span>
-      <svg class="arrow-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
-        <path 
-          :transform="isCollapsed ? '' : 'rotate(90 512 512)'"
-          d="M493.504 558.144a31.904 31.904 0 0 0 45.28 0l308.352-308.352a31.968 31.968 0 1 0-45.248-45.248L516.16 490.272 221.984 196.128a31.968 31.968 0 1 0-45.248 45.248l316.768 316.768z" 
-          fill="#3b82f6"
-        />
-        <path 
-          :transform="isCollapsed ? '' : 'rotate(90 512 512)'"
-          d="M801.888 460.576L516.16 746.304 222.016 452.16a31.968 31.968 0 1 0-45.248 45.248l316.768 316.768a31.904 31.904 0 0 0 45.28 0l308.352-308.352a32 32 0 1 0-45.28-45.248z" 
-          fill="#3b82f6"
-        />
-      </svg>
+      <CaretDoubleRight class="arrow-icon" :class="{ expanded: !isCollapsed }" :size="20" weight="bold" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { PhCaretDoubleRight as CaretDoubleRight } from '@phosphor-icons/vue'
 import { formatDate } from '@/utils/dateUtils'
 
 interface GitHubUser {
