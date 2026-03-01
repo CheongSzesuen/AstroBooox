@@ -1,0 +1,211 @@
+.ui-button {
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  transition: background var(--duration-normal) var(--easing-standard), color var(--duration-normal) var(--easing-standard), border-color var(--duration-normal) var(--easing-standard), transform var(--duration-fast) var(--easing-standard);
+}
+
+.ui-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.ui-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.ui-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ui-button--sm {
+  height: 2rem;
+  padding: 0 var(--space-3);
+  font-size: 0.8125rem;
+}
+
+.ui-button--md {
+  height: 2.35rem;
+  padding: 0 var(--space-4);
+  font-size: 0.9rem;
+}
+
+.ui-button--lg {
+  height: 2.7rem;
+  padding: 0 var(--space-5);
+  font-size: 1rem;
+}
+
+.ui-button--icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: 0;
+}
+
+.ui-button--primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.ui-button--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 88%, black);
+}
+
+.ui-button--secondary {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.ui-button--secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--secondary) 86%, black);
+}
+
+.ui-button--outline {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  color: var(--foreground);
+}
+
+.ui-button--outline:hover:not(:disabled) {
+  background: var(--muted);
+}
+
+.ui-button--ghost {
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.ui-button--ghost:hover:not(:disabled) {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.ui-button--destructive {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+}
+
+.ui-card {
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.ui-card__header {
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.ui-card__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.ui-card__description {
+  margin: var(--space-2) 0 0;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.ui-card__content {
+  padding: var(--space-5);
+}
+
+.ui-card__footer {
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.ui-input,
+.ui-textarea,
+.ui-select {
+  width: 100%;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  color: var(--foreground);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  transition: border-color var(--duration-normal) var(--easing-standard), box-shadow var(--duration-normal) var(--easing-standard);
+}
+
+.ui-textarea {
+  min-height: 7.5rem;
+  resize: vertical;
+}
+
+.ui-input:focus,
+.ui-textarea:focus,
+.ui-select:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent);
+  outline: none;
+}
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.ui-tabs {
+  display: inline-flex;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+
+.ui-tabs__item {
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-weight: 600;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--easing-standard);
+}
+
+.ui-tabs__item--active {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--shadow-sm);
+}
+
+.ui-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(2 6 23 / 0.45);
+  z-index: 1200;
+  padding: var(--space-4);
+}
+
+.ui-dialog-content {
+  width: min(680px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-5);
+}

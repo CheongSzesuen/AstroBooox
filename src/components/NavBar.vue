@@ -1,149 +1,94 @@
 <template>
   <nav class="navbar" role="navigation" aria-label="主菜单">
-    <div class="nav-buttons">
-      <button 
-        @click="setMode('manifest')" 
-        :class="{ active: mode === 'manifest' }"
-        :aria-pressed="mode === 'manifest' ? 'true' : 'false'"
-        class="manifest-btn"
+    <div class="nav-buttons ui-tabs" role="tablist" aria-label="功能导航">
+      <button
+        v-for="item in navItems"
+        :key="item.mode"
+        type="button"
+        class="ui-tabs__item"
+        :class="{ 'ui-tabs__item--active': mode === item.mode }"
+        role="tab"
+        :aria-selected="mode === item.mode"
+        @click="setMode(item.mode)"
       >
-        <span class="nav-text">
-          <span class="nav-label">manifest内容</span>
-          <span class="nav-underline"></span>
-        </span>
-      </button>
-      <button 
-        @click="setMode('csv')" 
-        :class="{ active: mode === 'csv' }"
-        :aria-pressed="mode === 'csv' ? 'true' : 'false'"
-      >
-        <span class="nav-text">
-          <span class="nav-label">CSV 生成</span>
-          <span class="nav-underline"></span>
-        </span>
-      </button>
-      <button 
-        @click="setMode('res-link')" 
-        :class="{ active: mode === 'res-link' }"
-        :aria-pressed="mode === 'res-link' ? 'true' : 'false'"
-      >
-        <span class="nav-text">
-          <span class="nav-label">资源链接生成</span>
-          <span class="nav-underline"></span>
-        </span>
-      </button>
-      <button 
-        @click="setMode('code-review')" 
-        :class="{ active: mode === 'code-review' }"
-        :aria-pressed="mode === 'code-review' ? 'true' : 'false'"
-      >
-        <span class="nav-text">
-          <span class="nav-label">代码审查</span>
-          <span class="nav-underline"></span>
-        </span>
+        {{ item.label }}
       </button>
     </div>
+
+    <Button
+      variant="outline"
+      size="icon"
+      class="theme-button"
+      :aria-label="theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'"
+      @click="toggleTheme"
+    >
+      <Moon v-if="theme === 'light'" :size="18" weight="duotone" />
+      <Sun v-else :size="18" weight="duotone" />
+    </Button>
   </nav>
 </template>
 
 <script setup lang="ts">
-const props = defineProps({
-  mode: {
-    type: String as () => 'manifest' | 'csv' | 'res-link' | 'code-review',
-    required: true
-  }
-})
+import { PhMoon as Moon, PhSun as Sun } from '@phosphor-icons/vue'
+import Button from '@/components/ui/Button.vue'
+import { useTheme } from '@/composables/useTheme'
+import type { AppMode } from '@/type/manifest'
 
-const emit = defineEmits(['update:mode'])
+const props = defineProps<{
+  mode: AppMode
+}>()
 
-const setMode = (newMode: 'manifest' | 'csv' | 'res-link' | 'code-review') => {
+const emit = defineEmits<{
+  'update:mode': [mode: AppMode]
+}>()
+
+const navItems: Array<{ mode: AppMode; label: string }> = [
+  { mode: 'manifest', label: 'manifest内容' },
+  { mode: 'csv', label: 'CSV 生成' },
+  { mode: 'res-link', label: '资源链接生成' },
+  { mode: 'code-review', label: '代码审查' }
+]
+
+const setMode = (newMode: AppMode): void => {
   emit('update:mode', newMode)
 }
+
+const { theme, toggleTheme } = useTheme()
 </script>
 
 <style scoped>
 .navbar {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1px solid #e5e7eb;
-  padding: 0 1rem;
   z-index: 1000;
-  font-family: "MiSans", system-ui, sans-serif;
-  height: 48px;
-  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--background) 70%, transparent);
+  backdrop-filter: blur(16px);
 }
 
 .nav-buttons {
   display: flex;
-  gap: 2rem;
-  align-items: baseline;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-.navbar button {
-  position: relative;
-  background: none;
-  border: none;
-  font-weight: 500;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0.5rem 0;
-  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.theme-button {
+  flex-shrink: 0;
 }
 
-.manifest-btn {
-  font-size: 1.02rem;
-}
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
-.navbar button:not(.manifest-btn) {
-  font-size: 0.9375rem;
-}
-
-.nav-text {
-  position: relative;
-  display: inline-block;
-}
-
-.nav-label {
-  position: relative;
-  z-index: 1;
-  transition: inherit;
-}
-
-.nav-underline {
-  position: absolute;
-  bottom: -4px;
-  left: 50%;
-  width: 0;
-  height: 2px;
-  background-color: #000;
-  transform: translateX(-50%);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.navbar button:hover {
-  color: #000;
-}
-
-.navbar button:hover .nav-underline {
-  width: 100%;
-  left: 50%;
-}
-
-.navbar button.active {
-  color: #000;
-}
-
-.navbar button.active .nav-underline {
-  width: 100%;
-  left: 50%;
-  background-color: #0e467c;
+  .theme-button {
+    align-self: flex-end;
+  }
 }
 </style>
