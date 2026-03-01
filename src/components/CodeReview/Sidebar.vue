@@ -1,5 +1,27 @@
 <template>
   <aside :class="sidebarClass">
+    <div
+      class="mb-2 hidden items-center border-b border-border pb-2 lg:flex"
+      :class="isCollapsed ? 'justify-center px-1' : 'justify-between gap-2 px-2'"
+    >
+      <div v-if="!isCollapsed" class="min-w-0">
+        <p class="truncate text-xs font-semibold text-foreground">Pull Requests</p>
+        <p class="text-[11px] text-muted-foreground">{{ pullRequests.length }} open</p>
+      </div>
+      <button
+        type="button"
+        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        aria-label="折叠或展开边栏"
+        @click="$emit('toggle')"
+      >
+        <CaretDoubleRight
+          :size="16"
+          weight="bold"
+          :class="['transition-transform duration-200', isCollapsed ? 'rotate-180' : 'rotate-0']"
+        />
+      </button>
+    </div>
+
     <div v-if="loading" class="flex flex-1 items-center justify-center text-sm text-muted-foreground">
       加载中...
     </div>
@@ -35,14 +57,6 @@
       </button>
     </div>
 
-    <button
-      type="button"
-      class="mt-2 hidden w-full items-center justify-between rounded-md border border-border bg-muted/40 px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent lg:inline-flex"
-      @click="$emit('toggle')"
-    >
-      <span v-if="!isCollapsed" class="truncate">折叠边栏</span>
-      <CaretDoubleRight :size="18" weight="bold" :class="['shrink-0 transition-transform duration-300', isCollapsed ? '-rotate-90' : 'rotate-0']" />
-    </button>
   </aside>
 </template>
 
@@ -98,9 +112,9 @@ const sidebarClass = computed(() => [
 const itemClass = (pr: PullRequest): string[] => {
   const isActive = !!props.selectedPR && pr.id === props.selectedPR.id
   return [
-    'group flex items-center rounded-md border text-left transition-colors',
-    props.isCollapsed ? 'mx-auto h-9 w-9 justify-center p-1' : 'w-full gap-2.5 px-2.5 py-2',
-    isActive ? 'border-border bg-muted' : 'border-transparent hover:bg-accent'
+    'group flex items-center rounded-lg border text-left transition-colors',
+    props.isCollapsed ? 'mx-auto h-10 w-10 justify-center p-1.5' : 'w-full gap-2.5 px-2.5 py-2',
+    isActive ? 'border-border bg-muted shadow-sm' : 'border-transparent hover:bg-accent'
   ]
 }
 
