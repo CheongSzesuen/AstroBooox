@@ -4,38 +4,17 @@
       <CardHeader class="pb-3">
         <CardTitle class="inline-flex items-center gap-2 text-base md:text-lg">
           <RocketLaunch :size="18" weight="duotone" />
-          资源发布工作台
+          资源发布向导
         </CardTitle>
         <CardDescription class="text-sm leading-6">
-          精简版 Creator Console：仅保留资源发布、审核列表、已发布资源，不包含账号体系与数据分析页。
+          仿照 secret 的流程式发布：准备环境 → 填写信息 → 上传资源仓库 → 更新 Catalog 并创建 PR。
         </CardDescription>
       </CardHeader>
-      <CardContent class="space-y-3 pt-0">
-        <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-          <div class="space-y-1.5">
-            <Label for="publish-token">GitHub Token</Label>
-            <Input
-              id="publish-token"
-              v-model="token"
-              :type="showToken ? 'text' : 'password'"
-              placeholder="请输入专用细粒度 Token"
-              autocomplete="off"
-            />
-          </div>
-          <div class="flex items-end gap-2">
-            <Button variant="outline" class="h-9" @click="showToken = !showToken">
-              <Eye :size="16" weight="duotone" />
-              {{ showToken ? '隐藏' : '显示' }}
-            </Button>
-            <Button class="h-9" :disabled="verifying || !token.trim()" @click="handleVerifyToken">
-              <CheckCircle :size="16" weight="duotone" />
-              {{ verifying ? '校验中...' : '校验 Token' }}
-            </Button>
-          </div>
-        </div>
-
+      <CardContent class="pt-0">
         <div class="flex flex-wrap items-center gap-2 text-sm">
-          <div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+          <div
+            class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md border border-border bg-muted"
+          >
             <img
               v-if="userAvatar"
               :src="userAvatar"
@@ -46,67 +25,111 @@
           </div>
           <Badge variant="outline">当前用户: {{ currentUser || '未校验' }}</Badge>
           <Badge variant="outline">发布分支: main</Badge>
+          <Badge variant="outline">当前步骤: {{ flowSteps[activeStep].title }}</Badge>
         </div>
       </CardContent>
     </Card>
 
-    <Tabs v-model:model-value="activeTab" class="space-y-2">
-      <TabsList class="w-full justify-start gap-1 border border-border bg-muted/40 p-1">
-        <TabsTrigger value="publish" class="h-9 px-3 text-sm">发布资源</TabsTrigger>
-        <TabsTrigger value="review" class="h-9 px-3 text-sm">审核列表</TabsTrigger>
-        <TabsTrigger value="owned" class="h-9 px-3 text-sm">已发布资源</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="publish" class="space-y-4">
-        <Card>
-          <CardHeader class="pb-3">
-            <CardTitle class="text-base">FSA 工作区</CardTitle>
-          </CardHeader>
-          <CardContent class="space-y-3 pt-0">
-            <div class="flex flex-wrap items-center gap-2">
-              <Button :disabled="publishing" @click="selectWorkspace">
-                <FolderOpen :size="16" weight="duotone" />
-                选择资源目录
-              </Button>
-              <Button variant="outline" :disabled="publishing || !workspaceHandle" @click="scanWorkspace">
-                <ArrowsClockwise :size="16" weight="duotone" />
-                扫描目录
-              </Button>
-              <span class="text-sm text-muted-foreground">
-                当前目录: {{ workspaceName || '未选择' }}
+    <div class="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+      <Card class="xl:sticky xl:top-[84px] xl:self-start">
+        <CardHeader class="pb-3">
+          <CardTitle class="text-base">发布流程</CardTitle>
+          <CardDescription>按步骤执行，减少漏填和失败重试。</CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-2 pt-0">
+          <button
+            v-for="(step, index) in flowSteps"
+            :key="step.title"
+            type="button"
+            class="w-full rounded-lg border px-3 py-2 text-left transition"
+            :class="stepButtonClass(index)"
+            @click="enterStep(index)"
+          >
+            <div class="flex items-start gap-2">
+              <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+                <CheckCircle v-if="stepStatus(index) === 'done'" :size="15" weight="fill" />
+                <ClockCountdown v-else-if="stepStatus(index) === 'current'" :size="15" weight="duotone" />
+                <Circle v-else :size="15" weight="duotone" />
+              </span>
+              <span>
+                <span class="block text-sm font-medium">{{ step.title }}</span>
+                <span class="block text-xs text-muted-foreground">{{ step.description }}</span>
               </span>
             </div>
+          </button>
+        </CardContent>
+      </Card>
 
-            <div class="grid gap-2 md:grid-cols-3">
-              <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm">
-                manifest_v2.json: {{ manifestFound ? '已找到' : '未找到' }}
+      <div class="space-y-4">
+        <Card v-if="activeStep === 0">
+          <CardHeader class="pb-3">
+            <CardTitle class="text-base">步骤 1 · 准备环境</CardTitle>
+            <CardDescription>校验 GitHub Token 并选择 FSA 资源目录。</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4 pt-0">
+            <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+              <div class="space-y-1.5">
+                <Label for="publish-token">GitHub Token</Label>
+                <Input
+                  id="publish-token"
+                  v-model="token"
+                  :type="showToken ? 'text' : 'password'"
+                  placeholder="请输入专用细粒度 Token"
+                  autocomplete="off"
+                />
               </div>
-              <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm">
-                media 文件: {{ mediaFiles.length }}
+              <div class="flex items-end gap-2">
+                <Button variant="outline" class="h-9" @click="showToken = !showToken">
+                  <Eye :size="16" weight="duotone" />
+                  {{ showToken ? '隐藏' : '显示' }}
+                </Button>
+                <Button class="h-9" :disabled="verifying || !token.trim()" @click="handleVerifyToken">
+                  <CheckCircle :size="16" weight="duotone" />
+                  {{ verifying ? '校验中...' : '校验 Token' }}
+                </Button>
               </div>
-              <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm">
-                downloads 文件: {{ downloadFiles.length }}
+            </div>
+
+            <div class="space-y-3 rounded-lg border border-border bg-muted/25 p-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <Button :disabled="isBusy" @click="selectWorkspace">
+                  <FolderOpen :size="16" weight="duotone" />
+                  选择资源目录
+                </Button>
+                <Button variant="outline" :disabled="isBusy || !workspaceHandle" @click="scanWorkspace">
+                  <ArrowsClockwise :size="16" weight="duotone" />
+                  扫描目录
+                </Button>
+                <span class="text-sm text-muted-foreground">当前目录: {{ workspaceName || '未选择' }}</span>
+              </div>
+
+              <div class="grid gap-2 md:grid-cols-3">
+                <div class="rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                  manifest_v2.json: {{ manifestFound ? '已找到' : '未找到' }}
+                </div>
+                <div class="rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                  media 文件: {{ mediaFiles.length }}
+                </div>
+                <div class="rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                  downloads 文件: {{ downloadFiles.length }}
+                </div>
               </div>
             </div>
           </CardContent>
+          <CardContent class="flex justify-end border-t border-border pt-4">
+            <Button :disabled="!isStep1Ready" @click="goNext">
+              下一步
+              <CaretRight :size="14" weight="bold" />
+            </Button>
+          </CardContent>
         </Card>
 
-        <Card>
+        <Card v-else-if="activeStep === 1">
           <CardHeader class="pb-3">
-            <CardTitle class="text-base">发布参数</CardTitle>
+            <CardTitle class="text-base">步骤 2 · 填写资源信息</CardTitle>
+            <CardDescription>填写 manifest 对应信息与资源仓库参数。</CardDescription>
           </CardHeader>
           <CardContent class="space-y-4 pt-0">
-            <div class="grid gap-3 md:grid-cols-2">
-              <div class="space-y-1.5">
-                <Label for="repo-name">资源仓库名</Label>
-                <Input id="repo-name" v-model="repoName" placeholder="astrobox-resource-xxx" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="repo-desc">仓库描述（可选）</Label>
-                <Input id="repo-desc" v-model="repoDescription" placeholder="resource repository" />
-              </div>
-            </div>
-
             <div class="grid gap-3 md:grid-cols-2">
               <div class="space-y-1.5">
                 <Label for="item-id">资源 ID</Label>
@@ -153,6 +176,91 @@
 
             <div class="grid gap-3 md:grid-cols-2">
               <div class="space-y-1.5">
+                <Label for="repo-name">资源仓库名（可选）</Label>
+                <Input id="repo-name" v-model="repoName" placeholder="留空时按 ID 自动生成" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="repo-desc">仓库描述（可选）</Label>
+                <Input id="repo-desc" v-model="repoDescription" placeholder="resource repository" />
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-xs text-muted-foreground">
+              上传目标仓库: {{ currentUser || '--' }}/{{ resolvedRepoName || '--' }}
+            </div>
+          </CardContent>
+          <CardContent class="flex justify-between border-t border-border pt-4">
+            <Button variant="outline" @click="goPrev">
+              <CaretLeft :size="14" weight="bold" />
+              上一步
+            </Button>
+            <Button :disabled="!isStep2Ready" @click="goNext">
+              下一步
+              <CaretRight :size="14" weight="bold" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card v-else-if="activeStep === 2">
+          <CardHeader class="pb-3">
+            <CardTitle class="text-base">步骤 3 · 上传资源仓库</CardTitle>
+            <CardDescription>创建或复用仓库，并上传 manifest、media、downloads。</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4 pt-0">
+            <div class="grid gap-2 md:grid-cols-3">
+              <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm">
+                仓库: {{ currentUser || '--' }}/{{ resolvedRepoName || '--' }}
+              </div>
+              <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm">
+                待上传文件: {{ uploadQueueCount }}
+              </div>
+              <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm">
+                分支: {{ MAIN_BRANCH }}
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <Button :disabled="uploading || !isStep2Ready" @click="handleUploadResources">
+                <UploadSimple :size="16" weight="duotone" />
+                {{ uploading ? '上传中...' : '创建仓库并上传' }}
+              </Button>
+              <span v-if="uploadedCommitSha" class="text-sm text-muted-foreground">
+                最新 Commit: {{ uploadedCommitSha.slice(0, 10) }}
+              </span>
+            </div>
+
+            <div v-if="uploadedRepoUrl" class="rounded-lg border border-border bg-muted/25 p-3 text-sm">
+              <p class="font-medium text-foreground">仓库已就绪</p>
+              <a
+                :href="uploadedRepoUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="break-all text-primary hover:underline"
+              >
+                {{ uploadedRepoUrl }}
+              </a>
+            </div>
+          </CardContent>
+          <CardContent class="flex justify-between border-t border-border pt-4">
+            <Button variant="outline" @click="goPrev">
+              <CaretLeft :size="14" weight="bold" />
+              上一步
+            </Button>
+            <Button :disabled="!isStep3Ready" @click="goNext">
+              下一步
+              <CaretRight :size="14" weight="bold" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card v-else>
+          <CardHeader class="pb-3">
+            <CardTitle class="text-base">步骤 4 · 更新 Catalog 并创建 PR</CardTitle>
+            <CardDescription>向目录仓库提交 catalog 变更并创建 PR。</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4 pt-0">
+            <div class="grid gap-3 md:grid-cols-2">
+              <div class="space-y-1.5">
                 <Label for="upstream-owner">目录仓库 Owner</Label>
                 <Input id="upstream-owner" v-model="upstreamOwner" />
               </div>
@@ -190,9 +298,9 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
-              <Button :disabled="publishing || !canPublish" @click="handlePublish">
-                <UploadSimple :size="16" weight="duotone" />
-                {{ publishing ? '发布中...' : '上传并创建 PR' }}
+              <Button :disabled="creatingPr || !isStep3Ready || !canSubmitPr" @click="handleCreateCatalogPr">
+                <GitPullRequest :size="16" weight="duotone" />
+                {{ creatingPr ? '创建中...' : '更新 Catalog 并创建 PR' }}
               </Button>
               <a
                 v-if="latestPrUrl"
@@ -205,92 +313,106 @@
               </a>
             </div>
           </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader class="pb-3">
-            <div class="flex items-center justify-between">
-              <CardTitle class="text-base">发布日志</CardTitle>
-              <Button variant="ghost" size="sm" @click="publishLogs = []">清空</Button>
-            </div>
-          </CardHeader>
-          <CardContent class="pt-0">
-            <div class="scrollbar-none max-h-[320px] overflow-y-auto rounded-lg border border-border bg-muted/25 p-3">
-              <pre class="m-0 whitespace-pre-wrap break-words font-mono text-xs leading-6 text-foreground">{{ publishLogsText }}</pre>
-            </div>
+          <CardContent class="flex justify-between border-t border-border pt-4">
+            <Button variant="outline" @click="goPrev">
+              <CaretLeft :size="14" weight="bold" />
+              上一步
+            </Button>
+            <Button variant="secondary" :disabled="!latestPrUrl" @click="refreshAllLists">
+              <ArrowsClockwise :size="15" weight="duotone" />
+              刷新状态列表
+            </Button>
           </CardContent>
         </Card>
-      </TabsContent>
+      </div>
+    </div>
 
-      <TabsContent value="review" class="space-y-4">
-        <Card>
-          <CardHeader class="pb-3">
-            <div class="flex items-center justify-between gap-2">
-              <CardTitle class="text-base">进行中审核</CardTitle>
-              <Button :disabled="reviewLoading || !canLoadList" @click="loadReviewList">
-                <ArrowsClockwise :size="16" weight="duotone" />
-                {{ reviewLoading ? '加载中...' : '刷新' }}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent class="space-y-2 pt-0">
-            <div v-if="reviewItems.length === 0" class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-              暂无数据
-            </div>
-            <div
-              v-for="item in reviewItems"
-              :key="`${item.prNumber}-${item.id}`"
-              class="rounded-lg border border-border bg-card px-3 py-3"
-            >
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <div class="text-sm font-semibold text-foreground">{{ item.id }} · {{ item.name }}</div>
-                <Badge variant="outline">{{ reviewStateText(item.status) }}</Badge>
-              </div>
-              <div class="mt-1 text-xs text-muted-foreground">
-                {{ item.restype }} · PR #{{ item.prNumber }} · {{ formatDate(item.createdAt) }}
-              </div>
-              <a
-                :href="item.prUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="mt-1 inline-flex text-xs text-primary hover:underline"
-              >
-                查看 PR
-              </a>
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="owned" class="space-y-4">
-        <Card>
-          <CardHeader class="pb-3">
-            <div class="flex items-center justify-between gap-2">
-              <CardTitle class="text-base">已发布资源</CardTitle>
-              <Button :disabled="ownedLoading || !canLoadList" @click="loadOwnedList">
-                <ArrowsClockwise :size="16" weight="duotone" />
-                {{ ownedLoading ? '加载中...' : '刷新' }}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent class="space-y-2 pt-0">
-            <div v-if="ownedItems.length === 0" class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-              暂无数据
-            </div>
-            <div
-              v-for="item in ownedItems"
-              :key="item.id"
-              class="rounded-lg border border-border bg-card px-3 py-3"
-            >
+    <div class="grid gap-4 xl:grid-cols-2">
+      <Card>
+        <CardHeader class="pb-3">
+          <div class="flex items-center justify-between gap-2">
+            <CardTitle class="text-base">进行中审核</CardTitle>
+            <Button :disabled="reviewLoading || !canLoadList" @click="loadReviewList">
+              <ArrowsClockwise :size="16" weight="duotone" />
+              {{ reviewLoading ? '加载中...' : '刷新' }}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent class="space-y-2 pt-0">
+          <div
+            v-if="reviewItems.length === 0"
+            class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
+          >
+            暂无数据
+          </div>
+          <div
+            v-for="item in reviewItems"
+            :key="`${item.prNumber}-${item.id}`"
+            class="rounded-lg border border-border bg-card px-3 py-3"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="text-sm font-semibold text-foreground">{{ item.id }} · {{ item.name }}</div>
-              <div class="mt-1 text-xs text-muted-foreground">
-                {{ item.restype }} · {{ item.repo_owner }}/{{ item.repo_name }}
-              </div>
+              <Badge variant="outline">{{ reviewStateText(item.status) }}</Badge>
             </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-    </Tabs>
+            <div class="mt-1 text-xs text-muted-foreground">
+              {{ item.restype }} · PR #{{ item.prNumber }} · {{ formatDate(item.createdAt) }}
+            </div>
+            <a
+              :href="item.prUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="mt-1 inline-flex text-xs text-primary hover:underline"
+            >
+              查看 PR
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader class="pb-3">
+          <div class="flex items-center justify-between gap-2">
+            <CardTitle class="text-base">已发布资源</CardTitle>
+            <Button :disabled="ownedLoading || !canLoadList" @click="loadOwnedList">
+              <ArrowsClockwise :size="16" weight="duotone" />
+              {{ ownedLoading ? '加载中...' : '刷新' }}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent class="space-y-2 pt-0">
+          <div
+            v-if="ownedItems.length === 0"
+            class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
+          >
+            暂无数据
+          </div>
+          <div
+            v-for="item in ownedItems"
+            :key="item.id"
+            class="rounded-lg border border-border bg-card px-3 py-3"
+          >
+            <div class="text-sm font-semibold text-foreground">{{ item.id }} · {{ item.name }}</div>
+            <div class="mt-1 text-xs text-muted-foreground">
+              {{ item.restype }} · {{ item.repo_owner }}/{{ item.repo_name }}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+
+    <Card>
+      <CardHeader class="pb-3">
+        <div class="flex items-center justify-between">
+          <CardTitle class="text-base">发布日志</CardTitle>
+          <Button variant="ghost" size="sm" @click="publishLogs = []">清空</Button>
+        </div>
+      </CardHeader>
+      <CardContent class="pt-0">
+        <div class="scrollbar-none max-h-[320px] overflow-y-auto rounded-lg border border-border bg-muted/25 p-3">
+          <pre class="m-0 whitespace-pre-wrap break-words font-mono text-xs leading-6 text-foreground">{{ publishLogsText }}</pre>
+        </div>
+      </CardContent>
+    </Card>
   </div>
 </template>
 
@@ -298,9 +420,14 @@
 import { computed, ref } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
+  PhCaretLeft as CaretLeft,
+  PhCaretRight as CaretRight,
   PhCheckCircle as CheckCircle,
+  PhCircle as Circle,
+  PhClockCountdown as ClockCountdown,
   PhEye as Eye,
   PhFolderOpen as FolderOpen,
+  PhGitPullRequest as GitPullRequest,
   PhRocketLaunch as RocketLaunch,
   PhUploadSimple as UploadSimple,
   PhUserCircle as UserCircle
@@ -316,7 +443,6 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { verifyToken } from '@/utils/githubGitApi'
 import {
@@ -349,13 +475,20 @@ interface WorkspaceDirectoryHandle {
 const MAIN_BRANCH = 'main'
 const MANIFEST_FILE = 'manifest_v2.json'
 
+const flowSteps = [
+  { title: '步骤 1 · 准备环境', description: '校验 Token 与扫描目录' },
+  { title: '步骤 2 · 填写资源信息', description: '确认资源信息与仓库参数' },
+  { title: '步骤 3 · 上传资源仓库', description: '上传 manifest/media/downloads' },
+  { title: '步骤 4 · Catalog 与 PR', description: '更新目录并创建 PR' }
+] as const
+
+const activeStep = ref(0)
+
 const token = ref('')
 const showToken = ref(false)
 const verifying = ref(false)
 const currentUser = ref('')
 const userAvatar = ref('')
-
-const activeTab = ref('publish')
 
 const workspaceHandle = ref<WorkspaceDirectoryHandle | null>(null)
 const workspaceName = ref('')
@@ -385,8 +518,14 @@ const prTitle = ref('[ABCC] Add new resource')
 const prBody = ref('')
 const latestPrUrl = ref('')
 
-const publishing = ref(false)
+const uploading = ref(false)
+const creatingPr = ref(false)
 const publishLogs = ref<string[]>([])
+
+const uploadedRepoOwner = ref('')
+const uploadedRepoName = ref('')
+const uploadedRepoUrl = ref('')
+const uploadedCommitSha = ref('')
 
 const reviewLoading = ref(false)
 const reviewItems = ref<PublishingResource[]>([])
@@ -394,21 +533,54 @@ const reviewItems = ref<PublishingResource[]>([])
 const ownedLoading = ref(false)
 const ownedItems = ref<CatalogEntry[]>([])
 
+const isBusy = computed(() => verifying.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
-const canPublish = computed(
+
+const isStep1Ready = computed(
+  () => Boolean(token.value.trim() && currentUser.value && workspaceHandle.value && manifestFound.value)
+)
+
+const resolvedRepoName = computed(() => {
+  const manual = repoName.value.trim()
+  if (manual) return manual
+
+  const slug = itemId.value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+
+  return slug ? `ab-resource-${slug}` : ''
+})
+
+const isStep2Ready = computed(
+  () => Boolean(isStep1Ready.value && itemId.value.trim() && itemName.value.trim() && resolvedRepoName.value)
+)
+
+const uploadQueueCount = computed(
+  () => (manifestText.value ? 1 : 0) + mediaFiles.value.length + downloadFiles.value.length
+)
+
+const isStep3Ready = computed(
+  () => Boolean(uploadedRepoOwner.value && uploadedRepoName.value && uploadedCommitSha.value)
+)
+
+const canSubmitPr = computed(
   () =>
     Boolean(
-      token.value.trim() &&
-        currentUser.value &&
-        workspaceHandle.value &&
-        repoName.value.trim() &&
-        itemId.value.trim() &&
-        itemName.value.trim() &&
-        catalogPath.value.trim()
+      upstreamOwner.value.trim() &&
+        upstreamRepo.value.trim() &&
+        targetOwner.value.trim() &&
+        targetRepo.value.trim() &&
+        catalogPath.value.trim() &&
+        prTitle.value.trim()
     )
 )
 
-const publishLogsText = computed(() => (publishLogs.value.length ? publishLogs.value.join('\n') : '暂无日志'))
+const publishLogsText = computed(() =>
+  publishLogs.value.length ? publishLogs.value.join('\n') : '暂无日志'
+)
 
 const appendLog = (message: string): void => {
   const time = new Date().toLocaleTimeString('zh-CN', { hour12: false })
@@ -419,6 +591,60 @@ const requireToken = (): string => {
   const value = token.value.trim()
   if (!value) throw new Error('请先输入 GitHub Token')
   return value
+}
+
+const stepStatus = (index: number): 'done' | 'current' | 'pending' | 'locked' => {
+  if (index < activeStep.value) return 'done'
+  if (index === activeStep.value) return 'current'
+  if (canEnterStep(index)) return 'pending'
+  return 'locked'
+}
+
+const stepButtonClass = (index: number): string => {
+  const status = stepStatus(index)
+  if (status === 'done') return 'border-border bg-muted/30 text-foreground'
+  if (status === 'current') return 'border-primary/35 bg-primary/5 text-foreground'
+  if (status === 'pending') return 'border-border bg-background hover:bg-muted/30 text-foreground'
+  return 'border-border bg-muted/20 text-muted-foreground'
+}
+
+const canEnterStep = (index: number): boolean => {
+  if (index === 0) return true
+  if (index === 1) return isStep1Ready.value
+  if (index === 2) return isStep2Ready.value
+  if (index === 3) return isStep3Ready.value
+  return false
+}
+
+const enterStep = (index: number): void => {
+  if (index <= activeStep.value || canEnterStep(index)) {
+    activeStep.value = index
+    return
+  }
+
+  appendLog('请先完成前置步骤')
+}
+
+const goPrev = (): void => {
+  activeStep.value = Math.max(0, activeStep.value - 1)
+}
+
+const goNext = (): void => {
+  const next = activeStep.value + 1
+  if (next > flowSteps.length - 1) return
+
+  if (!canEnterStep(next)) {
+    if (activeStep.value === 0) {
+      appendLog('步骤 1 未完成：请先校验 Token 并扫描到 manifest_v2.json')
+    } else if (activeStep.value === 1) {
+      appendLog('步骤 2 未完成：请补全资源 ID、资源名称和仓库名')
+    } else {
+      appendLog('步骤 3 未完成：请先执行资源上传')
+    }
+    return
+  }
+
+  activeStep.value = next
 }
 
 const handleVerifyToken = async (): Promise<void> => {
@@ -532,7 +758,9 @@ const scanWorkspace = async (): Promise<void> => {
     mediaFiles.value = mediaDir ? await collectFilesRecursively(mediaDir, 'media/') : []
 
     const downloadsDir = await getDirectoryByPath(workspaceHandle.value, 'downloads')
-    downloadFiles.value = downloadsDir ? await collectFilesRecursively(downloadsDir, 'downloads/') : []
+    downloadFiles.value = downloadsDir
+      ? await collectFilesRecursively(downloadsDir, 'downloads/')
+      : []
 
     if (manifest) {
       try {
@@ -554,17 +782,31 @@ const scanWorkspace = async (): Promise<void> => {
       }
     }
 
+    uploadedRepoOwner.value = ''
+    uploadedRepoName.value = ''
+    uploadedRepoUrl.value = ''
+    uploadedCommitSha.value = ''
+    latestPrUrl.value = ''
+
     appendLog(`目录扫描完成：media ${mediaFiles.value.length} 个，downloads ${downloadFiles.value.length} 个`)
   } catch (error: unknown) {
     appendLog(`扫描目录失败: ${error instanceof Error ? error.message : '未知错误'}`)
   }
 }
 
-const handlePublish = async (): Promise<void> => {
+const resolveRepoNameForSubmit = (): string => {
+  const name = resolvedRepoName.value.trim()
+  if (!name) {
+    throw new Error('无法生成仓库名，请填写资源 ID 或手动输入仓库名')
+  }
+  return name
+}
+
+const handleUploadResources = async (): Promise<void> => {
   if (!workspaceHandle.value) return
 
   try {
-    publishing.value = true
+    uploading.value = true
     latestPrUrl.value = ''
 
     const accessToken = requireToken()
@@ -576,9 +818,10 @@ const handlePublish = async (): Promise<void> => {
     const repo = await ensureUserRepository({
       token: accessToken,
       owner: username,
-      repoName: repoName.value.trim(),
+      repoName: resolveRepoNameForSubmit(),
       description: repoDescription.value.trim()
     })
+
     appendLog(`资源仓库就绪: ${repo.owner}/${repo.name}`)
 
     const uploadQueue: Array<{ path: string; file?: File; text?: string }> = []
@@ -629,6 +872,32 @@ const handlePublish = async (): Promise<void> => {
       throw new Error('未获取到 commit sha')
     }
 
+    uploadedRepoOwner.value = repo.owner
+    uploadedRepoName.value = repo.name
+    uploadedRepoUrl.value = repo.htmlUrl
+    uploadedCommitSha.value = latestCommitSha
+    appendLog(`上传步骤完成，commit: ${latestCommitSha.slice(0, 10)}`)
+  } catch (error: unknown) {
+    appendLog(`上传失败: ${error instanceof Error ? error.message : '未知错误'}`)
+  } finally {
+    uploading.value = false
+  }
+}
+
+const handleCreateCatalogPr = async (): Promise<void> => {
+  try {
+    creatingPr.value = true
+
+    const accessToken = requireToken()
+    const username = currentUser.value
+    if (!username) {
+      throw new Error('请先校验 Token')
+    }
+
+    if (!uploadedCommitSha.value || !uploadedRepoOwner.value || !uploadedRepoName.value) {
+      throw new Error('请先完成步骤 3 上传资源')
+    }
+
     const branchName = `astrobooox-submit-${Date.now()}`
     const forkResult = await updateCatalogInForkBranch({
       token: accessToken,
@@ -642,9 +911,9 @@ const handlePublish = async (): Promise<void> => {
         id: itemId.value.trim(),
         name: itemName.value.trim(),
         restype: restype.value.trim(),
-        repo_owner: repo.owner,
-        repo_name: repo.name,
-        repo_commit_hash: latestCommitSha,
+        repo_owner: uploadedRepoOwner.value,
+        repo_name: uploadedRepoName.value,
+        repo_commit_hash: uploadedCommitSha.value,
         icon: iconPath.value.trim(),
         cover: coverPath.value.trim(),
         tags: tagsText.value.trim(),
@@ -653,6 +922,7 @@ const handlePublish = async (): Promise<void> => {
         paid_type: paidType.value.trim()
       }
     })
+
     appendLog(`Catalog 更新完成: ${forkResult.forkOwner}/${forkResult.forkRepo}@${forkResult.branch}`)
 
     const pr = await createPullRequestWithHead({
@@ -669,9 +939,9 @@ const handlePublish = async (): Promise<void> => {
     latestPrUrl.value = pr.htmlUrl
     appendLog(`PR 创建成功: #${pr.number}`)
   } catch (error: unknown) {
-    appendLog(`发布失败: ${error instanceof Error ? error.message : '未知错误'}`)
+    appendLog(`创建 PR 失败: ${error instanceof Error ? error.message : '未知错误'}`)
   } finally {
-    publishing.value = false
+    creatingPr.value = false
   }
 }
 
@@ -708,6 +978,10 @@ const loadOwnedList = async (): Promise<void> => {
   } finally {
     ownedLoading.value = false
   }
+}
+
+const refreshAllLists = async (): Promise<void> => {
+  await Promise.all([loadReviewList(), loadOwnedList()])
 }
 
 const reviewStateText = (state: PublishingResource['status']): string => {
