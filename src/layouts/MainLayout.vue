@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import {
   PhCheckCircle as CheckCircle,
   PhDeviceMobile as DeviceMobile,
@@ -87,16 +87,16 @@ import {
   PhFolderSimplePlus as FolderSimplePlus,
   PhWarningCircle as WarningCircle
 } from '@phosphor-icons/vue'
-import ManifestEditor from '../components/ManifestEditor.vue'
-import CSVEGenerator from '../components/CSVEGenerator.vue'
-import ResLinkGenerator from '../components/ResLinkGenerator.vue'
 import NavBar from '../components/NavBar.vue'
 import AppFooter from '../components/Footer.vue'
 import Card from '@/components/ui/Card.vue'
 import Dialog from '@/components/ui/Dialog.vue'
 import Button from '@/components/ui/Button.vue'
 import type { AppMode, DeviceType } from '../type/manifest'
-import FuckCodeReview from '../components/FuckCodeReview.vue'
+const ManifestEditor = defineAsyncComponent(() => import('../components/ManifestEditor.vue'))
+const CSVEGenerator = defineAsyncComponent(() => import('../components/CSVEGenerator.vue'))
+const ResLinkGenerator = defineAsyncComponent(() => import('../components/ResLinkGenerator.vue'))
+const FuckCodeReview = defineAsyncComponent(() => import('../components/FuckCodeReview.vue'))
 
 interface FileSystemHandle {
   readonly kind: 'file' | 'directory'

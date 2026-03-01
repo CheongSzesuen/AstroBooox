@@ -1,41 +1,36 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import MainLayout from '../layouts/MainLayout.vue'
-import ManifestEditor from '../components/ManifestEditor.vue'
-import CSVEGenerator from '../components/CSVEGenerator.vue'
-import ResLinkGenerator from '../components/ResLinkGenerator.vue'
-import FuckCodeReview from '../components/FuckCodeReview.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      component: MainLayout,
+      component: () => import('../layouts/MainLayout.vue'),
       children: [
         {
           path: '', // 默认路由
           name: 'home',
-          component: ManifestEditor
+          component: () => import('../components/ManifestEditor.vue')
         },
         {
           path: 'manifest',
           name: 'manifest',
-          component: ManifestEditor
+          component: () => import('../components/ManifestEditor.vue')
         },
         {
           path: 'csv',
           name: 'csv',
-          component: CSVEGenerator
+          component: () => import('../components/CSVEGenerator.vue')
         },
         {
           path: 'res-link',
           name: 'res-link',
-          component: ResLinkGenerator
+          component: () => import('../components/ResLinkGenerator.vue')
         },
         {
           path: 'code-review',
           name: 'code-review',
-          component: FuckCodeReview
+          component: () => import('../components/FuckCodeReview.vue')
         }
       ]
     }
