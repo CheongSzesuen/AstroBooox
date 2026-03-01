@@ -10,10 +10,13 @@
       </div>
       <button
         type="button"
-        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        :title="isCollapsed ? '展开边栏' : '收起边栏'"
+        class="inline-flex h-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        :class="isCollapsed ? 'w-8' : 'gap-1.5 px-2.5'"
         aria-label="折叠或展开边栏"
         @click="$emit('toggle')"
       >
+        <span v-if="!isCollapsed" class="text-xs">收起</span>
         <CaretDoubleRight
           :size="16"
           weight="bold"
@@ -105,7 +108,7 @@ const avatarCache = new Map<string, string>()
 const sidebarClass = computed(() => [
   'flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-300 lg:sticky lg:top-0',
   props.isCollapsed
-    ? 'w-full p-2.5 lg:w-[4.75rem] lg:p-2'
+    ? 'w-full p-2.5 lg:w-[5.2rem] lg:p-2.5'
     : 'w-full p-3 lg:w-[18rem] lg:p-3 xl:w-80'
 ])
 

@@ -53,7 +53,7 @@
             </div>
           </div>
         </DialogHeader>
-        <DialogFooter class="sm:justify-start">
+        <DialogFooter class="sm:justify-end">
           <Button @click="selectProjectDirectory">
             <FolderOpen :size="16" weight="duotone" />
             选择文件夹
