@@ -12,7 +12,7 @@
       </CardHeader>
       <CardContent class="pt-0">
         <div class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs leading-5 text-muted-foreground">
-          不会读取站点默认 Token。必须手动输入你自己的细粒度 Token，且禁止使用默认 VITE_GITHUB_TOKEN。
+          请手动输入专用细粒度 Token，本页不会持久化保存你的 Token。
         </div>
       </CardContent>
     </Card>
@@ -48,7 +48,7 @@
             </div>
 
             <div class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs leading-5 text-muted-foreground">
-              安全策略：本页不会缓存 Token 到 localStorage，也不会使用站点环境变量中的默认 Token。
+              安全策略：本页不缓存 Token 到 localStorage，请使用专用细粒度 Token。
             </div>
 
             <div class="grid gap-3 md:grid-cols-3">
@@ -330,7 +330,7 @@ const requireToken = (): string => {
   }
 
   if (SITE_DEFAULT_TOKEN && value === SITE_DEFAULT_TOKEN) {
-    throw new Error('安全策略限制：Git 提交页面禁止使用站点默认 Token，请改用你的小号细粒度 Token。')
+    throw new Error('安全策略限制：当前 Token 不允许在该页面使用，请改用专用细粒度 Token。')
   }
 
   return value
