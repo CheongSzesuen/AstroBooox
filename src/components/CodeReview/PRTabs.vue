@@ -1,21 +1,25 @@
 <template>
   <Tabs :model-value="activeTab" class="mb-4" @update:model-value="onTabChange">
-    <TabsList class="h-auto gap-1.5 rounded-lg border border-border bg-muted/50 p-1">
-      <TabsTrigger value="analysis" class="gap-1.5 px-3.5 py-2 text-xs md:text-sm">
-        <ChartLineUp :size="16" weight="duotone" />
-        Analysis
-        <Badge v-if="analyzedData" variant="secondary" class="ml-1 h-5 min-w-5 justify-center rounded-full px-1.5">1</Badge>
+    <TabsList class="h-auto w-full justify-start gap-1 rounded-lg border border-border bg-muted/50 p-1">
+      <TabsTrigger value="analysis" class="h-9 shrink-0 px-3 text-xs md:text-sm">
+        <span class="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <ChartLineUp :size="16" weight="duotone" />
+          <span>Analysis</span>
+          <Badge v-if="analyzedData" variant="secondary" class="h-5 min-w-5 justify-center rounded-full px-1.5">1</Badge>
+        </span>
       </TabsTrigger>
-      <TabsTrigger value="files" class="gap-1.5 px-3.5 py-2 text-xs md:text-sm">
-        <GitDiff :size="16" weight="duotone" />
-        Files changed
-        <Badge
-          v-if="changedFiles.length > 0"
-          variant="secondary"
-          class="ml-1 h-5 min-w-5 justify-center rounded-full px-1.5"
-        >
-          {{ changedFiles.length }}
-        </Badge>
+      <TabsTrigger value="files" class="h-9 shrink-0 px-3 text-xs md:text-sm">
+        <span class="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <GitDiff :size="16" weight="duotone" />
+          <span>Files changed</span>
+          <Badge
+            v-if="changedFiles.length > 0"
+            variant="secondary"
+            class="h-5 min-w-5 justify-center rounded-full px-1.5"
+          >
+            {{ changedFiles.length }}
+          </Badge>
+        </span>
       </TabsTrigger>
     </TabsList>
   </Tabs>

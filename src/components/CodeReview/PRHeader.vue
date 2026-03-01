@@ -1,45 +1,50 @@
 <template>
-  <header class="rounded-xl border border-border bg-card p-4 md:p-5">
-    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-      <div class="min-w-0">
-        <h1 class="text-lg font-semibold leading-7 text-foreground md:text-xl">
-          <span class="break-words">{{ pr.title }}</span>
-          <span class="ml-2 text-base font-medium text-muted-foreground">#{{ pr.number }}</span>
-        </h1>
+  <header class="rounded-xl border border-border bg-card p-5 md:p-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div class="min-w-0 space-y-3">
+        <div class="flex flex-wrap items-end gap-x-2 gap-y-1">
+          <h1 class="min-w-0 break-words text-xl font-semibold leading-tight text-foreground md:text-2xl">
+            {{ pr.title }}
+          </h1>
+          <span class="text-sm font-medium text-muted-foreground md:text-base">#{{ pr.number }}</span>
+        </div>
 
-        <div class="mt-2 flex flex-wrap items-center gap-2">
-          <Badge variant="secondary" class="gap-1.5 text-[0.78rem]">
-            <GitPullRequest :size="14" weight="duotone" />
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <Badge variant="secondary" class="h-6 gap-1.5 rounded-full px-2.5 text-xs">
+            <GitPullRequest :size="14" weight="duotone" class="shrink-0" />
             Open
           </Badge>
 
-          <span class="inline-flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+          <span class="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
             <img
               :src="getOptimizedAvatarUrl(pr.user)"
-              class="h-5 w-5 shrink-0 rounded-full object-cover"
+              class="h-6 w-6 shrink-0 rounded-full object-cover"
               loading="lazy"
               @load="cacheAvatar(pr.user)"
             />
-            <a :href="pr.user.html_url" target="_blank" class="truncate text-foreground hover:underline">{{ pr.user.login }}</a>
+            <a :href="pr.user.html_url" target="_blank" class="truncate font-medium text-foreground hover:underline">{{ pr.user.login }}</a>
             <span class="shrink-0">opened {{ timeAgo }}</span>
           </span>
         </div>
       </div>
 
-      <div class="flex gap-2 md:justify-end">
-        <Button variant="outline" size="icon" @click="$emit('refresh')" title="刷新数据" aria-label="刷新数据">
+      <div class="flex shrink-0 items-center gap-2 md:justify-end">
+        <Button variant="outline" size="sm" class="h-9 gap-1.5 px-3" @click="$emit('refresh')" title="刷新数据" aria-label="刷新数据">
           <ArrowsClockwise :size="16" weight="bold" />
+          刷新
         </Button>
         <Button
           as="a"
           :href="pr.html_url"
           target="_blank"
           variant="outline"
-          size="icon"
+          size="sm"
+          class="h-9 gap-1.5 px-3"
           title="在 GitHub 查看 PR"
           aria-label="在 GitHub 查看 PR"
         >
           <GithubLogo :size="16" weight="duotone" />
+          GitHub
         </Button>
       </div>
     </div>
