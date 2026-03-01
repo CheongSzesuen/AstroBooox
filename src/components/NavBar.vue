@@ -96,9 +96,7 @@ const navItems: Array<{ mode: AppMode; label: string }> = [
   { mode: 'manifest', label: 'manifest内容' },
   { mode: 'csv', label: 'CSV 生成' },
   { mode: 'res-link', label: '资源链接生成' },
-  { mode: 'code-review', label: '代码审查' },
-  { mode: 'git-browser', label: 'Git 提交' },
-  { mode: 'resource-publish', label: '资源发布' }
+  { mode: 'code-review', label: '代码审查' }
 ]
 
 const repoUrl = 'https://github.com/CheongSzesuen/AstroBooox'

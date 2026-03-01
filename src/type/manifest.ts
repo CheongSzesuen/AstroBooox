@@ -41,9 +41,7 @@ export type AppMode =
   | 'manifest'
   | 'csv'
   | 'res-link'
-  | 'code-review'
-  | 'git-browser'
-  | 'resource-publish';
+  | 'code-review';
 
 /**
  • 设备类型
