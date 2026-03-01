@@ -12,7 +12,7 @@
       </CardHeader>
       <CardContent class="pt-0">
         <div class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs leading-5 text-muted-foreground">
-          Token 仅保存在当前浏览器（可关闭记住），建议使用专用细粒度 Token。
+          不会读取站点默认 Token。必须手动输入你自己的细粒度 Token，且禁止使用默认 VITE_GITHUB_TOKEN。
         </div>
       </CardContent>
     </Card>
@@ -47,10 +47,9 @@
               </div>
             </div>
 
-            <label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-              <input v-model="rememberToken" type="checkbox" class="h-4 w-4 rounded border-border" />
-              记住 Token（存储在 localStorage）
-            </label>
+            <div class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs leading-5 text-muted-foreground">
+              安全策略：本页不会缓存 Token 到 localStorage，也不会使用站点环境变量中的默认 Token。
+            </div>
 
             <div class="grid gap-3 md:grid-cols-3">
               <div class="space-y-1.5">
@@ -234,7 +233,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import {
   PhCheckCircle as CheckCircle,
   PhEye as Eye,
@@ -264,10 +263,9 @@ import {
   verifyToken
 } from '@/utils/githubGitApi'
 
-const TOKEN_STORAGE_KEY = 'astrobooox_browser_git_token'
+const SITE_DEFAULT_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim() ?? ''
 
 const token = ref('')
-const rememberToken = ref(true)
 const isTokenVisible = ref(false)
 
 const currentUser = ref('')
@@ -330,15 +328,12 @@ const requireToken = (): string => {
   if (!value) {
     throw new Error('请先填写 GitHub Token')
   }
-  return value
-}
 
-const persistToken = (): void => {
-  if (rememberToken.value && token.value.trim()) {
-    localStorage.setItem(TOKEN_STORAGE_KEY, token.value.trim())
-  } else {
-    localStorage.removeItem(TOKEN_STORAGE_KEY)
+  if (SITE_DEFAULT_TOKEN && value === SITE_DEFAULT_TOKEN) {
+    throw new Error('安全策略限制：Git 提交页面禁止使用站点默认 Token，请改用你的小号细粒度 Token。')
   }
+
+  return value
 }
 
 const withAction = async (
@@ -365,7 +360,6 @@ const handleVerifyToken = async (): Promise<void> => {
       repoOwner.value = user.login
     }
 
-    persistToken()
     appendLog(`Token 校验成功: ${user.login}`)
   })
 }
@@ -433,17 +427,4 @@ const handleCreatePr = async (): Promise<void> => {
     appendLog(`PR 创建成功: #${result.number} ${result.title}`)
   })
 }
-
-watch([token, rememberToken], () => {
-  persistToken()
-})
-
-onMounted(() => {
-  const savedToken = localStorage.getItem(TOKEN_STORAGE_KEY)
-  if (savedToken) {
-    token.value = savedToken
-    appendLog('已读取本地 Token')
-  }
-})
 </script>
-
