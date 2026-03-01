@@ -57,7 +57,7 @@
           <h3>请从左侧选择一个 Pull Request 进行审查</h3>
         </div>
 
-        <div v-else>
+        <div v-else class="review-stack">
           <PRHeader 
             :pr="selectedPR"
             @refresh="fetchPRDetails"
@@ -575,7 +575,7 @@ defineEmits(['refresh'])
 
 .main-content {
   margin-left: 22rem;
-  padding: 0.9rem 1rem 1rem;
+  padding: 0.85rem 0.9rem 1rem;
   flex: 1;
   overflow: auto;
   transition: margin-left 0.3s ease;
@@ -590,12 +590,18 @@ defineEmits(['refresh'])
   margin: 0 auto;
 }
 
+.review-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 300px;
+  min-height: 280px;
   color: hsl(var(--muted-foreground));
   gap: 1rem;
   border: 1px dashed hsl(var(--border));
@@ -610,10 +616,13 @@ defineEmits(['refresh'])
 }
 
 .loading {
-  padding: 1rem;
+  padding: 0.9rem 1rem;
   text-align: center;
   color: hsl(var(--muted-foreground));
   font-size: 0.875rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--card));
 }
 
 .error-banner {
@@ -622,7 +631,7 @@ defineEmits(['refresh'])
   color: var(--foreground);
   border: 1px solid color-mix(in srgb, var(--destructive) 35%, var(--border));
   border-radius: 0.7rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   line-height: 1.5;
   font-size: 0.875rem;
 }
@@ -630,7 +639,7 @@ defineEmits(['refresh'])
 @media (max-width: 768px) {
   .main-content {
     margin-left: 18rem;
-    padding: 0.75rem;
+    padding: 0.65rem;
   }
   
   .main-content.main-content-collapsed {

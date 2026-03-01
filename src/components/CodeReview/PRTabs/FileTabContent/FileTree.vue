@@ -433,7 +433,7 @@ const selectFile = (file: FileChange) => {
 /* Layout styles */
 .Layout {
   display: grid;
-  --Layout-sidebar-width: 296px;
+  --Layout-sidebar-width: 288px;
   --Layout-gutter: 24px;
   height: 100%;
 }
@@ -465,8 +465,8 @@ const selectFile = (file: FileChange) => {
 }
 
 .subnav-search-container {
-  padding: 0 16px;
-  margin-bottom: 8px;
+  padding: 0.65rem 0.7rem 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .subnav-search {
@@ -477,13 +477,13 @@ const selectFile = (file: FileChange) => {
 .subnav-search .form-control {
   display: block;
   width: 100%;
-  padding: 6px 12px 6px 32px;
-  font-size: 14px;
-  line-height: 20px;
+  padding: 0.4rem 0.65rem 0.4rem 1.95rem;
+  font-size: 0.82rem;
+  line-height: 1.2;
   color: hsl(var(--foreground));
   background-color: hsl(var(--background));
   border: 1px solid hsl(var(--input));
-  border-radius: 6px;
+  border-radius: 0.5rem;
   outline: none;
   box-shadow: none;
   box-sizing: border-box;
@@ -491,17 +491,17 @@ const selectFile = (file: FileChange) => {
 
 .subnav-search-icon {
   position: absolute;
-  left: 12px;
+  left: 9px;
   top: 50%;
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   margin-top: -8px;
   color: hsl(var(--muted-foreground));
 }
 
 .ActionList {
   list-style: none;
-  padding: 0 16px;
+  padding: 0 0.7rem 0.6rem;
   margin: 0;
   background-color: hsl(var(--card));
   width: 100%;
@@ -536,15 +536,15 @@ const selectFile = (file: FileChange) => {
   position: relative;
   display: flex;
   width: 100%;
-  padding: 6px 0;
-  font-size: 14px;
+  padding: 0.32rem 0.3rem;
+  font-size: 0.82rem;
   font-weight: 400;
   color: hsl(var(--foreground));
   text-align: left;
   user-select: none;
   background-color: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 0.45rem;
   transition: background 0.1s ease;
   align-items: center;
   cursor: pointer;
@@ -563,7 +563,7 @@ const selectFile = (file: FileChange) => {
 }
 
 .ActionList-item-action--leading {
-  margin-right: 4px;
+  margin-right: 2px;
   width: 16px;
 }
 
@@ -576,17 +576,17 @@ const selectFile = (file: FileChange) => {
 }
 
 .ActionList-item-visual--leading {
-  margin-right: 4px;
+  margin-right: 2px;
 }
 
 .ActionList-item-visual--trailing {
-  margin-left: 8px;
+  margin-left: 6px;
 }
 
 .ActionList-item-label {
   position: relative;
   font-weight: 400;
-  line-height: 20px;
+  line-height: 1.25rem;
   color: hsl(var(--foreground));
   white-space: nowrap;
   overflow: hidden;
@@ -616,13 +616,13 @@ const selectFile = (file: FileChange) => {
 
 @media (max-width: 1012px) {
   .Layout {
-    --Layout-sidebar-width: 256px;
+    --Layout-sidebar-width: 248px;
   }
 }
 
 @media (max-width: 768px) {
   .Layout {
-    --Layout-sidebar-width: 220px;
+    --Layout-sidebar-width: 214px;
   }
 }
 
@@ -633,7 +633,8 @@ const selectFile = (file: FileChange) => {
 
   .subnav-search-container,
   .ActionList {
-    padding: 0 12px;
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
   }
 }
 </style>

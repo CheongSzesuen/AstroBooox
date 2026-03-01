@@ -172,13 +172,13 @@ const getFullImageUrl = (relativePath: string): string => {
 
 <style scoped>
 .tab-content {
-  padding: 0.25rem;
+  padding: 0;
 }
 
 .analysis-results {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .analysis-section {
@@ -186,57 +186,57 @@ const getFullImageUrl = (relativePath: string): string => {
 }
 
 .analysis-header {
-  padding: 1rem 1rem 0.7rem;
+  padding: 0.875rem 0.875rem 0.625rem;
   border-bottom: 1px solid hsl(var(--border));
 }
 
 .analysis-content {
-  padding: 0.85rem 1rem 1rem;
+  padding: 0.75rem 0.875rem 0.875rem;
 }
 
 .csv-analysis {
-  margin-top: 0.35rem;
+  margin-top: 0.25rem;
 }
 
 .csv-analysis h4 {
-  margin: 1rem 0 0.8rem;
-  font-size: 0.95rem;
+  margin: 0.85rem 0 0.65rem;
+  font-size: 0.9rem;
   color: hsl(var(--foreground));
 }
 
 .form-layout {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .form-row {
   display: flex;
   align-items: flex-start;
-  gap: 0.4rem;
-  padding: 0.2rem 0;
+  gap: 0.35rem;
+  padding: 0.15rem 0;
 }
 
 .form-label {
   font-weight: 500;
-  min-width: 110px;
+  min-width: 104px;
   color: hsl(var(--muted-foreground));
-  font-size: 0.85rem;
+  font-size: 0.82rem;
 }
 
 .form-value {
   flex: 1;
   word-break: break-word;
-  font-size: 0.9rem;
+  font-size: 0.86rem;
 }
 
 .resource-analysis {
-  margin-top: 1.1rem;
+  margin-top: 0.9rem;
 }
 
 .resource-analysis h4 {
-  margin: 1rem 0 0.8rem;
-  font-size: 0.95rem;
+  margin: 0.85rem 0 0.65rem;
+  font-size: 0.9rem;
   color: hsl(var(--foreground));
 }
 
@@ -244,8 +244,8 @@ const getFullImageUrl = (relativePath: string): string => {
   background-color: hsl(var(--muted) / 0.45);
   border: 1px solid hsl(var(--border));
   border-radius: 0.6rem;
-  padding: 0.8rem;
-  margin-top: 0.6rem;
+  padding: 0.65rem;
+  margin-top: 0.45rem;
   overflow-x: auto;
 }
 
@@ -259,16 +259,16 @@ const getFullImageUrl = (relativePath: string): string => {
 }
 
 .repo-info {
-  margin-top: 0.2rem;
+  margin-top: 0;
 }
 
 .manifest-info {
-  margin-top: 1rem;
+  margin-top: 0.8rem;
 }
 
 .manifest-info h4 {
-  margin: 0.6rem 0;
-  font-size: 0.95rem;
+  margin: 0.45rem 0;
+  font-size: 0.9rem;
   color: hsl(var(--muted-foreground));
 }
 
@@ -296,7 +296,7 @@ const getFullImageUrl = (relativePath: string): string => {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 9rem;
+  min-height: 8rem;
   color: hsl(var(--muted-foreground));
   border: 1px dashed hsl(var(--border));
   border-radius: 0.75rem;

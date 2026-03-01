@@ -112,22 +112,23 @@ const getNewLineNumber = (index: number) => {
 }
 
 .diff-content.empty {
-  padding: 1.5rem;
+  padding: 1rem;
   text-align: center;
   color: hsl(var(--muted-foreground));
   font-style: italic;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
 }
 
 .diff-lines {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1.45;
   margin-bottom: 0;
 }
 
 .diff-line {
   display: flex;
+  min-height: 1.2rem;
   border-bottom: 1px solid hsl(var(--border));
 }
 
@@ -157,8 +158,8 @@ const getNewLineNumber = (index: number) => {
 }
 
 .line-number {
-  padding: 0 0.55rem;
-  min-width: 2.65rem;
+  padding: 0 0.45rem;
+  min-width: 2.35rem;
   text-align: right;
   color: hsl(var(--muted-foreground));
   user-select: none;
@@ -175,7 +176,18 @@ const getNewLineNumber = (index: number) => {
 
 .line-content {
   flex: 1;
-  padding: 0 0.7rem;
+  padding: 0 0.55rem;
   white-space: pre;
+}
+
+@media (max-width: 640px) {
+  .diff-lines {
+    font-size: 10px;
+  }
+
+  .line-number {
+    min-width: 2.1rem;
+    padding: 0 0.35rem;
+  }
 }
 </style>

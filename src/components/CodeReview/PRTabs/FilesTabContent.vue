@@ -24,7 +24,7 @@
               <CaretRight v-else :size="16" weight="bold" />
             </Button>
 
-            <div class="diffstat-summary mr-2">
+            <div class="diffstat-summary">
               <span class="sr-only">
                 {{ file.changes }} changes
               </span>
@@ -135,9 +135,9 @@ const getStatusText = (status: string): string => {
 .files-tab-content {
   display: grid;
   grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
-  gap: 1rem;
-  height: calc(100vh - 210px);
-  margin-top: 0.75rem;
+  gap: 0.875rem;
+  height: calc(100vh - 205px);
+  margin-top: 0.5rem;
 }
 
 .file-tree-container {
@@ -150,26 +150,29 @@ const getStatusText = (status: string): string => {
 
 .file-content {
   flex: 1;
-  padding: 0.2rem;
+  padding: 0;
   overflow-y: auto;
   min-width: 0;
 }
 
 .file-content.file-diff-list {
-  padding: 0.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0;
 }
 
 .file-diff-item {
   border: 1px solid hsl(var(--border));
   border-radius: 0.75rem;
-  margin-bottom: 0.9rem;
+  margin: 0;
   background-color: hsl(var(--card));
   box-shadow: 0 1px 2px hsl(var(--foreground) / 0.08);
 }
 
 .file-header {
   z-index: 2;
-  padding: 0.55rem 0.85rem;
+  padding: 0.5rem 0.75rem;
   background-color: hsl(var(--muted) / 0.5);
   border-bottom: 1px solid hsl(var(--border));
   border-top-left-radius: 0.75rem;
@@ -195,7 +198,7 @@ const getStatusText = (status: string): string => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.4rem;
   width: 100%;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 12px;
@@ -203,10 +206,10 @@ const getStatusText = (status: string): string => {
 }
 
 .btn-octicon {
-  margin-right: 0.2rem;
+  margin-right: 0.15rem;
   flex-shrink: 0;
-  height: 1.7rem;
-  width: 1.7rem;
+  height: 1.625rem;
+  width: 1.625rem;
 }
 
 .diffstat-summary {
@@ -228,7 +231,7 @@ const getStatusText = (status: string): string => {
 .file-name {
   font-weight: 600;
   color: hsl(var(--foreground));
-  font-size: 0.8rem;
+  font-size: 0.78rem;
 }
 
 .file-status-wrapper {
@@ -236,9 +239,9 @@ const getStatusText = (status: string): string => {
 }
 
 .file-status {
-  padding: 0.12rem 0.42rem;
+  padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 500;
   letter-spacing: 0.01em;
   line-height: 1.1;
@@ -246,13 +249,13 @@ const getStatusText = (status: string): string => {
 
 .file-actions {
   flex-shrink: 0;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
 }
 
 .file-stats {
   display: flex;
-  gap: 0.5rem;
-  font-size: 0.75rem;
+  gap: 0.4rem;
+  font-size: 0.72rem;
   white-space: nowrap;
 }
 
@@ -261,7 +264,7 @@ const getStatusText = (status: string): string => {
 }
 
 .diffstat {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 600;
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
@@ -270,8 +273,8 @@ const getStatusText = (status: string): string => {
 
 .diffstat-block {
   display: inline-block;
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   margin-left: 1px;
 }
 
@@ -315,7 +318,7 @@ const getStatusText = (status: string): string => {
   .files-tab-content {
     grid-template-columns: 1fr;
     height: auto;
-    min-height: calc(100vh - 240px);
+    min-height: calc(100vh - 230px);
   }
 
   .file-tree-container {
@@ -325,7 +328,11 @@ const getStatusText = (status: string): string => {
 
 @media (max-width: 700px) {
   .file-header {
-    padding: 0.5rem 0.6rem;
+    padding: 0.45rem 0.55rem;
+  }
+
+  .file-info-container {
+    gap: 0.3rem;
   }
 
   .file-actions {
