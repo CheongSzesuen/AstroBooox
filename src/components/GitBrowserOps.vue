@@ -267,6 +267,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useCcSession } from '@/composables/useCcSession'
 import {
   commitTextFile,
   createPullRequest,
@@ -279,10 +280,9 @@ import {
 const SITE_DEFAULT_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim() ?? ''
 const MAIN_BRANCH = 'main'
 
-const token = ref('')
+const { token, currentUser, setSessionUser } = useCcSession()
 const isTokenVisible = ref(false)
 
-const currentUser = ref('')
 const ownerAvatarUrl = ref('')
 const repoOwner = ref('')
 const repoName = ref('')
@@ -369,7 +369,7 @@ const withAction = async (
 const handleVerifyToken = async (): Promise<void> => {
   await withAction('verify', async () => {
     const user = await verifyToken(requireToken())
-    currentUser.value = user.login
+    setSessionUser(user)
     ownerAvatarUrl.value = user.avatar_url || ''
 
     if (!repoOwner.value.trim()) {

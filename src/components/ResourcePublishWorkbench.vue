@@ -4,10 +4,10 @@
       <CardHeader class="pb-3">
         <CardTitle class="inline-flex items-center gap-2 text-base md:text-lg">
           <RocketLaunch :size="18" weight="duotone" />
-          资源发布向导
+          资源发布
         </CardTitle>
         <CardDescription class="text-sm leading-6">
-          仿照 secret 的流程式发布：准备环境 → 填写信息 → 上传资源仓库 → 更新 Catalog 并创建 PR。
+          基于 FSA + GitHub API 的资源发布页面，提供目录扫描、仓库上传、Catalog 更新与 PR 创建。
         </CardDescription>
       </CardHeader>
       <CardContent class="pt-0">
@@ -16,55 +16,26 @@
             class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md border border-border bg-muted"
           >
             <img
-              v-if="userAvatar"
-              :src="userAvatar"
+              v-if="avatarUrl"
+              :src="avatarUrl"
               alt="User Avatar"
               class="h-full w-full object-cover"
             />
             <UserCircle v-else :size="16" weight="duotone" class="text-muted-foreground" />
           </div>
           <Badge variant="outline">当前用户: {{ currentUser || '未校验' }}</Badge>
-          <Badge variant="outline">发布分支: main</Badge>
-          <Badge variant="outline">当前步骤: {{ flowSteps[activeStep].title }}</Badge>
+          <Badge variant="outline">发布分支: {{ MAIN_BRANCH }}</Badge>
+          <Badge variant="outline">待上传文件: {{ uploadQueueCount }}</Badge>
         </div>
       </CardContent>
     </Card>
 
-    <div class="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
-      <Card class="xl:sticky xl:top-[84px] xl:self-start">
-        <CardHeader class="pb-3">
-          <CardTitle class="text-base">发布流程</CardTitle>
-          <CardDescription>按步骤执行，减少漏填和失败重试。</CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-2 pt-0">
-          <button
-            v-for="(step, index) in flowSteps"
-            :key="step.title"
-            type="button"
-            class="w-full rounded-lg border px-3 py-2 text-left transition"
-            :class="stepButtonClass(index)"
-            @click="enterStep(index)"
-          >
-            <div class="flex items-start gap-2">
-              <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-background">
-                <CheckCircle v-if="stepStatus(index) === 'done'" :size="15" weight="fill" />
-                <ClockCountdown v-else-if="stepStatus(index) === 'current'" :size="15" weight="duotone" />
-                <Circle v-else :size="15" weight="duotone" />
-              </span>
-              <span>
-                <span class="block text-sm font-medium">{{ step.title }}</span>
-                <span class="block text-xs text-muted-foreground">{{ step.description }}</span>
-              </span>
-            </div>
-          </button>
-        </CardContent>
-      </Card>
-
+    <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div class="space-y-4">
-        <Card v-if="activeStep === 0">
+        <Card>
           <CardHeader class="pb-3">
-            <CardTitle class="text-base">步骤 1 · 准备环境</CardTitle>
-            <CardDescription>校验 GitHub Token 并选择 FSA 资源目录。</CardDescription>
+            <CardTitle class="text-base">环境准备</CardTitle>
+            <CardDescription>校验 Token 并选择工作目录。</CardDescription>
           </CardHeader>
           <CardContent class="space-y-4 pt-0">
             <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
@@ -116,18 +87,11 @@
               </div>
             </div>
           </CardContent>
-          <CardContent class="flex justify-end border-t border-border pt-4">
-            <Button :disabled="!isStep1Ready" @click="goNext">
-              下一步
-              <CaretRight :size="14" weight="bold" />
-            </Button>
-          </CardContent>
         </Card>
 
-        <Card v-else-if="activeStep === 1">
+        <Card>
           <CardHeader class="pb-3">
-            <CardTitle class="text-base">步骤 2 · 填写资源信息</CardTitle>
-            <CardDescription>填写 manifest 对应信息与资源仓库参数。</CardDescription>
+            <CardTitle class="text-base">资源信息与仓库参数</CardTitle>
           </CardHeader>
           <CardContent class="space-y-4 pt-0">
             <div class="grid gap-3 md:grid-cols-2">
@@ -189,21 +153,11 @@
               上传目标仓库: {{ currentUser || '--' }}/{{ resolvedRepoName || '--' }}
             </div>
           </CardContent>
-          <CardContent class="flex justify-between border-t border-border pt-4">
-            <Button variant="outline" @click="goPrev">
-              <CaretLeft :size="14" weight="bold" />
-              上一步
-            </Button>
-            <Button :disabled="!isStep2Ready" @click="goNext">
-              下一步
-              <CaretRight :size="14" weight="bold" />
-            </Button>
-          </CardContent>
         </Card>
 
-        <Card v-else-if="activeStep === 2">
+        <Card>
           <CardHeader class="pb-3">
-            <CardTitle class="text-base">步骤 3 · 上传资源仓库</CardTitle>
+            <CardTitle class="text-base">上传资源仓库</CardTitle>
             <CardDescription>创建或复用仓库，并上传 manifest、media、downloads。</CardDescription>
           </CardHeader>
           <CardContent class="space-y-4 pt-0">
@@ -220,7 +174,7 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
-              <Button :disabled="uploading || !isStep2Ready" @click="handleUploadResources">
+              <Button :disabled="uploading || !canUpload" @click="handleUploadResources">
                 <UploadSimple :size="16" weight="duotone" />
                 {{ uploading ? '上传中...' : '创建仓库并上传' }}
               </Button>
@@ -230,7 +184,7 @@
             </div>
 
             <div v-if="uploadedRepoUrl" class="rounded-lg border border-border bg-muted/25 p-3 text-sm">
-              <p class="font-medium text-foreground">仓库已就绪</p>
+              <p class="mb-1 font-medium text-foreground">仓库已就绪</p>
               <a
                 :href="uploadedRepoUrl"
                 target="_blank"
@@ -241,22 +195,11 @@
               </a>
             </div>
           </CardContent>
-          <CardContent class="flex justify-between border-t border-border pt-4">
-            <Button variant="outline" @click="goPrev">
-              <CaretLeft :size="14" weight="bold" />
-              上一步
-            </Button>
-            <Button :disabled="!isStep3Ready" @click="goNext">
-              下一步
-              <CaretRight :size="14" weight="bold" />
-            </Button>
-          </CardContent>
         </Card>
 
-        <Card v-else>
+        <Card>
           <CardHeader class="pb-3">
-            <CardTitle class="text-base">步骤 4 · 更新 Catalog 并创建 PR</CardTitle>
-            <CardDescription>向目录仓库提交 catalog 变更并创建 PR。</CardDescription>
+            <CardTitle class="text-base">Catalog 与 Pull Request</CardTitle>
           </CardHeader>
           <CardContent class="space-y-4 pt-0">
             <div class="grid gap-3 md:grid-cols-2">
@@ -298,7 +241,7 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
-              <Button :disabled="creatingPr || !isStep3Ready || !canSubmitPr" @click="handleCreateCatalogPr">
+              <Button :disabled="creatingPr || !canSubmitPr" @click="handleCreateCatalogPr">
                 <GitPullRequest :size="16" weight="duotone" />
                 {{ creatingPr ? '创建中...' : '更新 Catalog 并创建 PR' }}
               </Button>
@@ -313,15 +256,63 @@
               </a>
             </div>
           </CardContent>
-          <CardContent class="flex justify-between border-t border-border pt-4">
-            <Button variant="outline" @click="goPrev">
-              <CaretLeft :size="14" weight="bold" />
-              上一步
+        </Card>
+      </div>
+
+      <div class="space-y-4 xl:sticky xl:top-[84px] xl:self-start">
+        <Card>
+          <CardHeader class="pb-3">
+            <CardTitle class="text-base">发布状态</CardTitle>
+          </CardHeader>
+          <CardContent class="space-y-3 pt-0">
+            <div class="flex flex-wrap gap-2">
+              <Badge variant="outline">用户: {{ currentUser || '未校验' }}</Badge>
+              <Badge variant="outline">仓库: {{ resolvedRepoName || '--' }}</Badge>
+              <Badge variant="outline">Commit: {{ uploadedCommitSha ? uploadedCommitSha.slice(0, 7) : '--' }}</Badge>
+            </div>
+
+            <div v-if="uploadedRepoUrl" class="rounded-lg border border-border bg-muted/25 p-3 text-sm">
+              <p class="mb-1 font-medium text-foreground">资源仓库</p>
+              <a
+                :href="uploadedRepoUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="break-all text-primary hover:underline"
+              >
+                {{ uploadedRepoUrl }}
+              </a>
+            </div>
+
+            <div v-if="latestPrUrl" class="rounded-lg border border-border bg-muted/25 p-3 text-sm">
+              <p class="mb-1 font-medium text-foreground">最新 PR</p>
+              <a
+                :href="latestPrUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="break-all text-primary hover:underline"
+              >
+                {{ latestPrUrl }}
+              </a>
+            </div>
+
+            <Button variant="secondary" class="w-full" :disabled="!canLoadList" @click="refreshAllLists">
+              <ArrowsClockwise :size="16" weight="duotone" />
+              刷新审核与发布列表
             </Button>
-            <Button variant="secondary" :disabled="!latestPrUrl" @click="refreshAllLists">
-              <ArrowsClockwise :size="15" weight="duotone" />
-              刷新状态列表
-            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader class="pb-3">
+            <div class="flex items-center justify-between">
+              <CardTitle class="text-base">发布日志</CardTitle>
+              <Button variant="ghost" size="sm" @click="publishLogs = []">清空</Button>
+            </div>
+          </CardHeader>
+          <CardContent class="pt-0">
+            <div class="scrollbar-none max-h-[420px] overflow-y-auto rounded-lg border border-border bg-muted/25 p-3">
+              <pre class="m-0 whitespace-pre-wrap break-words font-mono text-xs leading-6 text-foreground">{{ publishLogsText }}</pre>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -399,20 +390,6 @@
         </CardContent>
       </Card>
     </div>
-
-    <Card>
-      <CardHeader class="pb-3">
-        <div class="flex items-center justify-between">
-          <CardTitle class="text-base">发布日志</CardTitle>
-          <Button variant="ghost" size="sm" @click="publishLogs = []">清空</Button>
-        </div>
-      </CardHeader>
-      <CardContent class="pt-0">
-        <div class="scrollbar-none max-h-[320px] overflow-y-auto rounded-lg border border-border bg-muted/25 p-3">
-          <pre class="m-0 whitespace-pre-wrap break-words font-mono text-xs leading-6 text-foreground">{{ publishLogsText }}</pre>
-        </div>
-      </CardContent>
-    </Card>
   </div>
 </template>
 
@@ -420,11 +397,7 @@
 import { computed, ref } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
-  PhCaretLeft as CaretLeft,
-  PhCaretRight as CaretRight,
   PhCheckCircle as CheckCircle,
-  PhCircle as Circle,
-  PhClockCountdown as ClockCountdown,
   PhEye as Eye,
   PhFolderOpen as FolderOpen,
   PhGitPullRequest as GitPullRequest,
@@ -444,6 +417,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useCcSession } from '@/composables/useCcSession'
 import { verifyToken } from '@/utils/githubGitApi'
 import {
   type CatalogEntry,
@@ -475,20 +449,9 @@ interface WorkspaceDirectoryHandle {
 const MAIN_BRANCH = 'main'
 const MANIFEST_FILE = 'manifest_v2.json'
 
-const flowSteps = [
-  { title: '步骤 1 · 准备环境', description: '校验 Token 与扫描目录' },
-  { title: '步骤 2 · 填写资源信息', description: '确认资源信息与仓库参数' },
-  { title: '步骤 3 · 上传资源仓库', description: '上传 manifest/media/downloads' },
-  { title: '步骤 4 · Catalog 与 PR', description: '更新目录并创建 PR' }
-] as const
-
-const activeStep = ref(0)
-
-const token = ref('')
+const { token, currentUser, avatarUrl, setSessionUser } = useCcSession()
 const showToken = ref(false)
 const verifying = ref(false)
-const currentUser = ref('')
-const userAvatar = ref('')
 
 const workspaceHandle = ref<WorkspaceDirectoryHandle | null>(null)
 const workspaceName = ref('')
@@ -536,10 +499,6 @@ const ownedItems = ref<CatalogEntry[]>([])
 const isBusy = computed(() => verifying.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
 
-const isStep1Ready = computed(
-  () => Boolean(token.value.trim() && currentUser.value && workspaceHandle.value && manifestFound.value)
-)
-
 const resolvedRepoName = computed(() => {
   const manual = repoName.value.trim()
   if (manual) return manual
@@ -554,22 +513,32 @@ const resolvedRepoName = computed(() => {
   return slug ? `ab-resource-${slug}` : ''
 })
 
-const isStep2Ready = computed(
-  () => Boolean(isStep1Ready.value && itemId.value.trim() && itemName.value.trim() && resolvedRepoName.value)
-)
-
 const uploadQueueCount = computed(
   () => (manifestText.value ? 1 : 0) + mediaFiles.value.length + downloadFiles.value.length
 )
 
-const isStep3Ready = computed(
-  () => Boolean(uploadedRepoOwner.value && uploadedRepoName.value && uploadedCommitSha.value)
+const canUpload = computed(
+  () =>
+    Boolean(
+      token.value.trim() &&
+        currentUser.value &&
+        workspaceHandle.value &&
+        manifestFound.value &&
+        itemId.value.trim() &&
+        itemName.value.trim() &&
+        resolvedRepoName.value
+    )
 )
 
 const canSubmitPr = computed(
   () =>
     Boolean(
-      upstreamOwner.value.trim() &&
+      token.value.trim() &&
+        currentUser.value &&
+        uploadedCommitSha.value &&
+        uploadedRepoOwner.value &&
+        uploadedRepoName.value &&
+        upstreamOwner.value.trim() &&
         upstreamRepo.value.trim() &&
         targetOwner.value.trim() &&
         targetRepo.value.trim() &&
@@ -593,66 +562,11 @@ const requireToken = (): string => {
   return value
 }
 
-const stepStatus = (index: number): 'done' | 'current' | 'pending' | 'locked' => {
-  if (index < activeStep.value) return 'done'
-  if (index === activeStep.value) return 'current'
-  if (canEnterStep(index)) return 'pending'
-  return 'locked'
-}
-
-const stepButtonClass = (index: number): string => {
-  const status = stepStatus(index)
-  if (status === 'done') return 'border-border bg-muted/30 text-foreground'
-  if (status === 'current') return 'border-primary/35 bg-primary/5 text-foreground'
-  if (status === 'pending') return 'border-border bg-background hover:bg-muted/30 text-foreground'
-  return 'border-border bg-muted/20 text-muted-foreground'
-}
-
-const canEnterStep = (index: number): boolean => {
-  if (index === 0) return true
-  if (index === 1) return isStep1Ready.value
-  if (index === 2) return isStep2Ready.value
-  if (index === 3) return isStep3Ready.value
-  return false
-}
-
-const enterStep = (index: number): void => {
-  if (index <= activeStep.value || canEnterStep(index)) {
-    activeStep.value = index
-    return
-  }
-
-  appendLog('请先完成前置步骤')
-}
-
-const goPrev = (): void => {
-  activeStep.value = Math.max(0, activeStep.value - 1)
-}
-
-const goNext = (): void => {
-  const next = activeStep.value + 1
-  if (next > flowSteps.length - 1) return
-
-  if (!canEnterStep(next)) {
-    if (activeStep.value === 0) {
-      appendLog('步骤 1 未完成：请先校验 Token 并扫描到 manifest_v2.json')
-    } else if (activeStep.value === 1) {
-      appendLog('步骤 2 未完成：请补全资源 ID、资源名称和仓库名')
-    } else {
-      appendLog('步骤 3 未完成：请先执行资源上传')
-    }
-    return
-  }
-
-  activeStep.value = next
-}
-
 const handleVerifyToken = async (): Promise<void> => {
   try {
     verifying.value = true
     const user = await verifyToken(requireToken())
-    currentUser.value = user.login
-    userAvatar.value = user.avatar_url
+    setSessionUser(user)
     appendLog(`Token 校验成功: ${user.login}`)
   } catch (error: unknown) {
     appendLog(`Token 校验失败: ${error instanceof Error ? error.message : '未知错误'}`)
@@ -895,7 +809,7 @@ const handleCreateCatalogPr = async (): Promise<void> => {
     }
 
     if (!uploadedCommitSha.value || !uploadedRepoOwner.value || !uploadedRepoName.value) {
-      throw new Error('请先完成步骤 3 上传资源')
+      throw new Error('请先完成资源仓库上传')
     }
 
     const branchName = `astrobooox-submit-${Date.now()}`
