@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full overflow-y-auto rounded-xl border border-border bg-card">
+  <div class="overflow-hidden rounded-xl border border-border bg-card">
     <div class="sticky top-0 z-10 border-b border-border bg-card px-3 py-2">
       <div class="relative">
         <Input
@@ -18,7 +18,7 @@
       </div>
     </div>
 
-    <nav aria-label="File Tree Navigation" class="px-2 py-2">
+    <nav aria-label="File Tree Navigation" class="max-h-[18rem] overflow-y-auto px-2 py-2 lg:max-h-[calc(100vh-16rem)]">
       <ul class="space-y-0.5" role="tree" aria-label="File Tree">
         <template v-for="item in displayItems" :key="getItemKey(item)">
           <li v-if="isFolderItem(item)" role="treeitem" :data-depth="item.depth">

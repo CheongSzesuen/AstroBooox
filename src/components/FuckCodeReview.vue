@@ -1,5 +1,5 @@
 <template>
-  <div class="relative flex h-screen overflow-hidden bg-background">
+  <div class="w-full">
     <Dialog :open="showFeatureNotice" @update:open="showFeatureNotice = $event">
       <DialogContent class="sm:max-w-[560px]">
         <DialogHeader class="gap-3">
@@ -35,25 +35,20 @@
       </DialogContent>
     </Dialog>
 
-    <!-- 使用侧栏组件 -->
-    <Sidebar
-      :pull-requests="pullRequests"
-      :selected-pr="selectedPR"
-      :loading="loadingPRs"
-      :is-collapsed="isSidebarCollapsed"
-      @select="selectPR"
-      @toggle="toggleSidebar"
-      @refresh="fetchPullRequests"
-    />
+    <div class="mx-auto flex max-w-[1600px] flex-col gap-3 lg:flex-row">
+      <!-- 使用侧栏组件 -->
+      <Sidebar
+        :pull-requests="pullRequests"
+        :selected-pr="selectedPR"
+        :loading="loadingPRs"
+        :is-collapsed="isSidebarCollapsed"
+        @select="selectPR"
+        @toggle="toggleSidebar"
+        @refresh="fetchPullRequests"
+      />
 
-    <!-- 主内容区 -->
-    <div
-      :class="[
-        'flex-1 overflow-auto px-2.5 py-2 transition-[margin-left] duration-300 md:px-4 md:py-3.5',
-        isSidebarCollapsed ? 'ml-[4.25rem] md:ml-[6rem]' : 'ml-[18rem] md:ml-[22rem]'
-      ]"
-    >
-      <div class="mx-auto max-w-[1280px]">
+      <!-- 主内容区 -->
+      <div class="min-w-0 flex-1">
         <div v-if="errorMessage" class="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-6 text-foreground">
           {{ errorMessage }}
         </div>
@@ -244,10 +239,10 @@ const toggleSidebar = () => {
 }
 
 const selectPR = async (pr: PullRequest) => {
-  if (isFirstSelection.value) {
+  if (isFirstSelection.value && window.innerWidth >= 1024) {
     isSidebarCollapsed.value = true
-    isFirstSelection.value = false
   }
+  isFirstSelection.value = false
   selectedPR.value = pr
   analyzedData.value = null
   repoData.value = null

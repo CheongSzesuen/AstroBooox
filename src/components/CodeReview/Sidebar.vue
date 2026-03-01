@@ -9,7 +9,7 @@
       <Button variant="secondary" size="sm" @click="$emit('refresh')">重试</Button>
     </div>
 
-    <div v-else class="flex-1 overflow-y-auto pr-1">
+    <div v-else class="flex-1 overflow-y-auto pr-1 max-[1023px]:max-h-[18rem]">
       <button
         v-for="pr in pullRequests"
         :key="pr.id"
@@ -37,7 +37,7 @@
 
     <button
       type="button"
-      class="mt-1.5 inline-flex w-full items-center justify-between rounded-md border border-border bg-muted/40 px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
+      class="mt-1.5 hidden w-full items-center justify-between rounded-md border border-border bg-muted/40 px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent lg:inline-flex"
       @click="$emit('toggle')"
     >
       <span v-if="!isCollapsed" class="truncate">折叠边栏</span>
@@ -89,10 +89,10 @@ defineEmits(['select', 'toggle', 'refresh'])
 const avatarCache = new Map<string, string>()
 
 const sidebarClass = computed(() => [
-  'fixed z-40 flex flex-col overflow-hidden border border-border bg-card shadow-sm transition-all duration-300',
+  'flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-300 lg:sticky lg:top-0',
   props.isCollapsed
-    ? 'left-2 top-[4rem] bottom-3 w-[3.1rem] rounded-lg p-1.5 md:left-4 md:top-[4.25rem] md:bottom-4 md:w-[4.75rem]'
-    : 'left-3 top-[4rem] bottom-3 w-[17.25rem] rounded-xl p-2 md:left-4 md:top-[4.25rem] md:bottom-4 md:w-80 md:p-2.5'
+    ? 'w-full p-2 lg:w-[4.75rem] lg:p-1.5'
+    : 'w-full p-2 lg:w-[18rem] lg:p-2.5 xl:w-80'
 ])
 
 const itemClass = (pr: PullRequest): string[] => {

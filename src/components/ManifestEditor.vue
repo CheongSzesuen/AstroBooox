@@ -1,7 +1,7 @@
 <template>
   <div class="flex min-h-full w-full flex-col">
     <!-- 完整项目路径和操作按钮部分 -->
-    <div v-if="projectDirectory" class="flex min-h-full w-full flex-col gap-4">
+    <div v-if="projectDirectory" class="flex min-h-[calc(100vh-12rem)] w-full flex-col gap-4">
       <div class="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm max-[480px]:flex-col max-[480px]:items-start max-[480px]:gap-3">
         <span class="min-w-0 flex-1 truncate">当前项目路径: {{ projectDirectory.name }} ({{ isFsaSupported ? 'FSA' : 'OPFS' }})</span>
         <Button
@@ -22,9 +22,9 @@
         </Button>
       </div>
       
-      <div class="flex min-h-[500px] flex-1 gap-4 overflow-hidden max-[768px]:flex-col">
+      <div class="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <!-- 完整的表单容器 -->
-        <div class="flex-1 min-w-0 overflow-y-auto rounded-xl border border-border bg-muted/55 p-4">
+        <div class="min-w-0 overflow-y-auto rounded-xl border border-border bg-muted/55 p-4">
           <!-- 应用信息部分 -->
           <div class="mb-8 w-full rounded-xl border border-border bg-card p-4 shadow-sm">
             <h3 class="mb-4 text-base font-semibold text-foreground">应用信息</h3>
@@ -66,7 +66,7 @@
             </div>
             <div class="mb-4 w-full">
               <label class="mb-2 block font-semibold text-foreground">图标</label>
-              <div class="flex w-full gap-2">
+              <div class="flex w-full gap-2 max-[640px]:flex-col">
                 <Input v-model="manifest.item.icon" placeholder="icon.png" readonly class="flex-1 min-w-0" />
                 <Button @click="selectFile('icon')">选择文件</Button>
               </div>
@@ -105,7 +105,7 @@
               </div>
               <div class="mb-4 w-full">
                 <label class="mb-2 block font-semibold text-foreground">资源文件</label>
-                <div class="flex w-full gap-2">
+                <div class="flex w-full gap-2 max-[640px]:flex-col">
                   <Input v-model="download.file_name" readonly class="flex-1 min-w-0" />
                   <Button @click="selectFile('download', deviceCode)">选择文件</Button>
                 </div>
@@ -117,8 +117,8 @@
         </div>
         
         <!-- JSON预览部分 -->
-        <div class="flex min-w-[300px] max-w-[40%] w-[40%] flex-col overflow-y-auto rounded-xl border border-border bg-muted/55 p-4 max-[768px]:max-w-full max-[768px]:w-full">
-          <div class="mb-4 flex gap-2">
+        <div class="min-w-0 rounded-xl border border-border bg-muted/55 p-4 xl:sticky xl:top-0 xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto">
+          <div class="mb-4 flex flex-wrap gap-2 xl:sticky xl:top-0 xl:z-10 xl:bg-muted/95 xl:pb-3">
             <Button :class="{ 'cursor-not-allowed opacity-60': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
               <FloppyDisk :size="16" weight="bold" />
               保存
@@ -135,6 +135,13 @@
           <JsonPreview :data="manifest" />
         </div>
       </div>
+    </div>
+
+    <div
+      v-else
+      class="flex min-h-[16rem] items-center justify-center rounded-xl border border-dashed border-border bg-muted/25 px-4 text-center text-sm text-muted-foreground"
+    >
+      请先选择项目目录，再开始编辑 manifest.json。
     </div>
     
     <Dialog :open="showDeclaration">
