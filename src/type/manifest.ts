@@ -37,7 +37,7 @@ export interface Manifest {
 /**
  • 应用模式
  */
-export type AppMode = 'manifest' | 'csv' | 'res-link' | 'code-review';
+export type AppMode = 'manifest' | 'csv' | 'res-link' | 'code-review' | 'git-browser';
 
 /**
  • 设备类型

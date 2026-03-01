@@ -1,0 +1,313 @@
+const GITHUB_API_BASE = 'https://api.github.com'
+const GITHUB_API_VERSION = '2022-11-28'
+
+export interface GitHubUser {
+  login: string
+  name: string | null
+  html_url: string
+}
+
+export interface GitHubRepository {
+  name: string
+  full_name: string
+  default_branch: string
+  html_url: string
+  owner: {
+    login: string
+  }
+}
+
+export interface RepositoryFile {
+  path: string
+  sha: string
+  size: number
+  content: string
+  htmlUrl: string
+  downloadUrl: string | null
+}
+
+export interface CommitResult {
+  commitSha: string
+  commitUrl: string
+  branch: string
+}
+
+export interface PullRequestResult {
+  number: number
+  htmlUrl: string
+  title: string
+}
+
+interface GitHubApiError extends Error {
+  status?: number
+}
+
+const buildHeaders = (token: string, contentType?: string): HeadersInit => ({
+  Accept: 'application/vnd.github+json',
+  'X-GitHub-Api-Version': GITHUB_API_VERSION,
+  ...(contentType ? { 'Content-Type': contentType } : {}),
+  Authorization: `Bearer ${token}`
+})
+
+const makeApiError = (status: number, message: string): GitHubApiError => {
+  const error = new Error(message) as GitHubApiError
+  error.status = status
+  return error
+}
+
+const parseErrorResponse = async (response: Response): Promise<never> => {
+  const text = await response.text()
+  const fallback = `GitHub API ${response.status}: ${response.statusText}`
+
+  let message = fallback
+  try {
+    const data = JSON.parse(text) as { message?: string }
+    message = data.message ? `GitHub API ${response.status}: ${data.message}` : fallback
+  } catch {
+    message = text ? `GitHub API ${response.status}: ${text}` : fallback
+  }
+
+  throw makeApiError(response.status, message)
+}
+
+const requestJson = async <T>(path: string, token: string, init?: RequestInit): Promise<T> => {
+  const response = await fetch(`${GITHUB_API_BASE}${path}`, {
+    ...init,
+    headers: {
+      ...buildHeaders(token),
+      ...(init?.headers || {})
+    }
+  })
+
+  if (!response.ok) {
+    await parseErrorResponse(response)
+  }
+
+  return (await response.json()) as T
+}
+
+const encodeContentPath = (path: string): string =>
+  path
+    .split('/')
+    .filter(segment => segment.length > 0)
+    .map(segment => encodeURIComponent(segment))
+    .join('/')
+
+const toBase64 = (text: string): string => {
+  const bytes = new TextEncoder().encode(text)
+  let binary = ''
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte)
+  }
+  return btoa(binary)
+}
+
+const fromBase64 = (base64Text: string): string => {
+  const normalized = base64Text.replace(/\n/g, '')
+  const binary = atob(normalized)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return new TextDecoder().decode(bytes)
+}
+
+export const verifyToken = async (token: string): Promise<GitHubUser> => {
+  if (!token.trim()) {
+    throw new Error('Token 不能为空')
+  }
+  return requestJson<GitHubUser>('/user', token)
+}
+
+export const createRepository = async (
+  token: string,
+  name: string,
+  description: string
+): Promise<GitHubRepository> => {
+  if (!name.trim()) {
+    throw new Error('仓库名不能为空')
+  }
+
+  return requestJson<GitHubRepository>('/user/repos', token, {
+    method: 'POST',
+    headers: buildHeaders(token, 'application/json'),
+    body: JSON.stringify({
+      name: name.trim(),
+      description: description.trim(),
+      private: false,
+      auto_init: true
+    })
+  })
+}
+
+export const readRepositoryFile = async (
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+  filePath: string
+): Promise<RepositoryFile> => {
+  const encodedPath = encodeContentPath(filePath)
+  if (!encodedPath) {
+    throw new Error('文件路径不能为空')
+  }
+
+  const response = await requestJson<{
+    type: string
+    path: string
+    sha: string
+    size: number
+    content?: string
+    html_url?: string
+    download_url?: string | null
+  }>(
+    `/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}`,
+    token
+  )
+
+  if (response.type !== 'file') {
+    throw new Error('目标路径不是文件')
+  }
+
+  if (!response.content) {
+    throw new Error('文件内容为空，可能是二进制文件或超大文件')
+  }
+
+  return {
+    path: response.path,
+    sha: response.sha,
+    size: response.size,
+    content: fromBase64(response.content),
+    htmlUrl: response.html_url || '',
+    downloadUrl: response.download_url || null
+  }
+}
+
+export const commitTextFile = async (params: {
+  token: string
+  owner: string
+  repo: string
+  branch: string
+  filePath: string
+  fileContent: string
+  commitMessage: string
+}): Promise<CommitResult> => {
+  const { token, owner, repo, branch, filePath, fileContent, commitMessage } = params
+  const encodedPath = encodeContentPath(filePath)
+
+  if (!encodedPath) throw new Error('文件路径不能为空')
+  if (!commitMessage.trim()) throw new Error('提交信息不能为空')
+
+  const refData = await requestJson<{ object: { sha: string } }>(
+    `/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`,
+    token
+  )
+  const parentSha = refData.object.sha
+
+  const commitData = await requestJson<{ tree: { sha: string } }>(
+    `/repos/${owner}/${repo}/git/commits/${parentSha}`,
+    token
+  )
+  const baseTreeSha = commitData.tree.sha
+
+  const blobData = await requestJson<{ sha: string }>(
+    `/repos/${owner}/${repo}/git/blobs`,
+    token,
+    {
+      method: 'POST',
+      headers: buildHeaders(token, 'application/json'),
+      body: JSON.stringify({
+        content: toBase64(fileContent),
+        encoding: 'base64'
+      })
+    }
+  )
+
+  const treeData = await requestJson<{ sha: string }>(
+    `/repos/${owner}/${repo}/git/trees`,
+    token,
+    {
+      method: 'POST',
+      headers: buildHeaders(token, 'application/json'),
+      body: JSON.stringify({
+        base_tree: baseTreeSha,
+        tree: [
+          {
+            path: filePath,
+            mode: '100644',
+            type: 'blob',
+            sha: blobData.sha
+          }
+        ]
+      })
+    }
+  )
+
+  const newCommit = await requestJson<{ sha: string; html_url?: string }>(
+    `/repos/${owner}/${repo}/git/commits`,
+    token,
+    {
+      method: 'POST',
+      headers: buildHeaders(token, 'application/json'),
+      body: JSON.stringify({
+        message: commitMessage.trim(),
+        tree: treeData.sha,
+        parents: [parentSha]
+      })
+    }
+  )
+
+  await requestJson<{ object: { sha: string } }>(
+    `/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,
+    token,
+    {
+      method: 'PATCH',
+      headers: buildHeaders(token, 'application/json'),
+      body: JSON.stringify({
+        sha: newCommit.sha,
+        force: false
+      })
+    }
+  )
+
+  return {
+    commitSha: newCommit.sha,
+    commitUrl: newCommit.html_url || `https://github.com/${owner}/${repo}/commit/${newCommit.sha}`,
+    branch
+  }
+}
+
+export const createPullRequest = async (params: {
+  token: string
+  baseOwner: string
+  baseRepo: string
+  baseBranch: string
+  headOwner: string
+  headBranch: string
+  title: string
+  body?: string
+}): Promise<PullRequestResult> => {
+  const { token, baseOwner, baseRepo, baseBranch, headOwner, headBranch, title, body } = params
+  if (!title.trim()) throw new Error('PR 标题不能为空')
+
+  const response = await requestJson<{
+    number: number
+    html_url: string
+    title: string
+  }>(`/repos/${baseOwner}/${baseRepo}/pulls`, token, {
+    method: 'POST',
+    headers: buildHeaders(token, 'application/json'),
+    body: JSON.stringify({
+      title: title.trim(),
+      body: body?.trim() || undefined,
+      base: baseBranch,
+      head: `${headOwner}:${headBranch}`
+    })
+  })
+
+  return {
+    number: response.number,
+    htmlUrl: response.html_url,
+    title: response.title
+  }
+}

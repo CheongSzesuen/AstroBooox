@@ -31,6 +31,11 @@ const router = createRouter({
           path: 'code-review',
           name: 'code-review',
           component: () => import('../components/FuckCodeReview.vue')
+        },
+        {
+          path: 'git-browser',
+          name: 'git-browser',
+          component: () => import('../components/GitBrowserOps.vue')
         }
       ]
     }

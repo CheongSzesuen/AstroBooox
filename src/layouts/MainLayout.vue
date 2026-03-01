@@ -114,6 +114,7 @@ const ManifestEditor = defineAsyncComponent(() => import('../components/Manifest
 const CSVEGenerator = defineAsyncComponent(() => import('../components/CSVEGenerator.vue'))
 const ResLinkGenerator = defineAsyncComponent(() => import('../components/ResLinkGenerator.vue'))
 const FuckCodeReview = defineAsyncComponent(() => import('../components/FuckCodeReview.vue'))
+const GitBrowserOps = defineAsyncComponent(() => import('../components/GitBrowserOps.vue'))
 
 interface FileSystemHandle {
   readonly kind: 'file' | 'directory'
@@ -166,6 +167,8 @@ const currentComponent = computed(() => {
       return ResLinkGenerator
     case 'code-review':
       return FuckCodeReview
+    case 'git-browser':
+      return GitBrowserOps
     default:
       return ManifestEditor
   }
