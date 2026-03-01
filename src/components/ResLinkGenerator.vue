@@ -10,27 +10,30 @@
             <div class="form-group">
               <label>资源名称</label>
               <div class="input-with-button">
-                <input
+                <Input
                   id="resourceNameInput"
                   v-model="resourceName"
                   placeholder="PoP☆P"
+                  class="flex-1"
                   @keyup.enter="copyLink"
                 />
-                <button 
+                <Button
+                  variant="outline"
                   @click="openResourceSearch" 
                   class="search-button"
                 >
                   <MagnifyingGlass :size="16" weight="bold" />
                   搜索
-                </button>
-                <button 
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
                   @click="clearInput" 
                   :disabled="!resourceName.trim()" 
                   class="round-remove-button"
                 >
                   <Minus :size="16" weight="bold" />
-                  清除
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -44,10 +47,10 @@
               <pre>{{ generatedLink }}</pre>
             </div>
             <div class="preview-actions">
-              <button @click="copyLink" :disabled="!resourceName.trim()" class="add-button">
+              <Button @click="copyLink" :disabled="!resourceName.trim()">
                 <CopySimple :size="16" weight="bold" />
                 {{ copyButtonText }}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -61,94 +64,54 @@
                 <!-- 语言选择 -->
                 <div class="form-group">
                   <label class="config-label">语言</label>
-                  <div class="config-options">
-                    <label class="config-option" :class="{ active: badgeLanguage === 'zhcn' }">
-                      <input 
-                        type="radio" 
-                        v-model="badgeLanguage" 
-                        value="zhcn"
-                        class="sr-only"
-                      >
-                      <span class="option-text">简体中文</span>
-                    </label>
-                    <label class="config-option" :class="{ active: badgeLanguage === 'en' }">
-                      <input 
-                        type="radio" 
-                        v-model="badgeLanguage" 
-                        value="en"
-                        class="sr-only"
-                      >
-                      <span class="option-text">英文</span>
-                    </label>
-                  </div>
+                  <RadioGroup v-model="badgeLanguage" class="config-options">
+                    <div class="config-item">
+                      <RadioGroupItem id="badge-lang-zhcn" value="zhcn" />
+                      <Label for="badge-lang-zhcn">简体中文</Label>
+                    </div>
+                    <div class="config-item">
+                      <RadioGroupItem id="badge-lang-en" value="en" />
+                      <Label for="badge-lang-en">英文</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
                 
                 <!-- 样式选择 -->
                 <div class="form-group">
                   <label class="config-label">样式</label>
-                  <div class="config-options">
-                    <label class="config-option" :class="{ active: badgeStyle === 'standard' }">
-                      <input 
-                        type="radio" 
-                        v-model="badgeStyle" 
-                        value="standard"
-                        class="sr-only"
-                      >
-                      <span class="option-text">标准</span>
-                    </label>
-                    <label class="config-option" :class="{ active: badgeStyle === 'rounded' }">
-                      <input 
-                        type="radio" 
-                        v-model="badgeStyle" 
-                        value="rounded"
-                        class="sr-only"
-                      >
-                      <span class="option-text">胶囊</span>
-                    </label>
-                    <label class="config-option" :class="{ active: badgeStyle === 'linked' }">
-                      <input 
-                        type="radio" 
-                        v-model="badgeStyle" 
-                        value="linked"
-                        class="sr-only"
-                      >
-                      <span class="option-text">链接</span>
-                    </label>
-                  </div>
+                  <RadioGroup v-model="badgeStyle" class="config-options">
+                    <div class="config-item">
+                      <RadioGroupItem id="badge-style-standard" value="standard" />
+                      <Label for="badge-style-standard">标准</Label>
+                    </div>
+                    <div class="config-item">
+                      <RadioGroupItem id="badge-style-rounded" value="rounded" />
+                      <Label for="badge-style-rounded">胶囊</Label>
+                    </div>
+                    <div class="config-item">
+                      <RadioGroupItem id="badge-style-linked" value="linked" />
+                      <Label for="badge-style-linked">链接</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
                 
                 <!-- 配色选择 -->
                 <div class="form-group">
                   <label class="config-label">配色</label>
-                  <div class="config-options">
-                    <label class="config-option" :class="{ active: badgeColor === 'black' }">
-                      <input 
-                        type="radio" 
-                        v-model="badgeColor" 
-                        value="black"
-                        class="sr-only"
-                      >
-                      <span class="option-text">黑色</span>
-                    </label>
-                    <label class="config-option" :class="{ active: badgeColor === 'gray' }">
-                      <input 
-                        type="radio" 
-                        v-model="badgeColor" 
-                        value="gray"
-                        class="sr-only"
-                      >
-                      <span class="option-text">灰色</span>
-                    </label>
-                    <label class="config-option" :class="{ active: badgeColor === 'white' }">
-                      <input 
-                        type="radio" 
-                        v-model="badgeColor" 
-                        value="white"
-                        class="sr-only"
-                      >
-                      <span class="option-text">亮色</span>
-                    </label>
-                  </div>
+                  <RadioGroup v-model="badgeColor" class="config-options">
+                    <div class="config-item">
+                      <RadioGroupItem id="badge-color-black" value="black" />
+                      <Label for="badge-color-black">黑色</Label>
+                    </div>
+                    <div class="config-item">
+                      <RadioGroupItem id="badge-color-gray" value="gray" />
+                      <Label for="badge-color-gray">灰色</Label>
+                    </div>
+                    <div class="config-item">
+                      <RadioGroupItem id="badge-color-white" value="white" />
+                      <Label for="badge-color-white">亮色</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
               </div>
               
@@ -184,30 +147,32 @@
             </div>
             
             <div class="preview-actions">
-              <button @click="copyBadgeCode" :disabled="!resourceName.trim()" class="add-button">
+              <Button @click="copyBadgeCode" :disabled="!resourceName.trim()">
                 <CopySimple :size="16" weight="bold" />
                 {{ copyBadgeButtonText }}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 资源搜索对话框 -->
-      <div v-if="showResourceSearch" class="modal-overlay">
-        <div class="modal-content">
-          <h3>搜索资源 <span class="hint-text">(暂时不支持模糊搜索)</span></h3>
+      <Dialog :open="showResourceSearch" @update:open="showResourceSearch = $event">
+        <DialogContent class="max-w-[840px]">
+          <DialogHeader>
+            <DialogTitle>搜索资源</DialogTitle>
+            <DialogDescription>暂时不支持模糊拼写纠错，请输入关键字搜索。</DialogDescription>
+          </DialogHeader>
           <div class="search-input-container">
-            <input 
-              v-model="searchQuery" 
-              placeholder="输入资源名称或作者名搜索..." 
+            <Input
+              v-model="searchQuery"
+              placeholder="输入资源名称或作者名搜索..."
               @input="filterResources"
               class="search-input"
             />
           </div>
           <div class="resource-grid">
-            <div 
-              v-for="resource in filteredResources" 
+            <div
+              v-for="resource in filteredResources"
               :key="resource.name"
               class="resource-card"
               :class="{ selected: isResourceSelected(resource) }"
@@ -223,11 +188,11 @@
               没有找到匹配的资源
             </div>
           </div>
-          <div class="modal-actions">
-            <button @click="closeResourceSearch" class="add-button">取消</button>
-          </div>
-        </div>
-      </div>
+          <DialogFooter>
+            <Button variant="outline" @click="closeResourceSearch">取消</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   </div>
 </template>
@@ -239,6 +204,18 @@ import {
   PhMagnifyingGlass as MagnifyingGlass,
   PhMinus as Minus
 } from '@phosphor-icons/vue';
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 // 用于存储用户输入的资源名称
 const resourceName = ref('');
@@ -450,20 +427,17 @@ const clearInput = () => {
 </script>
 
 <style scoped>
-/* 基础样式 */
 .res-link-generator {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
   width: 100%;
-  box-sizing: border-box;
-  padding: 1rem;
 }
 
 .editor-content {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
   width: 100%;
   gap: 1rem;
 }
@@ -478,81 +452,61 @@ const clearInput = () => {
 .form-container {
   flex: 1;
   min-width: 0;
-  background: #f5f5f5;
+  background: hsl(var(--muted) / 0.55);
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
   padding: 1rem;
-  border-radius: 8px;
   overflow-y: auto;
 }
 
 .form-section {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 600;
-  color: #1e293b;
+  color: hsl(var(--foreground));
 }
 
 .config-label {
   display: block;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   font-weight: 600;
-  color: #1e293b;
-  font-size: 0.95rem;
+  color: hsl(var(--foreground));
+  font-size: 0.9rem;
 }
 
 .input-with-button {
   display: flex;
-  gap: 0.75rem;
-}
-
-.input-with-button input {
-  flex: 1;
-  padding: 0.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  font-family: inherit;
-  font-size: 1rem;
-  color: #334155;
-  box-sizing: border-box;
-  transition: all 0.2s;
-}
-
-.input-with-button input:focus {
-  border-color: #0e467c;
-  box-shadow: 0 0 0 2px rgba(14, 70, 124, 0.1);
-  outline: none;
-}
-
-.input-with-button input::placeholder {
-  color: #94a3b8;
-  font-style: italic;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .preview-content {
-  background: #f8fafc;
-  color: #334155;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
   padding: 1rem;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
   overflow: auto;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1.5;
 }
 
 .hint-text {
-  color: #64748b;
-  font-size: 0.85rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8rem;
   font-weight: normal;
 }
 
@@ -560,177 +514,64 @@ pre {
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-family: 'Consolas', 'Monaco', monospace;
 }
 
 .preview-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1.5rem;
+  margin-top: 1rem;
 }
 
 .empty {
-  color: #94a3b8;
+  color: hsl(var(--muted-foreground));
   font-style: italic;
 }
 
 a {
-  color: #0e467c;
+  color: hsl(var(--foreground));
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 a:hover {
-  color: #0a3560;
+  color: hsl(var(--foreground));
   text-decoration: underline;
 }
 
-/* 按钮样式 */
 .search-button {
-  display: inline-flex;
-  align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border: none;
-  background: #e6f0f8;
-  color: #0e467c;
-  cursor: pointer;
-  border-radius: 6px;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: all 0.2s;
-}
-
-.search-button:hover {
-  background: #d0e5fa;
-}
-
-.search-button svg {
-  width: 16px;
-  height: 16px;
 }
 
 .round-remove-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border: none;
-  background: #f8e6e6;
-  color: #8b0000;
-  cursor: pointer;
-  border-radius: 6px;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: all 0.2s;
+  min-width: 2.25rem;
 }
 
-.round-remove-button:hover {
-  background: #f0cfcf;
-}
-
-.round-remove-button svg {
-  width: 16px;
-  height: 16px;
-}
-
-.add-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: none;
-  background: #e6f0f8;
-  color: #0e467c;
-  cursor: pointer;
-  border-radius: 4px;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: all 0.2s;
-}
-
-.add-button:hover {
-  background: #cfe0f0;
-}
-
-.add-button:disabled {
-  background-color: #e2e8f0;
-  color: #94a3b8;
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.add-button svg {
-  width: 16px;
-  height: 16px;
-}
-
-button:disabled {
-  background-color: #e2e8f0;
-  color: #94a3b8;
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-/* 徽标配置选项样式 */
 .config-options {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.75rem;
   margin-top: 0.5rem;
 }
 
-.config-option {
+.config-item {
   display: inline-flex;
   align-items: center;
-  padding: 0.75rem 1.25rem;
-  border-radius: 6px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.9rem;
-  color: #475569;
+  gap: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  background: hsl(var(--background));
 }
 
-.config-option:hover {
-  border-color: #cbd5e1;
-  background: #f1f5f9;
-}
-
-.config-option.active {
-  background: #e6f0f8;
-  border-color: #0e467c;
-  color: #0e467c;
-  font-weight: 500;
-}
-
-.option-text {
-  pointer-events: none;
-}
-
-/* 隐藏原生radio按钮 */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
-}
-
-/* 徽标预览区域 */
 .badge-preview-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1.5rem;
-  background: #f8fafc;
-  border-radius: 8px;
-  border: 1px dashed #cbd5e1;
+  padding: 1rem;
+  background: hsl(var(--background));
+  border-radius: 0.5rem;
+  border: 1px dashed hsl(var(--border));
   margin-top: 0.5rem;
   height: 100%;
   box-sizing: border-box;
@@ -744,29 +585,27 @@ button:disabled {
   transition: all 0.3s ease;
 }
 
-/* 代码预览区域 */
 .code-preview {
-  background: #f8fafc;
-  border-radius: 6px;
+  background: hsl(var(--background));
+  border-radius: 0.5rem;
   padding: 1rem;
   margin-top: 0.5rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid hsl(var(--border));
   overflow-x: auto;
 }
 
 .code-preview pre {
   margin: 0;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-family: 'Consolas', 'Monaco', monospace;
   font-size: 0.85rem;
-  color: #334155;
+  color: hsl(var(--foreground));
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-/* 徽标配置容器 */
 .badge-config-container {
   display: flex;
-  gap: 2rem;
+  gap: 1rem;
   margin-bottom: 1.5rem;
   align-items: stretch;
 }
@@ -786,71 +625,32 @@ button:disabled {
   flex-direction: column;
 }
 
-/* 资源搜索对话框样式 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  width: 85%;
-  max-width: 800px;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
 .search-input-container {
-  padding: 0 0.5rem 1rem;
+  padding: 0 0 0.75rem;
   width: 100%;
   box-sizing: border-box;
 }
 
 .search-input {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  font-size: 1rem;
-  box-sizing: border-box;
-  transition: all 0.2s;
-}
-
-.search-input:focus {
-  border-color: #0e467c;
-  box-shadow: 0 0 0 2px rgba(14, 70, 124, 0.1);
-  outline: none;
 }
 
 .resource-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1rem;
-  padding: 0.5rem;
+  padding: 0.25rem;
   overflow-y: auto;
-  flex: 1;
-  margin-top: 0.5rem;
+  max-height: 52vh;
 }
 
 .resource-card {
-  padding: 1rem;
-  border-radius: 6px;
+  padding: 0.875rem;
+  border-radius: 0.5rem;
   cursor: pointer;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  transition: border-color 0.2s ease, background-color 0.2s ease;
   min-height: 80px;
   display: flex;
   flex-direction: column;
@@ -858,14 +658,12 @@ button:disabled {
 }
 
 .resource-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  border-color: #cbd5e1;
+  background: hsl(var(--accent));
 }
 
 .resource-card.selected {
-  background: #e6f0f8;
-  border-color: #0e467c;
+  background: hsl(var(--muted));
+  border-color: hsl(var(--ring));
 }
 
 .resource-header {
@@ -877,7 +675,7 @@ button:disabled {
 
 .resource-name {
   font-weight: 600;
-  color: #0e467c;
+  color: hsl(var(--foreground));
   font-size: 0.95rem;
   white-space: nowrap;
   overflow: hidden;
@@ -887,17 +685,18 @@ button:disabled {
 
 .resource-type {
   font-size: 0.7rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  background: #e6f0f8;
-  color: #0e467c;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.375rem;
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
   white-space: nowrap;
   margin-left: 0.5rem;
+  border: 1px solid hsl(var(--border));
 }
 
 .resource-author {
   font-size: 0.8rem;
-  color: #475569;
+  color: hsl(var(--muted-foreground));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -907,18 +706,9 @@ button:disabled {
   grid-column: 1 / -1;
   text-align: center;
   padding: 2rem;
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e2e8f0;
-}
-
-/* 响应式调整 */
 @media (min-width: 1200px) {
   .resource-grid {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -926,49 +716,33 @@ button:disabled {
 }
 
 @media (max-width: 992px) {
-  .modal-content {
-    width: 90%;
-  }
-  
   .config-options {
     gap: 0.5rem;
-  }
-  
-  .config-option {
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
   }
 }
 
 @media (max-width: 768px) {
-  .modal-content {
-    width: 95%;
-    padding: 1rem;
-    max-height: 85vh;
-  }
-  
   .resource-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 0.75rem;
   }
   
   .form-section {
-    padding: 1.25rem;
+    padding: 1rem;
   }
   
   .input-with-button {
     flex-direction: column;
   }
   
-  .input-with-button input,
-  .input-with-button button {
+  .input-with-button :deep(button) {
     width: 100%;
+    justify-content: center;
   }
   
-  /* 窄屏设备下徽标配置改为垂直布局 */
   .badge-config-container {
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
   }
   
   .badge-preview-wrapper {
@@ -988,7 +762,7 @@ button:disabled {
 
 @media (max-width: 400px) {
   .form-section {
-    padding: 1rem;
+    padding: 0.875rem;
   }
   
   .form-group {
@@ -997,11 +771,6 @@ button:disabled {
   
   .preview-actions {
     margin-top: 1rem;
-  }
-  
-  .add-button {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.9rem;
   }
 }
 </style>

@@ -9,33 +9,41 @@
             <h3>资源信息</h3>
             <div class="form-group">
               <label>资源名称</label>
-              <input v-model="csvData.name" placeholder="WeatherPlus" />
+              <Input v-model="csvData.name" placeholder="WeatherPlus" />
             </div>
             <div class="form-group">
               <label>图标 URL <span class="hint-text">(最佳为200×200,AstroBox会自动割圆。若设计简陋、低质会被打回) </span><span class="hint-text">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span></label>
-              <input v-model="csvData.icon" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/图标名" />
+              <Input v-model="csvData.icon" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/图标名" />
             </div>
             <div class="form-group">
               <label>封面 URL <span class="hint-text">(比例3:2显示最佳，分辨率不要过大，1200x800足矣。若设计简陋、低质会被打回。) </span><span class="hint-text">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span></label>
-              <input v-model="csvData.cover" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/封面名" />
+              <Input v-model="csvData.cover" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/封面名" />
             </div>
             <div class="form-row">
               <div class="form-group half-width">
                 <label>资源类型</label>
-                <select v-model="csvData.restype">
-                  <option value="">请选择资源类型</option>
-                  <option value="quickapp">快应用 (quickapp)</option>
-                  <option value="watchface">表盘 (watchface)</option>
-                </select>
+                <Select v-model="csvData.restype">
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择资源类型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="quickapp">快应用 (quickapp)</SelectItem>
+                    <SelectItem value="watchface">表盘 (watchface)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div class="form-group half-width">
                 <label>付费类型<span class="hint-text">（体验版请选择“应用内付费”）</span></label>
-                <select v-model="csvData.paymentType">
-                  <option value="">请选择付费类型</option>
-                  <option value="free">免费(感谢你作出的贡献)</option>
-                  <option value="force_paid">强制付费(force_paid)</option>
-                  <option value="paid">应用内付费(paid)</option>
-                </select>
+                <Select v-model="csvData.paymentType">
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择付费类型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="free">免费(感谢你作出的贡献)</SelectItem>
+                    <SelectItem value="force_paid">强制付费(force_paid)</SelectItem>
+                    <SelectItem value="paid">应用内付费(paid)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -47,28 +55,29 @@
               <label>资源标签</label>
               <div class="array-input">
                 <div v-for="(tag, index) in csvData.tags" :key="index" class="preview-item">
-                  <input v-model="csvData.tags[index]" placeholder="天气" />
-                  <button @click="removeTag(index)" class="round-remove-button">
+                  <Input v-model="csvData.tags[index]" placeholder="天气" class="flex-1" />
+                  <Button variant="outline" size="icon" @click="removeTag(index)" class="h-9 w-9 rounded-full">
                     <Minus :size="16" weight="bold" />
-                  </button>
+                  </Button>
                 </div>
-                <button @click="addTag" class="add-button">+ 添加标签</button>
+                <Button @click="addTag" class="w-fit">+ 添加标签</Button>
               </div>
             </div>
             <div class="form-group">
               <label>支持设备<span class="hint-text">（注意环10和环10nfc是否都支持）</span></label>
               <div class="array-input">
                 <div v-for="(deviceCode, index) in csvData.devices" :key="index" class="preview-item">
-                  <input 
-                    :value="getDeviceDisplayName(deviceCode)"
+                  <Input
+                    :model-value="getDeviceDisplayName(deviceCode)"
                     placeholder="请点击下方按钮添加设备" 
+                    class="flex-1"
                     readonly
                   />
-                  <button @click="removeDevice(index)" class="round-remove-button">
+                  <Button variant="outline" size="icon" @click="removeDevice(index)" class="h-9 w-9 rounded-full">
                     <Minus :size="16" weight="bold" />
-                  </button>
+                  </Button>
                 </div>
-                <button @click="openDeviceSelector" class="add-button">+ 添加设备</button>
+                <Button @click="openDeviceSelector" class="w-fit">+ 添加设备</Button>
               </div>
             </div>
           </div>
@@ -78,7 +87,7 @@
             <h3>其他信息</h3>
             <div class="form-group">
               <label>创建的 资源.json 路径</label>
-              <input 
+              <Input
                 v-model="csvData.path" 
                 placeholder="yourname/AppName.json"
               />
@@ -97,22 +106,24 @@
               <pre>{{ generatedCSV }}</pre>
             </div>
             <div class="preview-actions">
-              <button @click="validateAndCopy" class="add-button">
+              <Button @click="validateAndCopy">
                 <CopySimple :size="16" weight="bold" />
                 复制到剪贴板
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 设备选择对话框 -->
-      <div v-if="showDeviceSelector" class="modal-overlay">
-        <div class="modal-content">
-          <h3>选择设备 <span class="hint-text">(可多选)</span></h3>
+      <Dialog :open="showDeviceSelector" @update:open="showDeviceSelector = $event">
+        <DialogContent class="max-w-[820px]">
+          <DialogHeader>
+            <DialogTitle>选择设备</DialogTitle>
+            <DialogDescription>可多选，按真实支持设备勾选。</DialogDescription>
+          </DialogHeader>
           <div class="device-list">
-            <div 
-              v-for="device in supportedDevices" 
+            <div
+              v-for="device in supportedDevices"
               :key="device.codename + device.name"
               class="device-item"
               :class="{ selected: isDeviceSelected(device) }"
@@ -122,31 +133,30 @@
               <div class="device-codename">{{ device.codename }}</div>
             </div>
           </div>
-          <div class="modal-actions">
-            <button @click="cancelDeviceSelection" class="add-button">取消</button>
-            <button @click="confirmDeviceSelection" class="add-button" :disabled="selectedDevices.length === 0">确认</button>
-          </div>
-        </div>
-      </div>
+          <DialogFooter>
+            <Button variant="outline" @click="cancelDeviceSelection">取消</Button>
+            <Button :disabled="selectedDevices.length === 0" @click="confirmDeviceSelection">确认</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <!-- 自定义提示框 -->
-      <div v-if="showAlert" class="modal-overlay">
-        <div class="modal-content alert-content">
-          <div class="prompt-header">
-            <WarningCircle :size="48" weight="duotone" class="warning-icon" />
-            <h3>{{ alertTitle }}</h3>
-          </div>
-          <div class="prompt-body">
-            <p>{{ alertMessage }}</p>
-          </div>
-          <div class="prompt-actions">
-            <button class="confirm-button" @click="closeAlert">
-              <Check :size="20" weight="bold" class="check-icon" />
+      <Dialog :open="showAlert" @update:open="showAlert = $event">
+        <DialogContent class="max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle class="inline-flex items-center gap-2">
+              <WarningCircle :size="22" weight="duotone" />
+              {{ alertTitle }}
+            </DialogTitle>
+            <DialogDescription>{{ alertMessage }}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button @click="closeAlert">
+              <Check :size="16" weight="bold" />
               确定
-            </button>
-          </div>
-        </div>
-      </div>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   </div>
 </template>
@@ -159,6 +169,23 @@ import {
   PhMinus as Minus,
   PhWarningCircle as WarningCircle
 } from '@phosphor-icons/vue'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { Device } from '../type/manifest'
 // CSV 数据结构
 const csvData = ref({
@@ -407,101 +434,67 @@ watch(() => csvData.value.devices, (newVal) => {
 </script>
 
 <style scoped>
-/* 基础样式 */
 .csv-generator {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
   width: 100%;
-  box-sizing: border-box;
-  padding: 1.5rem;
 }
 
 .editor-content {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
   width: 100%;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .editor-container {
   display: flex;
   flex: 1;
   overflow: hidden;
-  min-height: 600px;
+  min-height: 500px;
 }
 
 .form-container {
   flex: 1;
   min-width: 0;
-  background: #f8fafc;
-  padding: 1.5rem;
-  border-radius: 12px;
+  background: hsl(var(--muted) / 0.55);
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  padding: 1rem;
   overflow-y: auto;
 }
 
 .form-section {
-  margin-bottom: 2.5rem;
-  padding: 2rem;
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
 }
 
 .form-group {
-  margin-bottom: 1.75rem;
+  margin-bottom: 1rem;
 }
 
 label {
   display: block;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   font-weight: 600;
-  color: #1e293b;
-  font-size: 1rem;
+  color: hsl(var(--foreground));
 }
 
 .hint-text {
-  color: #64748b;
-  font-size: 0.85rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8rem;
   font-weight: normal;
-}
-
-input, select, textarea {
-  width: 100%;
-  padding: 0.875rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 1rem;
-  color: #334155;
-  box-sizing: border-box;
-  transition: all 0.2s;
-}
-
-input:focus, select:focus, textarea:focus {
-  border-color: #0e467c;
-  box-shadow: 0 0 0 3px rgba(14, 70, 124, 0.1);
-  outline: none;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: #94a3b8;
-  font-style: italic;
-}
-
-select {
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 1rem center;
-  background-size: 1rem;
 }
 
 .form-row {
   display: flex;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .half-width {
@@ -518,79 +511,17 @@ select {
 .preview-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-}
-
-.preview-item input {
-  flex-grow: 1;
-  padding: 0.75rem 1rem;
-}
-
-/* 圆形移除按钮 - 重点优化部分 */
-.round-remove-button {
-  margin: 0;
-  padding: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  min-width: 2.5rem; /* 确保最小宽度 */
-  min-height: 2.5rem; /* 确保最小高度 */
-  aspect-ratio: 1/1; /* 强制保持1:1宽高比 */
-  border: none;
-  background: #f8e6e6;
-  color: #8b0000;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  flex-shrink: 0; /* 防止按钮被压缩 */
-}
-
-.round-remove-button:hover {
-  background: #f0cfcf;
-}
-
-.round-remove-button svg {
-  width: 18px;
-  height: 18px;
-}
-
-.add-button {
-  margin-top: 0.75rem;
-  padding: 0.75rem 1.25rem;
-  border: none;
-  background: #e6f0f8;
-  color: #0e467c;
-  cursor: pointer;
-  border-radius: 6px;
-  font-weight: 500;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: 0.5rem;
-  transition: all 0.2s;
-}
-
-.add-button:hover {
-  background: #cfe0f0;
-}
-
-.add-button svg {
-  width: 18px;
-  height: 18px;
 }
 
 .preview-content {
-  background: #f8fafc;
-  color: #334155;
-  padding: 1.5rem;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  padding: 1rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
   overflow: auto;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1.6;
 }
 
@@ -598,172 +529,59 @@ pre {
   margin: 0;
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-family: 'Consolas', 'Monaco', monospace;
 }
 
 .preview-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1.5rem;
-}
-
-/* 模态框样式 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  max-width: 800px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
+  margin-top: 1rem;
 }
 
 .device-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.25rem;
-  margin: 1.5rem 0;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 0.5rem 0;
 }
 
 .device-item {
-  padding: 1.25rem;
-  border-radius: 8px;
+  padding: 1rem;
+  border-radius: 0.5rem;
   cursor: pointer;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .device-item:hover {
-  background: #e6f0f8;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  background: hsl(var(--accent));
 }
 
 .device-item.selected {
-  background: #e6f0f8;
-  border-color: #0e467c;
+  background: hsl(var(--muted));
+  border-color: hsl(var(--ring));
 }
 
 .device-name {
   font-weight: 600;
-  color: #0e467c;
-  font-size: 1rem;
+  color: hsl(var(--foreground));
   margin-bottom: 0.25rem;
 }
 
 .device-codename {
-  font-size: 0.85rem;
-  color: #475569;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e2e8f0;
-}
-
-/* 提示框样式 */
-.alert-content {
-  max-width: 500px;
-  text-align: center;
-}
-
-.prompt-header {
-  background: #f8fafc;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.warning-icon {
-  background: #fef3c7;
-  padding: 1rem;
-  border-radius: 50%;
-  width: 56px;
-  height: 56px;
-}
-
-.prompt-header h3 {
-  margin: 0;
-  color: #1e293b;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.prompt-body {
-  padding: 1.5rem;
-  text-align: center;
-}
-
-.prompt-body p {
-  margin: 0 0 1rem;
-  color: #475569;
-  line-height: 1.6;
-  font-size: 1.05rem;
-}
-
-.prompt-actions {
-  padding: 0 1.5rem 1.5rem;
-  display: flex;
-  justify-content: center;
-}
-
-.confirm-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.875rem 1.75rem;
-  border-radius: 8px;
-  background: #e6f0f8;
-  color: #0e467c;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-.confirm-button:hover {
-  background: #cfe0f0;
-}
-
-.confirm-button svg {
-  width: 20px;
-  height: 20px;
-}
-
-/* 响应式调整 */
 @media (max-width: 768px) {
-  .csv-generator {
-    padding: 1rem;
-  }
-  
   .form-container {
     padding: 1rem;
   }
   
   .form-section {
-    padding: 1.5rem;
-    margin-bottom: 2rem;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
   }
   
   .form-row {
@@ -774,54 +592,24 @@ pre {
   .half-width {
     width: 100%;
   }
-  
-  .modal-content {
-    padding: 1.5rem;
-    width: 95%;
-  }
-  
-  .device-list {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 1rem;
-  }
 
-  /* 移动设备下的圆形按钮调整 */
-  .round-remove-button {
-    width: 2.25rem;
-    height: 2.25rem;
-    min-width: 2.25rem;
-    min-height: 2.25rem;
+  .device-list {
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 1rem;
   }
 }
 
 @media (max-width: 480px) {
   .form-section {
-    padding: 1.25rem;
-  }
-  
-  input, select, textarea {
-    padding: 0.75rem;
+    padding: 0.875rem;
   }
   
   .preview-content {
     padding: 1rem;
   }
-  
-  .modal-content {
-    padding: 1.25rem;
-    width: 98%;
-  }
-  
+
   .device-list {
     grid-template-columns: 1fr;
-  }
-
-  /* 小屏幕下的圆形按钮调整 */
-  .round-remove-button {
-    width: 2rem;
-    height: 2rem;
-    min-width: 2rem;
-    min-height: 2rem;
   }
 }
 </style>

@@ -4,18 +4,19 @@
     <div v-if="projectDirectory" class="editor-content">
       <div class="project-path">
         <span>当前项目路径: {{ projectDirectory.name }} ({{ isFsaSupported ? 'FSA' : 'OPFS' }})</span>
-        <button 
-          class="remove-button" 
+        <Button
+          variant="outline"
+          size="sm"
           :class="{ 'disabled-button': isOPFSMode }"
           @click="selectProjectDirectory"
           :disabled="isOPFSMode"
         >
           更改文件夹
-        </button>
-        <button class="find-manifest-button" @click="findManifest">
+        </Button>
+        <Button variant="outline" size="sm" class="gap-2" @click="findManifest">
           <MagnifyingGlass :size="16" weight="bold" />
           查找manifest.json
-        </button>
+        </Button>
       </div>
       
       <div class="editor-container">
@@ -26,11 +27,11 @@
             <h3>应用信息</h3>
             <div class="form-group">
               <label>应用名称</label>
-              <input v-model="manifest.item.name" placeholder="应用名称" />
+              <Input v-model="manifest.item.name" placeholder="应用名称" />
             </div>
             <div class="form-group">
               <label>应用简介</label>
-              <textarea v-model="manifest.item.description" placeholder="应用简介"></textarea>
+              <Textarea v-model="manifest.item.description" placeholder="应用简介" />
             </div>
             <div class="form-group">
               <label>预览图（支持多选）</label>
@@ -51,25 +52,25 @@
                         <DotsSixVertical :size="16" weight="bold" />
                       </div>
                     </div>
-                    <input :value="element" readonly />
-                    <button class="round-remove-button" @click="removePreview(index)">
+                    <Input :model-value="element" readonly class="flex-1 min-w-0" />
+                    <Button variant="outline" size="icon" class="h-8 w-8 rounded-full" @click="removePreview(index)">
                       <Minus :size="16" weight="bold" />
-                    </button>
+                    </Button>
                   </div>
                 </template>
               </draggable>
-              <button class="add-button" @click="selectMultiplePreviews">+ 添加预览图</button>
+              <Button class="mt-2" @click="selectMultiplePreviews">+ 添加预览图</Button>
             </div>
             <div class="form-group">
               <label>图标</label>
               <div class="file-input-group">
-                <input v-model="manifest.item.icon" placeholder="icon.png" readonly />
-                <button class="add-button" @click="selectFile('icon')">选择文件</button>
+                <Input v-model="manifest.item.icon" placeholder="icon.png" readonly class="flex-1 min-w-0" />
+                <Button @click="selectFile('icon')">选择文件</Button>
               </div>
             </div>
             <div class="form-group">
               <label>开源仓库 URL（可选）</label>
-              <input v-model="manifest.item.source_url" placeholder="开源项目将有更多机会得到推荐" />
+              <Input v-model="manifest.item.source_url" placeholder="开源项目将有更多机会得到推荐" />
             </div>
           </div>
           
@@ -79,15 +80,15 @@
             <div v-for="(author, index) in manifest.item.author" :key="index" class="author-group">
               <div class="form-group">
                 <label>作者名称</label>
-                <input v-model="author.name" placeholder="作者名称" />
+                <Input v-model="author.name" placeholder="作者名称" />
               </div>
               <div class="form-group">
                 <label>作者主页（可选）</label>
-                <input v-model="author.author_url" placeholder="https://github.com/用户名" />
+                <Input v-model="author.author_url" placeholder="https://github.com/用户名" />
               </div>
-              <button class="remove-button" @click="removeAuthor(index)">删除</button>
+              <Button variant="outline" @click="removeAuthor(index)">删除</Button>
             </div>
-            <button class="add-button" @click="addAuthor">+ 添加作者</button>
+            <Button @click="addAuthor">+ 添加作者</Button>
           </div>
           
           <!-- 支持设备信息部分 -->
@@ -97,36 +98,36 @@
               <h4>{{ getDeviceDisplayName(deviceCode) }}</h4>
               <div class="form-group">
                 <label>应用版本</label>
-                <input v-model="download.version" placeholder="1.0.0" />
+                <Input v-model="download.version" placeholder="1.0.0" />
               </div>
               <div class="form-group">
                 <label>资源文件</label>
                 <div class="file-input-group">
-                  <input v-model="download.file_name" readonly />
-                  <button class="add-button" @click="selectFile('download', deviceCode)">选择文件</button>
+                  <Input v-model="download.file_name" readonly class="flex-1 min-w-0" />
+                  <Button @click="selectFile('download', deviceCode)">选择文件</Button>
                 </div>
               </div>
-              <button class="remove-button" @click="removeDownload(deviceCode)">删除</button>
+              <Button variant="outline" @click="removeDownload(deviceCode)">删除</Button>
             </div>
-            <button class="add-button" @click="openDeviceSelector">+ 添加支持的设备</button>
+            <Button @click="openDeviceSelector">+ 添加支持的设备</Button>
           </div>
         </div>
         
         <!-- JSON预览部分 -->
         <div class="preview-container">
           <div class="preview-actions">
-            <button class="add-button" :class="{ 'disabled-button': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
+            <Button :class="{ 'disabled-button': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
               <FloppyDisk :size="16" weight="bold" />
               保存
-            </button>
-            <button class="add-button" @click="downloadManifest">
+            </Button>
+            <Button @click="downloadManifest">
               <DownloadSimple :size="16" weight="bold" />
               下载
-            </button>
-            <button class="add-button" @click="copyToClipboard">
+            </Button>
+            <Button @click="copyToClipboard">
               <CopySimple :size="16" weight="bold" />
               复制
-            </button>
+            </Button>
           </div>
           <JsonPreview :data="manifest" />
         </div>
@@ -258,6 +259,8 @@ import {
   PhMinus as Minus
 } from '@phosphor-icons/vue'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -322,6 +325,8 @@ declare global {
 export default defineComponent({
   components: {
     Button,
+    Input,
+    Textarea,
     Dialog,
     DialogContent,
     DialogDescription,
@@ -985,25 +990,6 @@ const supportedDevices: Device[] = [
   text-overflow: ellipsis;
 }
 
-.find-manifest-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  border: 1px solid hsl(var(--input));
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: background-color 0.2s ease;
-}
-
-.find-manifest-button:hover {
-  background: hsl(var(--accent));
-}
-
 .editor-container {
   display: flex;
   flex: 1;
@@ -1055,7 +1041,7 @@ const supportedDevices: Device[] = [
 .form-section h3 {
   margin-top: 0;
   margin-bottom: 1rem;
-  color: #1e293b;
+  color: hsl(var(--foreground));
 }
 
 .form-group {
@@ -1070,43 +1056,10 @@ const supportedDevices: Device[] = [
   color: hsl(var(--foreground));
 }
 
-.form-group input,
-.form-group textarea,
-.form-group select {
-  width: 100%;
-  padding: 0.625rem 0.75rem;
-  border: 1px solid hsl(var(--input));
-  border-radius: 0.5rem;
-  background: hsl(var(--background));
-  font-family: inherit;
-  font-size: 0.9375rem;
-  color: hsl(var(--foreground));
-  box-sizing: border-box;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: hsl(var(--ring));
-  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18);
-}
-
-.form-group textarea {
-  resize: vertical;
-  min-height: 60px;
-}
-
 .file-input-group {
   display: flex;
   gap: 0.5rem;
   width: 100%;
-}
-
-.file-input-group input {
-  flex: 1;
-  min-width: 0;
 }
 
 .preview-list {
@@ -1122,13 +1075,7 @@ const supportedDevices: Device[] = [
   padding: 0.5rem;
   border-radius: 0.5rem;
   border: 1px solid hsl(var(--border));
-  height: 40px;
-}
-
-.preview-item input {
-  flex: 1;
-  background: transparent;
-  border: none;
+  min-height: 2.75rem;
 }
 
 .drag-handle-container {
@@ -1149,27 +1096,6 @@ const supportedDevices: Device[] = [
   justify-content: center;
   width: 100%;
   height: 100%;
-}
-
-.round-remove-button {
-  margin: 0;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
-  color: hsl(var(--muted-foreground));
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-.round-remove-button:hover {
-  background: hsl(var(--accent));
-  color: hsl(var(--foreground));
 }
 
 .author-group {
@@ -1195,53 +1121,9 @@ const supportedDevices: Device[] = [
   color: hsl(var(--foreground));
 }
 
-button {
-  margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: 1px solid hsl(var(--input));
-  border-radius: 0.5rem;
-  cursor: pointer;
-  font-weight: 500;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  transition: background-color 0.2s ease, color 0.2s ease;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-}
-
-.remove-button {
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-}
-
-.remove-button:hover {
-  background: hsl(var(--accent));
-}
-
-.add-button {
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-  border-color: hsl(var(--primary));
-}
-
-.add-button:hover {
-  background: hsl(var(--primary) / 0.9);
-}
-
 .disabled-button {
   opacity: 0.6;
   cursor: not-allowed;
-  background: hsl(var(--muted)) !important;
-  color: hsl(var(--muted-foreground)) !important;
-  border-color: hsl(var(--border)) !important;
-}
-
-button svg {
-  width: 16px;
-  height: 16px;
 }
 
 .declaration-text {
@@ -1362,9 +1244,10 @@ button svg {
     align-items: flex-start;
     gap: 0.75rem;
   }
-  
-  .find-manifest-button {
+
+  .project-path :deep(button) {
     width: 100%;
+    justify-content: center;
   }
 
   .declaration-actions {
