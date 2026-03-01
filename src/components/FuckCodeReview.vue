@@ -47,7 +47,7 @@
     />
 
     <!-- 主内容区 -->
-    <div class="main-content">
+    <div class="main-content" :class="{ 'main-content-collapsed': isSidebarCollapsed }">
       <div class="content-shell">
         <div v-if="errorMessage" class="error-banner">
           {{ errorMessage }}
@@ -581,7 +581,7 @@ defineEmits(['refresh'])
   transition: margin-left 0.3s ease;
 }
 
-.sidebar-collapsed ~ .main-content {
+.main-content-collapsed {
   margin-left: 6rem;
 }
 
@@ -633,7 +633,7 @@ defineEmits(['refresh'])
     padding: 0.75rem;
   }
   
-  .sidebar-collapsed ~ .main-content {
+  .main-content.main-content-collapsed {
     margin-left: 4.25rem;
   }
 }

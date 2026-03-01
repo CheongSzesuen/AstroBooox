@@ -10,7 +10,7 @@
     
     <!-- 文件内容显示区域 -->
     <div class="file-content file-diff-list">
-      <div 
+      <Card
         v-for="file in sortedFiles" 
         :key="file.filename"
         class="file-diff-item"
@@ -57,7 +57,7 @@
         <div class="file-diff-content" v-show="expandedFiles.has(file.filename)">
           <GithubStyleDiffView :file="file" />
         </div>
-      </div>
+      </Card>
     </div>
   </div>
 </template>
@@ -67,6 +67,7 @@ import { ref, computed, onMounted } from 'vue'
 import { PhCaretDown as CaretDown, PhCaretRight as CaretRight } from '@phosphor-icons/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import FileTree from './FileTabContent/FileTree.vue'
 import GithubStyleDiffView from './FileTabContent/GithubStyleDiffView.vue'
 import type { FilesTabContentProps, FileChange } from '@/type/codeReview'

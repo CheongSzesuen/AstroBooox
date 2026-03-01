@@ -1,36 +1,47 @@
 <template>
-  <header class="pr-header">
-    <div class="pr-main">
-      <h1 class="pr-title">
-        {{ pr.title }}
-        <span class="pr-number">#{{ pr.number }}</span>
-      </h1>
+  <header class="mb-4 rounded-xl border border-border bg-card p-4">
+    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <div class="min-w-0">
+        <h1 class="text-lg font-semibold leading-7 text-foreground md:text-xl">
+          <span class="break-words">{{ pr.title }}</span>
+          <span class="ml-2 text-base font-medium text-muted-foreground">#{{ pr.number }}</span>
+        </h1>
 
-      <div class="pr-meta">
-        <Badge variant="secondary" class="pr-state-badge">
-          <GitPullRequest :size="16" weight="duotone" />
-          Open
-        </Badge>
-        <span class="pr-author">
-          <img
-            :src="getOptimizedAvatarUrl(pr.user)"
-            class="author-avatar"
-            loading="lazy"
-            @load="cacheAvatar(pr.user)"
-          />
-          <a :href="pr.user.html_url" target="_blank" class="author-link">{{ pr.user.login }}</a>
-          <span class="pr-time-info">opened {{ timeAgo }}</span>
-        </span>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" class="gap-1.5 text-[0.78rem]">
+            <GitPullRequest :size="14" weight="duotone" />
+            Open
+          </Badge>
+
+          <span class="inline-flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+            <img
+              :src="getOptimizedAvatarUrl(pr.user)"
+              class="h-5 w-5 shrink-0 rounded-full object-cover"
+              loading="lazy"
+              @load="cacheAvatar(pr.user)"
+            />
+            <a :href="pr.user.html_url" target="_blank" class="truncate text-foreground hover:underline">{{ pr.user.login }}</a>
+            <span class="shrink-0">opened {{ timeAgo }}</span>
+          </span>
+        </div>
       </div>
-    </div>
 
-    <div class="pr-actions">
-      <Button variant="outline" size="icon" @click="$emit('refresh')" title="刷新数据">
-        <ArrowsClockwise :size="18" weight="bold" />
-      </Button>
-      <Button as="a" :href="pr.html_url" target="_blank" variant="outline" size="icon" title="在 GitHub 查看 PR">
-        <GithubLogo :size="18" weight="duotone" />
-      </Button>
+      <div class="flex gap-2 md:justify-end">
+        <Button variant="outline" size="icon" @click="$emit('refresh')" title="刷新数据" aria-label="刷新数据">
+          <ArrowsClockwise :size="16" weight="bold" />
+        </Button>
+        <Button
+          as="a"
+          :href="pr.html_url"
+          target="_blank"
+          variant="outline"
+          size="icon"
+          title="在 GitHub 查看 PR"
+          aria-label="在 GitHub 查看 PR"
+        >
+          <GithubLogo :size="16" weight="duotone" />
+        </Button>
+      </div>
     </div>
   </header>
 </template>
@@ -131,85 +142,3 @@ const timeAgo = computed(() => {
   return `${diffInDays} 天前`
 })
 </script>
-
-<style scoped>
-.pr-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.875rem;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
-  background: hsl(var(--card));
-}
-
-.pr-title {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--foreground);
-  line-height: 1.5;
-}
-
-.pr-number {
-  margin-left: 8px;
-  color: var(--muted-foreground);
-  font-size: 1rem;
-}
-
-.pr-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.pr-state-badge {
-  gap: 6px;
-  font-size: 13px;
-}
-
-.pr-author {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted-foreground);
-  font-size: 0.875rem;
-}
-
-.author-avatar {
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  object-fit: cover;
-}
-
-.author-link {
-  text-decoration: none;
-  color: var(--foreground);
-}
-
-.author-link:hover {
-  color: var(--primary);
-}
-
-.pr-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-@media (max-width: 900px) {
-  .pr-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .pr-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
-</style>
