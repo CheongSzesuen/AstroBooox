@@ -133,10 +133,12 @@
       </div>
     </div>
     
-    <!-- 声明弹窗 -->
-    <div v-if="showDeclaration" class="modal-overlay">
-      <div class="modal-content declaration-content">
-        <h3>AstroBox 官方社区源资源审核标准</h3>
+    <Dialog :open="showDeclaration">
+      <DialogContent class="max-w-[860px] [&>button]:hidden" @pointer-down-outside.prevent @escape-key-down.prevent>
+        <DialogHeader>
+          <DialogTitle>AstroBox 官方社区源资源审核标准</DialogTitle>
+          <DialogDescription>阅读完毕后方可继续使用生成功能。</DialogDescription>
+        </DialogHeader>
         <div class="declaration-text" @scroll="checkScrollPosition">
           <h4>一、资源结构与清单合规性</h4>
           <ol>
@@ -154,7 +156,6 @@
             <li>manifest.json中author数组中每个作者author_url的目标指向页面是否合规、是否存在不良内容</li>
             <li>存在任何问题都必须直接在Pull Request中与提交者公开、透明地进行沟通，如无任何问题，可以继续进行资源质量检查。</li>
           </ol>
-
           <h4>二、资源质量与版权</h4>
           <ol>
             <li>资源不是搬运/转载/盗传</li>
@@ -163,31 +164,30 @@
             <li>资源本体在支持的设备上基本功能是否运行正常（一般情况下适当测试一个设备即可，剩余问题用户会自己去拷打作者）</li>
             <li>资源若使用了某些知名IP素材，必须在preview中留一张图来进行版权声明（这里不是要求提交者拥有素材版权，而是必须证明素材、IP本身与AstroBox以及小米无关）</li>
           </ol>
-
           <h4>三、资源数量和付费资源（2025.7.6日公告）</h4>
           <ol>
             <li>任何作者在 AstroBox 官方源上传的免费资源数量必须是付费资源的 2 倍以上</li>
             <li>对于存在任何应用内购买或类型为试用的资源，必须标注为付费</li>
             <li>付费资源将在首页被明显标注，并允许被用户一键过滤。</li>
           </ol>
+          <h4 class="declaration-source">文档来自官方</h4>
+        </div>
+        <DialogFooter class="declaration-actions">
+          <Button variant="outline" @click="disagreeDeclaration">听不懂私密达</Button>
+          <Button :disabled="!isDeclarationScrolledToBottom" @click="agreeDeclaration">听懂了</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
-          <h4 style="text-align: right;">文档来自官方</h4>
-          
-        </div>
-        <div class="declaration-actions">
-          <button class="declaration-disagree" @click="disagreeDeclaration">听不懂私密达</button>
-          <button class="declaration-agree" :class="{ 'disabled-button': !isDeclarationScrolledToBottom }" @click="agreeDeclaration" :disabled="!isDeclarationScrolledToBottom">听懂了</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 设备选择对话框 -->
-    <div v-if="showDeviceSelector" class="modal-overlay">
-      <div class="modal-content">
-        <h3>选择设备 <span class="hint-text">(可多选)</span></h3>
+    <Dialog :open="showDeviceSelector" @update:open="showDeviceSelector = $event">
+      <DialogContent class="max-w-[820px]">
+        <DialogHeader>
+          <DialogTitle>选择设备</DialogTitle>
+          <DialogDescription>可多选，建议按实际支持情况勾选。</DialogDescription>
+        </DialogHeader>
         <div class="device-list">
-          <div 
-            v-for="device in supportedDevices" 
+          <div
+            v-for="device in supportedDevices"
             :key="device.codename + device.name"
             class="device-item"
             :class="{ selected: isDeviceSelected(device) }"
@@ -197,48 +197,53 @@
             <div class="device-codename">{{ device.codename }}</div>
           </div>
         </div>
-        <div class="modal-actions">
-          <button @click="cancelDeviceSelection" class="add-button">取消</button>
-          <button @click="confirmDeviceSelection" class="add-button" :disabled="selectedDevices.length === 0">确认</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 覆盖确认对话框 -->
-    <div v-if="showOverwriteDialog" class="modal-overlay">
-      <div class="modal-content">
-        <h3>确认覆盖文件</h3>
-        <p>项目目录中已存在 manifest.json 文件，确定要覆盖吗？</p>
-        <div class="modal-actions">
-          <button class="remove-button" @click="cancelOverwrite">取消</button>
-          <button class="add-button" @click="confirmOverwrite">确认</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 自定义提示框 -->
-    <div v-if="showAlert" class="modal-overlay">
-      <div class="modal-content alert-content">
-        <h3>{{ alertTitle }}</h3>
-        <p>{{ alertMessage }}</p>
-        <div class="modal-actions">
-          <button v-if="alertType === 'confirm'" class="add-button" @click="closeAlert(false)">取消</button>
-          <button class="add-button" @click="closeAlert(true)">{{ alertType === 'confirm' ? '确定' : '我知道了' }}</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 编辑提示弹窗 -->
-    <div v-if="showEditPrompt" class="modal-overlay">
-      <div class="modal-content alert-content">
-        <h3>{{ isFsaSupported ? '检测到manifest.json' : '进入manifest编辑模式' }}</h3>
-        <p>{{ isFsaSupported ? '文件夹中已存在manifest.json文件，是否要加载并编辑现有文件？' : '是否要加载并编辑现有的manifest.json文件？' }}</p>
-        <div class="modal-actions">
-          <button class="remove-button" @click="cancelEditPrompt">取消</button>
-          <button class="add-button" @click="confirmEditPrompt">确定</button>
-        </div>
-      </div>
-    </div>
+        <DialogFooter>
+          <Button variant="outline" @click="cancelDeviceSelection">取消</Button>
+          <Button :disabled="selectedDevices.length === 0" @click="confirmDeviceSelection">确认</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog :open="showOverwriteDialog" @update:open="showOverwriteDialog = $event">
+      <DialogContent class="max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>确认覆盖文件</DialogTitle>
+          <DialogDescription>项目目录中已存在 manifest.json 文件，确定要覆盖吗？</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="cancelOverwrite">取消</Button>
+          <Button @click="confirmOverwrite">确认</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog :open="showAlert" @update:open="handleAlertOpenChange">
+      <DialogContent class="max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>{{ alertTitle }}</DialogTitle>
+          <DialogDescription>{{ alertMessage }}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button v-if="alertType === 'confirm'" variant="outline" @click="closeAlert(false)">取消</Button>
+          <Button @click="closeAlert(true)">{{ alertType === 'confirm' ? '确定' : '我知道了' }}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog :open="showEditPrompt" @update:open="showEditPrompt = $event">
+      <DialogContent class="max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>{{ isFsaSupported ? '检测到manifest.json' : '进入manifest编辑模式' }}</DialogTitle>
+          <DialogDescription>
+            {{ isFsaSupported ? '文件夹中已存在manifest.json文件，是否要加载并编辑现有文件？' : '是否要加载并编辑现有的manifest.json文件？' }}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="cancelEditPrompt">取消</Button>
+          <Button @click="confirmEditPrompt">确定</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -252,6 +257,15 @@ import {
   PhMagnifyingGlass as MagnifyingGlass,
   PhMinus as Minus
 } from '@phosphor-icons/vue'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import JsonPreview from './JsonPreview.vue'
 import { Manifest } from '../type/manifest'
 import draggable from 'vuedraggable'
@@ -307,6 +321,13 @@ declare global {
 
 export default defineComponent({
   components: {
+    Button,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
     JsonPreview,
     draggable,
     CopySimple,
@@ -422,6 +443,14 @@ const supportedDevices: Device[] = [
         alertCallbacks.value.onCancel()
       }
       alertCallbacks.value = {}
+    }
+
+    const handleAlertOpenChange = (open: boolean): void => {
+      if (!open && showAlert.value) {
+        closeAlert(false)
+        return
+      }
+      showAlert.value = open
     }
 
     // 检查滚动位置
@@ -913,6 +942,7 @@ const supportedDevices: Device[] = [
       agreeDeclaration,
       disagreeDeclaration,
       checkScrollPosition,
+      handleAlertOpenChange,
       handleDragStart,
       handleDragEnd
     }
@@ -924,27 +954,28 @@ const supportedDevices: Device[] = [
 .manifest-editor {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
   width: 100%;
-  box-sizing: border-box;
 }
 
 .editor-content {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
   width: 100%;
   gap: 1rem;
 }
 
 .project-path {
-  background: #f0f0f0;
-  padding: 0.75rem 1rem;
-  border-radius: 4px;
+  background: hsl(var(--muted));
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
+  font-size: 0.875rem;
 }
 
 .project-path span {
@@ -958,29 +989,25 @@ const supportedDevices: Device[] = [
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: #e3f2fd;
-  color: #1565c0;
-  border: none;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--input));
   padding: 0.5rem 1rem;
-  border-radius: 4px;
+  border-radius: 0.5rem;
   cursor: pointer;
   font-weight: 500;
   white-space: nowrap;
+  transition: background-color 0.2s ease;
 }
 
 .find-manifest-button:hover {
-  background: #cfe0f0;
-}
-
-.find-manifest-button svg {
-  width: 16px;
-  height: 16px;
+  background: hsl(var(--accent));
 }
 
 .editor-container {
   display: flex;
   flex: 1;
-  gap: 2rem;
+  gap: 1rem;
   overflow: hidden;
   min-height: 500px;
 }
@@ -988,9 +1015,10 @@ const supportedDevices: Device[] = [
 .form-container {
   flex: 1;
   min-width: 0;
-  background: #f5f5f5;
+  background: hsl(var(--muted) / 0.55);
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
   overflow-y: auto;
 }
 
@@ -998,9 +1026,10 @@ const supportedDevices: Device[] = [
   width: 40%;
   max-width: 40%;
   min-width: 300px;
-  background: #f5f5f5;
+  background: hsl(var(--muted) / 0.55);
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1015,8 +1044,10 @@ const supportedDevices: Device[] = [
 .form-section {
   margin-bottom: 2rem;
   padding: 1rem;
-  background: #fff;
-  border-radius: 6px;
+  background: hsl(var(--card));
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
   width: 100%;
   box-sizing: border-box;
 }
@@ -1036,20 +1067,30 @@ const supportedDevices: Device[] = [
   display: block;
   margin-bottom: 0.5rem;
   font-weight: bold;
-  color: #1e293b;
+  color: hsl(var(--foreground));
 }
 
 .form-group input,
 .form-group textarea,
 .form-group select {
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid hsl(var(--input));
+  border-radius: 0.5rem;
+  background: hsl(var(--background));
   font-family: inherit;
-  font-size: 1rem;
-  color: #333;
+  font-size: 0.9375rem;
+  color: hsl(var(--foreground));
   box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18);
 }
 
 .form-group textarea {
@@ -1077,9 +1118,10 @@ const supportedDevices: Device[] = [
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
-  background: #f8f8f8;
+  background: hsl(var(--background));
   padding: 0.5rem;
-  border-radius: 4px;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
   height: 40px;
 }
 
@@ -1095,8 +1137,8 @@ const supportedDevices: Device[] = [
   justify-content: center;
   width: 24px;
   height: 100%;
-  background-color: #bbdefb;
-  border-radius: 4px;
+  background-color: hsl(var(--muted));
+  border-radius: 0.375rem;
   cursor: move;
   padding: 4px 0;
 }
@@ -1114,52 +1156,50 @@ const supportedDevices: Device[] = [
   padding: 0;
   width: 32px;
   height: 32px;
-  border: none;
-  background: #f8e6e6;
-  color: #8b0000;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .round-remove-button:hover {
-  background: #f0cfcf;
-}
-
-.round-remove-button svg {
-  width: 16px;
-  height: 16px;
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 
 .author-group {
-  border: 1px solid #eee;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
   padding: 0.75rem;
   margin-bottom: 0.75rem;
-  border-radius: 4px;
+  border-radius: 0.5rem;
   position: relative;
 }
 
 .download-group {
-  border: 1px solid #eee;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
   padding: 0.75rem;
   margin-bottom: 0.75rem;
-  border-radius: 4px;
+  border-radius: 0.5rem;
 }
 
 .download-group h4 {
   margin-top: 0;
   margin-bottom: 0.75rem;
-  color: #1e293b;
+  color: hsl(var(--foreground));
 }
 
 button {
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
+  border: 1px solid hsl(var(--input));
+  border-radius: 0.5rem;
   cursor: pointer;
   font-weight: 500;
   white-space: nowrap;
@@ -1167,32 +1207,36 @@ button {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 .remove-button {
-  background: #f8e6e6;
-  color: #8b0000;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 .remove-button:hover {
-  background: #f0cfcf;
+  background: hsl(var(--accent));
 }
 
 .add-button {
-  background: #e3f2fd;
-  color: #1565c0;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
 }
 
 .add-button:hover {
-  background: #bbdefb;
+  background: hsl(var(--primary) / 0.9);
 }
 
 .disabled-button {
   opacity: 0.6;
   cursor: not-allowed;
-  background: #e9ecef !important;
-  color: #6c757d !important;
+  background: hsl(var(--muted)) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  border-color: hsl(var(--border)) !important;
 }
 
 button svg {
@@ -1200,177 +1244,91 @@ button svg {
   height: 16px;
 }
 
-/* 模态框样式 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  max-width: 800px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-.modal-content h3 {
-  margin-top: 0;
-  color: #0e467c;
-}
-
-.alert-content {
-  max-width: 500px;
-  text-align: center;
-}
-
-.alert-content h3 {
-  color: #0e467c;
-  margin-bottom: 1rem;
-}
-
-.alert-content p {
-  margin-bottom: 1.5rem;
-  line-height: 1.5;
-}
-
-/* 声明弹窗样式 */
-.declaration-content {
-  max-width: 800px;
-  padding: 2rem;
-}
-
 .declaration-text {
-  max-height: 60vh;
+  max-height: 58vh;
   overflow-y: auto;
   padding: 1rem;
-  margin: 0;
-  /* 添加以下样式确保正确计算 */
-  box-sizing: border-box;
-  border: 1px solid #dee2e6;
+  margin-top: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  background: hsl(var(--background));
 }
 
 .declaration-text h4 {
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
-  color: #0e467c;
+  color: hsl(var(--foreground));
 }
 
 .declaration-text ol {
   padding-left: 1.5rem;
+  margin: 0;
 }
 
 .declaration-text li {
   margin-bottom: 0.5rem;
-  line-height: 1.5;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+}
+
+.declaration-source {
+  text-align: right;
+  margin-top: 1rem;
+  color: hsl(var(--muted-foreground));
 }
 
 .declaration-actions {
   display: flex;
   justify-content: space-between;
-  margin-top: 1.5rem;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
 }
 
-.declaration-agree {
-  background: #e3f2fd;
-  color: #1565c0;
-  padding: 0.75rem 1.5rem;
-}
-
-.declaration-agree:hover {
-  background: #bbdefb;
-}
-
-.declaration-disagree {
-  background: #f8e6e6;
-  color: #8b0000;
-  padding: 0.75rem 1.5rem;
-}
-
-.declaration-disagree:hover {
-  background: #f0cfcf;
-}
-
-/* 设备列表样式 */
 .device-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
-  margin: 1rem 0;
+  margin: 0.5rem 0;
 }
 
 .device-item {
   padding: 1rem;
-  border-radius: 4px;
+  border-radius: 0.5rem;
   cursor: pointer;
-  background: #e8f4fd;
-  transition: all 0.2s;
-  box-shadow: 0 1px 2px rgba(14, 70, 124, 0.1);
+  background: hsl(var(--background));
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+  border: 1px solid hsl(var(--border));
 }
 
 .device-item:hover {
-  background: #d0e5fa;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(14, 70, 124, 0.1);
+  background: hsl(var(--accent));
 }
 
 .device-item.selected {
-  background: #b3d6f7;
+  border-color: hsl(var(--ring));
+  background: hsl(var(--muted));
 }
 
 .device-name {
-  font-weight: bold;
-  color: #0e467c;
+  font-weight: 600;
+  color: hsl(var(--foreground));
   margin-bottom: 0.25rem;
 }
 
 .device-codename {
   font-size: 0.8rem;
-  color: #4a6b8a;
-}
-
-/* 模态框操作按钮 */
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-
-.modal-actions .add-button {
-  background: #e3f2fd;
-  color: #1565c0;
-}
-
-.modal-actions .add-button:hover {
-  background: #bbdefb;
-}
-
-.modal-actions .add-button:disabled {
-  background: #e9ecef;
-  color: #6c757d;
-  cursor: not-allowed;
+  color: hsl(var(--muted-foreground));
 }
 
 .hint-text {
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   font-size: 0.875rem;
 }
 
 .ghost-item {
   opacity: 0.5;
-  background: #e3f2fd;
-  border: 2px dashed #1565c0;
+  background: hsl(var(--muted));
+  border: 2px dashed hsl(var(--ring));
 }
 
 .chosen-item {
@@ -1408,23 +1366,9 @@ button svg {
   .find-manifest-button {
     width: 100%;
   }
-  
-  .modal-content {
-    padding: 1rem;
-  }
-  
-  .declaration-content {
-    padding: 1rem;
-  }
-  
+
   .declaration-actions {
     flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .declaration-agree,
-  .declaration-disagree {
-    width: 100%;
   }
 }
 </style>
