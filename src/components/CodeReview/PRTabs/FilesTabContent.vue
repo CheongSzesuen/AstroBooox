@@ -13,14 +13,25 @@
         <Card
           v-for="file in sortedFiles"
           :key="file.filename"
+          :id="getFileCardId(file.filename)"
           class="overflow-hidden border-border bg-card shadow-sm"
         >
           <div
-            class="flex cursor-pointer items-center justify-between gap-2 border-b border-border bg-muted/50 px-4 py-3 transition-colors hover:bg-accent max-[700px]:px-3"
-            @click="selectFile(file)"
+            :class="[
+              'flex cursor-pointer items-center justify-between gap-2 border-b border-border px-4 py-3 transition-colors max-[700px]:px-3',
+              selectedFile?.filename === file.filename ? 'bg-accent' : 'bg-muted/50 hover:bg-accent'
+            ]"
+            @click="toggleFile(file)"
           >
             <div class="flex min-w-0 w-full items-center justify-between gap-1.5 font-mono text-[12px]">
-              <Button variant="ghost" size="icon" type="button" class="h-6.5 w-6.5 shrink-0" aria-label="Toggle diff contents">
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                class="h-6.5 w-6.5 shrink-0"
+                aria-label="Toggle diff contents"
+                @click.stop="toggleFile(file)"
+              >
                 <CaretDown v-if="expandedFiles.has(file.filename)" :size="16" weight="bold" />
                 <CaretRight v-else :size="16" weight="bold" />
               </Button>
@@ -64,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { PhCaretDown as CaretDown, PhCaretRight as CaretRight } from '@phosphor-icons/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -88,26 +99,52 @@ const sortedFiles = computed(() => {
   })
 })
 
-const handleFileSelected = (file: FileChange) => {
-  selectedFile.value = file
-  console.log('Selected file:', file)
+const getFileCardId = (filename: string): string =>
+  `file-card-${filename.replace(/[^a-zA-Z0-9_-]/g, '-')}`
+
+const openFilePanel = (filename: string): void => {
+  const nextExpanded = new Set(expandedFiles.value)
+  nextExpanded.add(filename)
+  expandedFiles.value = nextExpanded
 }
 
-onMounted(() => {
-  if (props.changedFiles && props.changedFiles.length > 0) {
-    selectedFile.value = props.changedFiles[0]
-    props.changedFiles.forEach(file => {
-      expandedFiles.value.add(file.filename)
-    })
-  }
-})
-
-const selectFile = (file: FileChange) => {
-  if (expandedFiles.value.has(file.filename)) {
-    expandedFiles.value.delete(file.filename)
+const toggleFilePanel = (filename: string): void => {
+  const nextExpanded = new Set(expandedFiles.value)
+  if (nextExpanded.has(filename)) {
+    nextExpanded.delete(filename)
   } else {
-    expandedFiles.value.add(file.filename)
+    nextExpanded.add(filename)
   }
+  expandedFiles.value = nextExpanded
+}
+
+const handleFileSelected = async (file: FileChange) => {
+  selectedFile.value = file
+  openFilePanel(file.filename)
+
+  await nextTick()
+  const target = document.getElementById(getFileCardId(file.filename))
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+watch(
+  () => props.changedFiles,
+  files => {
+    if (!files.length) {
+      selectedFile.value = null
+      expandedFiles.value = new Set<string>()
+      return
+    }
+
+    selectedFile.value = files[0]
+    expandedFiles.value = new Set(files.map(file => file.filename))
+  },
+  { immediate: true }
+)
+
+const toggleFile = (file: FileChange) => {
+  selectedFile.value = file
+  toggleFilePanel(file.filename)
 }
 
 const getStatusText = (status: string): string => {

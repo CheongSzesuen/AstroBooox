@@ -21,10 +21,19 @@
     <nav aria-label="File Tree Navigation" class="max-h-[18rem] overflow-y-auto px-3 py-3 lg:max-h-[calc(100vh-16rem)]">
       <ul class="space-y-1" role="tree" aria-label="File Tree">
         <template v-for="item in displayItems" :key="getItemKey(item)">
-          <li v-if="isFolderItem(item)" role="treeitem" :data-depth="item.depth">
+          <li
+            v-if="isFolderItem(item)"
+            role="treeitem"
+            :aria-level="item.depth + 1"
+            :aria-expanded="isFolderOpen(item.path)"
+            :data-depth="item.depth"
+          >
             <button
               type="button"
-              class="flex w-full items-center gap-1.5 rounded-md px-2.5 py-2 text-left text-xs text-foreground transition-colors hover:bg-accent"
+              :class="[
+                'flex w-full items-center gap-1.5 rounded-md px-2.5 py-2 text-left text-xs text-foreground transition-colors',
+                isFolderOpen(item.path) ? 'bg-muted/60' : 'hover:bg-accent'
+              ]"
               :style="{ paddingLeft: `${0.75 + item.depth * 1}rem` }"
               @click="toggleFolder(item.path)"
             >
@@ -42,7 +51,10 @@
           <li v-else-if="isFileItem(item)" role="treeitem" :aria-level="item.depth + 1" :data-depth="item.depth">
             <button
               type="button"
-              class="flex w-full items-center gap-1.5 rounded-md px-2.5 py-2 text-left text-xs text-foreground transition-colors hover:bg-accent"
+              :class="[
+                'flex w-full items-center gap-1.5 rounded-md px-2.5 py-2 text-left text-xs text-foreground transition-colors',
+                selectedFilePath === item.file.filename ? 'bg-accent text-accent-foreground' : 'hover:bg-accent'
+              ]"
               :style="{ paddingLeft: `${0.75 + item.depth * 1}rem` }"
               @click="selectFile(item.file)"
             >
@@ -65,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   PhArrowBendDownRight as ArrowBendDownRight,
   PhCaretDown as CaretDown,
@@ -106,6 +118,7 @@ type DisplayItem = FolderItem | FileItem
 
 const searchQuery = ref('')
 const openFolders = ref<Set<string>>(new Set())
+const selectedFilePath = ref('')
 
 const isFolderItem = (item: DisplayItem): item is FolderItem => item.type === 'folder'
 const isFileItem = (item: DisplayItem): item is FileItem => item.type === 'file'
@@ -129,179 +142,105 @@ const getStatusIconClass = (status: string): string => {
   }
 }
 
+interface TreeNode {
+  name: string
+  path: string
+  folders: Map<string, TreeNode>
+  files: FileChange[]
+}
+
+const createTreeNode = (name: string, path: string): TreeNode => ({
+  name,
+  path,
+  folders: new Map<string, TreeNode>(),
+  files: []
+})
+
+const getFileLabel = (filename: string): string => {
+  const segments = filename.split('/')
+  return segments[segments.length - 1] || filename
+}
+
+const sortFiles = (a: FileChange, b: FileChange): number => a.filename.localeCompare(b.filename)
+
+const buildTree = (files: FileChange[]): TreeNode => {
+  const root = createTreeNode('', '')
+
+  for (const file of files) {
+    const segments = file.filename.split('/')
+
+    if (segments.length <= 1) {
+      root.files.push(file)
+      continue
+    }
+
+    let currentNode = root
+    let currentPath = ''
+
+    for (let i = 0; i < segments.length - 1; i++) {
+      const segment = segments[i]
+      currentPath = currentPath ? `${currentPath}/${segment}` : segment
+
+      if (!currentNode.folders.has(segment)) {
+        currentNode.folders.set(segment, createTreeNode(segment, currentPath))
+      }
+
+      currentNode = currentNode.folders.get(segment)!
+    }
+
+    currentNode.files.push(file)
+  }
+
+  return root
+}
+
+const flattenTree = (
+  node: TreeNode,
+  depth: number,
+  forceExpand: boolean,
+  items: DisplayItem[]
+): void => {
+  const folders = Array.from(node.folders.values()).sort((a, b) => a.name.localeCompare(b.name))
+
+  for (const folder of folders) {
+    items.push({
+      type: 'folder',
+      path: folder.path,
+      label: folder.name,
+      depth
+    })
+
+    if (forceExpand || isFolderOpen(folder.path)) {
+      flattenTree(folder, depth + 1, forceExpand, items)
+    }
+  }
+
+  const files = [...node.files].sort(sortFiles)
+  for (const file of files) {
+    items.push({
+      type: 'file',
+      file,
+      label: getFileLabel(file.filename),
+      depth
+    })
+  }
+}
+
 const displayItems = computed(() => {
-  let filesToProcess = props.changedFiles
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase()
-    filesToProcess = props.changedFiles.filter(file =>
-      file.filename.toLowerCase().includes(query)
-    )
+  const query = searchQuery.value.trim().toLowerCase()
+  const filesToProcess = query
+    ? props.changedFiles.filter(file => file.filename.toLowerCase().includes(query))
+    : props.changedFiles
+
+  if (!filesToProcess.length) {
+    return []
   }
 
+  const tree = buildTree(filesToProcess)
   const items: DisplayItem[] = []
-  const rootFiles: FileItem[] = []
+  flattenTree(tree, 0, Boolean(query), items)
 
-  if (!searchQuery.value.trim()) {
-    const rootFilesList: FileChange[] = []
-    const nonRootFilesList: FileChange[] = []
-
-    filesToProcess.forEach(file => {
-      if (isRootFile(file.filename)) {
-        rootFilesList.push(file)
-      } else {
-        nonRootFilesList.push(file)
-      }
-    })
-
-    rootFilesList.forEach(file => {
-      rootFiles.push({
-        type: 'file',
-        file,
-        label: file.filename,
-        depth: 0
-      })
-    })
-
-    const folderPaths = new Set<string>()
-    nonRootFilesList.forEach(file => {
-      const dir = getFolderPath(file.filename)
-      if (dir) {
-        let current = ''
-        const parts = dir.split('/')
-        for (let i = 0; i < parts.length; i++) {
-          current += (i > 0 ? '/' : '') + parts[i]
-          folderPaths.add(current)
-        }
-      }
-    })
-
-    const sortedFolders = Array.from(folderPaths).sort((a, b) => {
-      const depthA = a.split('/').length
-      const depthB = b.split('/').length
-      if (depthA !== depthB) return depthA - depthB
-      return a.localeCompare(b)
-    })
-
-    sortedFolders.forEach(folderPath => {
-      const parts = folderPath.split('/')
-      const depth = parts.length - 1
-      const label = parts[parts.length - 1]
-
-      items.push({
-        type: 'folder',
-        path: folderPath,
-        label,
-        depth
-      })
-    })
-
-    const sortedNonRootFiles = nonRootFilesList.sort((a, b) => {
-      const depthA = a.filename.split('/').length
-      const depthB = b.filename.split('/').length
-      if (depthA !== depthB) return depthA - depthB
-      return a.filename.localeCompare(b.filename)
-    })
-
-    sortedNonRootFiles.forEach(file => {
-      const parts = file.filename.split('/')
-      const label = parts[parts.length - 1]
-      const depth = parts.length - 1
-
-      items.push({
-        type: 'file',
-        file,
-        label,
-        depth
-      })
-    })
-
-    return [...rootFiles, ...items]
-  }
-
-  const folderPaths = new Set<string>()
-  filesToProcess.forEach(file => {
-    const dir = getFolderPath(file.filename)
-    if (dir) {
-      let current = ''
-      const parts = dir.split('/')
-      for (let i = 0; i < parts.length; i++) {
-        current += (i > 0 ? '/' : '') + parts[i]
-        folderPaths.add(current)
-      }
-    } else {
-      rootFiles.push({
-        type: 'file',
-        file,
-        label: file.filename,
-        depth: 0
-      })
-    }
-  })
-
-  const sortedFolders = Array.from(folderPaths).sort((a, b) => {
-    const depthA = a.split('/').length
-    const depthB = b.split('/').length
-    if (depthA !== depthB) return depthA - depthB
-    return a.localeCompare(b)
-  })
-
-  sortedFolders.forEach(folderPath => {
-    const parts = folderPath.split('/')
-    const depth = parts.length - 1
-    const label = parts[parts.length - 1]
-
-    let isVisible = true
-    const pathParts = folderPath.split('/')
-    for (let i = 1; i < pathParts.length; i++) {
-      const parentPath = pathParts.slice(0, i).join('/')
-      if (!isFolderOpen(parentPath)) {
-        isVisible = false
-        break
-      }
-    }
-
-    if (isVisible) {
-      items.push({
-        type: 'folder',
-        path: folderPath,
-        label,
-        depth
-      })
-    }
-  })
-
-  filesToProcess.forEach(file => {
-    const filePath = file.filename
-    const dir = getFolderPath(filePath)
-    const parts = filePath.split('/')
-    const label = parts[parts.length - 1]
-    const depth = parts.length - 1
-
-    if (dir === '') {
-      return
-    }
-
-    let isVisible = true
-    const pathParts = dir.split('/')
-    for (let i = 0; i < pathParts.length; i++) {
-      const parentPath = pathParts.slice(0, i + 1).join('/')
-      if (!isFolderOpen(parentPath)) {
-        isVisible = false
-        break
-      }
-    }
-
-    if (isVisible) {
-      items.push({
-        type: 'file',
-        file,
-        label,
-        depth
-      })
-    }
-  })
-
-  return [...rootFiles, ...items]
+  return items
 })
 
 const getItemKey = (item: DisplayItem): string => {
@@ -314,25 +253,42 @@ const getItemKey = (item: DisplayItem): string => {
 const isFolderOpen = (folderPath: string) => openFolders.value.has(folderPath)
 
 const toggleFolder = (folderPath: string) => {
-  const isOpen = openFolders.value.has(folderPath)
+  const nextOpenFolders = new Set(openFolders.value)
+  const isOpen = nextOpenFolders.has(folderPath)
+
   if (isOpen) {
-    const toRemove = Array.from(openFolders.value).filter(path =>
+    const toRemove = Array.from(nextOpenFolders).filter(path =>
       path === folderPath || path.startsWith(folderPath + '/')
     )
-    toRemove.forEach(p => openFolders.value.delete(p))
+    toRemove.forEach(path => nextOpenFolders.delete(path))
   } else {
-    openFolders.value.add(folderPath)
+    nextOpenFolders.add(folderPath)
   }
-}
 
-const isRootFile = (filename: string) => !filename.includes('/')
-
-const getFolderPath = (filename: string) => {
-  const parts = filename.split('/')
-  return parts.length <= 1 ? '' : parts.slice(0, -1).join('/')
+  openFolders.value = nextOpenFolders
 }
 
 const selectFile = (file: FileChange) => {
+  selectedFilePath.value = file.filename
   emit('file-selected', file)
 }
+
+watch(
+  () => props.changedFiles,
+  files => {
+    const topLevelFolders = new Set<string>()
+    for (const file of files) {
+      const parts = file.filename.split('/')
+      if (parts.length > 1 && parts[0]) {
+        topLevelFolders.add(parts[0])
+      }
+    }
+    openFolders.value = topLevelFolders
+
+    if (!files.some(file => file.filename === selectedFilePath.value)) {
+      selectedFilePath.value = ''
+    }
+  },
+  { immediate: true }
+)
 </script>
