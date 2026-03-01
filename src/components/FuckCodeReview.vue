@@ -43,6 +43,10 @@
 
     <!-- 主内容区 -->
     <div class="main-content">
+      <div v-if="errorMessage" class="error-banner">
+        {{ errorMessage }}
+      </div>
+
       <div v-if="!selectedPR" class="empty-state">
         <h3>请从左侧选择一个Pull Request进行审查</h3>
       </div>
@@ -90,19 +94,13 @@ import {
   PhGithubLogo as GithubLogo,
   PhInfo as Info
 } from '@phosphor-icons/vue'
-import axios, { 
-  type AxiosInstance,
-  type AxiosResponse,
-  type InternalAxiosRequestConfig,
-  type AxiosError,
-  AxiosHeaders
-} from 'axios'
+import axios, { type AxiosError } from 'axios'
 import Sidebar from '@/components/CodeReview/Sidebar.vue'
 import PRHeader from '@/components/CodeReview/PRHeader.vue'
 import PRTabs from '@/components/CodeReview/PRTabs.vue'
 import FilesTabContent from '@/components/CodeReview/PRTabs/FilesTabContent.vue'
 import AnalysisTabContent from '@/components/CodeReview/PRTabs/AnalysisTabContent.vue'
-import { api } from '../utils/githubClient'
+import { api, githubTokenSetupHint, hasGithubToken } from '../utils/githubClient'
 import type { 
   PullRequest, 
   FileChange, 
@@ -115,9 +113,6 @@ import type {
 // 常量定义
 const REPO_OWNER = 'AstralSightStudios'
 const REPO_NAME = 'AstroBox-Repo'
-const DEFAULT_TIMEOUT = 15000
-const MAX_RETRIES = 3
-const RETRY_DELAY = 1000
 
 // 响应式状态
 const pullRequests = ref<PullRequest[]>([])
@@ -152,12 +147,15 @@ const isAxiosError = (error: unknown): error is AxiosError => {
 }
 
 onMounted(() => {
+  if (!hasGithubToken) {
+    errorMessage.value = githubTokenSetupHint
+  }
   fetchPullRequests()
 })
 
 const fetchPullRequests = async () => {
   loadingPRs.value = true
-  errorMessage.value = ''
+  errorMessage.value = hasGithubToken ? '' : githubTokenSetupHint
   
   try {
     console.log('开始获取PR列表...')
@@ -203,16 +201,21 @@ const fetchPullRequests = async () => {
     if (isAxiosError(error)) {
       const errorData = error.response?.data as { message?: string } || {}
       if (error.response?.status === 401) {
-        errorMessage.value = 'GitHub认证失败，请检查Token是否有效'
+        errorMessage.value = hasGithubToken
+          ? 'GitHub认证失败，请检查Token是否有效'
+          : `${githubTokenSetupHint} 当前请求返回 401，请先配置可用 token。`
       } else if (error.response?.status === 404) {
         errorMessage.value = `仓库不存在: ${REPO_OWNER}/${REPO_NAME}`
       } else {
-        errorMessage.value = `获取PR列表失败: ${errorData.message || error.message}`
+        const detail = `获取PR列表失败: ${errorData.message || error.message}`
+        errorMessage.value = hasGithubToken ? detail : `${githubTokenSetupHint} ${detail}`
       }
     } else if (error instanceof Error) {
-      errorMessage.value = `获取PR列表失败: ${error.message}`
+      const detail = `获取PR列表失败: ${error.message}`
+      errorMessage.value = hasGithubToken ? detail : `${githubTokenSetupHint} ${detail}`
     } else {
-      errorMessage.value = '获取PR列表失败: 未知错误'
+      const detail = '获取PR列表失败: 未知错误'
+      errorMessage.value = hasGithubToken ? detail : `${githubTokenSetupHint} ${detail}`
     }
   } finally {
     loadingPRs.value = false
@@ -699,12 +702,15 @@ defineEmits(['refresh'])
   font-size: 14px;
 }
 
-.error-message {
-  padding: 1rem;
-  background-color: #fee2e2;
-  color: #dc2626;
-  border-radius: 0.5rem;
-  margin: 1rem 0;
+.error-banner {
+  padding: 0.85rem 1rem;
+  background: color-mix(in srgb, var(--destructive) 12%, var(--card));
+  color: var(--foreground);
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, var(--border));
+  border-radius: 0.7rem;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+  font-size: 0.875rem;
 }
 
 @media (max-width: 768px) {

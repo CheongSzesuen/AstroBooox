@@ -3,27 +3,31 @@ import axios, {
   type AxiosInstance,
   type AxiosResponse,
   type InternalAxiosRequestConfig,
-  type AxiosError,
-  AxiosHeaders
+  type AxiosError
 } from 'axios'
 
 // 浏览器端仅从 Vite 环境变量读取 token，避免混用 Node 侧变量
-const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN
+const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim() ?? ''
 const GITHUB_API_URL = 'https://api.github.com'
+export const hasGithubToken = GITHUB_TOKEN.length > 0
+
+export const githubTokenSetupHint =
+  '未检测到 VITE_GITHUB_TOKEN。请在项目根目录创建 .env.local 并添加 VITE_GITHUB_TOKEN=你的token，然后重启 npm run dev。'
 
 const createGitHubClient = (): AxiosInstance => {
-  if (!GITHUB_TOKEN) {
-    throw new Error('GitHub Token未配置')
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  }
+
+  if (hasGithubToken) {
+    headers.Authorization = `Bearer ${GITHUB_TOKEN}`
   }
 
   const client = axios.create({
     baseURL: GITHUB_API_URL,
     timeout: 15000,
-    headers: {
-      'Accept': 'application/vnd.github.v3+json',
-      'Authorization': `Bearer ${GITHUB_TOKEN}`,
-      'X-GitHub-Api-Version': '2022-11-28'
-    }
+    headers
   })
 
   // 添加请求拦截器
