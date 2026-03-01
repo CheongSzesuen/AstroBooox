@@ -1,27 +1,33 @@
 <template>
-  <div class="csv-generator">
-    <div class="editor-content">
-      <div class="editor-container">
-        <!-- 表单容器 -->
-        <div class="form-container">
-          <!-- 资源信息部分 -->
-          <div class="form-section">
-            <h3>资源信息</h3>
-            <div class="form-group">
-              <label>资源名称</label>
+  <div class="flex min-h-full w-full flex-col">
+    <div class="flex min-h-full w-full flex-col gap-4">
+      <div class="flex min-h-[500px] flex-1 overflow-hidden">
+        <div class="flex-1 min-w-0 overflow-y-auto rounded-xl border border-border bg-muted/55 p-4">
+          <div class="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h3 class="mb-4 text-base font-semibold">资源信息</h3>
+            <div class="mb-4">
+              <label class="mb-2 block text-sm font-semibold text-foreground">资源名称</label>
               <Input v-model="csvData.name" placeholder="WeatherPlus" />
             </div>
-            <div class="form-group">
-              <label>图标 URL <span class="hint-text">(最佳为200×200,AstroBox会自动割圆。若设计简陋、低质会被打回) </span><span class="hint-text">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span></label>
+            <div class="mb-4">
+              <label class="mb-2 block text-sm font-semibold text-foreground">
+                图标 URL
+                <span class="ml-1 text-xs font-normal text-muted-foreground">(最佳为200×200,AstroBox会自动割圆。若设计简陋、低质会被打回)</span>
+                <span class="ml-1 text-xs font-normal text-muted-foreground">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span>
+              </label>
               <Input v-model="csvData.icon" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/图标名" />
             </div>
-            <div class="form-group">
-              <label>封面 URL <span class="hint-text">(比例3:2显示最佳，分辨率不要过大，1200x800足矣。若设计简陋、低质会被打回。) </span><span class="hint-text">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span></label>
+            <div class="mb-4">
+              <label class="mb-2 block text-sm font-semibold text-foreground">
+                封面 URL
+                <span class="ml-1 text-xs font-normal text-muted-foreground">(比例3:2显示最佳，分辨率不要过大，1200x800足矣。若设计简陋、低质会被打回。)</span>
+                <span class="ml-1 text-xs font-normal text-muted-foreground">(地址是在你创建的仓库里右键图片并在新标签页中打开的地址)</span>
+              </label>
               <Input v-model="csvData.cover" placeholder="https://raw.githubusercontent.com/用户名/资源仓库/refs/heads/分支名/封面名" />
             </div>
-            <div class="form-row">
-              <div class="form-group half-width">
-                <label>资源类型</label>
+            <div class="flex gap-4 max-[768px]:flex-col">
+              <div class="min-w-0 flex-1">
+                <label class="mb-2 block text-sm font-semibold text-foreground">资源类型</label>
                 <Select v-model="csvData.restype">
                   <SelectTrigger>
                     <SelectValue placeholder="请选择资源类型" />
@@ -32,8 +38,8 @@
                   </SelectContent>
                 </Select>
               </div>
-              <div class="form-group half-width">
-                <label>付费类型<span class="hint-text">（体验版请选择“应用内付费”）</span></label>
+              <div class="min-w-0 flex-1">
+                <label class="mb-2 block text-sm font-semibold text-foreground">付费类型<span class="ml-1 text-xs font-normal text-muted-foreground">（体验版请选择“应用内付费”）</span></label>
                 <Select v-model="csvData.paymentType">
                   <SelectTrigger>
                     <SelectValue placeholder="请选择付费类型" />
@@ -48,64 +54,61 @@
             </div>
           </div>
 
-          <!-- 分类与设备部分 -->
-          <div class="form-section">
-            <h3>分类与设备</h3>
-            <div class="form-group">
-              <label>资源标签</label>
-              <div class="array-input">
-                <div v-for="(tag, index) in csvData.tags" :key="index" class="preview-item">
+          <div class="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h3 class="mb-4 text-base font-semibold">分类与设备</h3>
+            <div class="mb-4">
+              <label class="mb-2 block text-sm font-semibold text-foreground">资源标签</label>
+              <div class="flex flex-col gap-3">
+                <div v-for="(tag, index) in csvData.tags" :key="index" class="flex items-center gap-2">
                   <Input v-model="csvData.tags[index]" placeholder="天气" class="flex-1" />
-                  <Button variant="outline" size="icon" @click="removeTag(index)" class="h-9 w-9 rounded-full">
+                  <Button variant="outline" size="icon" class="h-9 w-9 rounded-full" @click="removeTag(index)">
                     <Minus :size="16" weight="bold" />
                   </Button>
                 </div>
-                <Button @click="addTag" class="w-fit">+ 添加标签</Button>
+                <Button class="w-fit" @click="addTag">+ 添加标签</Button>
               </div>
             </div>
-            <div class="form-group">
-              <label>支持设备<span class="hint-text">（注意环10和环10nfc是否都支持）</span></label>
-              <div class="array-input">
-                <div v-for="(deviceCode, index) in csvData.devices" :key="index" class="preview-item">
+            <div>
+              <label class="mb-2 block text-sm font-semibold text-foreground">支持设备<span class="ml-1 text-xs font-normal text-muted-foreground">（注意环10和环10nfc是否都支持）</span></label>
+              <div class="flex flex-col gap-3">
+                <div v-for="(deviceCode, index) in csvData.devices" :key="index" class="flex items-center gap-2">
                   <Input
                     :model-value="getDeviceDisplayName(deviceCode)"
-                    placeholder="请点击下方按钮添加设备" 
+                    placeholder="请点击下方按钮添加设备"
                     class="flex-1"
                     readonly
                   />
-                  <Button variant="outline" size="icon" @click="removeDevice(index)" class="h-9 w-9 rounded-full">
+                  <Button variant="outline" size="icon" class="h-9 w-9 rounded-full" @click="removeDevice(index)">
                     <Minus :size="16" weight="bold" />
                   </Button>
                 </div>
-                <Button @click="openDeviceSelector" class="w-fit">+ 添加设备</Button>
+                <Button class="w-fit" @click="openDeviceSelector">+ 添加设备</Button>
               </div>
             </div>
           </div>
 
-          <!-- 其他信息部分 -->
-          <div class="form-section">
-            <h3>其他信息</h3>
-            <div class="form-group">
-              <label>创建的 资源.json 路径</label>
+          <div class="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h3 class="mb-4 text-base font-semibold">其他信息</h3>
+            <div>
+              <label class="mb-2 block text-sm font-semibold text-foreground">创建的 资源.json 路径</label>
               <Input
-                v-model="csvData.path" 
+                v-model="csvData.path"
                 placeholder="yourname/AppName.json"
               />
-              <p class="hint-text">
+              <p class="mt-2 text-xs leading-5 text-muted-foreground">
                 注意：此文件不是manifest页面生成的，是你在fork官方软件源仓库
-                <a href="https://github.com/AstralSightStudios/AstroBox-Repo" target="_blank">AstroBox-Repo</a>
+                <a class="underline underline-offset-4" href="https://github.com/AstralSightStudios/AstroBox-Repo" target="_blank">AstroBox-Repo</a>
                 后，新建的manifest文件，路径如下：resources/你的昵称/资源名.json文件。内容类似{"manifest_ver": 1,"repo_url": "https://github.com/你的用户名/你的资源仓库"}
               </p>
             </div>
           </div>
 
-          <!-- CSV预览区域 -->
-          <div class="form-section">
-            <h3>生成的 CSV</h3>
-            <div class="preview-content">
-              <pre>{{ generatedCSV }}</pre>
+          <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h3 class="mb-4 text-base font-semibold">生成的 CSV</h3>
+            <div class="overflow-auto rounded-lg border border-border bg-background p-4 text-sm leading-6">
+              <pre class="m-0 whitespace-pre-wrap break-words font-mono">{{ generatedCSV }}</pre>
             </div>
-            <div class="preview-actions">
+            <div class="mt-4 flex justify-end">
               <Button @click="validateAndCopy">
                 <CopySimple :size="16" weight="bold" />
                 复制到剪贴板
@@ -121,16 +124,18 @@
             <DialogTitle>选择设备</DialogTitle>
             <DialogDescription>可多选，按真实支持设备勾选。</DialogDescription>
           </DialogHeader>
-          <div class="device-list">
+          <div class="my-2 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 max-[768px]:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] max-[480px]:grid-cols-1">
             <div
               v-for="device in supportedDevices"
               :key="device.codename + device.name"
-              class="device-item"
-              :class="{ selected: isDeviceSelected(device) }"
+              :class="[
+                'cursor-pointer rounded-lg border p-4 transition-colors',
+                isDeviceSelected(device) ? 'border-ring bg-muted' : 'border-border bg-background hover:bg-accent'
+              ]"
               @click="toggleDeviceSelection(device)"
             >
-              <div class="device-name">{{ device.name }}</div>
-              <div class="device-codename">{{ device.codename }}</div>
+              <div class="mb-1 font-semibold text-foreground">{{ device.name }}</div>
+              <div class="text-xs text-muted-foreground">{{ device.codename }}</div>
             </div>
           </div>
           <DialogFooter>
@@ -432,184 +437,3 @@ watch(() => csvData.value.devices, (newVal) => {
   currentDevices.value = [...newVal.filter(d => d)]
 }, { deep: true, immediate: true })
 </script>
-
-<style scoped>
-.csv-generator {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  width: 100%;
-}
-
-.editor-content {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  width: 100%;
-  gap: 1rem;
-}
-
-.editor-container {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  min-height: 500px;
-}
-
-.form-container {
-  flex: 1;
-  min-width: 0;
-  background: hsl(var(--muted) / 0.55);
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
-  padding: 1rem;
-  overflow-y: auto;
-}
-
-.form-section {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: hsl(var(--foreground));
-}
-
-.hint-text {
-  color: hsl(var(--muted-foreground));
-  font-size: 0.8rem;
-  font-weight: normal;
-}
-
-.form-row {
-  display: flex;
-  gap: 1rem;
-}
-
-.half-width {
-  flex: 1;
-  min-width: 0;
-}
-
-.array-input {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.preview-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.preview-content {
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  padding: 1rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.5rem;
-  overflow: auto;
-  font-size: 0.9rem;
-  line-height: 1.6;
-}
-
-pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family: 'Consolas', 'Monaco', monospace;
-}
-
-.preview-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1rem;
-}
-
-.device-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin: 0.5rem 0;
-}
-
-.device-item {
-  padding: 1rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  background: hsl(var(--background));
-  border: 1px solid hsl(var(--border));
-  transition: border-color 0.2s ease, background-color 0.2s ease;
-}
-
-.device-item:hover {
-  background: hsl(var(--accent));
-}
-
-.device-item.selected {
-  background: hsl(var(--muted));
-  border-color: hsl(var(--ring));
-}
-
-.device-name {
-  font-weight: 600;
-  color: hsl(var(--foreground));
-  margin-bottom: 0.25rem;
-}
-
-.device-codename {
-  font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
-}
-
-@media (max-width: 768px) {
-  .form-container {
-    padding: 1rem;
-  }
-  
-  .form-section {
-    padding: 1rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .form-row {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .half-width {
-    width: 100%;
-  }
-
-  .device-list {
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-    gap: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .form-section {
-    padding: 0.875rem;
-  }
-  
-  .preview-content {
-    padding: 1rem;
-  }
-
-  .device-list {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

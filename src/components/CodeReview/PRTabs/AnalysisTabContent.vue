@@ -1,153 +1,155 @@
 <template>
-  <div class="tab-content">
-    <div v-if="analyzedData" class="analysis-results">
-      <Card class="analysis-section">
-        <CardHeader class="analysis-header">
+  <div>
+    <div v-if="analyzedData" class="grid grid-cols-2 gap-3 max-[768px]:grid-cols-1">
+      <Card class="min-w-0">
+        <CardHeader class="border-b border-border px-3.5 pb-2.5 pt-3.5">
           <CardTitle class="text-base">PR变更分析</CardTitle>
         </CardHeader>
-        <CardContent class="analysis-content">
-          <div v-if="analyzedData.csvChange" class="csv-analysis">
-            <h4>CSV变更</h4>
-            <div class="form-layout">
-              <div class="form-row">
-                <div class="form-label">资源名:</div>
-                <div class="form-value">{{ analyzedData.csvChange.appName || '未提供' }}</div>
+        <CardContent class="px-3.5 pb-3.5 pt-3">
+          <div v-if="analyzedData.csvChange" class="mt-1">
+            <h4 class="mb-2 mt-3 text-sm font-semibold text-foreground">CSV变更</h4>
+            <div class="flex flex-col gap-1">
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">资源名:</div>
+                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.appName || '未提供' }}</div>
               </div>
-              <div class="form-row">
-                <div class="form-label">图标:</div>
-                <div class="form-value">
-                  <a v-if="analyzedData.csvChange.iconUrl" :href="analyzedData.csvChange.iconUrl" target="_blank" class="resource-link">
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">图标:</div>
+                <div class="flex-1 break-words text-[0.86rem]">
+                  <a v-if="analyzedData.csvChange.iconUrl" :href="analyzedData.csvChange.iconUrl" target="_blank" class="break-all text-foreground hover:underline">
                     {{ analyzedData.csvChange.iconUrl }}
                   </a>
                   <span v-else>未提供</span>
                 </div>
               </div>
-              <div class="form-row">
-                <div class="form-label">头图:</div>
-                <div class="form-value">
-                  <a v-if="analyzedData.csvChange.previewUrl" :href="analyzedData.csvChange.previewUrl" target="_blank" class="resource-link">
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">头图:</div>
+                <div class="flex-1 break-words text-[0.86rem]">
+                  <a v-if="analyzedData.csvChange.previewUrl" :href="analyzedData.csvChange.previewUrl" target="_blank" class="break-all text-foreground hover:underline">
                     {{ analyzedData.csvChange.previewUrl }}
                   </a>
                   <span v-else>未提供</span>
                 </div>
               </div>
-              <div class="form-row">
-                <div class="form-label">类型:</div>
-                <div class="form-value">{{ analyzedData.csvChange.type || '未提供' }}</div>
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">类型:</div>
+                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.type || '未提供' }}</div>
               </div>
-              <div class="form-row">
-                <div class="form-label">标签:</div>
-                <div class="form-value">{{ analyzedData.csvChange.tags || '未提供' }}</div>
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">标签:</div>
+                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.tags || '未提供' }}</div>
               </div>
-              <div class="form-row">
-                <div class="form-label">支持设备:</div>
-                <div class="form-value">{{ analyzedData.csvChange.supportedDevices || '未提供' }}</div>
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">支持设备:</div>
+                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.supportedDevices || '未提供' }}</div>
               </div>
-              <div class="form-row">
-                <div class="form-label">JSON路径:</div>
-                <div class="form-value">{{ analyzedData.csvChange.resourceFile || '未提供' }}</div>
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">JSON路径:</div>
+                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.resourceFile || '未提供' }}</div>
               </div>
-              <div class="form-row">
-                <div class="form-label">付费类型:</div>
-                <div class="form-value">{{ analyzedData.csvChange.paidType || '未提供' }}</div>
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">付费类型:</div>
+                <div class="flex-1 break-words text-[0.86rem]">{{ analyzedData.csvChange.paidType || '未提供' }}</div>
               </div>
             </div>
           </div>
 
-          <div v-if="analyzedData.resourceChange" class="resource-analysis">
-            <h4>资源文件变更</h4>
-            <div class="json-viewer">
-              <pre>{{ JSON.stringify(analyzedData.resourceChange, null, 2) }}</pre>
+          <div v-if="analyzedData.resourceChange" class="mt-3.5">
+            <h4 class="mb-2 mt-3 text-sm font-semibold text-foreground">资源文件变更</h4>
+            <div class="mt-2 overflow-x-auto rounded-[0.6rem] border border-border bg-muted/45 p-2.5">
+              <pre class="m-0 whitespace-pre-wrap break-words font-mono text-[13px] leading-[1.45]">{{ JSON.stringify(analyzedData.resourceChange, null, 2) }}</pre>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card v-if="repoData" class="analysis-section">
-        <CardHeader class="analysis-header">
+      <Card v-if="repoData" class="min-w-0">
+        <CardHeader class="border-b border-border px-3.5 pb-2.5 pt-3.5">
           <CardTitle class="text-base">仓库信息分析</CardTitle>
         </CardHeader>
-        <CardContent class="analysis-content">
-          <div class="repo-info">
-            <div class="form-row">
-              <div class="form-label">仓库URL:</div>
-              <div class="form-value">
-                <a v-if="repoData.repo_url" :href="repoData.repo_url" target="_blank" class="resource-link">
-                  {{ repoData.repo_url }}
-                </a>
-                <span v-else>未提供</span>
-              </div>
+        <CardContent class="px-3.5 pb-3.5 pt-3">
+          <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+            <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">仓库URL:</div>
+            <div class="flex-1 break-words text-[0.86rem]">
+              <a v-if="repoData.repo_url" :href="repoData.repo_url" target="_blank" class="break-all text-foreground hover:underline">
+                {{ repoData.repo_url }}
+              </a>
+              <span v-else>未提供</span>
             </div>
-            
-            <div v-if="manifestData" class="manifest-info">
-              <h4>Manifest 内容</h4>
-              <div class="form-layout">
-                <div class="form-row">
-                  <div class="form-label">应用名称:</div>
-                  <div class="form-value">{{ manifestData.item.name || '未提供' }}</div>
-                </div>
-                <div class="form-row">
-                  <div class="form-label">描述:</div>
-                  <div class="form-value">{{ manifestData.item.description || '未提供' }}</div>
-                </div>
-                <div class="form-row">
-                  <div class="form-label">作者:</div>
-                  <div class="form-value">
-                    <template v-if="manifestData.item.author?.length">
-                      <a v-for="author in manifestData.item.author" 
-                        :key="author.name"
-                        :href="author.author_url" 
-                        target="_blank"
-                        class="author-link">
-                        {{ author.name || '匿名作者' }}
-                      </a>
-                    </template>
-                    <span v-else>未提供</span>
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-label">支持的设备:</div>
-                  <div class="form-value">
-                    <template v-if="manifestData.downloads && Object.keys(manifestData.downloads).length">
-                      <span v-for="(device, index) in Object.keys(manifestData.downloads)" :key="device">
-                        {{ device }}{{ index < Object.keys(manifestData.downloads).length - 1 ? ', ' : '' }}
-                      </span>
-                    </template>
-                    <span v-else>未提供</span>
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-label">图标:</div>
-                  <div class="form-value">
-                    <a v-if="manifestData.item.icon" :href="getFullImageUrl(manifestData.item.icon)" target="_blank" class="resource-link">
-                      {{ manifestData.item.icon }}
+          </div>
+
+          <div v-if="manifestData" class="mt-3">
+            <h4 class="mb-2 mt-2 text-sm font-semibold text-muted-foreground">Manifest 内容</h4>
+            <div class="flex flex-col gap-1">
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">应用名称:</div>
+                <div class="flex-1 break-words text-[0.86rem]">{{ manifestData.item.name || '未提供' }}</div>
+              </div>
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">描述:</div>
+                <div class="flex-1 break-words text-[0.86rem]">{{ manifestData.item.description || '未提供' }}</div>
+              </div>
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">作者:</div>
+                <div class="flex-1 break-words text-[0.86rem]">
+                  <template v-if="manifestData.item.author?.length">
+                    <a
+                      v-for="author in manifestData.item.author"
+                      :key="author.name"
+                      :href="author.author_url"
+                      target="_blank"
+                      class="mr-2 text-foreground hover:underline"
+                    >
+                      {{ author.name || '匿名作者' }}
                     </a>
-                    <span v-else>未提供</span>
-                  </div>
+                  </template>
+                  <span v-else>未提供</span>
                 </div>
-                <div class="form-row">
-                  <div class="form-label">预览图:</div>
-                  <div class="form-value">
-                    <template v-if="manifestData.item.preview?.length">
-                      <div v-for="preview in manifestData.item.preview" :key="preview">
-                        <a :href="getFullImageUrl(preview)" target="_blank" class="resource-link">
-                          {{ preview }}
-                        </a>
-                      </div>
-                    </template>
-                    <span v-else>未提供</span>
-                  </div>
+              </div>
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">支持的设备:</div>
+                <div class="flex-1 break-words text-[0.86rem]">
+                  <template v-if="manifestData.downloads && Object.keys(manifestData.downloads).length">
+                    <span v-for="(device, index) in Object.keys(manifestData.downloads)" :key="device">
+                      {{ device }}{{ index < Object.keys(manifestData.downloads).length - 1 ? ', ' : '' }}
+                    </span>
+                  </template>
+                  <span v-else>未提供</span>
+                </div>
+              </div>
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">图标:</div>
+                <div class="flex-1 break-words text-[0.86rem]">
+                  <a v-if="manifestData.item.icon" :href="getFullImageUrl(manifestData.item.icon)" target="_blank" class="break-all text-foreground hover:underline">
+                    {{ manifestData.item.icon }}
+                  </a>
+                  <span v-else>未提供</span>
+                </div>
+              </div>
+              <div class="flex items-start gap-1.5 py-0.5 max-[768px]:flex-col max-[768px]:gap-0.5">
+                <div class="min-w-[104px] text-[0.82rem] font-medium text-muted-foreground">预览图:</div>
+                <div class="flex-1 break-words text-[0.86rem]">
+                  <template v-if="manifestData.item.preview?.length">
+                    <div v-for="preview in manifestData.item.preview" :key="preview">
+                      <a :href="getFullImageUrl(preview)" target="_blank" class="break-all text-foreground hover:underline">
+                        {{ preview }}
+                      </a>
+                    </div>
+                  </template>
+                  <span v-else>未提供</span>
                 </div>
               </div>
             </div>
-            <div v-else class="error">
-              无法获取或解析manifest.json文件
-            </div>
+          </div>
+
+          <div v-else class="mt-3 text-sm text-destructive">
+            无法获取或解析manifest.json文件
           </div>
         </CardContent>
       </Card>
     </div>
-    <div v-else class="empty-state">
+
+    <div v-else class="flex min-h-[8rem] items-center justify-center rounded-xl border border-dashed border-border bg-muted/25 text-muted-foreground">
       <p>暂无数据分析结果</p>
     </div>
   </div>
@@ -169,158 +171,3 @@ const getFullImageUrl = (relativePath: string): string => {
   return `https://raw.githubusercontent.com/${repoPath}/main/${relativePath}`
 }
 </script>
-
-<style scoped>
-.tab-content {
-  padding: 0;
-}
-
-.analysis-results {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-.analysis-section {
-  min-width: 0;
-}
-
-.analysis-header {
-  padding: 0.875rem 0.875rem 0.625rem;
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.analysis-content {
-  padding: 0.75rem 0.875rem 0.875rem;
-}
-
-.csv-analysis {
-  margin-top: 0.25rem;
-}
-
-.csv-analysis h4 {
-  margin: 0.85rem 0 0.65rem;
-  font-size: 0.9rem;
-  color: hsl(var(--foreground));
-}
-
-.form-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.form-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.35rem;
-  padding: 0.15rem 0;
-}
-
-.form-label {
-  font-weight: 500;
-  min-width: 104px;
-  color: hsl(var(--muted-foreground));
-  font-size: 0.82rem;
-}
-
-.form-value {
-  flex: 1;
-  word-break: break-word;
-  font-size: 0.86rem;
-}
-
-.resource-analysis {
-  margin-top: 0.9rem;
-}
-
-.resource-analysis h4 {
-  margin: 0.85rem 0 0.65rem;
-  font-size: 0.9rem;
-  color: hsl(var(--foreground));
-}
-
-.json-viewer {
-  background-color: hsl(var(--muted) / 0.45);
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.6rem;
-  padding: 0.65rem;
-  margin-top: 0.45rem;
-  overflow-x: auto;
-}
-
-.json-viewer pre {
-  margin: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: 14px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.repo-info {
-  margin-top: 0;
-}
-
-.manifest-info {
-  margin-top: 0.8rem;
-}
-
-.manifest-info h4 {
-  margin: 0.45rem 0;
-  font-size: 0.9rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.resource-link {
-  color: hsl(var(--foreground));
-  text-decoration: none;
-  word-break: break-all;
-}
-
-.resource-link:hover {
-  text-decoration: underline;
-}
-
-.author-link {
-  color: hsl(var(--foreground));
-  text-decoration: none;
-  margin-right: 0.5rem;
-}
-
-.author-link:hover {
-  text-decoration: underline;
-}
-
-.empty-state {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 8rem;
-  color: hsl(var(--muted-foreground));
-  border: 1px dashed hsl(var(--border));
-  border-radius: 0.75rem;
-  background: hsl(var(--muted) / 0.25);
-}
-
-.error {
-  color: hsl(var(--destructive));
-  margin-top: 1rem;
-}
-
-@media (max-width: 768px) {
-  .analysis-results {
-    grid-template-columns: 1fr;
-  }
-  
-  .form-row {
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-  
-  .form-label {
-    min-width: auto;
-    padding-right: 0;
-  }
-}
-</style>

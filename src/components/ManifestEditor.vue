@@ -1,54 +1,57 @@
 <template>
-  <div class="manifest-editor">
+  <div class="flex min-h-full w-full flex-col">
     <!-- 完整项目路径和操作按钮部分 -->
-    <div v-if="projectDirectory" class="editor-content">
-      <div class="project-path">
-        <span>当前项目路径: {{ projectDirectory.name }} ({{ isFsaSupported ? 'FSA' : 'OPFS' }})</span>
+    <div v-if="projectDirectory" class="flex min-h-full w-full flex-col gap-4">
+      <div class="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm max-[480px]:flex-col max-[480px]:items-start max-[480px]:gap-3">
+        <span class="min-w-0 flex-1 truncate">当前项目路径: {{ projectDirectory.name }} ({{ isFsaSupported ? 'FSA' : 'OPFS' }})</span>
         <Button
           variant="outline"
           size="sm"
-          :class="{ 'disabled-button': isOPFSMode }"
+          :class="[
+            'max-[480px]:w-full max-[480px]:justify-center',
+            { 'cursor-not-allowed opacity-60': isOPFSMode }
+          ]"
           @click="selectProjectDirectory"
           :disabled="isOPFSMode"
         >
           更改文件夹
         </Button>
-        <Button variant="outline" size="sm" class="gap-2" @click="findManifest">
+        <Button variant="outline" size="sm" class="gap-2 max-[480px]:w-full max-[480px]:justify-center" @click="findManifest">
           <MagnifyingGlass :size="16" weight="bold" />
           查找manifest.json
         </Button>
       </div>
       
-      <div class="editor-container">
+      <div class="flex min-h-[500px] flex-1 gap-4 overflow-hidden max-[768px]:flex-col">
         <!-- 完整的表单容器 -->
-        <div class="form-container">
+        <div class="flex-1 min-w-0 overflow-y-auto rounded-xl border border-border bg-muted/55 p-4">
           <!-- 应用信息部分 -->
-          <div class="form-section">
-            <h3>应用信息</h3>
-            <div class="form-group">
-              <label>应用名称</label>
+          <div class="mb-8 w-full rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h3 class="mb-4 text-base font-semibold text-foreground">应用信息</h3>
+            <div class="mb-4 w-full">
+              <label class="mb-2 block font-semibold text-foreground">应用名称</label>
               <Input v-model="manifest.item.name" placeholder="应用名称" />
             </div>
-            <div class="form-group">
-              <label>应用简介</label>
+            <div class="mb-4 w-full">
+              <label class="mb-2 block font-semibold text-foreground">应用简介</label>
               <Textarea v-model="manifest.item.description" placeholder="应用简介" />
             </div>
-            <div class="form-group">
-              <label>预览图（支持多选）</label>
+            <div class="mb-4 w-full">
+              <label class="mb-2 block font-semibold text-foreground">预览图（支持多选）</label>
               <draggable 
                 v-model="manifest.item.preview" 
                 handle=".drag-handle"
                 item-key="index"
-                class="preview-list"
-                ghost-class="ghost-item"
-                chosen-class="chosen-item"
+                class="mb-2"
+                ghost-class="opacity-50"
+                chosen-class="opacity-80"
                 @start="handleDragStart"
                 @end="handleDragEnd"
               >
                 <template #item="{element, index}">
-                  <div class="preview-item">
-                    <div class="drag-handle-container">
-                      <div class="drag-handle">
+                  <div class="mb-2 flex min-h-11 items-center gap-2 rounded-lg border border-border bg-background p-2">
+                    <div class="drag-handle flex h-full w-6 cursor-move items-center justify-center rounded-md bg-muted py-1">
+                      <div class="flex h-full w-full items-center justify-center">
                         <DotsSixVertical :size="16" weight="bold" />
                       </div>
                     </div>
@@ -61,29 +64,29 @@
               </draggable>
               <Button class="mt-2" @click="selectMultiplePreviews">+ 添加预览图</Button>
             </div>
-            <div class="form-group">
-              <label>图标</label>
-              <div class="file-input-group">
+            <div class="mb-4 w-full">
+              <label class="mb-2 block font-semibold text-foreground">图标</label>
+              <div class="flex w-full gap-2">
                 <Input v-model="manifest.item.icon" placeholder="icon.png" readonly class="flex-1 min-w-0" />
                 <Button @click="selectFile('icon')">选择文件</Button>
               </div>
             </div>
-            <div class="form-group">
-              <label>开源仓库 URL（可选）</label>
+            <div class="w-full">
+              <label class="mb-2 block font-semibold text-foreground">开源仓库 URL（可选）</label>
               <Input v-model="manifest.item.source_url" placeholder="开源项目将有更多机会得到推荐" />
             </div>
           </div>
           
           <!-- 作者信息部分 -->
-          <div class="form-section">
-            <h3>作者信息</h3>
-            <div v-for="(author, index) in manifest.item.author" :key="index" class="author-group">
-              <div class="form-group">
-                <label>作者名称</label>
+          <div class="mb-8 w-full rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h3 class="mb-4 text-base font-semibold text-foreground">作者信息</h3>
+            <div v-for="(author, index) in manifest.item.author" :key="index" class="relative mb-3 rounded-lg border border-border bg-background p-3">
+              <div class="mb-4 w-full">
+                <label class="mb-2 block font-semibold text-foreground">作者名称</label>
                 <Input v-model="author.name" placeholder="作者名称" />
               </div>
-              <div class="form-group">
-                <label>作者主页（可选）</label>
+              <div class="mb-4 w-full">
+                <label class="mb-2 block font-semibold text-foreground">作者主页（可选）</label>
                 <Input v-model="author.author_url" placeholder="https://github.com/用户名" />
               </div>
               <Button variant="outline" @click="removeAuthor(index)">删除</Button>
@@ -92,17 +95,17 @@
           </div>
           
           <!-- 支持设备信息部分 -->
-          <div class="form-section">
-            <h3>支持设备信息</h3>
-            <div v-for="(download, deviceCode) in manifest.downloads" :key="deviceCode" class="download-group">
-              <h4>{{ getDeviceDisplayName(deviceCode) }}</h4>
-              <div class="form-group">
-                <label>应用版本</label>
+          <div class="mb-8 w-full rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h3 class="mb-4 text-base font-semibold text-foreground">支持设备信息</h3>
+            <div v-for="(download, deviceCode) in manifest.downloads" :key="deviceCode" class="mb-3 rounded-lg border border-border bg-background p-3">
+              <h4 class="mb-3 text-sm font-semibold text-foreground">{{ getDeviceDisplayName(deviceCode) }}</h4>
+              <div class="mb-4 w-full">
+                <label class="mb-2 block font-semibold text-foreground">应用版本</label>
                 <Input v-model="download.version" placeholder="1.0.0" />
               </div>
-              <div class="form-group">
-                <label>资源文件</label>
-                <div class="file-input-group">
+              <div class="mb-4 w-full">
+                <label class="mb-2 block font-semibold text-foreground">资源文件</label>
+                <div class="flex w-full gap-2">
                   <Input v-model="download.file_name" readonly class="flex-1 min-w-0" />
                   <Button @click="selectFile('download', deviceCode)">选择文件</Button>
                 </div>
@@ -114,9 +117,9 @@
         </div>
         
         <!-- JSON预览部分 -->
-        <div class="preview-container">
-          <div class="preview-actions">
-            <Button :class="{ 'disabled-button': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
+        <div class="flex min-w-[300px] max-w-[40%] w-[40%] flex-col overflow-y-auto rounded-xl border border-border bg-muted/55 p-4 max-[768px]:max-w-full max-[768px]:w-full">
+          <div class="mb-4 flex gap-2">
+            <Button :class="{ 'cursor-not-allowed opacity-60': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
               <FloppyDisk :size="16" weight="bold" />
               保存
             </Button>
@@ -140,7 +143,13 @@
           <DialogTitle>AstroBox 官方社区源资源审核标准</DialogTitle>
           <DialogDescription>阅读完毕后方可继续使用生成功能。</DialogDescription>
         </DialogHeader>
-        <div class="declaration-text" @scroll="checkScrollPosition">
+        <div
+          class="mt-2 max-h-[58vh] overflow-y-auto rounded-lg border border-border bg-background p-4
+            [&_h4]:mt-6 [&_h4]:mb-2 [&_h4]:text-foreground
+            [&_ol]:m-0 [&_ol]:pl-6
+            [&_li]:mb-2 [&_li]:leading-6 [&_li]:text-muted-foreground"
+          @scroll="checkScrollPosition"
+        >
           <h4>一、资源结构与清单合规性</h4>
           <ol>
             <li>是否正确在index.csv行末添加自己的资源信息</li>
@@ -171,9 +180,9 @@
             <li>对于存在任何应用内购买或类型为试用的资源，必须标注为付费</li>
             <li>付费资源将在首页被明显标注，并允许被用户一键过滤。</li>
           </ol>
-          <h4 class="declaration-source">文档来自官方</h4>
+          <h4 class="mt-4 text-right text-muted-foreground">文档来自官方</h4>
         </div>
-        <DialogFooter class="declaration-actions">
+        <DialogFooter class="mt-3 flex justify-between gap-2 max-[480px]:flex-col">
           <Button variant="outline" @click="disagreeDeclaration">听不懂私密达</Button>
           <Button :disabled="!isDeclarationScrolledToBottom" @click="agreeDeclaration">听懂了</Button>
         </DialogFooter>
@@ -186,16 +195,18 @@
           <DialogTitle>选择设备</DialogTitle>
           <DialogDescription>可多选，建议按实际支持情况勾选。</DialogDescription>
         </DialogHeader>
-        <div class="device-list">
+        <div class="my-2 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 max-[768px]:grid-cols-1">
           <div
             v-for="device in supportedDevices"
             :key="device.codename + device.name"
-            class="device-item"
-            :class="{ selected: isDeviceSelected(device) }"
+            :class="[
+              'cursor-pointer rounded-lg border p-4 transition-colors',
+              isDeviceSelected(device) ? 'border-ring bg-muted' : 'border-border bg-background hover:bg-accent'
+            ]"
             @click="toggleDeviceSelection(device)"
           >
-            <div class="device-name">{{ device.name }}</div>
-            <div class="device-codename">{{ device.codename }}</div>
+            <div class="mb-1 font-semibold text-foreground">{{ device.name }}</div>
+            <div class="text-xs text-muted-foreground">{{ device.codename }}</div>
           </div>
         </div>
         <DialogFooter>
@@ -954,304 +965,3 @@ const supportedDevices: Device[] = [
   }
 })
 </script>
-
-<style scoped>
-.manifest-editor {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  width: 100%;
-}
-
-.editor-content {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  width: 100%;
-  gap: 1rem;
-}
-
-.project-path {
-  background: hsl(var(--muted));
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid hsl(var(--border));
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.project-path span {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.editor-container {
-  display: flex;
-  flex: 1;
-  gap: 1rem;
-  overflow: hidden;
-  min-height: 500px;
-}
-
-.form-container {
-  flex: 1;
-  min-width: 0;
-  background: hsl(var(--muted) / 0.55);
-  padding: 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid hsl(var(--border));
-  overflow-y: auto;
-}
-
-.preview-container {
-  width: 40%;
-  max-width: 40%;
-  min-width: 300px;
-  background: hsl(var(--muted) / 0.55);
-  padding: 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid hsl(var(--border));
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.preview-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.form-section {
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background: hsl(var(--card));
-  border-radius: 0.75rem;
-  border: 1px solid hsl(var(--border));
-  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.form-section h3 {
-  margin-top: 0;
-  margin-bottom: 1rem;
-  color: hsl(var(--foreground));
-}
-
-.form-group {
-  margin-bottom: 1rem;
-  width: 100%;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: bold;
-  color: hsl(var(--foreground));
-}
-
-.file-input-group {
-  display: flex;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.preview-list {
-  margin-bottom: 0.5rem;
-}
-
-.preview-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  background: hsl(var(--background));
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid hsl(var(--border));
-  min-height: 2.75rem;
-}
-
-.drag-handle-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 100%;
-  background-color: hsl(var(--muted));
-  border-radius: 0.375rem;
-  cursor: move;
-  padding: 4px 0;
-}
-
-.drag-handle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-}
-
-.author-group {
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
-  padding: 0.75rem;
-  margin-bottom: 0.75rem;
-  border-radius: 0.5rem;
-  position: relative;
-}
-
-.download-group {
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
-  padding: 0.75rem;
-  margin-bottom: 0.75rem;
-  border-radius: 0.5rem;
-}
-
-.download-group h4 {
-  margin-top: 0;
-  margin-bottom: 0.75rem;
-  color: hsl(var(--foreground));
-}
-
-.disabled-button {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.declaration-text {
-  max-height: 58vh;
-  overflow-y: auto;
-  padding: 1rem;
-  margin-top: 0.5rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.5rem;
-  background: hsl(var(--background));
-}
-
-.declaration-text h4 {
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
-  color: hsl(var(--foreground));
-}
-
-.declaration-text ol {
-  padding-left: 1.5rem;
-  margin: 0;
-}
-
-.declaration-text li {
-  margin-bottom: 0.5rem;
-  line-height: 1.6;
-  color: hsl(var(--muted-foreground));
-}
-
-.declaration-source {
-  text-align: right;
-  margin-top: 1rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.declaration-actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-
-.device-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin: 0.5rem 0;
-}
-
-.device-item {
-  padding: 1rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  background: hsl(var(--background));
-  transition: border-color 0.2s ease, background-color 0.2s ease;
-  border: 1px solid hsl(var(--border));
-}
-
-.device-item:hover {
-  background: hsl(var(--accent));
-}
-
-.device-item.selected {
-  border-color: hsl(var(--ring));
-  background: hsl(var(--muted));
-}
-
-.device-name {
-  font-weight: 600;
-  color: hsl(var(--foreground));
-  margin-bottom: 0.25rem;
-}
-
-.device-codename {
-  font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.hint-text {
-  color: hsl(var(--muted-foreground));
-  font-size: 0.875rem;
-}
-
-.ghost-item {
-  opacity: 0.5;
-  background: hsl(var(--muted));
-  border: 2px dashed hsl(var(--ring));
-}
-
-.chosen-item {
-  opacity: 0.8;
-  transform: scale(1.02);
-}
-
-@media (max-width: 768px) {
-  .editor-container {
-    flex-direction: column;
-  }
-  
-  .form-container,
-  .preview-container {
-    width: 100%;
-    max-width: 100%;
-  }
-  
-  .device-list {
-    grid-template-columns: 1fr;
-  }
-  
-  .device-item {
-    padding: 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .project-path {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-
-  .project-path :deep(button) {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .declaration-actions {
-    flex-direction: column;
-  }
-}
-</style>

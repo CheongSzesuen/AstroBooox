@@ -9,7 +9,7 @@
       <Button variant="secondary" size="sm" @click="$emit('refresh')">重试</Button>
     </div>
 
-    <div v-else class="pr-list flex-1 overflow-y-auto pr-1">
+    <div v-else class="flex-1 overflow-y-auto pr-1">
       <button
         v-for="pr in pullRequests"
         :key="pr.id"
@@ -129,18 +129,3 @@ const cacheAvatar = (user: GitHubUser) => {
   localStorage.setItem(`avatar_${user.login}`, url)
 }
 </script>
-
-<style scoped>
-.pr-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.pr-list::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted-foreground) / 0.45);
-  border-radius: 999px;
-}
-
-.pr-list::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--muted-foreground) / 0.6);
-}
-</style>

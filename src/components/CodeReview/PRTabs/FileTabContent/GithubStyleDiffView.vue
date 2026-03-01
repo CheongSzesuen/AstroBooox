@@ -1,27 +1,26 @@
 <template>
-  <div class="github-style-diff-view">
-    <div class="diff-content" v-if="file.patch">
-      <div class="diff-lines">
-        <div 
-          v-for="(line, index) in diffLines" 
-          :key="index" 
-          class="diff-line"
-          :class="getLineClass(line)"
+  <div class="rounded-b-xl bg-card">
+    <div v-if="file.patch" class="overflow-x-auto rounded-b-xl">
+      <div class="font-mono text-[10.5px] leading-[1.45]">
+        <div
+          v-for="(line, index) in diffLines"
+          :key="index"
+          :class="lineRowClass(line)"
         >
-          <div class="line-number line-number-old">
+          <div class="select-none border-r border-border bg-muted/55 px-1.5 text-right text-muted-foreground">
             <span v-if="!line.startsWith('+') && !line.startsWith('@@')">{{ getOldLineNumber(index) }}</span>
           </div>
-          <div class="line-number line-number-new">
+          <div class="select-none border-l border-border bg-muted/55 px-1.5 text-right text-muted-foreground">
             <span v-if="!line.startsWith('-') && !line.startsWith('@@')">{{ getNewLineNumber(index) }}</span>
           </div>
-          <div class="line-content">
+          <div :class="lineContentClass(line)">
             <span>{{ line }}</span>
           </div>
         </div>
       </div>
     </div>
-    
-    <div class="diff-content empty" v-else>
+
+    <div v-else class="rounded-b-xl p-4 text-center text-[0.82rem] italic text-muted-foreground">
       <p>Binary file not shown</p>
     </div>
   </div>
@@ -35,24 +34,21 @@ const props = defineProps<{
   file: FileChange
 }>()
 
-// 跟踪行号的状态
 const oldLineNumbers = ref<number[]>([])
 const newLineNumbers = ref<number[]>([])
 
-// 将patch文本按行分割并计算行号
 const diffLines = computed(() => {
   if (!props.file.patch) return []
-  
+
   const lines = props.file.patch.split('\n')
   oldLineNumbers.value = Array(lines.length).fill(0)
   newLineNumbers.value = Array(lines.length).fill(0)
-  
+
   let oldLine = 0
   let newLine = 0
-  
+
   lines.forEach((line, index) => {
     if (line.startsWith('@@')) {
-      // 解析hunk头，例如: @@ -1,4 +1,5 @@
       const hunkMatch = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/)
       if (hunkMatch) {
         oldLine = parseInt(hunkMatch[1], 10) - 1
@@ -71,123 +67,21 @@ const diffLines = computed(() => {
       newLineNumbers.value[index] = newLine
     }
   })
-  
+
   return lines
 })
 
-// 获取行的CSS类
-const getLineClass = (line: string) => {
-  if (line.startsWith('+')) {
-    return 'added'
-  } else if (line.startsWith('-')) {
-    return 'removed'
-  } else if (line.startsWith('@@')) {
-    return 'meta'
-  }
-  return ''
-}
+const lineRowClass = (line: string): string[] => [
+  'grid min-h-[1.2rem] grid-cols-[2.35rem_2.35rem_minmax(0,1fr)] border-b border-border last:border-b-0',
+  line.startsWith('@@') ? 'bg-muted/60 text-muted-foreground' : 'bg-transparent',
+  (line.startsWith('+') || line.startsWith('-')) ? 'bg-muted/35' : ''
+]
 
-// 获取指定索引处的旧行号
-const getOldLineNumber = (index: number) => {
-  return oldLineNumbers.value[index] || ''
-}
+const lineContentClass = (line: string): string[] => [
+  'whitespace-pre px-2.5',
+  (line.startsWith('+') || line.startsWith('-')) ? 'bg-muted/45' : ''
+]
 
-// 获取指定索引处的新行号
-const getNewLineNumber = (index: number) => {
-  return newLineNumbers.value[index] || ''
-}
-
+const getOldLineNumber = (index: number) => oldLineNumbers.value[index] || ''
+const getNewLineNumber = (index: number) => newLineNumbers.value[index] || ''
 </script>
-
-<style scoped>
-.github-style-diff-view {
-  background-color: hsl(var(--card));
-  border-radius: 0 0 0.75rem 0.75rem;
-}
-
-.diff-content {
-  overflow-x: auto;
-  border-radius: 0 0 0.75rem 0.75rem;
-  margin-bottom: 0;
-}
-
-.diff-content.empty {
-  padding: 1rem;
-  text-align: center;
-  color: hsl(var(--muted-foreground));
-  font-style: italic;
-  font-size: 0.82rem;
-}
-
-.diff-lines {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: 10.5px;
-  line-height: 1.45;
-  margin-bottom: 0;
-}
-
-.diff-line {
-  display: flex;
-  min-height: 1.2rem;
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.diff-line:last-child {
-  border-bottom: none;
-}
-
-.diff-line.added {
-  background-color: hsl(var(--muted) / 0.35);
-}
-
-.diff-line.added .line-content {
-  background-color: hsl(var(--muted) / 0.45);
-}
-
-.diff-line.removed {
-  background-color: hsl(var(--muted) / 0.35);
-}
-
-.diff-line.removed .line-content {
-  background-color: hsl(var(--muted) / 0.45);
-}
-
-.diff-line.meta {
-  background-color: hsl(var(--muted) / 0.6);
-  color: hsl(var(--muted-foreground));
-}
-
-.line-number {
-  padding: 0 0.45rem;
-  min-width: 2.35rem;
-  text-align: right;
-  color: hsl(var(--muted-foreground));
-  user-select: none;
-  background-color: hsl(var(--muted) / 0.55);
-}
-
-.line-number-old {
-  border-right: 1px solid hsl(var(--border));
-}
-
-.line-number-new {
-  border-left: 1px solid hsl(var(--border));
-}
-
-.line-content {
-  flex: 1;
-  padding: 0 0.55rem;
-  white-space: pre;
-}
-
-@media (max-width: 640px) {
-  .diff-lines {
-    font-size: 10px;
-  }
-
-  .line-number {
-    min-width: 2.1rem;
-    padding: 0 0.35rem;
-  }
-}
-</style>

@@ -1,15 +1,13 @@
 <template>
-  <div class="res-link-generator">
-    <div class="editor-content">
-      <div class="editor-container">
-        <!-- 表单容器 -->
-        <div class="form-container">
-          <!-- 资源信息部分 -->
-          <div class="form-section">
-            <h3>资源信息</h3>
-            <div class="form-group">
-              <label>资源名称</label>
-              <div class="input-with-button">
+  <div class="flex min-h-full w-full flex-col">
+    <div class="flex min-h-full w-full flex-col gap-4">
+      <div class="flex min-h-[500px] flex-1 overflow-hidden">
+        <div class="flex-1 min-w-0 overflow-y-auto rounded-xl border border-border bg-muted/55 p-4">
+          <div class="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h3 class="mb-4 text-base font-semibold">资源信息</h3>
+            <div>
+              <label class="mb-2 block text-sm font-semibold text-foreground">资源名称</label>
+              <div class="flex items-center gap-2 max-[768px]:flex-col">
                 <Input
                   id="resourceNameInput"
                   v-model="resourceName"
@@ -19,8 +17,8 @@
                 />
                 <Button
                   variant="outline"
-                  @click="openResourceSearch" 
-                  class="search-button"
+                  class="gap-2 max-[768px]:w-full"
+                  @click="openResourceSearch"
                 >
                   <MagnifyingGlass :size="16" weight="bold" />
                   搜索
@@ -28,9 +26,9 @@
                 <Button
                   variant="outline"
                   size="icon"
-                  @click="clearInput" 
-                  :disabled="!resourceName.trim()" 
-                  class="round-remove-button"
+                  :disabled="!resourceName.trim()"
+                  class="min-w-9 max-[768px]:w-full max-[768px]:justify-center"
+                  @click="clearInput"
                 >
                   <Minus :size="16" weight="bold" />
                 </Button>
@@ -38,116 +36,134 @@
             </div>
           </div>
 
-          <div class="form-section">
-            <h3>生成的链接<span class="hint-text">（点击可跳转）</span></h3>
-            <div v-if="resourceName.trim()" class="preview-content">
-              <pre><a :href="generatedLink" target="_blank" rel="noopener noreferrer">{{ generatedLink }}</a></pre>
+          <div class="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h3 class="mb-4 text-base font-semibold">
+              生成的链接<span class="ml-1 text-xs font-normal text-muted-foreground">（点击可跳转）</span>
+            </h3>
+            <div
+              :class="[
+                'rounded-lg border border-border bg-background p-4 text-sm leading-6',
+                resourceName.trim() ? 'text-foreground' : 'italic text-muted-foreground'
+              ]"
+            >
+              <pre class="m-0 whitespace-pre-wrap break-words font-mono">
+                <a
+                  v-if="resourceName.trim()"
+                  :href="generatedLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="underline-offset-4 hover:underline"
+                >{{ generatedLink }}</a>
+                <template v-else>{{ generatedLink }}</template>
+              </pre>
             </div>
-            <div v-else class="preview-content empty">
-              <pre>{{ generatedLink }}</pre>
-            </div>
-            <div class="preview-actions">
-              <Button @click="copyLink" :disabled="!resourceName.trim()">
+            <div class="mt-4 flex justify-end">
+              <Button :disabled="!resourceName.trim()" @click="copyLink">
                 <CopySimple :size="16" weight="bold" />
                 {{ copyButtonText }}
               </Button>
             </div>
           </div>
 
-          <!-- 徽标生成部分 -->
-          <div class="form-section">
-            <h3>徽标代码生成</h3>
-            
-            <div class="badge-config-container">
-              <!-- 左侧：配置选项 - 占据主要空间 -->
-              <div class="badge-config-options">
-                <!-- 语言选择 -->
-                <div class="form-group">
-                  <label class="config-label">语言</label>
-                  <RadioGroup v-model="badgeLanguage" class="config-options">
-                    <div class="config-item">
+          <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <h3 class="mb-4 text-base font-semibold">徽标代码生成</h3>
+
+            <div class="mb-6 flex items-stretch gap-4 max-[768px]:flex-col">
+              <div class="flex min-w-0 flex-1 flex-col max-w-[400px] max-[768px]:max-w-full">
+                <div class="mb-4">
+                  <label class="mb-2 block text-sm font-semibold text-foreground">语言</label>
+                  <RadioGroup
+                    v-model="badgeLanguage"
+                    class="mt-2 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3 max-[992px]:gap-2"
+                  >
+                    <div class="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2">
                       <RadioGroupItem id="badge-lang-zhcn" value="zhcn" />
                       <Label for="badge-lang-zhcn">简体中文</Label>
                     </div>
-                    <div class="config-item">
+                    <div class="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2">
                       <RadioGroupItem id="badge-lang-en" value="en" />
                       <Label for="badge-lang-en">英文</Label>
                     </div>
                   </RadioGroup>
                 </div>
-                
-                <!-- 样式选择 -->
-                <div class="form-group">
-                  <label class="config-label">样式</label>
-                  <RadioGroup v-model="badgeStyle" class="config-options">
-                    <div class="config-item">
+
+                <div class="mb-4">
+                  <label class="mb-2 block text-sm font-semibold text-foreground">样式</label>
+                  <RadioGroup
+                    v-model="badgeStyle"
+                    class="mt-2 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3 max-[992px]:gap-2"
+                  >
+                    <div class="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2">
                       <RadioGroupItem id="badge-style-standard" value="standard" />
                       <Label for="badge-style-standard">标准</Label>
                     </div>
-                    <div class="config-item">
+                    <div class="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2">
                       <RadioGroupItem id="badge-style-rounded" value="rounded" />
                       <Label for="badge-style-rounded">胶囊</Label>
                     </div>
-                    <div class="config-item">
+                    <div class="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2">
                       <RadioGroupItem id="badge-style-linked" value="linked" />
                       <Label for="badge-style-linked">链接</Label>
                     </div>
                   </RadioGroup>
                 </div>
-                
-                <!-- 配色选择 -->
-                <div class="form-group">
-                  <label class="config-label">配色</label>
-                  <RadioGroup v-model="badgeColor" class="config-options">
-                    <div class="config-item">
+
+                <div>
+                  <label class="mb-2 block text-sm font-semibold text-foreground">配色</label>
+                  <RadioGroup
+                    v-model="badgeColor"
+                    class="mt-2 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3 max-[992px]:gap-2"
+                  >
+                    <div class="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2">
                       <RadioGroupItem id="badge-color-black" value="black" />
                       <Label for="badge-color-black">黑色</Label>
                     </div>
-                    <div class="config-item">
+                    <div class="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2">
                       <RadioGroupItem id="badge-color-gray" value="gray" />
                       <Label for="badge-color-gray">灰色</Label>
                     </div>
-                    <div class="config-item">
+                    <div class="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2">
                       <RadioGroupItem id="badge-color-white" value="white" />
                       <Label for="badge-color-white">亮色</Label>
                     </div>
                   </RadioGroup>
                 </div>
               </div>
-              
-              <!-- 右侧：徽标预览 - 自适应宽度 -->
-              <div class="badge-preview-wrapper">
-                <div class="form-group">
-                  <label class="config-label">徽标预览<span class="hint-text">（点击可跳转）</span></label>
-                  <div class="badge-preview-container">
-                    <a 
+
+              <div class="flex min-w-0 flex-1 flex-col max-[768px]:order-first">
+                <div>
+                  <label class="mb-2 block text-sm font-semibold text-foreground">
+                    徽标预览<span class="ml-1 text-xs font-normal text-muted-foreground">（点击可跳转）</span>
+                  </label>
+                  <div class="mt-2 flex h-full min-h-[120px] items-center justify-center rounded-lg border border-dashed border-border bg-background p-4">
+                    <a
                       v-if="resourceName.trim()"
-                      :href="generatedLink" 
-                      target="_blank" 
+                      :href="generatedLink"
+                      target="_blank"
                       rel="noopener noreferrer"
                     >
-                      <img :src="badgeImageUrl" alt="徽标预览" class="badge-preview-image" />
+                      <img :src="badgeImageUrl" alt="徽标预览" class="max-h-full max-w-full object-contain transition-all" />
                     </a>
-                    <img 
+                    <img
                       v-else
-                      :src="badgeImageUrl" 
-                      alt="徽标预览" 
-                      class="badge-preview-image" 
+                      :src="badgeImageUrl"
+                      alt="徽标预览"
+                      class="max-h-full max-w-full object-contain transition-all"
                     />
                   </div>
                 </div>
               </div>
             </div>
-            
-            <div class="form-group">
-              <label class="config-label">生成的HTML代码</label>
-              <div class="code-preview">
-                <pre>{{ badgeHtmlCode }}</pre>
+
+            <div class="mb-4">
+              <label class="mb-2 block text-sm font-semibold text-foreground">生成的HTML代码</label>
+              <div class="mt-2 overflow-x-auto rounded-lg border border-border bg-background p-4">
+                <pre class="m-0 whitespace-pre-wrap break-words font-mono text-[0.85rem] text-foreground">{{ badgeHtmlCode }}</pre>
               </div>
             </div>
-            
-            <div class="preview-actions">
-              <Button @click="copyBadgeCode" :disabled="!resourceName.trim()">
+
+            <div class="mt-4 flex justify-end">
+              <Button :disabled="!resourceName.trim()" @click="copyBadgeCode">
                 <CopySimple :size="16" weight="bold" />
                 {{ copyBadgeButtonText }}
               </Button>
@@ -162,29 +178,33 @@
             <DialogTitle>搜索资源</DialogTitle>
             <DialogDescription>暂时不支持模糊拼写纠错，请输入关键字搜索。</DialogDescription>
           </DialogHeader>
-          <div class="search-input-container">
+          <div class="w-full pb-3">
             <Input
               v-model="searchQuery"
               placeholder="输入资源名称或作者名搜索..."
+              class="w-full"
               @input="filterResources"
-              class="search-input"
             />
           </div>
-          <div class="resource-grid">
+          <div class="grid max-h-[52vh] grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4 overflow-y-auto p-1 min-[1200px]:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] max-[768px]:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] max-[768px]:gap-3">
             <div
               v-for="resource in filteredResources"
               :key="resource.name"
-              class="resource-card"
-              :class="{ selected: isResourceSelected(resource) }"
+              :class="[
+                'flex min-h-20 cursor-pointer flex-col justify-center rounded-lg border px-3.5 py-3 transition-colors',
+                isResourceSelected(resource) ? 'border-ring bg-muted' : 'border-border bg-background hover:bg-accent'
+              ]"
               @click="selectResource(resource)"
             >
-              <div class="resource-header">
-                <div class="resource-name">{{ resource.name }}</div>
-                <div class="resource-type">{{ resource.restype === 'quickapp' ? '快应用' : '表盘' }}</div>
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <div class="min-w-0 flex-1 truncate text-[0.95rem] font-semibold text-foreground">{{ resource.name }}</div>
+                <div class="shrink-0 whitespace-nowrap rounded-md border border-border bg-muted px-1.5 py-0.5 text-[0.7rem] text-foreground">
+                  {{ resource.restype === 'quickapp' ? '快应用' : '表盘' }}
+                </div>
               </div>
-              <div class="resource-author">作者: {{ getAuthorName(resource.path) }}</div>
+              <div class="truncate text-xs text-muted-foreground">作者: {{ getAuthorName(resource.path) }}</div>
             </div>
-            <div v-if="filteredResources.length === 0" class="empty-resources">
+            <div v-if="filteredResources.length === 0" class="col-[1/-1] p-8 text-center text-sm text-muted-foreground">
               没有找到匹配的资源
             </div>
           </div>
@@ -425,352 +445,3 @@ const clearInput = () => {
   if (copyTimeout) clearTimeout(copyTimeout);
 }
 </script>
-
-<style scoped>
-.res-link-generator {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  width: 100%;
-}
-
-.editor-content {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  width: 100%;
-  gap: 1rem;
-}
-
-.editor-container {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  min-height: 500px;
-}
-
-.form-container {
-  flex: 1;
-  min-width: 0;
-  background: hsl(var(--muted) / 0.55);
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
-  padding: 1rem;
-  overflow-y: auto;
-}
-
-.form-section {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: hsl(var(--foreground));
-}
-
-.config-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: hsl(var(--foreground));
-  font-size: 0.9rem;
-}
-
-.input-with-button {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.preview-content {
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  padding: 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid hsl(var(--border));
-  overflow: auto;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.hint-text {
-  color: hsl(var(--muted-foreground));
-  font-size: 0.8rem;
-  font-weight: normal;
-}
-
-pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family: 'Consolas', 'Monaco', monospace;
-}
-
-.preview-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1rem;
-}
-
-.empty {
-  color: hsl(var(--muted-foreground));
-  font-style: italic;
-}
-
-a {
-  color: hsl(var(--foreground));
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-a:hover {
-  color: hsl(var(--foreground));
-  text-decoration: underline;
-}
-
-.search-button {
-  gap: 0.5rem;
-}
-
-.round-remove-button {
-  min-width: 2.25rem;
-}
-
-.config-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-
-.config-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.625rem;
-  background: hsl(var(--background));
-}
-
-.badge-preview-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 1rem;
-  background: hsl(var(--background));
-  border-radius: 0.5rem;
-  border: 1px dashed hsl(var(--border));
-  margin-top: 0.5rem;
-  height: 100%;
-  box-sizing: border-box;
-  flex-grow: 1;
-}
-
-.badge-preview-image {
-  max-height: 100%;
-  max-width: 100%;
-  object-fit: contain;
-  transition: all 0.3s ease;
-}
-
-.code-preview {
-  background: hsl(var(--background));
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-top: 0.5rem;
-  border: 1px solid hsl(var(--border));
-  overflow-x: auto;
-}
-
-.code-preview pre {
-  margin: 0;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 0.85rem;
-  color: hsl(var(--foreground));
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.badge-config-container {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  align-items: stretch;
-}
-
-.badge-config-options {
-  flex: 1;
-  min-width: 0;
-  max-width: 400px;
-  display: flex;
-  flex-direction: column;
-}
-
-.badge-preview-wrapper {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.search-input-container {
-  padding: 0 0 0.75rem;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.search-input {
-  width: 100%;
-}
-
-.resource-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1rem;
-  padding: 0.25rem;
-  overflow-y: auto;
-  max-height: 52vh;
-}
-
-.resource-card {
-  padding: 0.875rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  background: hsl(var(--background));
-  border: 1px solid hsl(var(--border));
-  transition: border-color 0.2s ease, background-color 0.2s ease;
-  min-height: 80px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.resource-card:hover {
-  background: hsl(var(--accent));
-}
-
-.resource-card.selected {
-  background: hsl(var(--muted));
-  border-color: hsl(var(--ring));
-}
-
-.resource-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.resource-name {
-  font-weight: 600;
-  color: hsl(var(--foreground));
-  font-size: 0.95rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-}
-
-.resource-type {
-  font-size: 0.7rem;
-  padding: 0.15rem 0.4rem;
-  border-radius: 0.375rem;
-  background: hsl(var(--muted));
-  color: hsl(var(--foreground));
-  white-space: nowrap;
-  margin-left: 0.5rem;
-  border: 1px solid hsl(var(--border));
-}
-
-.resource-author {
-  font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.empty-resources {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 2rem;
-  color: hsl(var(--muted-foreground));
-}
-
-@media (min-width: 1200px) {
-  .resource-grid {
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  }
-}
-
-@media (max-width: 992px) {
-  .config-options {
-    gap: 0.5rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .resource-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 0.75rem;
-  }
-  
-  .form-section {
-    padding: 1rem;
-  }
-  
-  .input-with-button {
-    flex-direction: column;
-  }
-  
-  .input-with-button :deep(button) {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .badge-config-container {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .badge-preview-wrapper {
-    order: -1;
-    width: 100%;
-  }
-  
-  .badge-config-options {
-    max-width: 100%;
-  }
-  
-  .badge-preview-container {
-    width: 100%;
-  }
-}
-
-
-@media (max-width: 400px) {
-  .form-section {
-    padding: 0.875rem;
-  }
-  
-  .form-group {
-    margin-bottom: 1rem;
-  }
-  
-  .preview-actions {
-    margin-top: 1rem;
-  }
-}
-</style>

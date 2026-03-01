@@ -1,5 +1,5 @@
 <template>
-  <div class="code-review-container">
+  <div class="relative flex h-screen overflow-hidden bg-background">
     <Dialog :open="showFeatureNotice" @update:open="showFeatureNotice = $event">
       <DialogContent class="sm:max-w-[560px]">
         <DialogHeader class="gap-3">
@@ -14,13 +14,13 @@
           </div>
         </DialogHeader>
 
-        <ul class="notice-list">
+        <ul class="list-disc space-y-2 pl-6 text-sm leading-6 text-muted-foreground">
           <li>手机端响应有问题</li>
           <li>自动检验 PR 数据未做</li>
           <li>若添加多个 CSV 会导致 manifest 错误，刷新有概率成功，以后会修</li>
           <li>后续会持续更新优化</li>
         </ul>
-        <p class="hint-text">如有建议或发现问题，欢迎提交 Issue 或直接联系作者</p>
+        <p class="text-sm text-muted-foreground">如有建议或发现问题，欢迎提交 Issue 或直接联系作者</p>
 
         <DialogFooter class="gap-2 sm:justify-between">
           <Button @click="closeFeatureNotice">
@@ -47,23 +47,28 @@
     />
 
     <!-- 主内容区 -->
-    <div class="main-content" :class="{ 'main-content-collapsed': isSidebarCollapsed }">
-      <div class="content-shell">
-        <div v-if="errorMessage" class="error-banner">
+    <div
+      :class="[
+        'flex-1 overflow-auto px-2.5 py-2 transition-[margin-left] duration-300 md:px-4 md:py-3.5',
+        isSidebarCollapsed ? 'ml-[4.25rem] md:ml-[6rem]' : 'ml-[18rem] md:ml-[22rem]'
+      ]"
+    >
+      <div class="mx-auto max-w-[1280px]">
+        <div v-if="errorMessage" class="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-6 text-foreground">
           {{ errorMessage }}
         </div>
 
-        <div v-if="!selectedPR" class="empty-state">
-          <h3>请从左侧选择一个 Pull Request 进行审查</h3>
+        <div v-if="!selectedPR" class="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+          <h3 class="font-medium text-foreground">请从左侧选择一个 Pull Request 进行审查</h3>
         </div>
 
-        <div v-else class="review-stack">
+        <div v-else class="flex flex-col gap-3">
           <PRHeader 
             :pr="selectedPR"
             @refresh="fetchPRDetails"
           />
 
-          <div v-if="loadingDetails" class="loading">加载 PR 详情中...</div>
+          <div v-if="loadingDetails" class="rounded-xl border border-border bg-card px-4 py-3 text-center text-sm text-muted-foreground">加载 PR 详情中...</div>
 
           <div v-else>
             <PRTabs
@@ -544,106 +549,3 @@ const formatDate = (dateString: string): string => {
 
 defineEmits(['refresh'])
 </script>
-
-<style scoped>
-.code-review-container {
-  display: flex;
-  height: 100vh;
-  position: relative;
-  overflow: hidden;
-  background: hsl(var(--muted) / 0.25);
-}
-
-.notice-list {
-  text-align: left;
-  margin: 0;
-  padding-left: 1.5rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.notice-list li {
-  margin-bottom: 0.5rem;
-  line-height: 1.6;
-}
-
-.hint-text {
-  color: hsl(var(--muted-foreground));
-  font-size: 0.85rem;
-  font-weight: normal;
-  margin: 0;
-}
-
-.main-content {
-  margin-left: 22rem;
-  padding: 0.85rem 0.9rem 1rem;
-  flex: 1;
-  overflow: auto;
-  transition: margin-left 0.3s ease;
-}
-
-.main-content-collapsed {
-  margin-left: 6rem;
-}
-
-.content-shell {
-  max-width: 1280px;
-  margin: 0 auto;
-}
-
-.review-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 280px;
-  color: hsl(var(--muted-foreground));
-  gap: 1rem;
-  border: 1px dashed hsl(var(--border));
-  border-radius: 0.75rem;
-  background: hsl(var(--card));
-}
-
-.empty-state h3 {
-  margin: 0;
-  font-weight: 500;
-  text-align: center;
-}
-
-.loading {
-  padding: 0.9rem 1rem;
-  text-align: center;
-  color: hsl(var(--muted-foreground));
-  font-size: 0.875rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
-  background: hsl(var(--card));
-}
-
-.error-banner {
-  padding: 0.85rem 1rem;
-  background: color-mix(in srgb, var(--destructive) 12%, var(--card));
-  color: var(--foreground);
-  border: 1px solid color-mix(in srgb, var(--destructive) 35%, var(--border));
-  border-radius: 0.7rem;
-  margin-bottom: 0.75rem;
-  line-height: 1.5;
-  font-size: 0.875rem;
-}
-
-@media (max-width: 768px) {
-  .main-content {
-    margin-left: 18rem;
-    padding: 0.65rem;
-  }
-  
-  .main-content.main-content-collapsed {
-    margin-left: 4.25rem;
-  }
-}
-</style>
