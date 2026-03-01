@@ -1,6 +1,6 @@
 <template>
   <div class="overflow-hidden rounded-xl border border-border bg-card">
-    <div class="sticky top-0 z-10 border-b border-border bg-card px-3 py-2">
+    <div class="sticky top-0 z-10 border-b border-border bg-card px-4 py-3">
       <div class="relative">
         <Input
           v-model="searchQuery"
@@ -18,14 +18,14 @@
       </div>
     </div>
 
-    <nav aria-label="File Tree Navigation" class="max-h-[18rem] overflow-y-auto px-2 py-2 lg:max-h-[calc(100vh-16rem)]">
-      <ul class="space-y-0.5" role="tree" aria-label="File Tree">
+    <nav aria-label="File Tree Navigation" class="max-h-[18rem] overflow-y-auto px-3 py-3 lg:max-h-[calc(100vh-16rem)]">
+      <ul class="space-y-1" role="tree" aria-label="File Tree">
         <template v-for="item in displayItems" :key="getItemKey(item)">
           <li v-if="isFolderItem(item)" role="treeitem" :data-depth="item.depth">
             <button
               type="button"
-              class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent"
-              :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+              class="flex w-full items-center gap-1.5 rounded-md px-2.5 py-2 text-left text-xs text-foreground transition-colors hover:bg-accent"
+              :style="{ paddingLeft: `${0.75 + item.depth * 1}rem` }"
               @click="toggleFolder(item.path)"
             >
               <CaretDown
@@ -42,8 +42,8 @@
           <li v-else-if="isFileItem(item)" role="treeitem" :aria-level="item.depth + 1" :data-depth="item.depth">
             <button
               type="button"
-              class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent"
-              :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+              class="flex w-full items-center gap-1.5 rounded-md px-2.5 py-2 text-left text-xs text-foreground transition-colors hover:bg-accent"
+              :style="{ paddingLeft: `${0.75 + item.depth * 1}rem` }"
               @click="selectFile(item.file)"
             >
               <File aria-label="File" aria-hidden="true" :size="15" weight="duotone" class="shrink-0 text-muted-foreground" />

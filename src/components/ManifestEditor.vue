@@ -1,8 +1,8 @@
 <template>
   <div class="flex min-h-full w-full flex-col">
     <!-- 完整项目路径和操作按钮部分 -->
-    <div v-if="projectDirectory" class="flex min-h-[calc(100vh-12rem)] w-full flex-col gap-4">
-      <div class="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm max-[480px]:flex-col max-[480px]:items-start max-[480px]:gap-3">
+    <div v-if="projectDirectory" class="flex min-h-[calc(100vh-12rem)] w-full flex-col gap-5">
+      <div class="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted px-4 py-3 text-sm max-[480px]:flex-col max-[480px]:items-start max-[480px]:gap-3">
         <span class="min-w-0 flex-1 truncate">当前项目路径: {{ projectDirectory.name }} ({{ isFsaSupported ? 'FSA' : 'OPFS' }})</span>
         <Button
           variant="outline"
@@ -22,34 +22,34 @@
         </Button>
       </div>
       
-      <div class="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div class="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <!-- 完整的表单容器 -->
-        <div class="min-w-0 overflow-y-auto rounded-xl border border-border bg-muted/55 p-4">
+        <div class="min-w-0 overflow-y-auto rounded-xl border border-border bg-muted/55 p-5">
           <!-- 应用信息部分 -->
-          <div class="mb-8 w-full rounded-xl border border-border bg-card p-4 shadow-sm">
-            <h3 class="mb-4 text-base font-semibold text-foreground">应用信息</h3>
-            <div class="mb-4 w-full">
+          <div class="mb-6 w-full rounded-xl border border-border bg-card p-5 shadow-sm">
+            <h3 class="mb-5 text-base font-semibold text-foreground">应用信息</h3>
+            <div class="mb-5 w-full">
               <label class="mb-2 block font-semibold text-foreground">应用名称</label>
               <Input v-model="manifest.item.name" placeholder="应用名称" />
             </div>
-            <div class="mb-4 w-full">
+            <div class="mb-5 w-full">
               <label class="mb-2 block font-semibold text-foreground">应用简介</label>
               <Textarea v-model="manifest.item.description" placeholder="应用简介" />
             </div>
-            <div class="mb-4 w-full">
+            <div class="mb-5 w-full">
               <label class="mb-2 block font-semibold text-foreground">预览图（支持多选）</label>
               <draggable 
                 v-model="manifest.item.preview" 
                 handle=".drag-handle"
                 item-key="index"
-                class="mb-2"
+                class="mb-3"
                 ghost-class="opacity-50"
                 chosen-class="opacity-80"
                 @start="handleDragStart"
                 @end="handleDragEnd"
               >
                 <template #item="{element, index}">
-                  <div class="mb-2 flex min-h-11 items-center gap-2 rounded-lg border border-border bg-background p-2">
+                  <div class="mb-3 flex min-h-11 items-center gap-3 rounded-lg border border-border bg-background p-3">
                     <div class="drag-handle flex h-full w-6 cursor-move items-center justify-center rounded-md bg-muted py-1">
                       <div class="flex h-full w-full items-center justify-center">
                         <DotsSixVertical :size="16" weight="bold" />
@@ -62,9 +62,9 @@
                   </div>
                 </template>
               </draggable>
-              <Button class="mt-2" @click="selectMultiplePreviews">+ 添加预览图</Button>
+              <Button class="mt-3" @click="selectMultiplePreviews">+ 添加预览图</Button>
             </div>
-            <div class="mb-4 w-full">
+            <div class="mb-5 w-full">
               <label class="mb-2 block font-semibold text-foreground">图标</label>
               <div class="flex w-full gap-2 max-[640px]:flex-col">
                 <Input v-model="manifest.item.icon" placeholder="icon.png" readonly class="flex-1 min-w-0" />
@@ -78,14 +78,14 @@
           </div>
           
           <!-- 作者信息部分 -->
-          <div class="mb-8 w-full rounded-xl border border-border bg-card p-4 shadow-sm">
-            <h3 class="mb-4 text-base font-semibold text-foreground">作者信息</h3>
-            <div v-for="(author, index) in manifest.item.author" :key="index" class="relative mb-3 rounded-lg border border-border bg-background p-3">
-              <div class="mb-4 w-full">
+          <div class="mb-6 w-full rounded-xl border border-border bg-card p-5 shadow-sm">
+            <h3 class="mb-5 text-base font-semibold text-foreground">作者信息</h3>
+            <div v-for="(author, index) in manifest.item.author" :key="index" class="relative mb-4 rounded-lg border border-border bg-background p-4">
+              <div class="mb-5 w-full">
                 <label class="mb-2 block font-semibold text-foreground">作者名称</label>
                 <Input v-model="author.name" placeholder="作者名称" />
               </div>
-              <div class="mb-4 w-full">
+              <div class="mb-5 w-full">
                 <label class="mb-2 block font-semibold text-foreground">作者主页（可选）</label>
                 <Input v-model="author.author_url" placeholder="https://github.com/用户名" />
               </div>
@@ -95,15 +95,15 @@
           </div>
           
           <!-- 支持设备信息部分 -->
-          <div class="mb-8 w-full rounded-xl border border-border bg-card p-4 shadow-sm">
-            <h3 class="mb-4 text-base font-semibold text-foreground">支持设备信息</h3>
-            <div v-for="(download, deviceCode) in manifest.downloads" :key="deviceCode" class="mb-3 rounded-lg border border-border bg-background p-3">
+          <div class="mb-6 w-full rounded-xl border border-border bg-card p-5 shadow-sm">
+            <h3 class="mb-5 text-base font-semibold text-foreground">支持设备信息</h3>
+            <div v-for="(download, deviceCode) in manifest.downloads" :key="deviceCode" class="mb-4 rounded-lg border border-border bg-background p-4">
               <h4 class="mb-3 text-sm font-semibold text-foreground">{{ getDeviceDisplayName(deviceCode) }}</h4>
-              <div class="mb-4 w-full">
+              <div class="mb-5 w-full">
                 <label class="mb-2 block font-semibold text-foreground">应用版本</label>
                 <Input v-model="download.version" placeholder="1.0.0" />
               </div>
-              <div class="mb-4 w-full">
+              <div class="mb-5 w-full">
                 <label class="mb-2 block font-semibold text-foreground">资源文件</label>
                 <div class="flex w-full gap-2 max-[640px]:flex-col">
                   <Input v-model="download.file_name" readonly class="flex-1 min-w-0" />
@@ -117,8 +117,8 @@
         </div>
         
         <!-- JSON预览部分 -->
-        <div class="min-w-0 rounded-xl border border-border bg-muted/55 p-4 xl:sticky xl:top-0 xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto">
-          <div class="mb-4 flex flex-wrap gap-2 xl:sticky xl:top-0 xl:z-10 xl:bg-muted/95 xl:pb-3">
+        <div class="min-w-0 rounded-xl border border-border bg-muted/55 p-5 xl:sticky xl:top-0 xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto">
+          <div class="mb-5 flex flex-wrap gap-2.5 xl:sticky xl:top-0 xl:z-10 xl:bg-muted/95 xl:pb-4">
             <Button :class="{ 'cursor-not-allowed opacity-60': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
               <FloppyDisk :size="16" weight="bold" />
               保存
@@ -139,7 +139,7 @@
 
     <div
       v-else
-      class="flex min-h-[16rem] items-center justify-center rounded-xl border border-dashed border-border bg-muted/25 px-4 text-center text-sm text-muted-foreground"
+      class="flex min-h-[16rem] items-center justify-center rounded-xl border border-dashed border-border bg-muted/25 px-6 text-center text-sm text-muted-foreground"
     >
       请先选择项目目录，再开始编辑 manifest.json。
     </div>
@@ -151,10 +151,10 @@
           <DialogDescription>阅读完毕后方可继续使用生成功能。</DialogDescription>
         </DialogHeader>
         <div
-          class="mt-2 max-h-[58vh] overflow-y-auto rounded-lg border border-border bg-background p-4
-            [&_h4]:mt-6 [&_h4]:mb-2 [&_h4]:text-foreground
+          class="mt-3 max-h-[58vh] overflow-y-auto rounded-lg border border-border bg-background p-5
+            [&_h4]:mt-6 [&_h4]:mb-3 [&_h4]:text-foreground
             [&_ol]:m-0 [&_ol]:pl-6
-            [&_li]:mb-2 [&_li]:leading-6 [&_li]:text-muted-foreground"
+            [&_li]:mb-3 [&_li]:leading-6 [&_li]:text-muted-foreground"
           @scroll="checkScrollPosition"
         >
           <h4>一、资源结构与清单合规性</h4>
@@ -189,7 +189,7 @@
           </ol>
           <h4 class="mt-4 text-right text-muted-foreground">文档来自官方</h4>
         </div>
-        <DialogFooter class="mt-3 flex justify-between gap-2 max-[480px]:flex-col">
+        <DialogFooter class="mt-4 flex justify-between gap-2.5 max-[480px]:flex-col">
           <Button variant="outline" @click="disagreeDeclaration">听不懂私密达</Button>
           <Button :disabled="!isDeclarationScrolledToBottom" @click="agreeDeclaration">听懂了</Button>
         </DialogFooter>
@@ -202,7 +202,7 @@
           <DialogTitle>选择设备</DialogTitle>
           <DialogDescription>可多选，建议按实际支持情况勾选。</DialogDescription>
         </DialogHeader>
-        <div class="my-2 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 max-[768px]:grid-cols-1">
+        <div class="my-3 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 max-[768px]:grid-cols-1">
           <div
             v-for="device in supportedDevices"
             :key="device.codename + device.name"

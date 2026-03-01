@@ -1,6 +1,6 @@
 <!-- src/components/CodeReview/PRTabs/FilesTabContent.vue -->
 <template>
-  <div class="mt-2 grid gap-3 lg:grid-cols-[minmax(250px,300px)_minmax(0,1fr)]">
+  <div class="mt-3 grid gap-4 lg:grid-cols-[minmax(250px,300px)_minmax(0,1fr)]">
     <div class="min-w-0 lg:sticky lg:top-0 lg:max-h-[calc(100vh-13rem)]">
       <FileTree
         :changed-files="changedFiles"
@@ -9,14 +9,14 @@
     </div>
 
     <div class="min-w-0">
-      <div class="flex flex-col gap-3">
+      <div class="flex flex-col gap-4">
         <Card
           v-for="file in sortedFiles"
           :key="file.filename"
           class="overflow-hidden border-border bg-card shadow-sm"
         >
           <div
-            class="flex cursor-pointer items-center justify-between gap-2 border-b border-border bg-muted/50 px-3 py-2 transition-colors hover:bg-accent max-[700px]:px-2"
+            class="flex cursor-pointer items-center justify-between gap-2 border-b border-border bg-muted/50 px-4 py-3 transition-colors hover:bg-accent max-[700px]:px-3"
             @click="selectFile(file)"
           >
             <div class="flex min-w-0 w-full items-center justify-between gap-1.5 font-mono text-[12px]">

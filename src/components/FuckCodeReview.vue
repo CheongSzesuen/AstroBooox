@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full">
+  <div class="w-full py-1 md:py-2">
     <Dialog :open="showFeatureNotice" @update:open="showFeatureNotice = $event">
       <DialogContent class="sm:max-w-[560px]">
         <DialogHeader class="gap-3">
@@ -35,7 +35,7 @@
       </DialogContent>
     </Dialog>
 
-    <div class="mx-auto flex max-w-[1600px] flex-col gap-3 lg:flex-row">
+    <div class="mx-auto flex max-w-[1600px] flex-col gap-4 lg:flex-row">
       <!-- 使用侧栏组件 -->
       <Sidebar
         :pull-requests="pullRequests"
@@ -49,7 +49,7 @@
 
       <!-- 主内容区 -->
       <div class="min-w-0 flex-1">
-        <div v-if="errorMessage" class="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-6 text-foreground">
+        <div v-if="errorMessage" class="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-6 text-foreground">
           {{ errorMessage }}
         </div>
 
@@ -57,7 +57,7 @@
           <h3 class="font-medium text-foreground">请从左侧选择一个 Pull Request 进行审查</h3>
         </div>
 
-        <div v-else class="flex flex-col gap-3">
+        <div v-else class="flex flex-col gap-4">
           <PRHeader 
             :pr="selectedPR"
             @refresh="fetchPRDetails"
@@ -65,7 +65,7 @@
 
           <div v-if="loadingDetails" class="rounded-xl border border-border bg-card px-4 py-3 text-center text-sm text-muted-foreground">加载 PR 详情中...</div>
 
-          <div v-else>
+          <div v-else class="space-y-4">
             <PRTabs
               v-model:active-tab="activeTab"
               :analyzed-data="analyzedData"

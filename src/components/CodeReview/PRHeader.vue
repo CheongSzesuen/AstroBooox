@@ -1,13 +1,13 @@
 <template>
-  <header class="rounded-xl border border-border bg-card p-3.5 md:p-4">
-    <div class="flex flex-col gap-2.5 md:flex-row md:items-start md:justify-between">
+  <header class="rounded-xl border border-border bg-card p-4 md:p-5">
+    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
       <div class="min-w-0">
         <h1 class="text-lg font-semibold leading-7 text-foreground md:text-xl">
           <span class="break-words">{{ pr.title }}</span>
           <span class="ml-2 text-base font-medium text-muted-foreground">#{{ pr.number }}</span>
         </h1>
 
-        <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <div class="mt-2 flex flex-wrap items-center gap-2">
           <Badge variant="secondary" class="gap-1.5 text-[0.78rem]">
             <GitPullRequest :size="14" weight="duotone" />
             Open
@@ -26,7 +26,7 @@
         </div>
       </div>
 
-      <div class="flex gap-1.5 md:justify-end">
+      <div class="flex gap-2 md:justify-end">
         <Button variant="outline" size="icon" @click="$emit('refresh')" title="刷新数据" aria-label="刷新数据">
           <ArrowsClockwise :size="16" weight="bold" />
         </Button>

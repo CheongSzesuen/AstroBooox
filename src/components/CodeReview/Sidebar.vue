@@ -9,7 +9,7 @@
       <Button variant="secondary" size="sm" @click="$emit('refresh')">重试</Button>
     </div>
 
-    <div v-else class="flex-1 overflow-y-auto pr-1 max-[1023px]:max-h-[18rem]">
+    <div v-else class="flex-1 overflow-y-auto pr-1 max-[1023px]:max-h-[20rem]">
       <button
         v-for="pr in pullRequests"
         :key="pr.id"
@@ -27,7 +27,7 @@
 
         <div v-if="!isCollapsed" class="min-w-0 flex-1">
           <div class="truncate text-[0.92rem] font-medium text-foreground">#{{ pr.number }} {{ pr.title }}</div>
-          <div class="mt-0.5 flex items-center gap-2 text-[0.74rem] text-muted-foreground">
+          <div class="mt-1 flex items-center gap-2 text-[0.74rem] text-muted-foreground">
             <span class="truncate">by {{ pr.user.login }}</span>
             <span>{{ formatDate(pr.created_at) }}</span>
           </div>
@@ -37,7 +37,7 @@
 
     <button
       type="button"
-      class="mt-1.5 hidden w-full items-center justify-between rounded-md border border-border bg-muted/40 px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent lg:inline-flex"
+      class="mt-2 hidden w-full items-center justify-between rounded-md border border-border bg-muted/40 px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent lg:inline-flex"
       @click="$emit('toggle')"
     >
       <span v-if="!isCollapsed" class="truncate">折叠边栏</span>
@@ -91,15 +91,15 @@ const avatarCache = new Map<string, string>()
 const sidebarClass = computed(() => [
   'flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-300 lg:sticky lg:top-0',
   props.isCollapsed
-    ? 'w-full p-2 lg:w-[4.75rem] lg:p-1.5'
-    : 'w-full p-2 lg:w-[18rem] lg:p-2.5 xl:w-80'
+    ? 'w-full p-2.5 lg:w-[4.75rem] lg:p-2'
+    : 'w-full p-3 lg:w-[18rem] lg:p-3 xl:w-80'
 ])
 
 const itemClass = (pr: PullRequest): string[] => {
   const isActive = !!props.selectedPR && pr.id === props.selectedPR.id
   return [
     'group flex items-center rounded-md border text-left transition-colors',
-    props.isCollapsed ? 'mx-auto h-9 w-9 justify-center p-1' : 'w-full gap-2 px-2 py-1.5',
+    props.isCollapsed ? 'mx-auto h-9 w-9 justify-center p-1' : 'w-full gap-2.5 px-2.5 py-2',
     isActive ? 'border-border bg-muted' : 'border-transparent hover:bg-accent'
   ]
 }

@@ -1,6 +1,6 @@
 <template>
   <div class="relative flex h-full w-full flex-col">
-    <div class="min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-muted/45 p-4 font-mono text-[15px] leading-[1.8] text-foreground">
+    <div class="min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-muted/45 p-5 font-mono text-[15px] leading-[1.8] text-foreground">
       <pre v-if="data" class="m-0 whitespace-pre-wrap break-words">{{ formattedJson }}</pre>
       <div v-else class="italic text-muted-foreground">预览区域</div>
     </div>
