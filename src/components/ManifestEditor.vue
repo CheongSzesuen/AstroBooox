@@ -1,7 +1,7 @@
 <template>
   <div class="flex min-h-full w-full flex-col">
     <!-- 完整项目路径和操作按钮部分 -->
-    <div v-if="projectDirectory" class="flex min-h-[calc(100vh-12rem)] w-full flex-col gap-6">
+    <div v-if="projectDirectory" class="flex min-h-[calc(100vh-12rem)] w-full flex-col gap-4">
       <div class="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted px-4 py-3.5 text-sm max-[480px]:flex-col max-[480px]:items-start max-[480px]:gap-3">
         <span class="min-w-0 flex-1 truncate">当前项目路径: {{ projectDirectory.name }} ({{ isFsaSupported ? 'FSA' : 'OPFS' }})</span>
         <Button
@@ -22,34 +22,34 @@
         </Button>
       </div>
       
-      <div class="grid min-h-0 flex-1 gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,42%)]">
         <!-- 完整的表单容器 -->
-        <div class="min-w-0 space-y-6 overflow-y-auto rounded-xl border border-border bg-muted/55 p-6">
+        <div class="min-w-0 space-y-4 overflow-y-auto rounded-xl border border-border bg-muted/55 p-4">
           <!-- 应用信息部分 -->
-          <div class="w-full space-y-5 rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div class="w-full space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
             <h3 class="text-base font-semibold text-foreground">应用信息</h3>
-            <div class="w-full space-y-2">
-              <label class="mb-2 block font-semibold text-foreground">应用名称</label>
+            <div class="w-full space-y-1.5">
+              <label class="block font-semibold text-foreground">应用名称</label>
               <Input v-model="manifest.item.name" placeholder="应用名称" />
             </div>
-            <div class="w-full space-y-2">
-              <label class="mb-2 block font-semibold text-foreground">应用简介</label>
+            <div class="w-full space-y-1.5">
+              <label class="block font-semibold text-foreground">应用简介</label>
               <Textarea v-model="manifest.item.description" placeholder="应用简介" />
             </div>
-            <div class="w-full space-y-2">
-              <label class="mb-2 block font-semibold text-foreground">预览图（支持多选）</label>
+            <div class="w-full space-y-1.5">
+              <label class="block font-semibold text-foreground">预览图（支持多选）</label>
               <draggable 
                 v-model="manifest.item.preview" 
                 handle=".drag-handle"
                 item-key="index"
-                class="mb-3"
+                class="mb-2"
                 ghost-class="opacity-50"
                 chosen-class="opacity-80"
                 @start="handleDragStart"
                 @end="handleDragEnd"
               >
                 <template #item="{element, index}">
-                  <div class="mb-3 flex min-h-11 items-center gap-3 rounded-lg border border-border bg-background p-3">
+                  <div class="mb-2 flex min-h-11 items-center gap-2.5 rounded-lg border border-border bg-background p-2.5">
                     <div class="drag-handle flex h-full w-6 cursor-move items-center justify-center rounded-md bg-muted py-1">
                       <div class="flex h-full w-full items-center justify-center">
                         <DotsSixVertical :size="16" weight="bold" />
@@ -62,31 +62,36 @@
                   </div>
                 </template>
               </draggable>
-              <Button class="mt-3" @click="selectMultiplePreviews">+ 添加预览图</Button>
+              <Button class="mt-2" @click="selectMultiplePreviews">+ 添加预览图</Button>
             </div>
-            <div class="w-full space-y-2">
-              <label class="mb-2 block font-semibold text-foreground">图标</label>
+            <div class="w-full space-y-1.5">
+              <label class="block font-semibold text-foreground">图标</label>
               <div class="flex w-full gap-2 max-[640px]:flex-col">
                 <Input v-model="manifest.item.icon" placeholder="icon.png" readonly class="flex-1 min-w-0" />
                 <Button @click="selectFile('icon')">选择文件</Button>
               </div>
             </div>
-            <div class="w-full space-y-2">
-              <label class="mb-2 block font-semibold text-foreground">开源仓库 URL（可选）</label>
+            <div class="w-full space-y-1.5">
+              <label class="block font-semibold text-foreground">开源仓库 URL（可选）</label>
               <Input v-model="manifest.item.source_url" placeholder="开源项目将有更多机会得到推荐" />
             </div>
           </div>
           
           <!-- 作者信息部分 -->
-          <div class="w-full space-y-5 rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div class="w-full space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
             <h3 class="text-base font-semibold text-foreground">作者信息</h3>
-            <div v-for="(author, index) in manifest.item.author" :key="index" class="relative space-y-4 rounded-lg border border-border bg-background p-4">
-              <div class="w-full space-y-2">
-                <label class="mb-2 block font-semibold text-foreground">作者名称</label>
+            <div
+              v-for="(author, index) in manifest.item.author"
+              :key="index"
+              class="relative space-y-3 rounded-lg border border-border bg-background p-3.5"
+              :class="{ 'mb-3': index !== manifest.item.author.length - 1 }"
+            >
+              <div class="w-full space-y-1.5">
+                <label class="block font-semibold text-foreground">作者名称</label>
                 <Input v-model="author.name" placeholder="作者名称" />
               </div>
-              <div class="w-full space-y-2">
-                <label class="mb-2 block font-semibold text-foreground">作者主页（可选）</label>
+              <div class="w-full space-y-1.5">
+                <label class="block font-semibold text-foreground">作者主页（可选）</label>
                 <Input v-model="author.author_url" placeholder="https://github.com/用户名" />
               </div>
               <Button variant="outline" @click="removeAuthor(index)">删除</Button>
@@ -95,16 +100,21 @@
           </div>
           
           <!-- 支持设备信息部分 -->
-          <div class="w-full space-y-5 rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div class="w-full space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
             <h3 class="text-base font-semibold text-foreground">支持设备信息</h3>
-            <div v-for="(download, deviceCode) in manifest.downloads" :key="deviceCode" class="space-y-4 rounded-lg border border-border bg-background p-4">
-              <h4 class="mb-3 text-sm font-semibold text-foreground">{{ getDeviceDisplayName(deviceCode) }}</h4>
-              <div class="w-full space-y-2">
-                <label class="mb-2 block font-semibold text-foreground">应用版本</label>
+            <div
+              v-for="(download, deviceCode, index) in manifest.downloads"
+              :key="deviceCode"
+              class="space-y-3 rounded-lg border border-border bg-background p-3.5"
+              :class="{ 'mb-3': index !== Object.keys(manifest.downloads).length - 1 }"
+            >
+              <h4 class="mb-2 text-sm font-semibold text-foreground">{{ getDeviceDisplayName(deviceCode) }}</h4>
+              <div class="w-full space-y-1.5">
+                <label class="block font-semibold text-foreground">应用版本</label>
                 <Input v-model="download.version" placeholder="1.0.0" />
               </div>
-              <div class="w-full space-y-2">
-                <label class="mb-2 block font-semibold text-foreground">资源文件</label>
+              <div class="w-full space-y-1.5">
+                <label class="block font-semibold text-foreground">资源文件</label>
                 <div class="flex w-full gap-2 max-[640px]:flex-col">
                   <Input v-model="download.file_name" readonly class="flex-1 min-w-0" />
                   <Button @click="selectFile('download', deviceCode)">选择文件</Button>
@@ -117,8 +127,8 @@
         </div>
         
         <!-- JSON预览部分 -->
-        <div class="min-w-0 space-y-5 rounded-xl border border-border bg-muted/55 p-6 xl:sticky xl:top-0 xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto">
-          <div class="flex flex-wrap gap-2.5 xl:sticky xl:top-0 xl:z-10 xl:bg-muted/95 xl:pb-4">
+        <div class="min-w-0 space-y-4 rounded-xl border border-border bg-muted/55 p-4 lg:sticky lg:top-0 lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto">
+          <div class="flex flex-wrap gap-2.5 lg:sticky lg:top-0 lg:z-10 lg:bg-muted/95 lg:pb-3">
             <Button :class="{ 'cursor-not-allowed opacity-60': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
               <FloppyDisk :size="16" weight="bold" />
               保存
