@@ -4,6 +4,19 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/cc/:pathMatch(.*)*',
+      component: {
+        render: () => null
+      },
+      beforeEnter: () => {
+        if (typeof window !== 'undefined') {
+          const { origin, search, hash } = window.location
+          window.location.replace(`${origin}/cc/${search}${hash}`)
+        }
+        return false
+      }
+    },
+    {
       path: '/',
       component: () => import('../layouts/MainLayout.vue'),
       children: [
