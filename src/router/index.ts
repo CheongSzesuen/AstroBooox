@@ -36,6 +36,11 @@ const router = createRouter({
           path: 'git-browser',
           name: 'git-browser',
           component: () => import('../components/GitBrowserOps.vue')
+        },
+        {
+          path: 'resource-publish',
+          name: 'resource-publish',
+          component: () => import('../components/ResourcePublishWorkbench.vue')
         }
       ]
     }
