@@ -23,7 +23,9 @@ const applyTheme = (nextTheme: ThemeMode): void => {
   if (typeof document === 'undefined') {
     return
   }
-  document.documentElement.setAttribute('data-theme', nextTheme)
+  const root = document.documentElement
+  root.classList.toggle('dark', nextTheme === 'dark')
+  root.setAttribute('data-theme', nextTheme)
 }
 
 export const useTheme = () => {

@@ -10,8 +10,14 @@
   },
   "dependencies": {
     "@phosphor-icons/vue": "^2.2.1",
+    "@vueuse/core": "^14.2.1",
     "axios": "^1.11.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "reka-ui": "^2.8.2",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss-animate": "^1.0.7",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1",
     "vuedraggable": "^4.1.0"
@@ -21,6 +27,9 @@
     "@types/web-app-manifest": "^1.0.9",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
     "vue-tsc": "^2.2.12"

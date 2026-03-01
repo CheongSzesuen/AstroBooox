@@ -1,62 +1,68 @@
 <template>
-  <div class="app-container">
+  <div class="flex min-h-screen flex-col">
     <NavBar :mode="mode" @update:mode="setMode" />
 
     <Dialog :open="showPhonePrompt">
-      <Card title="手机设备限制" description="Manifest 功能在手机设备不可用，请改用平板或桌面端。">
-        <template #header>
-          <div class="prompt-head">
-            <DeviceMobile class="prompt-icon" :size="36" weight="duotone" />
+      <DialogContent class="sm:max-w-[560px]">
+        <DialogHeader class="gap-3">
+          <div class="flex items-start gap-3">
+            <DeviceMobile class="mt-0.5 text-primary" :size="36" weight="duotone" />
             <div>
-              <h3>手机设备限制</h3>
-              <p>建议使用 Chrome 或 Edge 以获得完整能力。</p>
+              <DialogTitle>手机设备限制</DialogTitle>
+              <DialogDescription class="mt-2 text-sm leading-6">
+                Manifest 功能在手机设备不可用，请改用平板或桌面端。建议使用 Chrome 或 Edge 以获得完整能力。
+              </DialogDescription>
             </div>
           </div>
-        </template>
-      </Card>
+        </DialogHeader>
+      </DialogContent>
     </Dialog>
 
     <Dialog :open="showUnsupportedPrompt">
-      <Card title="浏览器不支持 FSA API" description="将使用 OPFS 模式，无法直接保存文件。">
-        <template #header>
-          <div class="prompt-head">
-            <WarningCircle class="prompt-icon warning" :size="36" weight="duotone" />
+      <DialogContent class="sm:max-w-[560px]">
+        <DialogHeader class="gap-3">
+          <div class="flex items-start gap-3">
+            <WarningCircle class="mt-0.5 text-amber-500" :size="36" weight="duotone" />
             <div>
-              <h3>浏览器不支持 FSA API</h3>
-              <p>建议使用 Chrome 或 Edge。当前模式需要将文件放在项目根目录。</p>
+              <DialogTitle>浏览器不支持 FSA API</DialogTitle>
+              <DialogDescription class="mt-2 text-sm leading-6">
+                将使用 OPFS 模式，无法直接保存文件。建议使用 Chrome 或 Edge；当前模式需要将文件放在项目根目录。
+              </DialogDescription>
             </div>
           </div>
-        </template>
-        <template #footer>
+        </DialogHeader>
+        <DialogFooter class="sm:justify-start">
           <Button variant="secondary" @click="continueWithOPFS">
             <CheckCircle :size="16" weight="fill" />
             确定
           </Button>
-        </template>
-      </Card>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
 
     <Dialog :open="showDirectoryPrompt">
-      <Card title="请选择项目文件夹" description="先选择项目目录，再进行 manifest 编辑与保存。">
-        <template #header>
-          <div class="prompt-head">
-            <FolderSimplePlus class="prompt-icon" :size="36" weight="duotone" />
+      <DialogContent class="sm:max-w-[560px]">
+        <DialogHeader class="gap-3">
+          <div class="flex items-start gap-3">
+            <FolderSimplePlus class="mt-0.5 text-primary" :size="36" weight="duotone" />
             <div>
-              <h3>请选择项目文件夹</h3>
-              <p>已支持 FSA 模式处理非根目录文件。</p>
+              <DialogTitle>请选择项目文件夹</DialogTitle>
+              <DialogDescription class="mt-2 text-sm leading-6">
+                先选择项目目录，再进行 manifest 编辑与保存。已支持 FSA 模式处理非根目录文件。
+              </DialogDescription>
             </div>
           </div>
-        </template>
-        <template #footer>
+        </DialogHeader>
+        <DialogFooter class="sm:justify-start">
           <Button @click="selectProjectDirectory">
             <FolderOpen :size="16" weight="duotone" />
             选择文件夹
           </Button>
-        </template>
-      </Card>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
 
-    <main class="content">
+    <main class="flex-1 p-4 md:p-5">
       <component
         :is="currentComponent"
         :project-directory="projectDirectory"
@@ -66,12 +72,16 @@
       />
     </main>
 
-    <Dialog :open="showAlert" @close="closeAlert">
-      <Card :title="alertTitle" :description="alertMessage">
-        <template #footer>
+    <Dialog :open="showAlert" @update:open="handleAlertOpenChange">
+      <DialogContent class="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>{{ alertTitle }}</DialogTitle>
+          <DialogDescription>{{ alertMessage }}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter class="sm:justify-start">
           <Button variant="secondary" @click="closeAlert">确定</Button>
-        </template>
-      </Card>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
 
     <AppFooter />
@@ -89,10 +99,17 @@ import {
 } from '@phosphor-icons/vue'
 import NavBar from '../components/NavBar.vue'
 import AppFooter from '../components/Footer.vue'
-import Card from '@/components/ui/Card.vue'
-import Dialog from '@/components/ui/Dialog.vue'
-import Button from '@/components/ui/Button.vue'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import type { AppMode, DeviceType } from '../type/manifest'
+
 const ManifestEditor = defineAsyncComponent(() => import('../components/ManifestEditor.vue'))
 const CSVEGenerator = defineAsyncComponent(() => import('../components/CSVEGenerator.vue'))
 const ResLinkGenerator = defineAsyncComponent(() => import('../components/ResLinkGenerator.vue'))
@@ -296,6 +313,10 @@ const closeAlert = (): void => {
   showAlert.value = false
 }
 
+const handleAlertOpenChange = (open: boolean): void => {
+  showAlert.value = open
+}
+
 onMounted(() => {
   checkDeviceType()
   if (!isFsaSupported.value && mode.value === 'manifest' && deviceType.value !== 'phone' && !hasManifest.value) {
@@ -321,54 +342,3 @@ watch(
   }
 )
 </script>
-
-<style scoped>
-.app-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.content {
-  flex: 1;
-  padding: var(--space-4);
-}
-
-.prompt-head {
-  display: flex;
-  gap: var(--space-3);
-  align-items: flex-start;
-}
-
-.prompt-head h3 {
-  margin: 0;
-  font-size: 1.05rem;
-}
-
-.prompt-head p {
-  margin: var(--space-2) 0 0;
-  color: var(--muted-foreground);
-  line-height: 1.45;
-  font-size: 0.9rem;
-}
-
-.prompt-icon {
-  color: var(--primary);
-  flex-shrink: 0;
-  margin-top: 0.05rem;
-}
-
-.prompt-icon.warning {
-  color: #d97706;
-}
-
-@media (max-width: 768px) {
-  .content {
-    padding: var(--space-3);
-  }
-
-  .prompt-head {
-    flex-direction: column;
-  }
-}
-</style>
