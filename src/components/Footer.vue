@@ -17,14 +17,11 @@
             variant="ghost"
             size="sm"
             class="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-            @click="toggleTerms"
+            @click="showTerms = true"
           >
             <Info :size="16" weight="duotone" />
             使用须知
           </Button>
-          <p v-if="showTerms" class="m-0 max-w-[620px] text-center text-[13px] leading-6 text-muted-foreground">
-            AstroBooox 与 AstroBox 无所属关系，仅作为提交资源信息的效率工具。 如有问题请在 GitHub 提交 issue。
-          </p>
         </div>
       </div>
 
@@ -41,6 +38,24 @@
         Open Source on GitHub
       </p>
     </div>
+
+    <Dialog :open="showTerms" @update:open="showTerms = $event">
+      <DialogContent class="sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle>使用须知</DialogTitle>
+          <DialogDescription class="leading-6">
+            AstroBooox 与 AstroBox 无所属关系，仅作为提交资源信息的效率工具。
+            如有问题请在 GitHub 提交 issue。
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter class="sm:justify-between">
+          <Button variant="outline" as="a" href="https://github.com/CheongSzesuen/AstroBooox/issues" target="_blank">
+            提交 Issue
+          </Button>
+          <Button @click="showTerms = false">我知道了</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </footer>
 </template>
 
@@ -48,10 +63,14 @@
 import { ref } from 'vue'
 import { PhGithubLogo as GithubLogo, PhInfo as Info } from '@phosphor-icons/vue'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 
 const showTerms = ref(false)
-
-const toggleTerms = (): void => {
-  showTerms.value = !showTerms.value
-}
 </script>

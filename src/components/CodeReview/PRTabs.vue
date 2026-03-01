@@ -1,6 +1,6 @@
 <template>
   <Tabs :model-value="activeTab" class="mb-4" @update:model-value="onTabChange">
-    <TabsList>
+    <TabsList class="h-auto gap-1 border border-border bg-muted/60 p-1">
       <TabsTrigger value="analysis" class="gap-1.5">
         <ChartLineUp :size="16" weight="duotone" />
         Analysis

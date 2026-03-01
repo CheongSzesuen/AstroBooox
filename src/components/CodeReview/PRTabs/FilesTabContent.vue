@@ -19,10 +19,10 @@
              @click="selectFile(file)"
              :class="{ 'expanded': expandedFiles.has(file.filename) }">
           <div class="file-info-container d-flex align-items-center min-width-0 flex-auto">
-            <button type="button" class="btn-octicon js-details-target" aria-label="Toggle diff contents">
+            <Button variant="ghost" size="icon" type="button" class="btn-octicon js-details-target" aria-label="Toggle diff contents">
               <CaretDown v-if="expandedFiles.has(file.filename)" :size="16" weight="bold" />
               <CaretRight v-else :size="16" weight="bold" />
-            </button>
+            </Button>
 
             <div class="diffstat-summary mr-2">
               <span class="sr-only">
@@ -65,6 +65,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { PhCaretDown as CaretDown, PhCaretRight as CaretRight } from '@phosphor-icons/vue'
+import { Button } from '@/components/ui/button'
 import FileTree from './FileTabContent/FileTree.vue'
 import GithubStyleDiffView from './FileTabContent/GithubStyleDiffView.vue'
 import type { FilesTabContentProps, FileChange } from '@/type/codeReview'
@@ -115,47 +116,52 @@ const selectFile = (file: FileChange) => {
 
 <style scoped>
 .files-tab-content {
-  display: flex;
-  height: calc(100vh - 180px);
-  margin-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+  gap: 1rem;
+  height: calc(100vh - 210px);
+  margin-top: 0.75rem;
 }
 
 .file-tree-container {
-  width: 300px;
+  min-width: 0;
   overflow-y: auto;
-  border-right: none; /* 移除边框 */
-  margin-right: 20px; /* 添加右边距 */
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--card));
 }
 
 .file-content {
   flex: 1;
-  padding: 20px;
+  padding: 0.2rem;
   overflow-y: auto;
+  min-width: 0;
 }
 
 .file-content.file-diff-list {
-  padding: 0;
+  padding: 0.1rem;
 }
 
 .file-diff-item {
   border: 1px solid hsl(var(--border));
-  border-radius: 6px;
-  margin-bottom: 16px;
+  border-radius: 0.75rem;
+  margin-bottom: 0.9rem;
   background-color: hsl(var(--card));
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.08);
 }
 
 .file-header {
   z-index: 2;
-  padding: 8px 16px;
+  padding: 0.55rem 0.85rem;
   background-color: hsl(var(--muted) / 0.5);
   border-bottom: 1px solid hsl(var(--border));
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
+  border-top-left-radius: 0.75rem;
+  border-top-right-radius: 0.75rem;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
 }
 
 .file-header:hover {
@@ -177,16 +183,10 @@ const selectFile = (file: FileChange) => {
 }
 
 .btn-octicon {
-  display: inline-block;
-  padding: 5px;
-  margin-right: 5px;
-  line-height: 1;
-  color: hsl(var(--muted-foreground));
-  vertical-align: middle;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
+  margin-right: 0.2rem;
   flex-shrink: 0;
+  height: 1.7rem;
+  width: 1.7rem;
 }
 
 .mr-2 {
@@ -216,6 +216,7 @@ const selectFile = (file: FileChange) => {
 .file-name {
   font-weight: 600;
   color: hsl(var(--foreground));
+  font-size: 0.8rem;
 }
 
 .file-status-wrapper {
@@ -223,9 +224,9 @@ const selectFile = (file: FileChange) => {
 }
 
 .file-status {
-  padding: 2px 6px;
+  padding: 0.12rem 0.45rem;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 0.7rem;
   font-weight: 500;
   text-transform: capitalize;
   background-color: hsl(var(--muted));
@@ -255,13 +256,13 @@ const selectFile = (file: FileChange) => {
 
 .file-actions {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .file-stats {
   display: flex;
-  gap: 8px;
-  font-size: 12px;
+  gap: 0.5rem;
+  font-size: 0.75rem;
 }
 
 .changes {
@@ -269,7 +270,7 @@ const selectFile = (file: FileChange) => {
 }
 
 .diffstat {
-  font-size: 12px;
+  font-size: 0.72rem;
   font-weight: 600;
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
@@ -278,8 +279,8 @@ const selectFile = (file: FileChange) => {
 
 .diffstat-block {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   margin-left: 1px;
 }
 
@@ -316,6 +317,18 @@ const selectFile = (file: FileChange) => {
 
 .github-style-diff-view {
   background-color: hsl(var(--card));
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
+@media (max-width: 1024px) {
+  .files-tab-content {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: calc(100vh - 240px);
+  }
+
+  .file-tree-container {
+    max-height: 280px;
+  }
 }
 </style>

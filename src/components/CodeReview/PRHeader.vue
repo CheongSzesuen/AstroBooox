@@ -1,5 +1,5 @@
 <template>
-  <header class="pr-header ui-card">
+  <header class="pr-header">
     <div class="pr-main">
       <h1 class="pr-title">
         {{ pr.title }}
@@ -137,16 +137,20 @@ const timeAgo = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 16px;
-  margin-bottom: 16px;
+  gap: 0.875rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--card));
 }
 
 .pr-title {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.15rem;
   font-weight: 600;
   color: var(--foreground);
+  line-height: 1.5;
 }
 
 .pr-number {
@@ -159,8 +163,8 @@ const timeAgo = computed(() => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .pr-state-badge {
@@ -194,13 +198,18 @@ const timeAgo = computed(() => {
 
 .pr-actions {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 @media (max-width: 900px) {
   .pr-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .pr-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 </style>

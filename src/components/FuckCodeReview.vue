@@ -48,44 +48,42 @@
 
     <!-- 主内容区 -->
     <div class="main-content">
-      <div v-if="errorMessage" class="error-banner">
-        {{ errorMessage }}
-      </div>
+      <div class="content-shell">
+        <div v-if="errorMessage" class="error-banner">
+          {{ errorMessage }}
+        </div>
 
-      <div v-if="!selectedPR" class="empty-state">
-        <h3>请从左侧选择一个Pull Request进行审查</h3>
-      </div>
-
-      <div v-else>
-        <!-- 使用PR头部组件 -->
-        <PRHeader 
-          :pr="selectedPR"
-          @refresh="fetchPRDetails"
-        />
-
-        <div v-if="loadingDetails" class="loading">加载PR详情中...</div>
+        <div v-if="!selectedPR" class="empty-state">
+          <h3>请从左侧选择一个 Pull Request 进行审查</h3>
+        </div>
 
         <div v-else>
-          <!-- 使用PR标签导航组件 -->
-          <PRTabs
-            v-model:active-tab="activeTab"
-            :analyzed-data="analyzedData"
-            :changed-files="changedFiles"
+          <PRHeader 
+            :pr="selectedPR"
+            @refresh="fetchPRDetails"
           />
 
-          <!-- 文件变更内容 -->
-          <FilesTabContent
-            v-show="activeTab === 'files'"
-            :changed-files="changedFiles"
-          />
+          <div v-if="loadingDetails" class="loading">加载 PR 详情中...</div>
 
-          <!-- 数据分析内容 -->
-          <AnalysisTabContent
-            v-show="activeTab === 'analysis'"
-            :analyzed-data="analyzedData"
-            :repo-data="repoData"
-            :manifest-data="manifestData"
-          />
+          <div v-else>
+            <PRTabs
+              v-model:active-tab="activeTab"
+              :analyzed-data="analyzedData"
+              :changed-files="changedFiles"
+            />
+
+            <FilesTabContent
+              v-show="activeTab === 'files'"
+              :changed-files="changedFiles"
+            />
+
+            <AnalysisTabContent
+              v-show="activeTab === 'analysis'"
+              :analyzed-data="analyzedData"
+              :repo-data="repoData"
+              :manifest-data="manifestData"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -552,7 +550,8 @@ defineEmits(['refresh'])
   display: flex;
   height: 100vh;
   position: relative;
-  overflow: auto;
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.25);
 }
 
 .notice-list {
@@ -575,15 +574,20 @@ defineEmits(['refresh'])
 }
 
 .main-content {
-  margin-left: 320px;
-  padding: 20px;
+  margin-left: 22rem;
+  padding: 0.9rem 1rem 1rem;
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
   transition: margin-left 0.3s ease;
 }
 
 .sidebar-collapsed ~ .main-content {
-  margin-left: 100px;
+  margin-left: 6rem;
+}
+
+.content-shell {
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
 .empty-state {
@@ -591,9 +595,12 @@ defineEmits(['refresh'])
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 100%;
+  min-height: 300px;
   color: hsl(var(--muted-foreground));
   gap: 1rem;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--card));
 }
 
 .empty-state h3 {
@@ -603,10 +610,10 @@ defineEmits(['refresh'])
 }
 
 .loading {
-  padding: 16px;
+  padding: 1rem;
   text-align: center;
   color: hsl(var(--muted-foreground));
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .error-banner {
@@ -622,11 +629,12 @@ defineEmits(['refresh'])
 
 @media (max-width: 768px) {
   .main-content {
-    margin-left: 280px;
+    margin-left: 18rem;
+    padding: 0.75rem;
   }
   
   .sidebar-collapsed ~ .main-content {
-    margin-left: 80px;
+    margin-left: 4.25rem;
   }
 }
 </style>

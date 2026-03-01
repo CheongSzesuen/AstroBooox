@@ -6,14 +6,13 @@
       <!-- Search box -->
       <div class="subnav-search-container">
         <div class="subnav-search">
-          <input
-            type="text"
+          <Input
             class="form-control input-block pl-5 js-filterable-field"
             placeholder="Filter changed files"
             aria-label="Filter changed files"
             v-model="searchQuery"
             autocomplete="off"
-          >
+          />
           <MagnifyingGlass aria-hidden="true" :size="16" weight="bold" class="subnav-search-icon" />
         </div>
       </div>
@@ -114,6 +113,7 @@ import {
   PhMinusSquare as MinusSquare,
   PhPlusSquare as PlusSquare
 } from '@phosphor-icons/vue'
+import { Input } from '@/components/ui/input'
 import type { FileChange } from '@/type/codeReview'
 
 // 定义 props

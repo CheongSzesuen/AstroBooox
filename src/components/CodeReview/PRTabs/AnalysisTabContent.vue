@@ -164,24 +164,29 @@ const getFullImageUrl = (relativePath: string): string => {
 
 <style scoped>
 .tab-content {
-  padding: 16px;
+  padding: 0.25rem;
 }
 
 .analysis-results {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 .analysis-section {
-  flex: 1;
-  min-width: 400px;
+  min-width: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--card));
+  padding: 1rem;
 }
 
 .analysis-section h3 {
   margin-top: 0;
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.65rem;
+  margin-bottom: 0.8rem;
   border-bottom: 1px solid hsl(var(--border));
+  font-size: 1rem;
 }
 
 .csv-analysis {
@@ -189,50 +194,53 @@ const getFullImageUrl = (relativePath: string): string => {
 }
 
 .csv-analysis h4 {
-  margin: 1.5rem 0 1rem;
-  font-size: 1.1rem;
+  margin: 1rem 0 0.8rem;
+  font-size: 0.95rem;
   color: hsl(var(--foreground));
 }
 
 .form-layout {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
 .form-row {
   display: flex;
   align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.2rem 0;
 }
 
 .form-label {
   font-weight: 500;
-  min-width: 120px;
-  padding-right: 1rem;
+  min-width: 110px;
   color: hsl(var(--muted-foreground));
+  font-size: 0.85rem;
 }
 
 .form-value {
   flex: 1;
   word-break: break-word;
+  font-size: 0.9rem;
 }
 
 .resource-analysis {
-  margin-top: 1.5rem;
+  margin-top: 1.1rem;
 }
 
 .resource-analysis h4 {
-  margin: 1.5rem 0 1rem;
-  font-size: 1.1rem;
+  margin: 1rem 0 0.8rem;
+  font-size: 0.95rem;
   color: hsl(var(--foreground));
 }
 
 .json-viewer {
   background-color: hsl(var(--muted) / 0.45);
   border: 1px solid hsl(var(--border));
-  border-radius: 6px;
-  padding: 16px;
-  margin-top: 1rem;
+  border-radius: 0.6rem;
+  padding: 0.8rem;
+  margin-top: 0.6rem;
   overflow-x: auto;
 }
 
@@ -246,16 +254,16 @@ const getFullImageUrl = (relativePath: string): string => {
 }
 
 .repo-info {
-  margin-top: 1.5rem;
+  margin-top: 0.2rem;
 }
 
 .manifest-info {
-  margin-top: 1.5rem;
+  margin-top: 1rem;
 }
 
 .manifest-info h4 {
-  margin: 1rem 0;
-  font-size: 1rem;
+  margin: 0.6rem 0;
+  font-size: 0.95rem;
   color: hsl(var(--muted-foreground));
 }
 
@@ -283,8 +291,11 @@ const getFullImageUrl = (relativePath: string): string => {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100px;
+  min-height: 9rem;
   color: hsl(var(--muted-foreground));
+  border: 1px dashed hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.25);
 }
 
 .error {
@@ -293,13 +304,13 @@ const getFullImageUrl = (relativePath: string): string => {
 }
 
 @media (max-width: 768px) {
-  .analysis-section {
-    min-width: 100%;
+  .analysis-results {
+    grid-template-columns: 1fr;
   }
   
   .form-row {
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 0.15rem;
   }
   
   .form-label {

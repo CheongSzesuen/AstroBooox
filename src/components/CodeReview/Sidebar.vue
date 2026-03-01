@@ -115,187 +115,60 @@ const cacheAvatar = (user: GitHubUser) => {
 <style scoped>
 .sidebar {
   position: fixed;
-  top: 60px;
-  bottom: 20px;
-  left: 20px;
-  width: 320px;
+  top: 4.25rem;
+  bottom: 1rem;
+  left: 1rem;
+  width: 20rem;
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.08);
   display: flex;
   flex-direction: column;
-  padding: 12px;
+  padding: 0.75rem;
   z-index: 100;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.25s ease, left 0.25s ease, padding 0.25s ease;
   overflow: hidden;
-  box-sizing: border-box;
 }
 
 .sidebar-collapsed {
-  width: 70px;
-  padding: 12px 4px;
-}
-
-/* 宽屏设备上展开状态的侧边栏项目项样式优化 */
-@media (min-width: 769px) {
-  .sidebar:not(.sidebar-collapsed) {
-    width: 320px;
-  }
-  
-  .sidebar:not(.sidebar-collapsed) .pr-item {
-    margin: 6px 0;
-  }
-  
-  .sidebar-collapsed {
-    width: 70px; /* 桌面端收起宽度 */
-    padding: 10px 4px;
-  }
-  
-  .sidebar-collapsed .pr-item {
-    padding: 6px;
-    margin: 3px auto;
-  }
-}
-
-/* 窄屏设备上收起状态的侧边栏项目项样式优化 */
-@media (max-width: 768px) {
-  .sidebar {
-    width: 280px;
-    left: 10px;
-  }
-  
-  .sidebar-collapsed {
-    width: 36px; /* 与头像宽度一致 */
-    left: 2px; /* 保持极小的左侧间距 */
-    padding: 6px 0;
-    box-shadow: none;
-    border-radius: 0 4px 4px 0; /* 只保留右侧圆角 */
-    top: 60px;
-    bottom: 10px; /* 与底部保持一点间距 */
-  }
-  
-  .sidebar-collapsed .pr-item {
-    padding: 4px;
-    margin: 1px auto;
-    width: 36px;
-    height: 36px;
-  }
-  
-  /* 窄屏下保持较小的头像间距 */
-  .sidebar:not(.sidebar-collapsed) .pr-item {
-    margin: 2px 0;
-  }
-}
-
-/* 自定义滚动条样式 - 只保留垂直滚动条 */
-.sidebar:not(.sidebar-collapsed) .pr-list {
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 4px;
-  margin-right: -12px;
-  flex: 1;
-}
-
-.sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted-foreground) / 0.45);
-  border-radius: 3px;
-}
-
-.sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--muted-foreground) / 0.6);
-}
-
-.sidebar-collapsed .pr-list {
-  overflow: hidden;
-  flex: 1;
-  padding: 0;
-  margin: 0;
+  width: 4.75rem;
+  padding: 0.75rem 0.35rem;
 }
 
 .pr-list {
   flex: 1;
   min-height: 0;
-  padding-top: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-right: -0.25rem;
+  padding-right: 0.25rem;
+  padding-top: 0.5rem;
+}
+
+.sidebar:not(.sidebar-collapsed) .pr-item {
+  width: 100%;
+  justify-content: flex-start;
+  margin: 0.2rem 0;
+  padding: 0.5rem 0.6rem;
+  min-width: 0;
+  border-radius: 0.55rem;
+}
+
+.sidebar-collapsed .pr-item {
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: 0.2rem auto;
+  padding: 0.2rem;
+  border-radius: 0.55rem;
+  justify-content: center;
 }
 
 .pr-item {
   display: flex;
   align-items: center;
-  padding: 8px;
-  margin: 2px auto;
-  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s;
-  width: 36px;
-  min-width: 36px;
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
-  box-sizing: content-box;
-}
-
-/* 修复侧边栏收起时头像的hover状态为正方形 */
-.sidebar-collapsed .pr-item {
-  padding: 6px; /* 增加padding以适应更宽的侧边栏 */
-  margin: 2px auto; /* 增加margin */
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
-  box-sizing: content-box;
-}
-
-/* 窄屏设备上收起状态的侧边栏项目项样式优化 */
-@media (max-width: 768px) {
-  .sidebar {
-    width: 280px; /* 窄屏下保持当前宽度 */
-    left: 10px;
-  }
-  
-  .sidebar-collapsed {
-    width: 50px; /* 增加移动端收起宽度从40px到50px */
-    left: 10px;
-    padding: 6px 0;
-  }
-  
-  .sidebar-collapsed .pr-item {
-    padding: 4px; /* 调整窄屏下的padding */
-    margin: 1px auto;
-    width: 36px;
-    height: 36px;
-  }
-  
-  /* 窄屏下保持较小的头像间距 */
-  .sidebar:not(.sidebar-collapsed) .pr-item {
-    margin: 2px 0;
-  }
-}
-
-/* 宽屏设备上展开状态的侧边栏项目项样式优化 */
-@media (min-width: 769px) {
-  .sidebar:not(.sidebar-collapsed) {
-    width: 320px; /* 确保宽屏下的宽度 */
-  }
-  
-  .sidebar:not(.sidebar-collapsed) .pr-item {
-    margin: 6px 0; /* 进一步增加宽屏下头像间距到6px */
-  }
-}
-
-.sidebar:not(.sidebar-collapsed) .pr-item {
-  width: auto;
-  height: auto;
-  justify-content: flex-start;
-  margin: 4px 0; /* 增加宽屏下头像间距从2px到4px */
-  padding-left: 12px;
-  padding-right: 12px;
-  box-sizing: border-box;
-  min-width: 0;
-  border-radius: 6px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .pr-item:hover {
@@ -330,27 +203,27 @@ const cacheAvatar = (user: GitHubUser) => {
 }
 
 .pr-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
   object-fit: cover;
-  transition: all 0.3s ease;
+  transition: transform 0.2s ease;
 }
 
 .sidebar-collapsed .pr-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.55rem;
 }
 
 .pr-info {
-  margin-left: 12px;
+  margin-left: 0.7rem;
   flex: 1;
   min-width: 0;
 }
 
 .pr-title {
-  font-size: 16px;
+  font-size: 0.95rem;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -360,7 +233,7 @@ const cacheAvatar = (user: GitHubUser) => {
 
 .pr-meta {
   display: flex;
-  font-size: 14px;
+  font-size: 0.78rem;
   color: hsl(var(--muted-foreground));
 }
 
@@ -369,7 +242,7 @@ const cacheAvatar = (user: GitHubUser) => {
 }
 
 .pr-date {
-  font-size: 13px;
+  font-size: 0.76rem;
   color: hsl(var(--muted-foreground));
 }
 
@@ -377,12 +250,13 @@ const cacheAvatar = (user: GitHubUser) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
+  padding: 0.8rem;
   border-top: 1px solid hsl(var(--border));
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s ease;
   background-color: hsl(var(--muted) / 0.45);
   margin-top: auto;
+  border-radius: 0.5rem;
 }
 
 .sidebar-footer:hover {
@@ -390,7 +264,7 @@ const cacheAvatar = (user: GitHubUser) => {
 }
 
 .collapse-text {
-  font-size: 16px;
+  font-size: 0.9rem;
   font-weight: 500;
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
@@ -415,8 +289,8 @@ const cacheAvatar = (user: GitHubUser) => {
 }
 
 .arrow-icon {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
 }
@@ -430,7 +304,7 @@ const cacheAvatar = (user: GitHubUser) => {
 }
 
 .loading {
-  padding: 16px;
+  padding: 1rem;
   text-align: center;
   color: hsl(var(--muted-foreground));
   font-size: 14px;
@@ -448,6 +322,39 @@ const cacheAvatar = (user: GitHubUser) => {
   flex: 1;
   color: hsl(var(--muted-foreground));
   gap: 1rem;
-  padding: 16px;
+  padding: 1rem;
+}
+
+.pr-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pr-list::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.45);
+  border-radius: 3px;
+}
+
+.pr-list::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.6);
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 17.25rem;
+    left: 0.75rem;
+    top: 4rem;
+    bottom: 0.75rem;
+  }
+
+  .sidebar-collapsed {
+    width: 3.1rem;
+    left: 0.5rem;
+    padding: 0.5rem 0.15rem;
+  }
+
+  .sidebar-collapsed .pr-item {
+    width: 2rem;
+    height: 2rem;
+  }
 }
 </style>
