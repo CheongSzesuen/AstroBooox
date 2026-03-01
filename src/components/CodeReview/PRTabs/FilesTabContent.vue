@@ -15,11 +15,11 @@
         :key="file.filename"
         class="file-diff-item"
       >
-        <div class="file-header d-flex flex-md-row flex-column flex-md-items-center file-header--expandable sticky-file-header" 
+        <div class="file-header" 
              @click="selectFile(file)"
              :class="{ 'expanded': expandedFiles.has(file.filename) }">
-          <div class="file-info-container d-flex align-items-center min-width-0 flex-auto">
-            <Button variant="ghost" size="icon" type="button" class="btn-octicon js-details-target" aria-label="Toggle diff contents">
+          <div class="file-info-container">
+            <Button variant="ghost" size="icon" type="button" class="btn-octicon" aria-label="Toggle diff contents">
               <CaretDown v-if="expandedFiles.has(file.filename)" :size="16" weight="bold" />
               <CaretRight v-else :size="16" weight="bold" />
             </Button>
@@ -43,12 +43,12 @@
               <span class="file-name Truncate-text">{{ file.filename }}</span>
             </div>
 
-            <div class="file-status-wrapper ml-2">
-              <span :class="['file-status', file.status]">{{ file.status }}</span>
+            <div class="file-status-wrapper">
+              <Badge variant="outline" class="file-status">{{ getStatusText(file.status) }}</Badge>
             </div>
           </div>
 
-          <div class="file-actions d-flex flex-items-center">
+          <div class="file-actions">
             <div class="file-stats">
               <span class="changes">{{ file.changes }} changes</span>
             </div>
@@ -65,6 +65,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { PhCaretDown as CaretDown, PhCaretRight as CaretRight } from '@phosphor-icons/vue'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import FileTree from './FileTabContent/FileTree.vue'
 import GithubStyleDiffView from './FileTabContent/GithubStyleDiffView.vue'
@@ -110,6 +111,21 @@ const selectFile = (file: FileChange) => {
     expandedFiles.value.delete(file.filename)
   } else {
     expandedFiles.value.add(file.filename)
+  }
+}
+
+const getStatusText = (status: string): string => {
+  switch (status) {
+    case 'added':
+      return 'Added'
+    case 'removed':
+      return 'Removed'
+    case 'renamed':
+      return 'Renamed'
+    case 'modified':
+      return 'Modified'
+    default:
+      return status
   }
 }
 </script>
@@ -177,6 +193,9 @@ const selectFile = (file: FileChange) => {
 .file-info-container {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   min-width: 0;
@@ -187,14 +206,6 @@ const selectFile = (file: FileChange) => {
   flex-shrink: 0;
   height: 1.7rem;
   width: 1.7rem;
-}
-
-.mr-2 {
-  margin-right: 8px;
-}
-
-.ml-2 {
-  margin-left: 8px;
 }
 
 .diffstat-summary {
@@ -224,34 +235,12 @@ const selectFile = (file: FileChange) => {
 }
 
 .file-status {
-  padding: 0.12rem 0.45rem;
+  padding: 0.12rem 0.42rem;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 500;
-  text-transform: capitalize;
-  background-color: hsl(var(--muted));
-  color: hsl(var(--foreground));
-  border: 1px solid hsl(var(--border));
-}
-
-.file-status.added {
-  background-color: hsl(var(--muted));
-  color: hsl(var(--foreground));
-}
-
-.file-status.modified {
-  background-color: hsl(var(--muted));
-  color: hsl(var(--foreground));
-}
-
-.file-status.removed {
-  background-color: hsl(var(--muted));
-  color: hsl(var(--foreground));
-}
-
-.file-status.renamed {
-  background-color: hsl(var(--muted));
-  color: hsl(var(--foreground));
+  letter-spacing: 0.01em;
+  line-height: 1.1;
 }
 
 .file-actions {
@@ -263,6 +252,7 @@ const selectFile = (file: FileChange) => {
   display: flex;
   gap: 0.5rem;
   font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 .changes {
@@ -329,6 +319,16 @@ const selectFile = (file: FileChange) => {
 
   .file-tree-container {
     max-height: 280px;
+  }
+}
+
+@media (max-width: 700px) {
+  .file-header {
+    padding: 0.5rem 0.6rem;
+  }
+
+  .file-actions {
+    display: none;
   }
 }
 </style>

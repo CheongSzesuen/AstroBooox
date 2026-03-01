@@ -97,41 +97,32 @@ const getNewLineNumber = (index: number) => {
   return newLineNumbers.value[index] || ''
 }
 
-// 复制文件路径到剪贴板
-const copyFilePath = () => {
-  navigator.clipboard.writeText(props.file.filename)
-    .then(() => {
-      console.log('File path copied to clipboard')
-    })
-    .catch(err => {
-      console.error('Failed to copy file path: ', err)
-    })
-}
 </script>
 
 <style scoped>
 .github-style-diff-view {
   background-color: hsl(var(--card));
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 0.75rem 0.75rem;
 }
 
 .diff-content {
   overflow-x: auto;
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 0.75rem 0.75rem;
   margin-bottom: 0;
 }
 
 .diff-content.empty {
-  padding: 32px;
+  padding: 1.5rem;
   text-align: center;
   color: hsl(var(--muted-foreground));
   font-style: italic;
+  font-size: 0.86rem;
 }
 
 .diff-lines {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 11px;
+  line-height: 1.45;
   margin-bottom: 0;
 }
 
@@ -166,8 +157,8 @@ const copyFilePath = () => {
 }
 
 .line-number {
-  padding: 0 8px;
-  min-width: 40px;
+  padding: 0 0.55rem;
+  min-width: 2.65rem;
   text-align: right;
   color: hsl(var(--muted-foreground));
   user-select: none;
@@ -184,7 +175,7 @@ const copyFilePath = () => {
 
 .line-content {
   flex: 1;
-  padding: 0 12px;
+  padding: 0 0.7rem;
   white-space: pre;
 }
 </style>

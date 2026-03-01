@@ -7,7 +7,7 @@
       <div class="subnav-search-container">
         <div class="subnav-search">
           <Input
-            class="form-control input-block pl-5 js-filterable-field"
+            class="form-control pl-5"
             placeholder="Filter changed files"
             aria-label="Filter changed files"
             v-model="searchQuery"
