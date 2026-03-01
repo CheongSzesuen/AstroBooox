@@ -2,7 +2,7 @@
   <div class="flex min-h-full w-full flex-col">
     <!-- 完整项目路径和操作按钮部分 -->
     <div v-if="projectDirectory" class="flex min-h-[calc(100vh-12rem)] w-full flex-col gap-4">
-      <div class="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted px-4 py-3.5 text-sm max-[480px]:flex-col max-[480px]:items-start max-[480px]:gap-3">
+      <div class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm max-[480px]:flex-col max-[480px]:items-start max-[480px]:gap-3">
         <span class="min-w-0 flex-1 truncate">当前项目路径: {{ projectDirectory.name }} ({{ isFsaSupported ? 'FSA' : 'OPFS' }})</span>
         <Button
           variant="outline"
@@ -22,22 +22,25 @@
         </Button>
       </div>
       
-      <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,42%)]">
+      <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,460px)]">
         <!-- 完整的表单容器 -->
-        <div class="min-w-0 space-y-4 overflow-y-auto rounded-xl border border-border bg-muted/55 p-4">
+        <div class="min-w-0 space-y-4 overflow-y-auto rounded-xl border border-border bg-muted/40 p-4">
           <!-- 应用信息部分 -->
-          <div class="w-full space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-            <h3 class="text-base font-semibold text-foreground">应用信息</h3>
+          <Card class="w-full border-border/80 shadow-sm">
+            <CardHeader class="pb-3">
+              <CardTitle class="text-base">应用信息</CardTitle>
+            </CardHeader>
+            <CardContent class="space-y-4 pt-0">
             <div class="w-full space-y-1.5">
-              <label class="block font-semibold text-foreground">应用名称</label>
+              <label class="block text-sm font-medium text-foreground">应用名称</label>
               <Input v-model="manifest.item.name" placeholder="应用名称" />
             </div>
             <div class="w-full space-y-1.5">
-              <label class="block font-semibold text-foreground">应用简介</label>
+              <label class="block text-sm font-medium text-foreground">应用简介</label>
               <Textarea v-model="manifest.item.description" placeholder="应用简介" />
             </div>
             <div class="w-full space-y-1.5">
-              <label class="block font-semibold text-foreground">预览图（支持多选）</label>
+              <label class="block text-sm font-medium text-foreground">预览图（支持多选）</label>
               <draggable 
                 v-model="manifest.item.preview" 
                 handle=".drag-handle"
@@ -65,70 +68,83 @@
               <Button class="mt-2" @click="selectMultiplePreviews">+ 添加预览图</Button>
             </div>
             <div class="w-full space-y-1.5">
-              <label class="block font-semibold text-foreground">图标</label>
+              <label class="block text-sm font-medium text-foreground">图标</label>
               <div class="flex w-full gap-2 max-[640px]:flex-col">
                 <Input v-model="manifest.item.icon" placeholder="icon.png" readonly class="flex-1 min-w-0" />
                 <Button @click="selectFile('icon')">选择文件</Button>
               </div>
             </div>
             <div class="w-full space-y-1.5">
-              <label class="block font-semibold text-foreground">开源仓库 URL（可选）</label>
+              <label class="block text-sm font-medium text-foreground">开源仓库 URL（可选）</label>
               <Input v-model="manifest.item.source_url" placeholder="开源项目将有更多机会得到推荐" />
             </div>
-          </div>
+            </CardContent>
+          </Card>
           
           <!-- 作者信息部分 -->
-          <div class="w-full space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-            <h3 class="text-base font-semibold text-foreground">作者信息</h3>
-            <div
-              v-for="(author, index) in manifest.item.author"
-              :key="index"
-              class="relative space-y-3 rounded-lg border border-border bg-background p-3.5"
-              :class="{ 'mb-3': index !== manifest.item.author.length - 1 }"
-            >
-              <div class="w-full space-y-1.5">
-                <label class="block font-semibold text-foreground">作者名称</label>
-                <Input v-model="author.name" placeholder="作者名称" />
+          <Card class="w-full border-border/80 shadow-sm">
+            <CardHeader class="pb-3">
+              <CardTitle class="text-base">作者信息</CardTitle>
+            </CardHeader>
+            <CardContent class="space-y-4 pt-0">
+            <div class="space-y-3">
+              <div
+                v-for="(author, index) in manifest.item.author"
+                :key="index"
+                class="relative space-y-3 rounded-lg border border-border bg-background p-3.5"
+              >
+                <div class="w-full space-y-1.5">
+                  <label class="block text-sm font-medium text-foreground">作者名称</label>
+                  <Input v-model="author.name" placeholder="作者名称" />
+                </div>
+                <div class="w-full space-y-1.5">
+                  <label class="block text-sm font-medium text-foreground">作者主页（可选）</label>
+                  <Input v-model="author.author_url" placeholder="https://github.com/用户名" />
+                </div>
+                <Button variant="outline" @click="removeAuthor(index)">删除</Button>
               </div>
-              <div class="w-full space-y-1.5">
-                <label class="block font-semibold text-foreground">作者主页（可选）</label>
-                <Input v-model="author.author_url" placeholder="https://github.com/用户名" />
-              </div>
-              <Button variant="outline" @click="removeAuthor(index)">删除</Button>
             </div>
             <Button @click="addAuthor">+ 添加作者</Button>
-          </div>
+            </CardContent>
+          </Card>
           
           <!-- 支持设备信息部分 -->
-          <div class="w-full space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-            <h3 class="text-base font-semibold text-foreground">支持设备信息</h3>
-            <div
-              v-for="(download, deviceCode, index) in manifest.downloads"
-              :key="deviceCode"
-              class="space-y-3 rounded-lg border border-border bg-background p-3.5"
-              :class="{ 'mb-3': index !== Object.keys(manifest.downloads).length - 1 }"
-            >
-              <h4 class="mb-2 text-sm font-semibold text-foreground">{{ getDeviceDisplayName(deviceCode) }}</h4>
-              <div class="w-full space-y-1.5">
-                <label class="block font-semibold text-foreground">应用版本</label>
-                <Input v-model="download.version" placeholder="1.0.0" />
-              </div>
-              <div class="w-full space-y-1.5">
-                <label class="block font-semibold text-foreground">资源文件</label>
-                <div class="flex w-full gap-2 max-[640px]:flex-col">
-                  <Input v-model="download.file_name" readonly class="flex-1 min-w-0" />
-                  <Button @click="selectFile('download', deviceCode)">选择文件</Button>
+          <Card class="w-full border-border/80 shadow-sm">
+            <CardHeader class="pb-3">
+              <CardTitle class="text-base">支持设备信息</CardTitle>
+            </CardHeader>
+            <CardContent class="space-y-4 pt-0">
+            <div class="space-y-3">
+              <div
+                v-for="(download, deviceCode) in manifest.downloads"
+                :key="deviceCode"
+                class="space-y-3 rounded-lg border border-border bg-background p-3.5"
+              >
+                <h4 class="mb-2 text-sm font-semibold text-foreground">{{ getDeviceDisplayName(deviceCode) }}</h4>
+                <div class="w-full space-y-1.5">
+                  <label class="block text-sm font-medium text-foreground">应用版本</label>
+                  <Input v-model="download.version" placeholder="1.0.0" />
                 </div>
+                <div class="w-full space-y-1.5">
+                  <label class="block text-sm font-medium text-foreground">资源文件</label>
+                  <div class="flex w-full gap-2 max-[640px]:flex-col">
+                    <Input v-model="download.file_name" readonly class="flex-1 min-w-0" />
+                    <Button @click="selectFile('download', deviceCode)">选择文件</Button>
+                  </div>
+                </div>
+                <Button variant="outline" @click="removeDownload(deviceCode)">删除</Button>
               </div>
-              <Button variant="outline" @click="removeDownload(deviceCode)">删除</Button>
             </div>
             <Button @click="openDeviceSelector">+ 添加支持的设备</Button>
-          </div>
+            </CardContent>
+          </Card>
         </div>
         
         <!-- JSON预览部分 -->
-        <div class="min-w-0 space-y-4 rounded-xl border border-border bg-muted/55 p-4 lg:sticky lg:top-0 lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto">
-          <div class="flex flex-wrap gap-2.5 lg:sticky lg:top-0 lg:z-10 lg:bg-muted/95 lg:pb-3">
+        <Card class="min-w-0 border-border bg-card lg:sticky lg:top-0 lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto">
+          <CardHeader class="pb-3">
+            <CardTitle class="text-base">实时 JSON 预览</CardTitle>
+            <div class="mt-2 flex flex-wrap gap-2.5">
             <Button :class="{ 'cursor-not-allowed opacity-60': isOPFSMode }" @click="saveManifest" :disabled="isOPFSMode">
               <FloppyDisk :size="16" weight="bold" />
               保存
@@ -142,8 +158,11 @@
               复制
             </Button>
           </div>
-          <JsonPreview :data="manifest" />
-        </div>
+          </CardHeader>
+          <CardContent class="pt-0">
+            <JsonPreview :data="manifest" />
+          </CardContent>
+        </Card>
       </div>
     </div>
 
@@ -289,6 +308,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -355,6 +375,10 @@ export default defineComponent({
     Button,
     Input,
     Textarea,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
     Dialog,
     DialogContent,
     DialogDescription,
