@@ -22,9 +22,9 @@
         </Button>
       </div>
       
-      <div class="grid min-h-0 flex-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,460px)]">
+      <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,460px)]">
         <!-- 完整的表单容器 -->
-        <div class="min-w-0 space-y-4 overflow-y-auto rounded-xl border border-border bg-muted/40 p-4 md:max-h-[calc(100vh-11rem)]">
+        <div class="min-w-0 space-y-4 rounded-xl border border-border bg-muted/40 p-4">
           <!-- 应用信息部分 -->
           <Card class="w-full border-border/80 shadow-sm">
             <CardHeader class="pb-3">
@@ -141,7 +141,7 @@
         </div>
         
         <!-- JSON预览部分 -->
-        <Card class="min-w-0 border-border bg-card md:sticky md:top-0 md:max-h-[calc(100vh-11rem)] md:overflow-y-auto">
+        <Card class="min-w-0 border-border bg-card md:sticky md:top-0">
           <CardHeader class="pb-3">
             <CardTitle class="text-base">实时 JSON 预览</CardTitle>
             <div class="mt-2 flex flex-wrap gap-2.5">
