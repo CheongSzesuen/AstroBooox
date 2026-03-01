@@ -7,8 +7,8 @@ import axios, {
   AxiosHeaders
 } from 'axios'
 
-// 确保使用正确的环境变量名称
-const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN || process.env.GITHUB_TOKEN
+// 浏览器端仅从 Vite 环境变量读取 token，避免混用 Node 侧变量
+const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN
 const GITHUB_API_URL = 'https://api.github.com'
 
 const createGitHubClient = (): AxiosInstance => {

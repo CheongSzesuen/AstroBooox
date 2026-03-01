@@ -14,6 +14,8 @@ AstroBooox 是一个用于生成AstroBox应用提交数据的工具，支持 Man
 
 - Vue 3 + TypeScript
 - Vite 构建工具
+- shadcn 风格 UI 组件体系（Vue）
+- phosphor-icons 图标库（`@phosphor-icons/vue`）
 - File System Access API
 - OPFS API
 
@@ -57,12 +59,18 @@ AstroBooox 是一个用于生成AstroBox应用提交数据的工具，支持 Man
    npm install
    ```
 
-3. 启动开发服务器
+3. 配置 GitHub Token（仅本地）
+   ```bash
+   cp .env.example .env.local
+   ```
+   在 `.env.local` 中设置 `VITE_GITHUB_TOKEN`，不要提交真实密钥。
+
+4. 启动开发服务器
    ```bash
    npm run dev
    ```
 
-4. 构建生产版本
+5. 构建生产版本
    ```bash
    npm run build
    ```
