@@ -1,34 +1,39 @@
 <template>
   <div class="code-review-container">
-    <!-- 功能说明弹窗 -->
-    <div v-if="showFeatureNotice" class="feature-notice">
-      <div class="notice-content">
-        <div class="notice-header">
-          <Info :size="48" weight="duotone" class="info-icon" />
-          <h3>功能说明</h3>
-        </div>
-        <div class="notice-body">
-          <p>目前版本为基础版本，更方便的功能还在更新</p>
-          <ul class="notice-list">
-            <li>手机端响应有问题</li>
-            <li>自动检验PR数据未做</li>
-            <li>若添加多个csv会导致manifest错误，刷新有概率成功，以后会修</li>
-            <li>后续会持续更新优化</li>
-          </ul>
-          <p class="hint-text">如有任何建议或发现问题，欢迎提交Issue或直接联系我</p>
-        </div>
-        <div class="notice-actions">
-          <button class="confirm-button" @click="closeFeatureNotice">
-            <Check :size="20" weight="bold" class="check-icon" />
+    <Dialog :open="showFeatureNotice" @update:open="showFeatureNotice = $event">
+      <DialogContent class="sm:max-w-[560px]">
+        <DialogHeader class="gap-3">
+          <div class="flex items-start gap-3">
+            <Info :size="36" weight="duotone" class="mt-0.5 text-foreground" />
+            <div>
+              <DialogTitle>功能说明</DialogTitle>
+              <DialogDescription class="mt-2 text-sm leading-6">
+                目前版本为基础版本，更方便的功能还在更新。
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <ul class="notice-list">
+          <li>手机端响应有问题</li>
+          <li>自动检验 PR 数据未做</li>
+          <li>若添加多个 CSV 会导致 manifest 错误，刷新有概率成功，以后会修</li>
+          <li>后续会持续更新优化</li>
+        </ul>
+        <p class="hint-text">如有建议或发现问题，欢迎提交 Issue 或直接联系作者</p>
+
+        <DialogFooter class="gap-2 sm:justify-between">
+          <Button @click="closeFeatureNotice">
+            <Check :size="16" weight="bold" />
             我知道了
-          </button>
-          <a href="https://github.com/CheongSzesuen/AstroBooox/issues" target="_blank" class="issue-link">
-            <GithubLogo :size="20" weight="duotone" class="github-icon" />
+          </Button>
+          <Button as="a" href="https://github.com/CheongSzesuen/AstroBooox/issues" target="_blank" variant="outline">
+            <GithubLogo :size="16" weight="duotone" />
             提交反馈
-          </a>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <!-- 使用侧栏组件 -->
     <Sidebar
@@ -95,6 +100,15 @@ import {
   PhInfo as Info
 } from '@phosphor-icons/vue'
 import axios, { type AxiosError } from 'axios'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import Sidebar from '@/components/CodeReview/Sidebar.vue'
 import PRHeader from '@/components/CodeReview/PRHeader.vue'
 import PRTabs from '@/components/CodeReview/PRTabs.vue'
@@ -541,130 +555,23 @@ defineEmits(['refresh'])
   overflow: auto;
 }
 
-.feature-notice {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.95);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 900;
-  padding: 1rem;
-}
-
-.notice-content {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  width: calc(100% - 2rem);
-  max-width: 500px;
-  overflow: hidden;
-}
-
-.notice-header {
-  background: #f8fafc;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.info-icon {
-  background: #e0e7ff;
-  padding: 0.75rem;
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-}
-
-.notice-header h3 {
-  margin: 0;
-  color: #1e293b;
-  font-size: 1.25rem;
-  font-weight: 600;
-  text-align: center;
-}
-
-.notice-body {
-  padding: 1.5rem;
-  text-align: center;
-}
-
-.notice-body p {
-  margin: 0 0 1rem;
-  color: #475569;
-  line-height: 1.5;
-}
-
 .notice-list {
   text-align: left;
-  margin: 1rem auto;
+  margin: 0;
   padding-left: 1.5rem;
-  color: #475569;
+  color: hsl(var(--muted-foreground));
 }
 
 .notice-list li {
   margin-bottom: 0.5rem;
+  line-height: 1.6;
 }
 
 .hint-text {
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   font-size: 0.85rem;
   font-weight: normal;
-}
-
-.notice-actions {
-  padding: 0 1.5rem 1.5rem;
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-}
-
-.confirm-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: none;
-  border-radius: 8px;
-  padding: 0.75rem 1.5rem;
-  background: #3b82f6;
-  color: white;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.confirm-button:hover {
-  background: #2563eb;
-}
-
-.issue-link {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  border-radius: 8px;
-  padding: 0.75rem 1.5rem;
-  background: #f3f4f6;
-  color: #1f2937;
-  text-decoration: none;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.issue-link:hover {
-  background: #e5e7eb;
-}
-
-.github-icon {
-  width: 20px;
-  height: 20px;
+  margin: 0;
 }
 
 .main-content {
@@ -685,7 +592,7 @@ defineEmits(['refresh'])
   justify-content: center;
   align-items: center;
   height: 100%;
-  color: #6b7280;
+  color: hsl(var(--muted-foreground));
   gap: 1rem;
 }
 
@@ -698,7 +605,7 @@ defineEmits(['refresh'])
 .loading {
   padding: 16px;
   text-align: center;
-  color: #6b7280;
+  color: hsl(var(--muted-foreground));
   font-size: 14px;
 }
 

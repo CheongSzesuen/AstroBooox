@@ -6,7 +6,7 @@
       <DialogContent class="sm:max-w-[560px]">
         <DialogHeader class="gap-3">
           <div class="flex items-start gap-3">
-            <DeviceMobile class="mt-0.5 text-primary" :size="36" weight="duotone" />
+            <DeviceMobile class="mt-0.5 text-foreground" :size="36" weight="duotone" />
             <div>
               <DialogTitle>手机设备限制</DialogTitle>
               <DialogDescription class="mt-2 text-sm leading-6">
@@ -22,7 +22,7 @@
       <DialogContent class="sm:max-w-[560px]">
         <DialogHeader class="gap-3">
           <div class="flex items-start gap-3">
-            <WarningCircle class="mt-0.5 text-amber-500" :size="36" weight="duotone" />
+            <WarningCircle class="mt-0.5 text-foreground" :size="36" weight="duotone" />
             <div>
               <DialogTitle>浏览器不支持 FSA API</DialogTitle>
               <DialogDescription class="mt-2 text-sm leading-6">
@@ -44,7 +44,7 @@
       <DialogContent class="sm:max-w-[560px]">
         <DialogHeader class="gap-3">
           <div class="flex items-start gap-3">
-            <FolderSimplePlus class="mt-0.5 text-primary" :size="36" weight="duotone" />
+            <FolderSimplePlus class="mt-0.5 text-foreground" :size="36" weight="duotone" />
             <div>
               <DialogTitle>请选择项目文件夹</DialogTitle>
               <DialogDescription class="mt-2 text-sm leading-6">

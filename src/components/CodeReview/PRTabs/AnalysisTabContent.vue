@@ -181,7 +181,7 @@ const getFullImageUrl = (relativePath: string): string => {
 .analysis-section h3 {
   margin-top: 0;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e1e4e8;
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .csv-analysis {
@@ -191,7 +191,7 @@ const getFullImageUrl = (relativePath: string): string => {
 .csv-analysis h4 {
   margin: 1.5rem 0 1rem;
   font-size: 1.1rem;
-  color: #24292e;
+  color: hsl(var(--foreground));
 }
 
 .form-layout {
@@ -209,7 +209,7 @@ const getFullImageUrl = (relativePath: string): string => {
   font-weight: 500;
   min-width: 120px;
   padding-right: 1rem;
-  color: #586069;
+  color: hsl(var(--muted-foreground));
 }
 
 .form-value {
@@ -224,12 +224,12 @@ const getFullImageUrl = (relativePath: string): string => {
 .resource-analysis h4 {
   margin: 1.5rem 0 1rem;
   font-size: 1.1rem;
-  color: #24292e;
+  color: hsl(var(--foreground));
 }
 
 .json-viewer {
-  background-color: #f6f8fa;
-  border: 1px solid #e1e4e8;
+  background-color: hsl(var(--muted) / 0.45);
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
   padding: 16px;
   margin-top: 1rem;
@@ -256,11 +256,11 @@ const getFullImageUrl = (relativePath: string): string => {
 .manifest-info h4 {
   margin: 1rem 0;
   font-size: 1rem;
-  color: #586069;
+  color: hsl(var(--muted-foreground));
 }
 
 .resource-link {
-  color: #0366d6;
+  color: hsl(var(--foreground));
   text-decoration: none;
   word-break: break-all;
 }
@@ -270,7 +270,7 @@ const getFullImageUrl = (relativePath: string): string => {
 }
 
 .author-link {
-  color: #0366d6;
+  color: hsl(var(--foreground));
   text-decoration: none;
   margin-right: 0.5rem;
 }
@@ -284,11 +284,11 @@ const getFullImageUrl = (relativePath: string): string => {
   justify-content: center;
   align-items: center;
   height: 100px;
-  color: #586069;
+  color: hsl(var(--muted-foreground));
 }
 
 .error {
-  color: #cb2431;
+  color: hsl(var(--destructive));
   margin-top: 1rem;
 }
 

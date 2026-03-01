@@ -7,10 +7,10 @@
       </h1>
 
       <div class="pr-meta">
-        <span class="pr-state-badge open">
+        <Badge variant="secondary" class="pr-state-badge">
           <GitPullRequest :size="16" weight="duotone" />
           Open
-        </span>
+        </Badge>
         <span class="pr-author">
           <img
             :src="getOptimizedAvatarUrl(pr.user)"
@@ -25,12 +25,12 @@
     </div>
 
     <div class="pr-actions">
-      <button class="action-button" @click="$emit('refresh')" title="刷新数据">
+      <Button variant="outline" size="icon" @click="$emit('refresh')" title="刷新数据">
         <ArrowsClockwise :size="18" weight="bold" />
-      </button>
-      <a :href="pr.html_url" target="_blank" class="action-button" title="在 GitHub 查看 PR">
+      </Button>
+      <Button as="a" :href="pr.html_url" target="_blank" variant="outline" size="icon" title="在 GitHub 查看 PR">
         <GithubLogo :size="18" weight="duotone" />
-      </a>
+      </Button>
     </div>
   </header>
 </template>
@@ -42,6 +42,8 @@ import {
   PhGithubLogo as GithubLogo,
   PhGitPullRequest as GitPullRequest
 } from '@phosphor-icons/vue'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
 interface GitHubUser {
   login: string
@@ -162,18 +164,8 @@ const timeAgo = computed(() => {
 }
 
 .pr-state-badge {
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
   font-size: 13px;
-  font-weight: 600;
-  padding: 4px 10px;
-}
-
-.pr-state-badge.open {
-  background-color: #1f883d;
-  color: white;
 }
 
 .pr-author {
@@ -203,25 +195,6 @@ const timeAgo = computed(() => {
 .pr-actions {
   display: flex;
   gap: 8px;
-}
-
-.action-button {
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 90%, transparent);
-  color: var(--muted-foreground);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.action-button:hover {
-  color: var(--foreground);
-  border-color: var(--ring);
 }
 
 @media (max-width: 900px) {

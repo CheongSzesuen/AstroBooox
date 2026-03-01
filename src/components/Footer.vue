@@ -13,13 +13,15 @@
         </a>
 
         <div class="flex flex-col items-center gap-2">
-          <button
-            class="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          <Button
+            variant="ghost"
+            size="sm"
+            class="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
             @click="toggleTerms"
           >
             <Info :size="16" weight="duotone" />
             使用须知
-          </button>
+          </Button>
           <p v-if="showTerms" class="m-0 max-w-[620px] text-center text-[13px] leading-6 text-muted-foreground">
             AstroBooox 与 AstroBox 无所属关系，仅作为提交资源信息的效率工具。 如有问题请在 GitHub 提交 issue。
           </p>
@@ -45,6 +47,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { PhGithubLogo as GithubLogo, PhInfo as Info } from '@phosphor-icons/vue'
+import { Button } from '@/components/ui/button'
 
 const showTerms = ref(false)
 

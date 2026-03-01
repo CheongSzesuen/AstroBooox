@@ -39,10 +39,11 @@ export default defineComponent({
 }
 
 .json-preview {
-  background: #1e1e1e;
-  color: #dcdcdc;
+  background: hsl(var(--muted) / 0.45);
+  color: hsl(var(--foreground));
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
   overflow: auto;
   flex: 1;
   font-family: 'MiSans', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
@@ -58,7 +59,7 @@ pre {
 }
 
 .empty {
-  color: #888;
+  color: hsl(var(--muted-foreground));
   font-style: italic;
 }
 </style>

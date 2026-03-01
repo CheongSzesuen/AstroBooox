@@ -138,18 +138,18 @@ const selectFile = (file: FileChange) => {
 }
 
 .file-diff-item {
-  border: 1px solid #e1e4e8;
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
   margin-bottom: 16px;
-  background-color: white;
+  background-color: hsl(var(--card));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .file-header {
   z-index: 2;
   padding: 8px 16px;
-  background-color: #f6f8fa;
-  border-bottom: 1px solid #e1e4e8;
+  background-color: hsl(var(--muted) / 0.5);
+  border-bottom: 1px solid hsl(var(--border));
   border-top-left-radius: 6px;
   border-top-right-radius: 6px;
   cursor: pointer;
@@ -159,11 +159,11 @@ const selectFile = (file: FileChange) => {
 }
 
 .file-header:hover {
-  background-color: #eaeff5;
+  background-color: hsl(var(--accent));
 }
 
 .file-header.expanded {
-  border-bottom: 1px solid #e1e4e8;
+  border-bottom: 1px solid hsl(var(--border));
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -181,7 +181,7 @@ const selectFile = (file: FileChange) => {
   padding: 5px;
   margin-right: 5px;
   line-height: 1;
-  color: #57606a;
+  color: hsl(var(--muted-foreground));
   vertical-align: middle;
   background: transparent;
   border: 0;
@@ -215,7 +215,7 @@ const selectFile = (file: FileChange) => {
 
 .file-name {
   font-weight: 600;
-  color: #032f62;
+  color: hsl(var(--foreground));
 }
 
 .file-status-wrapper {
@@ -224,30 +224,33 @@ const selectFile = (file: FileChange) => {
 
 .file-status {
   padding: 2px 6px;
-  border-radius: 2em;
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 500;
   text-transform: capitalize;
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
 }
 
 .file-status.added {
-  background-color: #dcffe4;
-  color: #1a7f37;
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
 }
 
 .file-status.modified {
-  background-color: #ddf4ff;
-  color: #0969da;
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
 }
 
 .file-status.removed {
-  background-color: #ffebe9;
-  color: #cf222e;
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
 }
 
 .file-status.renamed {
-  background-color: #cff4fc;
-  color: #8250df;
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
 }
 
 .file-actions {
@@ -262,13 +265,13 @@ const selectFile = (file: FileChange) => {
 }
 
 .changes {
-  color: #57606a;
+  color: hsl(var(--muted-foreground));
 }
 
 .diffstat {
   font-size: 12px;
   font-weight: 600;
-  color: #57606a;
+  color: hsl(var(--muted-foreground));
   white-space: nowrap;
   cursor: default;
 }
@@ -281,16 +284,16 @@ const selectFile = (file: FileChange) => {
 }
 
 .diffstat-block-added {
-  background-color: #28a745;
+  background-color: hsl(var(--foreground));
 }
 
 .diffstat-block-deleted {
-  background-color: #d73a49;
+  background-color: hsl(var(--foreground));
 }
 
 .diffstat-block-neutral {
-  background-color: #d0d7de;
-  outline: 1px solid #d0d7de;
+  background-color: hsl(var(--muted));
+  outline: 1px solid hsl(var(--border));
   outline-offset: -1px;
 }
 
@@ -307,12 +310,12 @@ const selectFile = (file: FileChange) => {
 }
 
 .file-diff-content {
-  border-bottom: 1px solid #e1e4e8;
+  border-bottom: 1px solid hsl(var(--border));
   overflow: hidden;
 }
 
 .github-style-diff-view {
-  background-color: white;
+  background-color: hsl(var(--card));
   border-radius: 0 0 6px 6px;
 }
 </style>

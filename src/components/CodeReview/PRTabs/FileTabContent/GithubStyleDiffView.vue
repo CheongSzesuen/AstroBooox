@@ -111,7 +111,7 @@ const copyFilePath = () => {
 
 <style scoped>
 .github-style-diff-view {
-  background-color: white;
+  background-color: hsl(var(--card));
   border-radius: 0 0 6px 6px;
 }
 
@@ -124,7 +124,7 @@ const copyFilePath = () => {
 .diff-content.empty {
   padding: 32px;
   text-align: center;
-  color: #57606a;
+  color: hsl(var(--muted-foreground));
   font-style: italic;
 }
 
@@ -137,7 +137,7 @@ const copyFilePath = () => {
 
 .diff-line {
   display: flex;
-  border-bottom: 1px solid #eaeef2;
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .diff-line:last-child {
@@ -145,41 +145,41 @@ const copyFilePath = () => {
 }
 
 .diff-line.added {
-  background-color: #e6ffec;
+  background-color: hsl(var(--muted) / 0.35);
 }
 
 .diff-line.added .line-content {
-  background-color: rgba(46, 160, 67, 0.15);
+  background-color: hsl(var(--muted) / 0.45);
 }
 
 .diff-line.removed {
-  background-color: #ffebe9;
+  background-color: hsl(var(--muted) / 0.35);
 }
 
 .diff-line.removed .line-content {
-  background-color: rgba(248, 81, 73, 0.15);
+  background-color: hsl(var(--muted) / 0.45);
 }
 
 .diff-line.meta {
-  background-color: #f0f5ff;
-  color: #656d76;
+  background-color: hsl(var(--muted) / 0.6);
+  color: hsl(var(--muted-foreground));
 }
 
 .line-number {
   padding: 0 8px;
   min-width: 40px;
   text-align: right;
-  color: rgba(101, 109, 118, 0.75);
+  color: hsl(var(--muted-foreground));
   user-select: none;
-  background-color: #f6f8fa;
+  background-color: hsl(var(--muted) / 0.55);
 }
 
 .line-number-old {
-  border-right: 1px solid #eaeef2;
+  border-right: 1px solid hsl(var(--border));
 }
 
 .line-number-new {
-  border-left: 1px solid #eaeef2;
+  border-left: 1px solid hsl(var(--border));
 }
 
 .line-content {

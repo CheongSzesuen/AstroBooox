@@ -50,7 +50,7 @@
                   />
                 </span>
                 <span class="ActionList-item-visual ActionList-item-visual--leading">
-                  <Folder aria-label="Directory" aria-hidden="true" :size="16" weight="fill" style="color: #54aeff;" />
+                  <Folder aria-label="Directory" aria-hidden="true" :size="16" weight="fill" class="icon-muted" />
                 </span>
                 <span class="ActionList-item-label ActionList-item-label--truncate">
                   {{ item.label }}
@@ -76,7 +76,7 @@
                 ></span>
 
                 <span class="ActionList-item-visual ActionList-item-visual--leading" style="width: 20px;">
-                  <File aria-label="File" aria-hidden="true" :size="16" weight="duotone" style="color: #57606a;" />
+                  <File aria-label="File" aria-hidden="true" :size="16" weight="duotone" class="icon-muted" />
                 </span>
                 <span
                   class="ActionList-item-label ActionList-item-label--truncate"
@@ -415,11 +415,11 @@ const getFolderPath = (filename: string) => {
 // 获取文件状态图标颜色
 const getStatusIconColor = (status: string) => {
   switch (status) {
-    case 'added': return 'color: #1a7f37'
-    case 'removed': return 'color: #cf222e'
-    case 'modified': return 'color: #9a6700'
-    case 'renamed': return 'color: #8250df'
-    default: return 'color: #57606a'
+    case 'added': return 'color: hsl(var(--foreground))'
+    case 'removed': return 'color: hsl(var(--foreground))'
+    case 'modified': return 'color: hsl(var(--foreground))'
+    case 'renamed': return 'color: hsl(var(--foreground))'
+    default: return 'color: hsl(var(--muted-foreground))'
   }
 }
 
@@ -444,7 +444,7 @@ const selectFile = (file: FileChange) => {
 
 .Layout-sidebar {
   width: var(--Layout-sidebar-width);
-  background-color: #ffffff;
+  background-color: hsl(var(--card));
   overflow-x: hidden;
 }
 
@@ -480,9 +480,9 @@ const selectFile = (file: FileChange) => {
   padding: 6px 12px 6px 32px;
   font-size: 14px;
   line-height: 20px;
-  color: #24292f;
-  background-color: #ffffff;
-  border: 1px solid #d0d7de;
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--input));
   border-radius: 6px;
   outline: none;
   box-shadow: none;
@@ -496,14 +496,14 @@ const selectFile = (file: FileChange) => {
   width: 16px;
   height: 16px;
   margin-top: -8px;
-  color: #57606a;
+  color: hsl(var(--muted-foreground));
 }
 
 .ActionList {
   list-style: none;
   padding: 0 16px;
   margin: 0;
-  background-color: #ffffff;
+  background-color: hsl(var(--card));
   width: 100%;
   box-sizing: border-box;
 }
@@ -528,7 +528,7 @@ const selectFile = (file: FileChange) => {
   bottom: 0;
   left: calc(var(--depth-offset, 0) * 16px + 12px);
   width: 1px;
-  background-color: #d0d7de;
+  background-color: hsl(var(--border));
   z-index: 1;
 }
 
@@ -539,7 +539,7 @@ const selectFile = (file: FileChange) => {
   padding: 6px 0;
   font-size: 14px;
   font-weight: 400;
-  color: #24292f;
+  color: hsl(var(--foreground));
   text-align: left;
   user-select: none;
   background-color: transparent;
@@ -551,7 +551,7 @@ const selectFile = (file: FileChange) => {
 }
 
 .ActionList-content:hover {
-  background-color: #f6f8fa;
+  background-color: hsl(var(--accent));
 }
 
 .ActionList-item-action {
@@ -587,7 +587,7 @@ const selectFile = (file: FileChange) => {
   position: relative;
   font-weight: 400;
   line-height: 20px;
-  color: #24292f;
+  color: hsl(var(--foreground));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -608,6 +608,10 @@ const selectFile = (file: FileChange) => {
 
 .rotate-90 {
   transform: rotate(-90deg);
+}
+
+.icon-muted {
+  color: hsl(var(--muted-foreground));
 }
 
 @media (max-width: 1012px) {

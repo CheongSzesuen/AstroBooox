@@ -3,7 +3,7 @@
     <div v-if="loading" class="loading">加载中...</div>
     <div v-else-if="pullRequests.length === 0" class="empty-state">
       <p>没有找到Pull Request</p>
-      <button @click="$emit('refresh')" class="refresh-btn">重试</button>
+      <Button variant="secondary" size="sm" @click="$emit('refresh')">重试</Button>
     </div>
     <div v-else class="pr-list">
       <div 
@@ -40,6 +40,7 @@
 
 <script setup lang="ts">
 import { PhCaretDoubleRight as CaretDoubleRight } from '@phosphor-icons/vue'
+import { Button } from '@/components/ui/button'
 import { formatDate } from '@/utils/dateUtils'
 
 interface GitHubUser {
@@ -118,7 +119,8 @@ const cacheAvatar = (user: GitHubUser) => {
   bottom: 20px;
   left: 20px;
   width: 320px;
-  background: white;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   display: flex;
@@ -200,12 +202,12 @@ const cacheAvatar = (user: GitHubUser) => {
 }
 
 .sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar-thumb {
-  background-color: #c1c1c1;
+  background-color: hsl(var(--muted-foreground) / 0.45);
   border-radius: 3px;
 }
 
 .sidebar:not(.sidebar-collapsed) .pr-list::-webkit-scrollbar-thumb:hover {
-  background-color: #a8a8a8;
+  background-color: hsl(var(--muted-foreground) / 0.6);
 }
 
 .sidebar-collapsed .pr-list {
@@ -297,24 +299,24 @@ const cacheAvatar = (user: GitHubUser) => {
 }
 
 .pr-item:hover {
-  background-color: #f3f4f6;
+  background-color: hsl(var(--accent));
 }
 
 /* 修复侧边栏收起时头像的hover状态为正方形 */
 .sidebar-collapsed .pr-item:hover {
-  background-color: #f3f4f6;
+  background-color: hsl(var(--accent));
   border-radius: 8px;
 }
 
 .pr-item.active {
-  background-color: #dbeafe;
-  border-left: 3px solid #3b82f6;
+  background-color: hsl(var(--muted));
+  border-left: 3px solid hsl(var(--ring));
 }
 
 /* 侧边栏收起时，为活动项添加特殊样式 */
 .sidebar-collapsed .pr-item.active {
   border-left: none;
-  background-color: #dbeafe;
+  background-color: hsl(var(--muted));
   border-radius: 8px;
 }
 
@@ -359,7 +361,7 @@ const cacheAvatar = (user: GitHubUser) => {
 .pr-meta {
   display: flex;
   font-size: 14px;
-  color: #6b7280;
+  color: hsl(var(--muted-foreground));
 }
 
 .pr-author {
@@ -368,7 +370,7 @@ const cacheAvatar = (user: GitHubUser) => {
 
 .pr-date {
   font-size: 13px;
-  color: #9ca3af;
+  color: hsl(var(--muted-foreground));
 }
 
 .sidebar-footer {
@@ -376,21 +378,21 @@ const cacheAvatar = (user: GitHubUser) => {
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid hsl(var(--border));
   cursor: pointer;
   transition: all 0.3s ease;
-  background-color: #f9fafb;
+  background-color: hsl(var(--muted) / 0.45);
   margin-top: auto;
 }
 
 .sidebar-footer:hover {
-  background-color: #f1f5f9;
+  background-color: hsl(var(--accent));
 }
 
 .collapse-text {
   font-size: 16px;
   font-weight: 500;
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -430,7 +432,7 @@ const cacheAvatar = (user: GitHubUser) => {
 .loading {
   padding: 16px;
   text-align: center;
-  color: #6b7280;
+  color: hsl(var(--muted-foreground));
   font-size: 14px;
   flex: 1;
   display: flex;
@@ -444,23 +446,8 @@ const cacheAvatar = (user: GitHubUser) => {
   justify-content: center;
   align-items: center;
   flex: 1;
-  color: #6b7280;
+  color: hsl(var(--muted-foreground));
   gap: 1rem;
   padding: 16px;
-}
-
-.refresh-btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  background-color: #3b82f6;
-  color: white;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.refresh-btn:hover {
-  background-color: #2563eb;
 }
 </style>
