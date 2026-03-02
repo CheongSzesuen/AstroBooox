@@ -51,7 +51,7 @@
             </CardContent>
           </Card>
 
-          <Card class="border-border bg-card">
+          <Card class="hidden border-border bg-card xl:block">
             <CardHeader class="pb-2">
               <div class="flex items-center justify-between gap-2">
                 <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">发布日志</CardTitle>
@@ -505,6 +505,20 @@
 
               <div class="flex justify-start">
                 <Button variant="outline" @click="goToStep(2)">上一步</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card class="border-border bg-card xl:hidden">
+            <CardHeader class="pb-2">
+              <div class="flex items-center justify-between gap-2">
+                <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">发布日志</CardTitle>
+                <Button variant="ghost" size="sm" class="h-7 px-2 text-xs" @click="clearPublishLogs">清空</Button>
+              </div>
+            </CardHeader>
+            <CardContent class="pt-0">
+              <div class="scrollbar-none max-h-56 overflow-y-auto rounded-md border border-border bg-muted/25 p-2.5">
+                <pre class="m-0 whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-foreground">{{ publishLogsText }}</pre>
               </div>
             </CardContent>
           </Card>

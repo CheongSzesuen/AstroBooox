@@ -27,7 +27,7 @@
               @click="tab = 'review'"
             >
               <ClockCounterClockwise :size="15" weight="duotone" />
-              进行中审核
+              等待审核
             </Button>
             <Button
               size="sm"
@@ -217,7 +217,7 @@
 
         </div>
 
-        <section class="min-w-0">
+        <section class="min-w-0 flex justify-center">
           <ResourcePublishWorkbench :mode="tab" />
         </section>
       </div>
