@@ -149,7 +149,7 @@
                       id="item-description"
                       ref="descriptionTextareaRef"
                       v-model="itemDescription"
-                      class="min-h-[90px] resize-none overflow-hidden"
+                      class="min-h-[90px] resize-y overflow-auto"
                       placeholder="填写资源描述（manifest_v2.item.description）"
                       @input="autoResizeDescription"
                     />
@@ -918,8 +918,9 @@ const removeTag = (index: number): void => {
 const autoResizeDescription = (): void => {
   const el = descriptionTextareaRef.value
   if (!el) return
-  el.style.height = 'auto'
-  el.style.height = `${Math.max(el.scrollHeight, 90)}px`
+  const minHeight = 90
+  const nextHeight = Math.max(el.scrollHeight, el.offsetHeight, minHeight)
+  el.style.height = `${nextHeight}px`
 }
 
 const pickFilePathFromWorkspace = async (): Promise<string | null> => {
