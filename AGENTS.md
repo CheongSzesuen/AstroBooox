@@ -34,5 +34,7 @@
 
 ## 提交与 PR 规范
 - 沿用现有提交前缀：`feat:`、`fix:`、`refactor:`、`chore:`。
+- 提交信息格式统一为：`type(scope): subject`，可包含 body。
+- `type` 建议使用：`feat`、`fix`、`refactor`、`chore`；`scope` 使用受影响模块英文标识（如 `cc`、`publish`、`navbar`）。
 - 单次提交只做一类改动；PR 需写清变更点、影响范围与手动验证结果。
 - 涉及 UI 变更时，附截图或录屏；涉及迁移时，说明旧实现是否已替换完毕。
