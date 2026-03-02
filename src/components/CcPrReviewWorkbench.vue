@@ -1187,11 +1187,23 @@ const inferImageMimeType = (url: string): string => {
 const parseRawGithubUrl = (rawUrl: string): { owner: string; repo: string; ref: string; path: string } | null => {
   const matched = rawUrl.match(/^https?:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)$/i)
   if (!matched) return null
+  const decodeSafe = (value: string): string => {
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
+  }
+  const decodedRef = decodeSafe(matched[3])
+  const decodedPath = matched[4]
+    .split('/')
+    .map(segment => decodeSafe(segment))
+    .join('/')
   return {
     owner: matched[1],
     repo: matched[2],
-    ref: matched[3],
-    path: matched[4]
+    ref: decodedRef,
+    path: decodedPath
   }
 }
 
