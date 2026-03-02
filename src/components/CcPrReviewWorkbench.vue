@@ -1336,9 +1336,9 @@ const submissionOverview = computed<SubmissionOverview>(() => {
   const item = (manifest.item && typeof manifest.item === 'object') ? manifest.item as Record<string, unknown> : {}
   const downloads = (manifest.downloads && typeof manifest.downloads === 'object') ? manifest.downloads as Record<string, unknown> : {}
   const links = Array.isArray(manifest.links) ? manifest.links as Array<Record<string, unknown>> : []
-  const owner = selectedPr.value?.headOwner || ''
-  const repo = selectedPr.value?.headRepo || ''
-  const ref = selectedPr.value?.headRef || 'main'
+  const owner = selectedPr.value?.resourceRepoOwner || selectedPr.value?.headOwner || ''
+  const repo = selectedPr.value?.resourceRepoName || selectedPr.value?.headRepo || ''
+  const ref = selectedPr.value?.resourceRepoRef || selectedPr.value?.headRef || 'main'
 
   const toImageAsset = (pathValue: unknown): { file: string; url: string } | null => {
     const raw = toNonEmptyString(pathValue)
@@ -1362,7 +1362,7 @@ const submissionOverview = computed<SubmissionOverview>(() => {
     resourceInfo: [],
     supportedDevices: [],
     repoUrl: owner && repo ? `https://github.com/${owner}/${repo}` : '',
-    shortHash: toNonEmptyString(selectedPr.value?.headRef),
+    shortHash: toNonEmptyString(selectedPr.value?.resourceRepoRef || selectedPr.value?.headRef),
     images: {
       icon: toImageAsset(item.icon),
       cover: toImageAsset(item.cover),
@@ -1571,6 +1571,30 @@ const parseCsvRowsFromText = (text: string): CsvV2Row[] => text
   .map(parseCsvV2Row)
   .filter((row): row is CsvV2Row => Boolean(row))
 
+const parseCsvRowsFromPrPatch = (files: PullFileItem[]): CsvV2Row[] => {
+  const rows: CsvV2Row[] = []
+  for (const file of files) {
+    if (!/(^|\/)index(_v2)?\.csv$/i.test(file.filename)) continue
+    if (!file.patch) continue
+    const addedLines = file.patch
+      .split('\n')
+      .filter(line => line.startsWith('+') && !line.startsWith('+++'))
+      .map(line => line.slice(1).trim())
+      .filter(line => line && !line.startsWith('id,') && line.includes(','))
+    for (const line of addedLines) {
+      const row = parseCsvV2Row(line)
+      if (row) rows.push(row)
+    }
+  }
+  return rows
+}
+
+const pickPreferredCsvRow = (rows: CsvV2Row[]): CsvV2Row | null => {
+  if (rows.length === 0) return null
+  const withRepo = rows.find(row => row.repo_owner && row.repo_name)
+  return withRepo || rows[rows.length - 1]
+}
+
 const serializeCsvRow = (row: CsvV2Row): string => [
   row.id,
   row.name,
@@ -1731,9 +1755,9 @@ const checkRawGithubUrl = (raw: string): { ok: boolean; reason: string } => {
 const ruleChecks = computed<RuleCheckItem[]>(() => {
   const checks: RuleCheckItem[] = []
   const csvRow = parsedCsvRow.value
-  const resourceName = getResourceInfoValue(['资源名称', 'name'])
-  const iconRaw = submissionOverview.value.images.icon?.url || ''
-  const coverRaw = submissionOverview.value.images.cover?.url || ''
+  const resourceName = csvRow?.name || getResourceInfoValue(['资源名称', 'name'])
+  const iconRaw = csvRow?.icon || ''
+  const coverRaw = csvRow?.cover || ''
   const repoExists = !repoFilesError.value && repoFiles.value.length > 0
 
   checks.push({
@@ -2002,7 +2026,15 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
     prComments.value = comments
     prFiles.value = files
     const baseRef = pullDetail.base?.ref || 'main'
-    csvRowFromRepoDiff.value = await detectCsvAddedRowByRepoDiff(pr, baseRef)
+    const diffRow = await detectCsvAddedRowByRepoDiff(pr, baseRef)
+    const patchRows = parseCsvRowsFromPrPatch(files)
+    const resolvedCsvRow = pickPreferredCsvRow([...(diffRow ? [diffRow] : []), ...patchRows])
+    csvRowFromRepoDiff.value = resolvedCsvRow
+
+    pr.resourceRepoOwner = resolvedCsvRow?.repo_owner || pr.headOwner
+    pr.resourceRepoName = resolvedCsvRow?.repo_name || pr.headRepo
+    pr.resourceRepoRef = resolvedCsvRow?.repo_commit_hash || pr.headRef || 'main'
+
     await loadRepoFiles(pr)
     prPickerOpenFolders.value = getTopLevelFolders(prFiles.value.map(file => file.filename))
     repoPickerOpenFolders.value = getTopLevelFolders(repoFiles.value)
@@ -2022,17 +2054,14 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
   manifestV2Data.value = null
   manifestLoadError.value = ''
   try {
-    if (!pr.headOwner || !pr.headRepo) {
+    if (!pr.resourceRepoOwner || !pr.resourceRepoName) {
       repoFiles.value = []
-      repoFilesError.value = 'PR 头分支仓库信息缺失，无法加载文件'
+      repoFilesError.value = '无法从 PR 文件解析资源仓库信息'
       return
     }
-    const repoBranch = pr.headRef || 'main'
-    pr.resourceRepoOwner = pr.headOwner
-    pr.resourceRepoName = pr.headRepo
-    pr.resourceRepoRef = repoBranch
+    const repoBranch = pr.resourceRepoRef || 'main'
     const commit = await githubGet<{ commit?: { tree?: { sha?: string } } }>(
-      `/repos/${pr.headOwner}/${pr.headRepo}/commits/${encodeURIComponent(repoBranch)}`
+      `/repos/${pr.resourceRepoOwner}/${pr.resourceRepoName}/commits/${encodeURIComponent(repoBranch)}`
     )
     const treeSha = commit.commit?.tree?.sha
     if (!treeSha) {
@@ -2040,7 +2069,7 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
       return
     }
     const tree = await githubGet<{ tree?: Array<{ path?: string; type?: string }> }>(
-      `/repos/${pr.headOwner}/${pr.headRepo}/git/trees/${treeSha}?recursive=1`
+      `/repos/${pr.resourceRepoOwner}/${pr.resourceRepoName}/git/trees/${treeSha}?recursive=1`
     )
     repoFiles.value = (tree.tree || [])
       .filter(item => item.type === 'blob' && item.path)
@@ -2048,12 +2077,8 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
       .slice(0, 3000)
 
     const manifestCandidates = [
-      ...prFiles.value
-        .map(file => file.filename)
-        .filter(path => /(^|\/)manifest_v2\.json$/i.test(path)),
-      ...prFiles.value
-        .map(file => file.filename)
-        .filter(path => /(^|\/)manifest\.json$/i.test(path)),
+      ...repoFiles.value.filter(path => /(^|\/)manifest_v2\.json$/i.test(path)),
+      ...repoFiles.value.filter(path => /(^|\/)manifest\.json$/i.test(path)),
       'manifest_v2.json',
       'manifest.json'
     ]
@@ -2061,8 +2086,8 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
 
     for (const path of dedupedManifestCandidates) {
       manifestV2Data.value = await fetchRepoJsonFile(
-        pr.headOwner,
-        pr.headRepo,
+        pr.resourceRepoOwner,
+        pr.resourceRepoName,
         repoBranch,
         path
       )
