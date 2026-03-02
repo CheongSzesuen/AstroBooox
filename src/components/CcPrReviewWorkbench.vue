@@ -158,33 +158,10 @@
               <div class="space-y-2 rounded-md border border-border p-3">
                 <div class="flex items-center justify-between gap-2">
                   <div class="text-xs font-medium text-muted-foreground">评论内容</div>
-                  <div class="flex items-center gap-2">
-                    <Select v-model="linkPickerSource">
-                      <SelectTrigger class="h-8 w-[128px] text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pr">当前 PR 文件</SelectItem>
-                        <SelectItem value="repo">仓库文件</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select v-model="linkPickerValue" @update:model-value="insertFileLinkFromPicker">
-                      <SelectTrigger class="h-8 min-w-[168px] gap-1.5 text-xs">
-                        <LinkSimple :size="14" weight="bold" />
-                        <SelectValue :placeholder="linkPickerSource === 'pr' ? '插入 PR 文件链接' : '插入仓库文件链接'" />
-                      </SelectTrigger>
-                      <SelectContent class="max-h-[320px]">
-                        <SelectItem
-                          v-for="path in linkPickerOptions"
-                          :key="`picker-${linkPickerSource}-${path}`"
-                          :value="path"
-                        >
-                          {{ path }}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Button size="sm" variant="outline" class="h-8 gap-1.5 px-2.5 text-xs" @click="openFilePicker">
+                    <LinkSimple :size="14" weight="bold" />
+                    插入文件定位
+                  </Button>
                 </div>
                 <div class="grid gap-2">
                   <div class="flex items-center rounded-md border border-input bg-background">
@@ -198,9 +175,26 @@
                   </div>
                   <Textarea
                     v-model="commentMessage"
-                    placeholder="评论说明（可包含快速插入的 Markdown 链接）"
+                    placeholder="评论说明（文件引用请用上方按钮插入）"
                     class="min-h-[88px]"
                   />
+                </div>
+
+                <div v-if="commentReferences.length > 0" class="space-y-2 rounded-md border border-dashed border-border p-2.5">
+                  <div class="text-xs text-muted-foreground">已添加引用</div>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button
+                      v-for="item in commentReferences"
+                      :key="item.key"
+                      type="button"
+                      class="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-xs text-foreground"
+                      @click="removeCommentReference(item.key)"
+                      :title="`移除 ${item.label}`"
+                    >
+                      <span>{{ item.label }}</span>
+                      <span class="text-muted-foreground">×</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -249,6 +243,96 @@
               </div>
             </CardContent>
           </Card>
+
+          <Dialog :open="filePickerOpen" @update:open="filePickerOpen = $event">
+            <DialogContent class="h-[84vh] w-[96vw] max-w-[1480px] p-0">
+              <div class="flex h-full flex-col">
+                <DialogHeader class="border-b border-border px-5 py-4">
+                  <DialogTitle>插入文件定位</DialogTitle>
+                  <DialogDescription>左侧选择文件，右侧可查看内容并点选行号插入到评论。</DialogDescription>
+                </DialogHeader>
+
+                <div class="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1.7fr)]">
+                  <div class="flex min-h-0 flex-col border-r border-border">
+                    <div class="border-b border-border px-3 py-2">
+                      <Tabs :model-value="filePickerTab" @update:model-value="(v) => filePickerTab = v as 'pr' | 'repo'">
+                        <TabsList class="grid w-full grid-cols-2">
+                          <TabsTrigger value="pr">PR 文件</TabsTrigger>
+                          <TabsTrigger value="repo">仓库文件</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    </div>
+                    <div class="border-b border-border p-3">
+                      <Input v-model="filePickerSearch" placeholder="筛选文件..." class="h-8 text-xs" />
+                    </div>
+                    <div class="min-h-0 flex-1 overflow-auto p-2">
+                      <div
+                        v-for="item in pickerTreeItems"
+                        :key="`tree-${filePickerTab}-${item.type}-${item.path}`"
+                        class="mb-1"
+                        :style="{ paddingLeft: `${0.5 + Math.min(item.depth, 6) * 0.6}rem` }"
+                      >
+                        <div
+                          v-if="item.type === 'folder'"
+                          class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground"
+                        >
+                          <FolderIcon :size="14" weight="fill" class="shrink-0 text-muted-foreground" />
+                          <span class="truncate">{{ item.label }}</span>
+                        </div>
+                        <button
+                          v-else
+                          type="button"
+                          class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition"
+                          :class="selectedPickerPath === item.path ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'"
+                          @click="selectPickerPath(item.path)"
+                        >
+                          <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                          <span class="truncate">{{ item.label }}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex min-h-0 flex-col">
+                    <div class="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
+                      <div class="min-w-0 truncate text-xs text-muted-foreground">
+                        <span class="inline-flex items-center gap-1.5">
+                          <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                          <span class="truncate">{{ selectedPickerPath || '请选择文件' }}</span>
+                        </span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <Button size="sm" variant="outline" :disabled="!selectedPickerPath" @click="insertSelectedFileReference">
+                          插入文件
+                        </Button>
+                        <Button size="sm" :disabled="!selectedPickerPath || !selectedPickerLine" @click="insertSelectedLineReference">
+                          插入行定位
+                        </Button>
+                      </div>
+                    </div>
+                    <div class="min-h-0 flex-1 overflow-auto bg-muted/20 p-4">
+                      <div v-if="pickerLoading" class="text-xs text-muted-foreground">加载文件内容中...</div>
+                      <div v-else-if="pickerError" class="text-xs text-destructive">{{ pickerError }}</div>
+                      <div v-else-if="!selectedPickerPath" class="text-xs text-muted-foreground">从左侧选择一个文件预览内容</div>
+                      <div v-else class="font-mono text-xs leading-5">
+                        <button
+                          v-for="(line, index) in pickerContentLines"
+                          :key="`line-${index}`"
+                          type="button"
+                          class="flex w-full items-start gap-3 rounded px-2 py-0.5 text-left hover:bg-accent/60"
+                          :class="selectedPickerLine === index + 1 ? 'bg-accent text-accent-foreground' : ''"
+                          @click="selectedPickerLine = index + 1"
+                        >
+                          <span class="w-10 shrink-0 text-right text-muted-foreground">{{ index + 1 }}</span>
+                          <span class="whitespace-pre-wrap break-all">{{ line || ' ' }}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <Card>
             <CardHeader class="pb-3">
@@ -328,20 +412,23 @@ import { computed, ref, watch } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDoubleRight as CaretDoubleRight,
+  PhFile as FileIcon,
+  PhFolder as FolderIcon,
   PhGithubLogo as GithubLogo,
   PhGitPullRequest as GitPullRequest,
   PhLinkSimple as LinkSimple
 } from '@phosphor-icons/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Card,
@@ -398,6 +485,21 @@ interface PullFileItem {
   patch?: string
 }
 
+interface CommentReferenceItem {
+  key: string
+  label: string
+  path: string
+  url: string
+  line: number | null
+}
+
+interface PickerTreeItem {
+  type: 'folder' | 'file'
+  path: string
+  label: string
+  depth: number
+}
+
 const props = withDefaults(defineProps<{
   owner: string
   repo: string
@@ -420,10 +522,17 @@ const prFiles = ref<PullFileItem[]>([])
 const repoFiles = ref<string[]>([])
 const repoFilesLoading = ref(false)
 const repoFilesError = ref('')
-const linkPickerSource = ref<'pr' | 'repo'>('pr')
-const linkPickerValue = ref('')
+const filePickerOpen = ref(false)
+const filePickerTab = ref<'pr' | 'repo'>('pr')
+const filePickerSearch = ref('')
+const selectedPickerPath = ref('')
+const selectedPickerContent = ref('')
+const selectedPickerLine = ref<number | null>(null)
+const pickerLoading = ref(false)
+const pickerError = ref('')
 const commentId = ref('')
 const commentMessage = ref('')
+const commentReferences = ref<CommentReferenceItem[]>([])
 const commentSubmitting = ref(false)
 
 const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && props.token.trim()))
@@ -467,21 +576,109 @@ const cacheAvatar = (login: string, avatarUrl: string): void => {
 
 const isImageFile = (filename: string): boolean => /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)$/i.test(filename)
 const normalizeCommentId = (value: string): string => value.trim().replace(/\s+/g, '_').replace(/\]/g, '')
+const normalizedCommentId = computed(() => normalizeCommentId(commentId.value))
+const commentReferenceMarkdownLines = computed(() =>
+  commentReferences.value.map(item => `[\`${item.label}\`](${item.url})`)
+)
 const commentBodyPreview = computed(() => {
-  const id = normalizeCommentId(commentId.value)
-  const msg = commentMessage.value.trim()
-  if (!id) return ''
-  return `[ABCC_NEEDFIX_${id}] ${msg}`.trim()
+  const bodyParts = [
+    commentMessage.value.trim(),
+    ...commentReferenceMarkdownLines.value
+  ].filter(Boolean)
+  const prefixId = normalizedCommentId.value || '<填写ID>'
+  return `[ABCC_NEEDFIX_${prefixId}] ${bodyParts.join('\n')}`.trim()
+})
+const submitCommentBody = computed(() => {
+  if (!normalizedCommentId.value) return ''
+  const bodyParts = [
+    commentMessage.value.trim(),
+    ...commentReferenceMarkdownLines.value
+  ].filter(Boolean)
+  return `[ABCC_NEEDFIX_${normalizedCommentId.value}] ${bodyParts.join('\n')}`.trim()
 })
 const renderedCommentPreviewHtml = computed(() => {
   if (!commentBodyPreview.value) return '<span class="text-muted-foreground">（这里显示评论内容）</span>'
   return renderMarkdownPreview(commentBodyPreview.value)
 })
-const linkPickerOptions = computed(() => (
-  linkPickerSource.value === 'pr'
+const pickerPaths = computed(() => {
+  const source = filePickerTab.value === 'pr'
     ? prFiles.value.map(file => file.filename)
     : repoFiles.value
-))
+  const query = filePickerSearch.value.trim().toLowerCase()
+  if (!query) return source
+  return source.filter(path => path.toLowerCase().includes(query))
+})
+const pickerTreeItems = computed<PickerTreeItem[]>(() => {
+  interface TreeNode {
+    path: string
+    depth: number
+    label: string
+    folders: Map<string, TreeNode>
+    files: Array<{ path: string; label: string; depth: number }>
+  }
+  const root: TreeNode = {
+    path: '',
+    depth: -1,
+    label: '',
+    folders: new Map(),
+    files: []
+  }
+
+  for (const path of pickerPaths.value) {
+    const parts = path.split('/').filter(Boolean)
+    if (parts.length === 0) continue
+    let current = root
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      const folderPath = parts.slice(0, i + 1).join('/')
+      const existing = current.folders.get(parts[i])
+      if (existing) {
+        current = existing
+        continue
+      }
+      const node: TreeNode = {
+        path: folderPath,
+        depth: i,
+        label: parts[i],
+        folders: new Map(),
+        files: []
+      }
+      current.folders.set(parts[i], node)
+      current = node
+    }
+    current.files.push({
+      path,
+      label: parts[parts.length - 1],
+      depth: Math.max(parts.length - 1, 0)
+    })
+  }
+
+  const output: PickerTreeItem[] = []
+  const walk = (node: TreeNode): void => {
+    const subFolders = Array.from(node.folders.values()).sort((a, b) => a.path.localeCompare(b.path))
+    for (const folder of subFolders) {
+      output.push({
+        type: 'folder',
+        path: folder.path,
+        label: folder.label,
+        depth: folder.depth
+      })
+      walk(folder)
+    }
+    const sortedFiles = [...node.files].sort((a, b) => a.path.localeCompare(b.path))
+    for (const file of sortedFiles) {
+      output.push({
+        type: 'file',
+        path: file.path,
+        label: file.label,
+        depth: file.depth
+      })
+    }
+  }
+
+  walk(root)
+  return output
+})
+const pickerContentLines = computed(() => selectedPickerContent.value.split('\n'))
 
 const buildRepoBlobUrl = (path: string): string => {
   if (!selectedPr.value) return ''
@@ -492,12 +689,25 @@ const buildRepoBlobUrl = (path: string): string => {
   return `https://github.com/${owner}/${repo}/blob/${ref}/${encodedPath}`
 }
 
-const appendMarkdownLinkToComment = (label: string, url: string): void => {
+const buildReferenceUrl = (path: string, line: number | null): string => {
+  const base = buildRepoBlobUrl(path)
+  if (!base) return ''
+  if (!line || line < 1) return base
+  return `${base}#L${line}`
+}
+
+const addCommentReference = (path: string, line: number | null): void => {
+  if (!path) return
+  const label = line ? `${path}#L${line}` : path
+  const url = buildReferenceUrl(path, line)
   if (!url) return
-  const snippet = `[\`${label}\`](${url})`
-  commentMessage.value = commentMessage.value.trim()
-    ? `${commentMessage.value}\n${snippet}`
-    : snippet
+  const key = `${path}:${line || 0}`
+  if (commentReferences.value.some(item => item.key === key)) return
+  commentReferences.value.push({ key, label, path, url, line })
+}
+
+const removeCommentReference = (key: string): void => {
+  commentReferences.value = commentReferences.value.filter(item => item.key !== key)
 }
 
 const escapeHtml = (value: string): string => value
@@ -653,7 +863,10 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
   detailsLoading.value = true
   detailsError.value = ''
   repoFilesError.value = ''
-  linkPickerValue.value = ''
+  filePickerSearch.value = ''
+  selectedPickerPath.value = ''
+  selectedPickerContent.value = ''
+  selectedPickerLine.value = null
   try {
     const [comments, files] = await Promise.all([
       githubGet<IssueCommentItem[]>(
@@ -719,35 +932,64 @@ const refreshSelectedPrDetails = async (): Promise<void> => {
 
 const applyFileNeedFixTemplate = (filename: string): void => {
   commentId.value = normalizeCommentId(filename)
-  commentMessage.value = `请检查文件 ${filename} 的改动`
-}
-
-const insertPrFileLink = (filename: string): void => {
-  if (!filename) return
-  const match = prFiles.value.find(file => file.filename === filename)
-  if (!match?.blob_url) return
-  appendMarkdownLinkToComment(filename, match.blob_url)
-}
-
-const insertRepoFileLink = (path: string): void => {
-  if (!path) return
-  appendMarkdownLinkToComment(path, buildRepoBlobUrl(path))
-}
-
-const insertFileLinkFromPicker = (value: unknown): void => {
-  const path = typeof value === 'string' ? value : ''
-  if (!path) return
-  if (linkPickerSource.value === 'pr') {
-    insertPrFileLink(path)
-  } else {
-    insertRepoFileLink(path)
+  if (!commentMessage.value.trim()) {
+    commentMessage.value = `请检查文件 ${filename} 的改动`
   }
-  linkPickerValue.value = ''
+}
+
+const openFilePicker = (): void => {
+  filePickerOpen.value = true
+  filePickerSearch.value = ''
+  selectedPickerPath.value = ''
+  selectedPickerContent.value = ''
+  selectedPickerLine.value = null
+  pickerError.value = ''
+}
+
+const readRepoTextFileOrEmpty = async (path: string): Promise<string> => {
+  if (!selectedPr.value) return ''
+  try {
+    const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/')
+    const file = await githubGet<{ content?: string; encoding?: string }>(
+      `/repos/${selectedPr.value.headOwner}/${selectedPr.value.headRepo}/contents/${encodedPath}?ref=${encodeURIComponent(selectedPr.value.headRef)}`
+    )
+    if (!file.content) return ''
+    if (file.encoding && file.encoding !== 'base64') return ''
+    return atob(file.content.replace(/\n/g, ''))
+  } catch {
+    return ''
+  }
+}
+
+const selectPickerPath = async (path: string): Promise<void> => {
+  selectedPickerPath.value = path
+  selectedPickerLine.value = null
+  pickerError.value = ''
+  pickerLoading.value = true
+  try {
+    const text = await readRepoTextFileOrEmpty(path)
+    selectedPickerContent.value = text || '无法预览该文件内容（可能是二进制文件）'
+  } catch (error: unknown) {
+    pickerError.value = error instanceof Error ? error.message : '读取文件失败'
+    selectedPickerContent.value = ''
+  } finally {
+    pickerLoading.value = false
+  }
+}
+
+const insertSelectedFileReference = (): void => {
+  if (!selectedPickerPath.value) return
+  addCommentReference(selectedPickerPath.value, null)
+}
+
+const insertSelectedLineReference = (): void => {
+  if (!selectedPickerPath.value || !selectedPickerLine.value) return
+  addCommentReference(selectedPickerPath.value, selectedPickerLine.value)
 }
 
 const submitPresetComment = async (): Promise<void> => {
   if (!selectedPr.value) return
-  const body = commentBodyPreview.value
+  const body = submitCommentBody.value
   if (!body) {
     detailsError.value = '评论 ID 不能为空'
     return
@@ -760,6 +1002,7 @@ const submitPresetComment = async (): Promise<void> => {
       { body }
     )
     commentMessage.value = ''
+    commentReferences.value = []
     await loadPrDetails(selectedPr.value)
     await loadPullRequests()
   } catch (error: unknown) {
@@ -776,8 +1019,4 @@ watch(
   },
   { immediate: true }
 )
-
-watch(linkPickerSource, () => {
-  linkPickerValue.value = ''
-})
 </script>
