@@ -42,6 +42,17 @@
         </div>
 
         <div class="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            class="h-8 w-8"
+            :aria-label="theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'"
+            @click="toggleTheme"
+          >
+            <Moon v-if="theme === 'light'" :size="16" weight="duotone" />
+            <Sun v-else :size="16" weight="duotone" />
+          </Button>
+
           <div ref="userMenuRoot" class="relative">
             <button
               type="button"
@@ -95,17 +106,6 @@
               </button>
             </div>
           </div>
-
-          <Button
-            variant="outline"
-            size="icon"
-            class="h-8 w-8"
-            :aria-label="theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'"
-            @click="toggleTheme"
-          >
-            <Moon v-if="theme === 'light'" :size="16" weight="duotone" />
-            <Sun v-else :size="16" weight="duotone" />
-          </Button>
 
         </div>
       </div>
