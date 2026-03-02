@@ -247,7 +247,7 @@
           <Dialog :open="filePickerOpen" @update:open="filePickerOpen = $event">
             <DialogContent class="h-[88vh] w-[92vw] max-w-[1120px] overflow-hidden p-0">
               <div class="flex h-full flex-col overflow-hidden">
-                <DialogHeader class="border-b border-border px-5 py-4">
+                <DialogHeader class="shrink-0 border-b border-border px-5 py-4">
                   <DialogTitle>插入文件定位</DialogTitle>
                   <DialogDescription>
                     {{ filePickerStep === 'file' ? '第一步：先选择文件。' : '第二步：选择具体行并插入定位。' }}
@@ -334,15 +334,16 @@
                 <div v-else class="flex min-h-0 flex-1 flex-col overflow-hidden">
                   <div class="shrink-0 border-b border-border px-4 py-3">
                     <div class="flex items-center justify-between gap-2">
-                    <div class="min-w-0 space-y-0.5 text-xs text-muted-foreground">
+                    <div class="min-w-0 text-xs text-muted-foreground">
                       <span class="inline-flex items-center gap-1.5">
+                        <Button size="sm" variant="ghost" class="h-7 w-7 p-0" @click="backToPickerFileStep">
+                          <ArrowLeft :size="14" weight="bold" />
+                        </Button>
                         <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
                         <span class="truncate">{{ selectedPickerPath || '未选择文件' }}</span>
                       </span>
-                      <div>可选行号；不选也可以直接插入文件链接。</div>
                     </div>
                     <div class="flex items-center gap-2">
-                      <Button size="sm" variant="outline" @click="backToPickerFileStep">返回选文件</Button>
                       <Button size="sm" variant="outline" :disabled="!selectedPickerPath" @click="insertSelectedFileReference">
                         不选行，插入文件
                       </Button>
@@ -373,7 +374,7 @@
                     <div v-if="pickerLoading" class="text-xs text-muted-foreground">加载文件内容中...</div>
                     <div v-else-if="pickerError" class="text-xs text-destructive">{{ pickerError }}</div>
                     <div v-else-if="!selectedPickerPath" class="text-xs text-muted-foreground">请先返回上一步选择文件</div>
-                    <div v-else class="font-mono text-xs leading-5">
+                    <div v-else class="h-full font-mono text-xs leading-5">
                       <button
                         v-for="(line, index) in pickerContentLines"
                         :ref="el => setPickerLineRowRef(index + 1, el as Element | null)"
@@ -472,6 +473,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import {
+  PhArrowLeft as ArrowLeft,
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
   PhCaretDoubleRight as CaretDoubleRight,
