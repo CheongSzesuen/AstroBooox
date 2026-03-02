@@ -449,13 +449,13 @@
       </div>
 
       <Dialog :open="showDeviceSelector" @update:open="showDeviceSelector = $event">
-        <DialogContent class="w-[min(96vw,1080px)] max-w-none">
+        <DialogContent class="w-[95vw] !max-w-[1120px]">
           <DialogHeader>
             <DialogTitle>选择支持设备</DialogTitle>
             <DialogDescription>设备会自动映射为 v2 设备 ID，并同步到 downloads。</DialogDescription>
           </DialogHeader>
           <div class="my-2 max-h-[68vh] overflow-y-auto pr-1">
-            <div class="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3 max-[640px]:grid-cols-1">
+            <div class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3 max-[420px]:grid-cols-1">
             <div
               v-for="entry in deviceSelectorEntries"
               :key="`device-option-${entry.key}`"

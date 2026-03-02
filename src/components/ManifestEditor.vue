@@ -226,13 +226,13 @@
     </Dialog>
 
     <Dialog :open="showDeviceSelector" @update:open="showDeviceSelector = $event">
-      <DialogContent class="w-[min(96vw,1080px)] max-w-none">
+      <DialogContent class="w-[95vw] !max-w-[1120px]">
         <DialogHeader>
           <DialogTitle>选择设备</DialogTitle>
           <DialogDescription>可多选，建议按实际支持情况勾选。</DialogDescription>
         </DialogHeader>
         <div class="my-3 max-h-[68vh] overflow-y-auto pr-1">
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-4 max-[768px]:grid-cols-1">
+          <div class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4 max-[420px]:grid-cols-1">
             <div
               v-for="device in supportedDevices"
               :key="device.codename + device.name"
