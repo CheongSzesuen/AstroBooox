@@ -556,19 +556,19 @@
                     未检测到图片资源
                   </div>
                   <div v-else class="space-y-3">
-                    <div class="grid gap-3 md:grid-cols-2">
+                    <div class="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
                       <div v-if="submissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
                         <div class="text-xs text-muted-foreground">Icon · {{ submissionOverview.images.icon.file }}</div>
                         <a
                           :href="submissionOverview.images.icon.url"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="mt-2 mx-auto flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border border-border/60 bg-background/70"
+                          class="mt-2 mx-auto flex h-[200px] w-[200px] items-center justify-center overflow-hidden rounded-full border border-border/60 bg-background/70"
                         >
                           <img
                             :src="getDisplayImageUrl(submissionOverview.images.icon.url)"
                             alt="Icon 预览"
-                            class="h-full w-full rounded-full object-cover"
+                            class="h-full w-full rounded-full object-contain p-3"
                             loading="lazy"
                           />
                         </a>
@@ -584,7 +584,7 @@
                           <img
                             :src="getDisplayImageUrl(submissionOverview.images.cover.url)"
                             alt="Cover 预览"
-                            class="max-h-56 w-full object-contain"
+                            class="max-h-[420px] w-full object-contain"
                             loading="lazy"
                           />
                         </a>
