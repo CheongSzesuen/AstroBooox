@@ -448,7 +448,10 @@
               <div v-else class="space-y-3">
                 <div class="grid gap-3 xl:grid-cols-2">
                   <div class="rounded-md border border-border p-3">
-                    <div class="mb-2 text-xs font-semibold text-muted-foreground">资源信息</div>
+                    <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                      <NoteIcon :size="14" weight="duotone" />
+                      资源信息
+                    </div>
                     <div class="space-y-2">
                       <div
                         v-for="item in submissionOverview.resourceInfo"
@@ -467,7 +470,10 @@
                   </div>
 
                   <div class="rounded-md border border-border p-3">
-                    <div class="mb-2 text-xs font-semibold text-muted-foreground">支持设备</div>
+                    <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                      <GlobeIcon :size="14" weight="duotone" />
+                      支持设备
+                    </div>
                     <div class="space-y-2">
                       <div
                         v-for="device in submissionOverview.supportedDevices"
@@ -480,11 +486,13 @@
                   </div>
 
                   <div class="rounded-md border border-border p-3">
-                    <div class="mb-2 text-xs font-semibold text-muted-foreground">仓库信息</div>
+                    <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                      <GithubLogo :size="14" weight="duotone" />
+                      仓库信息
+                    </div>
                     <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
                       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <span v-if="submissionOverview.repoUrl" class="inline-flex min-w-0 items-center gap-1.5">
-                          <GithubLogo :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
                           <a
                             :href="submissionOverview.repoUrl"
                             target="_blank"
@@ -501,12 +509,14 @@
                   </div>
 
                   <div class="rounded-md border border-border p-3">
-                    <div class="mb-2 text-xs font-semibold text-muted-foreground">图片资源（Raw）</div>
+                    <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                      <ImageIcon :size="14" weight="duotone" />
+                      图片资源（Raw）
+                    </div>
                     <div class="space-y-2 text-sm">
                       <div v-if="submissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
                         <div class="text-xs text-muted-foreground">Icon · {{ submissionOverview.images.icon.file }}</div>
                         <span class="inline-flex items-center gap-1.5">
-                          <ImageIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
                           <a :href="submissionOverview.images.icon.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
                             {{ submissionOverview.images.icon.url }}
                           </a>
@@ -515,7 +525,6 @@
                       <div v-if="submissionOverview.images.cover" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
                         <div class="text-xs text-muted-foreground">Cover · {{ submissionOverview.images.cover.file }}</div>
                         <span class="inline-flex items-center gap-1.5">
-                          <ImageIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
                           <a :href="submissionOverview.images.cover.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
                             {{ submissionOverview.images.cover.url }}
                           </a>
@@ -528,7 +537,6 @@
                       >
                         <div class="text-xs text-muted-foreground">Preview · {{ preview.file }}</div>
                         <span class="inline-flex items-center gap-1.5">
-                          <ImageIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
                           <a :href="preview.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
                             {{ preview.url }}
                           </a>
@@ -539,7 +547,10 @@
                 </div>
 
                 <div class="rounded-md border border-border p-3">
-                  <div class="mb-2 text-xs font-semibold text-muted-foreground">下载资源（downloads）</div>
+                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <DownloadIcon :size="14" weight="duotone" />
+                    下载资源（downloads）
+                  </div>
                   <div class="space-y-2 text-sm">
                     <div
                       v-for="item in submissionOverview.downloads"
@@ -550,7 +561,6 @@
                       <div class="mt-1 text-xs text-muted-foreground">version: {{ item.version || '-' }}</div>
                       <div class="mt-1 text-xs text-muted-foreground">file: {{ item.file || '-' }}</div>
                       <span v-if="item.raw" class="mt-1 inline-flex items-center gap-1.5">
-                        <DownloadIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
                         <a
                           :href="item.raw"
                           target="_blank"
@@ -565,7 +575,10 @@
                 </div>
 
                 <div class="rounded-md border border-border p-3">
-                  <div class="mb-2 text-xs font-semibold text-muted-foreground">链接（manifest_v2.links）</div>
+                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <LinkSimple :size="14" weight="duotone" />
+                    链接（manifest_v2.links）
+                  </div>
                   <div class="space-y-2 text-sm">
                     <div
                       v-for="link in submissionOverview.links"
@@ -576,11 +589,38 @@
                         {{ link.title }}<span v-if="link.type">（{{ link.type }}）</span>
                       </div>
                       <span class="inline-flex items-center gap-1.5">
-                        <component :is="getUrlIcon(link.url, link.type)" :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
                         <a :href="link.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
                           {{ link.url }}
                         </a>
                       </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="rounded-md border border-border p-3">
+                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <CheckCircleIcon :size="14" weight="duotone" />
+                    规范自动检查
+                  </div>
+                  <div class="space-y-2">
+                    <div
+                      v-for="item in ruleChecks"
+                      :key="item.title"
+                      class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
+                    >
+                      <div class="flex items-start gap-2">
+                        <component
+                          :is="item.status === 'pass' ? CheckCircleIcon : WarningCircleIcon"
+                          :size="14"
+                          weight="fill"
+                          :class="item.status === 'pass' ? 'text-emerald-600' : item.status === 'fail' ? 'text-red-600' : item.status === 'warn' ? 'text-amber-500' : 'text-slate-500'"
+                          class="mt-0.5 shrink-0"
+                        />
+                        <div class="min-w-0">
+                          <div class="text-sm font-medium text-foreground">{{ item.title }}</div>
+                          <div class="text-xs text-muted-foreground">{{ item.detail }}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -597,6 +637,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import {
+  PhCheckCircle as CheckCircleIcon,
+  PhWarningCircle as WarningCircleIcon,
   PhArrowLeft as ArrowLeft,
   PhArrowDown as ArrowDown,
   PhArrowUp as ArrowUp,
@@ -607,10 +649,10 @@ import {
   PhFile as FileIcon,
   PhFolder as FolderIcon,
   PhGithubLogo as GithubLogo,
-  PhAddressBook as AddressBookIcon,
   PhGlobeHemisphereWest as GlobeIcon,
   PhImageSquare as ImageIcon,
   PhDownloadSimple as DownloadIcon,
+  PhNote as NoteIcon,
   PhGitPullRequest as GitPullRequest,
   PhLinkSimple as LinkSimple,
   PhMagnifyingGlass as MagnifyingGlass
@@ -712,6 +754,27 @@ interface SubmissionOverview {
   links: LinkItem[]
 }
 
+interface CsvV2Row {
+  id: string
+  name: string
+  restype: string
+  repo_owner: string
+  repo_name: string
+  repo_commit_hash: string
+  icon: string
+  cover: string
+  tags: string
+  device_vendors: string
+  devices: string
+  paid_type: string
+}
+
+interface RuleCheckItem {
+  title: string
+  status: 'pass' | 'fail' | 'warn' | 'manual'
+  detail: string
+}
+
 interface PickerTreeItem {
   type: 'folder' | 'file'
   path: string
@@ -741,6 +804,8 @@ const prFiles = ref<PullFileItem[]>([])
 const repoFiles = ref<string[]>([])
 const repoFilesLoading = ref(false)
 const repoFilesError = ref('')
+const manifestV2Data = ref<Record<string, any> | null>(null)
+const manifestLoadError = ref('')
 const filePickerOpen = ref(false)
 const filePickerStep = ref<'file' | 'line'>('file')
 const filePickerTab = ref<'pr' | 'repo'>('pr')
@@ -1124,16 +1189,6 @@ const renderTextWithLinks = (value: string): string => {
   )
 }
 
-const getUrlIcon = (url: string, type = '') => {
-  const normalized = `${type} ${url}`.toLowerCase()
-  if (normalized.includes('address-book')) return AddressBookIcon
-  if (normalized.includes('github')) return GithubLogo
-  if (normalized.includes('download') || /\.(rpk|zip|apk|bin)(\?|$)/i.test(url)) return DownloadIcon
-  if (normalized.includes('image') || /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)(\?|$)/i.test(url)) return ImageIcon
-  if (normalized.includes('github.com')) return GithubLogo
-  return GlobeIcon
-}
-
 const parseSubmissionOverview = (body: string): SubmissionOverview => {
   const overview: SubmissionOverview = {
     resourceInfo: [],
@@ -1282,6 +1337,225 @@ const hasSubmissionOverview = computed(() =>
   || submissionOverview.value.images.previews.length > 0
 )
 
+const knownDeviceIds = new Set([
+  'xmb9', 'xmb9p', 'xmb10', 'xmb10nfc',
+  'xmws3', 'xmws4', 'xmws4xring',
+  'xmrw5', 'xmrw5xring', 'xmrw6',
+  'vivowgt2'
+])
+
+const normalizeText = (value: string): string => value.trim().toLowerCase()
+
+const getResourceInfoValue = (keywords: string[]): string => {
+  const item = submissionOverview.value.resourceInfo.find(entry => keywords.some(key => normalizeText(entry.key).includes(normalizeText(key))))
+  return item?.value || ''
+}
+
+const splitCsvLine = (line: string): string[] => {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i]
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i += 1
+      } else {
+        inQuotes = !inQuotes
+      }
+      continue
+    }
+    if (char === ',' && !inQuotes) {
+      result.push(current)
+      current = ''
+      continue
+    }
+    current += char
+  }
+  result.push(current)
+  return result.map(value => value.trim())
+}
+
+const parseCsvV2Row = (line: string): CsvV2Row | null => {
+  const cells = splitCsvLine(line)
+  if (cells.length < 12) return null
+  return {
+    id: cells[0],
+    name: cells[1],
+    restype: cells[2],
+    repo_owner: cells[3],
+    repo_name: cells[4],
+    repo_commit_hash: cells[5],
+    icon: cells[6],
+    cover: cells[7],
+    tags: cells[8],
+    device_vendors: cells[9],
+    devices: cells[10],
+    paid_type: cells[11]
+  }
+}
+
+const addedCsvLines = computed(() => {
+  const csvFile = prFiles.value.find(file => /(^|\/)index(_v2)?\.csv$/i.test(file.filename))
+  if (!csvFile?.patch) return []
+  return csvFile.patch
+    .split('\n')
+    .filter(line => line.startsWith('+') && !line.startsWith('+++'))
+    .map(line => line.slice(1).trim())
+    .filter(line => line && !line.startsWith('id,') && line.includes(','))
+})
+
+const parsedCsvRow = computed<CsvV2Row | null>(() => {
+  const wantedId = getResourceInfoValue(['资源 id', 'id'])
+  for (const line of addedCsvLines.value) {
+    const row = parseCsvV2Row(line)
+    if (!row) continue
+    if (wantedId && row.id === wantedId) return row
+  }
+  for (const line of addedCsvLines.value) {
+    const row = parseCsvV2Row(line)
+    if (row) return row
+  }
+  return null
+})
+
+const isPrivateHost = (hostname: string): boolean => {
+  const host = hostname.toLowerCase()
+  if (host === 'localhost' || host.endsWith('.local')) return true
+  if (host.startsWith('127.') || host.startsWith('10.') || host.startsWith('192.168.')) return true
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return true
+  return false
+}
+
+const checkPublicUrl = (raw: string): { ok: boolean; reason: string } => {
+  if (!raw) return { ok: false, reason: '缺少链接' }
+  try {
+    const url = new URL(raw)
+    if (!/^https?:$/.test(url.protocol)) return { ok: false, reason: '链接协议不是 http/https' }
+    if (isPrivateHost(url.hostname)) return { ok: false, reason: '链接使用了私有域名/内网地址' }
+    return { ok: true, reason: '链接格式正常' }
+  } catch {
+    return { ok: false, reason: '链接格式无效' }
+  }
+}
+
+const checkRawGithubUrl = (raw: string): { ok: boolean; reason: string } => {
+  const base = checkPublicUrl(raw)
+  if (!base.ok) return base
+  try {
+    const url = new URL(raw)
+    if (url.hostname !== 'raw.githubusercontent.com') {
+      return { ok: false, reason: '不是 raw.githubusercontent.com 链接' }
+    }
+    return { ok: true, reason: 'Raw 链接格式正确' }
+  } catch {
+    return { ok: false, reason: '链接格式无效' }
+  }
+}
+
+const ruleChecks = computed<RuleCheckItem[]>(() => {
+  const checks: RuleCheckItem[] = []
+  const csvRow = parsedCsvRow.value
+  const resourceName = getResourceInfoValue(['资源名称', 'name'])
+  const iconRaw = submissionOverview.value.images.icon?.url || ''
+  const coverRaw = submissionOverview.value.images.cover?.url || ''
+  const repoExists = !repoFilesError.value && repoFiles.value.length > 0
+
+  checks.push({
+    title: 'index.csv / index_v2.csv 已新增资源行',
+    status: csvRow ? 'pass' : 'fail',
+    detail: csvRow ? `检测到新增行：${csvRow.id}` : '未检测到 CSV 新增资源行（严重）'
+  })
+
+  const iconCheck = checkRawGithubUrl(iconRaw)
+  checks.push({
+    title: 'CSV icon 链接可访问且为 Raw，且非私有域名',
+    status: iconCheck.ok ? 'pass' : 'fail',
+    detail: iconCheck.reason
+  })
+
+  const coverCheck = checkRawGithubUrl(coverRaw)
+  checks.push({
+    title: 'CSV cover 链接可访问且为 Raw，且非私有域名',
+    status: coverCheck.ok ? 'pass' : 'fail',
+    detail: coverCheck.reason
+  })
+
+  const tagsOk = csvRow ? !(csvRow.tags.includes('，') || csvRow.tags.includes('/') || csvRow.tags.includes('|')) : false
+  const devicesOk = csvRow ? !(csvRow.devices.includes('，') || csvRow.devices.includes('/') || csvRow.devices.includes('|')) : false
+  checks.push({
+    title: 'CSV tags / devices 分隔符检查',
+    status: csvRow ? (tagsOk && devicesOk ? 'pass' : 'warn') : 'warn',
+    detail: csvRow ? (tagsOk && devicesOk ? '未发现明显分隔符错误' : '建议使用分号 ; 作为分隔符') : '未解析到 CSV 新增行'
+  })
+
+  checks.push({
+    title: '资源目标仓库真实存在',
+    status: repoExists ? 'pass' : 'fail',
+    detail: repoExists ? '已可访问并读取仓库文件树' : (repoFilesError.value || '仓库不可访问')
+  })
+
+  const manifestExists = repoFiles.value.includes('manifest_v2.json') || repoFiles.value.includes('manifest.json')
+  checks.push({
+    title: 'manifest 文件存在且 JSON 可解析',
+    status: manifestV2Data.value ? 'pass' : (manifestExists ? 'warn' : 'fail'),
+    detail: manifestV2Data.value ? 'manifest_v2.json 解析成功' : (manifestLoadError.value || (manifestExists ? '存在 manifest 但未解析成功' : '仓库缺少 manifest_v2.json/manifest.json'))
+  })
+
+  const manifestName = String(manifestV2Data.value?.item?.name || '')
+  checks.push({
+    title: 'manifest 名称与 CSV 名称一致',
+    status: manifestName && resourceName ? (manifestName === resourceName ? 'pass' : 'fail') : 'warn',
+    detail: manifestName && resourceName ? `manifest: ${manifestName} / csv: ${resourceName}` : '缺少可比对字段'
+  })
+
+  const downloads = manifestV2Data.value?.downloads && typeof manifestV2Data.value.downloads === 'object'
+    ? Object.entries(manifestV2Data.value.downloads as Record<string, any>)
+    : []
+  const unknownDeviceIds = downloads
+    .map(([device]) => device)
+    .filter(device => !knownDeviceIds.has(device))
+  checks.push({
+    title: 'manifest downloads 设备代号有效性',
+    status: downloads.length === 0 ? 'warn' : (unknownDeviceIds.length === 0 ? 'pass' : 'fail'),
+    detail: downloads.length === 0 ? '未检测到 downloads 字典' : (unknownDeviceIds.length === 0 ? '设备代号均在白名单内' : `未知设备代号：${unknownDeviceIds.join(', ')}`)
+  })
+
+  const missingDownloadFiles = downloads
+    .map(([, item]) => String(item?.file_name || item?.file || ''))
+    .filter(file => file && !repoFiles.value.includes(file))
+  checks.push({
+    title: 'manifest downloads 文件存在性',
+    status: downloads.length === 0 ? 'warn' : (missingDownloadFiles.length === 0 ? 'pass' : 'fail'),
+    detail: downloads.length === 0 ? '未检测到 downloads 字典' : (missingDownloadFiles.length === 0 ? '下载文件均存在' : `缺失文件：${missingDownloadFiles.join(', ')}`)
+  })
+
+  const authors = Array.isArray(manifestV2Data.value?.item?.author)
+    ? manifestV2Data.value.item.author
+    : []
+  const badAuthorUrls = authors
+    .map((author: any) => String(author?.author_url || '').trim())
+    .filter((url: string) => url && !checkPublicUrl(url).ok)
+  checks.push({
+    title: 'manifest author_url 合规性',
+    status: badAuthorUrls.length === 0 ? 'pass' : 'warn',
+    detail: badAuthorUrls.length === 0 ? '未发现明显不合规 URL' : `疑似不合规链接：${badAuthorUrls.join(' , ')}`
+  })
+
+  checks.push({
+    title: '资源内容合规性（人工审核）',
+    status: 'manual',
+    detail: '色情低俗/政治敏感/盗传/低质量/实际可运行等需人工确认'
+  })
+  checks.push({
+    title: '知名 IP 版权声明图（人工审核）',
+    status: 'manual',
+    detail: '若使用知名 IP，需在 preview 中包含版权声明图'
+  })
+  return checks
+})
+
 async function githubGet<T>(path: string): Promise<T> {
   const response = await fetch(`https://api.github.com${path}`, {
     headers: {
@@ -1313,6 +1587,25 @@ async function githubPost<T>(path: string, body: Record<string, unknown>): Promi
     throw new Error(text || `GitHub API ${response.status}`)
   }
   return response.json() as Promise<T>
+}
+
+const fetchRepoJsonFile = async (
+  owner: string,
+  repo: string,
+  ref: string,
+  path: string
+): Promise<Record<string, any> | null> => {
+  try {
+    const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/')
+    const file = await githubGet<{ content?: string; encoding?: string }>(
+      `/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(ref)}`
+    )
+    if (!file.content || (file.encoding && file.encoding !== 'base64')) return null
+    const text = decodeBase64Utf8(file.content.replace(/\n/g, ''))
+    return JSON.parse(text) as Record<string, any>
+  } catch {
+    return null
+  }
 }
 
 const deriveReviewStatus = (comments: Array<{ body?: string }>): ReviewStatusResult => {
@@ -1461,6 +1754,8 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
 const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
   repoFilesLoading.value = true
   repoFilesError.value = ''
+  manifestV2Data.value = null
+  manifestLoadError.value = ''
   try {
     if (!pr.resourceRepoOwner || !pr.resourceRepoName) {
       repoFiles.value = []
@@ -1487,9 +1782,29 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
       .filter(item => item.type === 'blob' && item.path)
       .map(item => item.path as string)
       .slice(0, 3000)
+
+    manifestV2Data.value = await fetchRepoJsonFile(
+      pr.resourceRepoOwner,
+      pr.resourceRepoName,
+      repoBranch,
+      'manifest_v2.json'
+    )
+    if (!manifestV2Data.value) {
+      manifestV2Data.value = await fetchRepoJsonFile(
+        pr.resourceRepoOwner,
+        pr.resourceRepoName,
+        repoBranch,
+        'manifest.json'
+      )
+    }
+    if (!manifestV2Data.value) {
+      manifestLoadError.value = 'manifest 文件不存在或不是有效 JSON'
+    }
   } catch (error: unknown) {
     repoFilesError.value = error instanceof Error ? error.message : '仓库文件加载失败'
     repoFiles.value = []
+    manifestV2Data.value = null
+    manifestLoadError.value = ''
   } finally {
     repoFilesLoading.value = false
   }
