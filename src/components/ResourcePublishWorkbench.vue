@@ -916,7 +916,15 @@
             >
               当前 PR 暂无评论
             </div>
-            <div v-for="comment in selectedReviewComments" :key="comment.id" class="flex items-start gap-3">
+            <div
+              v-for="(comment, index) in selectedReviewComments"
+              :key="comment.id"
+              class="relative flex items-start gap-3"
+            >
+              <div
+                v-if="index < selectedReviewComments.length - 1"
+                class="pointer-events-none absolute bottom-[-12px] left-[46px] top-[36px] w-px bg-border"
+              />
               <img
                 v-if="comment.user?.avatar_url"
                 :src="comment.user.avatar_url"

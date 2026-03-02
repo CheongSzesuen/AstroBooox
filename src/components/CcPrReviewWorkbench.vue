@@ -233,10 +233,14 @@
                   当前 PR 暂无评论
                 </div>
                 <div
-                  v-for="comment in prComments"
+                  v-for="(comment, index) in prComments"
                   :key="comment.id"
-                  class="flex items-start gap-3"
+                  class="relative flex items-start gap-3"
                 >
+                  <div
+                    v-if="index < prComments.length - 1"
+                    class="pointer-events-none absolute bottom-[-12px] left-[46px] top-[36px] w-px bg-border"
+                  />
                   <img
                     v-if="comment.user?.avatar_url && comment.user?.login"
                     :src="getOptimizedAvatarUrl(comment.user.login, comment.user.avatar_url)"
