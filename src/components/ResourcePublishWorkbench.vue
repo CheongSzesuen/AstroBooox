@@ -806,7 +806,7 @@
     </template>
 
     <template v-else-if="mode === 'review'">
-      <div class="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div v-if="!selectedReviewItem">
         <Card>
           <CardHeader class="pb-3">
             <div class="flex items-center justify-between gap-2">
@@ -833,12 +833,7 @@
               :key="`${item.prNumber}-${item.id}`"
               type="button"
               class="w-full rounded-lg border px-3 py-3 text-left transition-colors"
-              :class="[
-                selectedReviewItem && selectedReviewItem.prNumber === item.prNumber && selectedReviewItem.id === item.id
-                  ? 'border-primary/60 bg-accent/50'
-                  : 'border-border bg-card hover:bg-accent/30',
-                item.unresolvedTagCount > 0 ? 'ring-1 ring-red-500/60' : ''
-              ]"
+              :class="['border-border bg-card hover:bg-accent/30', item.unresolvedTagCount > 0 ? 'ring-1 ring-red-500/60' : '']"
               @click="openReviewItem(item)"
             >
               <div class="flex flex-wrap items-center justify-between gap-2">
@@ -854,66 +849,90 @@
             </button>
           </CardContent>
         </Card>
+      </div>
 
-        <Card>
-          <CardHeader class="pb-3">
-            <div class="flex items-center justify-between gap-2">
-              <CardTitle class="text-base">
-                {{ selectedReviewItem ? `PR #${selectedReviewItem.prNumber} 内置详情` : 'PR 内置详情' }}
-              </CardTitle>
+      <div v-else class="space-y-4">
+        <header class="rounded-xl border border-border bg-card p-5 md:p-6">
+          <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div class="min-w-0 space-y-3">
+              <Button variant="outline" size="sm" class="h-8 gap-1.5 px-2.5" @click="closeReviewDetail">
+                <ArrowLeft :size="14" weight="bold" />
+                返回
+              </Button>
+              <div class="flex flex-wrap items-end gap-x-2 gap-y-1">
+                <h1 class="min-w-0 break-words text-xl font-semibold leading-tight text-foreground md:text-2xl">
+                  {{ selectedReviewItem.prTitle }}
+                </h1>
+                <span class="text-sm font-medium text-muted-foreground md:text-base">#{{ selectedReviewItem.prNumber }}</span>
+              </div>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+                <Badge variant="secondary" class="h-6 rounded-full px-2.5 text-xs">Open</Badge>
+                <span>{{ selectedReviewItem.id }} · {{ selectedReviewItem.name }}</span>
+                <span>{{ selectedReviewItem.restype }}</span>
+              </div>
+            </div>
+            <div class="flex shrink-0 items-center gap-2 md:justify-end">
               <Button
-                v-if="selectedReviewItem"
                 :disabled="reviewCommentsLoading"
                 variant="outline"
                 size="sm"
+                class="h-9 gap-1.5 px-3"
                 @click="loadReviewComments(selectedReviewItem.prNumber)"
               >
                 <ArrowsClockwise :size="14" weight="duotone" />
                 刷新评论
               </Button>
+              <Button
+                as="a"
+                :href="selectedReviewItem.prUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="outline"
+                size="sm"
+                class="h-9 gap-1.5 px-3"
+              >
+                <GitPullRequest :size="14" weight="duotone" />
+                打开 GitHub
+              </Button>
             </div>
-            <CardDescription v-if="selectedReviewItem">{{ selectedReviewItem.prTitle }}</CardDescription>
-            <CardDescription v-else>点击左侧资源项进入内置 PR 页面。</CardDescription>
+          </div>
+        </header>
+
+        <Card>
+          <CardHeader class="pb-3">
+            <CardTitle class="text-base">审核评论</CardTitle>
           </CardHeader>
           <CardContent class="space-y-3 pt-0">
             <div
-              v-if="!selectedReviewItem"
-              class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
+              v-if="selectedReviewItem.unresolvedTagCount > 0"
+              class="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-700"
             >
-              请先选择左侧 PR
+              检测到 NEEDFIX 标签且尚未出现对应 FIXED：{{ selectedReviewItem.unresolvedTagIds.join(' / ') }}
             </div>
-            <template v-else>
-              <div
-                v-if="selectedReviewItem.unresolvedTagCount > 0"
-                class="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-700"
-              >
-                检测到 NEEDFIX 标签且尚未出现对应 FIXED：{{ selectedReviewItem.unresolvedTagIds.join(' / ') }}
-              </div>
-              <div v-if="reviewCommentsError" class="text-xs text-destructive">{{ reviewCommentsError }}</div>
-              <div
-                v-if="selectedReviewComments.length === 0 && !reviewCommentsLoading"
-                class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
-              >
-                当前 PR 暂无评论
-              </div>
-              <div v-for="comment in selectedReviewComments" :key="comment.id" class="flex items-start gap-3">
-                <img
-                  v-if="comment.user?.avatar_url"
-                  :src="comment.user.avatar_url"
-                  class="h-8 w-8 shrink-0 rounded-full border border-border object-cover"
-                  loading="lazy"
-                />
-                <div class="min-w-0 flex-1 rounded-md border border-border px-3 py-2 text-sm">
-                  <div class="mb-3 flex items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
-                    <span class="inline-flex min-w-0 items-center gap-2">
-                      <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
-                      <span class="shrink-0">{{ formatCommentRelativeTime(comment.created_at) }}</span>
-                    </span>
-                  </div>
-                  <div class="pt-1 whitespace-pre-wrap break-words text-foreground">{{ comment.body }}</div>
+            <div v-if="reviewCommentsError" class="text-xs text-destructive">{{ reviewCommentsError }}</div>
+            <div
+              v-if="selectedReviewComments.length === 0 && !reviewCommentsLoading"
+              class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
+            >
+              当前 PR 暂无评论
+            </div>
+            <div v-for="comment in selectedReviewComments" :key="comment.id" class="flex items-start gap-3">
+              <img
+                v-if="comment.user?.avatar_url"
+                :src="comment.user.avatar_url"
+                class="h-8 w-8 shrink-0 rounded-full border border-border object-cover"
+                loading="lazy"
+              />
+              <div class="min-w-0 flex-1 rounded-md border border-border px-3 py-2 text-sm">
+                <div class="mb-3 flex items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
+                  <span class="inline-flex min-w-0 items-center gap-2">
+                    <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
+                    <span class="shrink-0">{{ formatCommentRelativeTime(comment.created_at) }}</span>
+                  </span>
                 </div>
+                <div class="pt-1 whitespace-pre-wrap break-words text-foreground">{{ comment.body }}</div>
               </div>
-            </template>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -957,6 +976,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref, watch, type Component } from 'vue'
 import {
+  PhArrowLeft as ArrowLeft,
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
   PhCaretRight as CaretRight,
@@ -2792,6 +2812,12 @@ const loadReviewComments = async (prNumber: number): Promise<void> => {
 const openReviewItem = (item: PublishingResource): void => {
   selectedReviewItem.value = item
   void loadReviewComments(item.prNumber)
+}
+
+const closeReviewDetail = (): void => {
+  selectedReviewItem.value = null
+  selectedReviewComments.value = []
+  reviewCommentsError.value = ''
 }
 
 const loadOwnedList = async (): Promise<void> => {
