@@ -323,7 +323,7 @@
           <Card v-if="activeStep === 2">
             <CardHeader class="pb-3">
               <CardTitle class="text-base">步骤 3：上传资源仓库</CardTitle>
-              <CardDescription>创建或复用仓库，并上传 manifest、media、downloads。</CardDescription>
+              <CardDescription>创建或复用仓库，并上传 manifest 与已选择的资源文件。</CardDescription>
             </CardHeader>
             <CardContent class="space-y-4 pt-0">
               <div class="grid gap-3 md:grid-cols-2">
@@ -747,8 +747,6 @@ const activeStep = ref(0)
 const workspaceHandle = ref<WorkspaceDirectoryHandle | null>(null)
 const workspaceName = ref('')
 const manifestText = ref('')
-const mediaFiles = ref<Array<{ path: string; file: File }>>([])
-const downloadFiles = ref<Array<{ path: string; file: File }>>([])
 
 const repoName = ref('')
 const repoDescription = ref('')
@@ -819,7 +817,28 @@ const resolvedRepoName = computed(() => {
   return slug ? `ab-resource-${slug}` : ''
 })
 
-const uploadQueueCount = computed(() => 1 + mediaFiles.value.length + downloadFiles.value.length)
+const selectedUploadPaths = computed(() => {
+  const paths = new Set<string>()
+  const push = (value: string): void => {
+    const normalized = value.trim()
+    if (normalized) paths.add(normalized)
+  }
+
+  push(iconPath.value)
+  push(coverPath.value)
+
+  for (const item of previewItems.value) {
+    push(item.path)
+  }
+
+  for (const deviceId of selectedDeviceIds.value) {
+    push(downloads.value[deviceId]?.file_name || '')
+  }
+
+  return [...paths].sort((a, b) => a.localeCompare(b, 'zh-CN'))
+})
+
+const uploadQueueCount = computed(() => 1 + selectedUploadPaths.value.length)
 
 const normalizedTagsText = computed(() =>
   tags.value
@@ -971,8 +990,8 @@ const autoResizeDescription = (): void => {
 }
 
 const pickFilePathFromWorkspace = async (): Promise<string | null> => {
-  if (!workspaceHandle.value) {
-    appendLog('请先选择工作区文件夹')
+  const handle = await ensureWorkspaceHandle()
+  if (!handle) {
     return null
   }
 
@@ -985,14 +1004,14 @@ const pickFilePathFromWorkspace = async (): Promise<string | null> => {
   try {
     const handles = (await picker({
       multiple: false,
-      startIn: workspaceHandle.value
+      startIn: handle
     })) as WorkspaceFileHandle[]
 
     const fileHandle = handles?.[0]
     if (!fileHandle) return null
 
-    if (typeof workspaceHandle.value.resolve === 'function') {
-      const relativeParts = await workspaceHandle.value.resolve(fileHandle)
+    if (typeof handle.resolve === 'function') {
+      const relativeParts = await handle.resolve(fileHandle)
       if (relativeParts && relativeParts.length > 0) {
         return relativeParts.join('/')
       }
@@ -1020,8 +1039,8 @@ const selectCoverFile = async (): Promise<void> => {
 }
 
 const selectMultiplePreviewFiles = async (): Promise<void> => {
-  if (!workspaceHandle.value) {
-    appendLog('请先选择工作区文件夹')
+  const workspace = await ensureWorkspaceHandle()
+  if (!workspace) {
     return
   }
 
@@ -1034,7 +1053,7 @@ const selectMultiplePreviewFiles = async (): Promise<void> => {
   try {
     const handles = (await picker({
       multiple: true,
-      startIn: workspaceHandle.value
+      startIn: workspace
     })) as WorkspaceFileHandle[]
 
     if (!handles?.length) return
@@ -1042,8 +1061,8 @@ const selectMultiplePreviewFiles = async (): Promise<void> => {
     const pickedPaths: string[] = []
 
     for (const handle of handles) {
-      if (typeof workspaceHandle.value.resolve === 'function') {
-        const relativeParts = await workspaceHandle.value.resolve(handle)
+      if (typeof workspace.resolve === 'function') {
+        const relativeParts = await workspace.resolve(handle)
         if (!relativeParts || relativeParts.length === 0) {
           showOutOfWorkspaceFileDialog.value = true
           return
@@ -1146,6 +1165,37 @@ const requireToken = (): string => {
   return value
 }
 
+const ensureWorkspaceHandle = async (): Promise<WorkspaceDirectoryHandle | null> => {
+  if (workspaceHandle.value) return workspaceHandle.value
+
+  if (!window.showDirectoryPicker) {
+    appendLog('当前浏览器不支持 FSA API')
+    return null
+  }
+
+  try {
+    const handle = (await window.showDirectoryPicker({
+      id: 'resource-workspace',
+      mode: 'readwrite'
+    })) as unknown as WorkspaceDirectoryHandle
+
+    workspaceHandle.value = handle
+    workspaceName.value = handle.name
+    workspaceDisplayPath.value = handle.name
+    if (!newWorkspaceName.value.trim()) {
+      newWorkspaceName.value = handle.name
+    }
+
+    appendLog(`已重新授权工作区: ${handle.name}`)
+    await scanWorkspace()
+    return handle
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') return null
+    appendLog(`重新授权工作区失败: ${error instanceof Error ? error.message : '未知错误'}`)
+    return null
+  }
+}
+
 const selectWorkspace = async (): Promise<void> => {
   try {
     workspaceBusy.value = true
@@ -1227,45 +1277,28 @@ const readFileTextByPath = async (
   }
 }
 
-const getDirectoryByPath = async (
+const readFileByPath = async (
   root: WorkspaceDirectoryHandle,
   relativePath: string
-): Promise<WorkspaceDirectoryHandle | null> => {
+): Promise<File | null> => {
   const parts = relativePath.split('/').filter(Boolean)
+  if (parts.length === 0) return null
+
   let current = root
-  for (const part of parts) {
+  for (let i = 0; i < parts.length - 1; i++) {
     try {
-      current = await current.getDirectoryHandle(part)
+      current = await current.getDirectoryHandle(parts[i])
     } catch {
       return null
     }
   }
-  return current
-}
 
-const collectFilesRecursively = async (
-  dir: WorkspaceDirectoryHandle,
-  prefix = ''
-): Promise<Array<{ path: string; file: File }>> => {
-  const result: Array<{ path: string; file: File }> = []
-
-  for await (const [name, handle] of dir) {
-    if (handle.kind === 'file') {
-      const file = await (handle as WorkspaceFileHandle).getFile()
-      result.push({
-        path: `${prefix}${name}`,
-        file
-      })
-    } else {
-      const nested = await collectFilesRecursively(
-        handle as WorkspaceDirectoryHandle,
-        `${prefix}${name}/`
-      )
-      result.push(...nested)
-    }
+  try {
+    const fileHandle = await current.getFileHandle(parts[parts.length - 1])
+    return await fileHandle.getFile()
+  } catch {
+    return null
   }
-
-  return result
 }
 
 const collectWorkspaceTree = async (
@@ -1322,14 +1355,6 @@ const scanWorkspace = async (): Promise<void> => {
   try {
     const manifest = await readFileTextByPath(workspaceHandle.value, MANIFEST_FILE)
     manifestText.value = manifest || ''
-
-    const mediaDir = await getDirectoryByPath(workspaceHandle.value, 'media')
-    mediaFiles.value = mediaDir ? await collectFilesRecursively(mediaDir, 'media/') : []
-
-    const downloadsDir = await getDirectoryByPath(workspaceHandle.value, 'downloads')
-    downloadFiles.value = downloadsDir
-      ? await collectFilesRecursively(downloadsDir, 'downloads/')
-      : []
 
     const tree = await collectWorkspaceTree(workspaceHandle.value)
     setWorkspace(workspaceDisplayPath.value || workspaceName.value, tree)
@@ -1401,7 +1426,7 @@ const scanWorkspace = async (): Promise<void> => {
     uploadedCommitSha.value = ''
     latestPrUrl.value = ''
 
-    appendLog(`目录扫描完成：media ${mediaFiles.value.length} 个，downloads ${downloadFiles.value.length} 个`)
+    appendLog('目录扫描完成')
   } catch (error: unknown) {
     clearWorkspace()
     appendLog(`扫描目录失败: ${error instanceof Error ? error.message : '未知错误'}`)
@@ -1409,8 +1434,9 @@ const scanWorkspace = async (): Promise<void> => {
 }
 
 const refreshWorkspaceFileTree = async (): Promise<void> => {
-  if (!workspaceHandle.value) {
-    appendLog('当前会话无法直接访问该目录，请重新点“选择已有文件夹”授权后再刷新。')
+  const handle = await ensureWorkspaceHandle()
+  if (!handle) {
+    appendLog('当前会话无法直接访问该目录，请重新授权后再刷新。')
     return
   }
   await scanWorkspace()
@@ -1470,11 +1496,14 @@ const resolveRepoNameForSubmit = (): string => {
 }
 
 const handleUploadResources = async (): Promise<void> => {
-  if (!workspaceHandle.value) return
-
   try {
     uploading.value = true
     latestPrUrl.value = ''
+
+    const workspace = await ensureWorkspaceHandle()
+    if (!workspace) {
+      throw new Error('请先选择并授权工作区文件夹')
+    }
 
     const accessToken = requireToken()
     const username = currentUser.value
@@ -1499,11 +1528,17 @@ const handleUploadResources = async (): Promise<void> => {
       path: MANIFEST_FILE,
       text: generatedManifestText
     })
-    uploadQueue.push(...mediaFiles.value.map(item => ({ path: item.path, file: item.file })))
-    uploadQueue.push(...downloadFiles.value.map(item => ({ path: item.path, file: item.file })))
+
+    for (const path of selectedUploadPaths.value) {
+      const file = await readFileByPath(workspace, path)
+      if (!file) {
+        throw new Error(`工作区中未找到文件: ${path}`)
+      }
+      uploadQueue.push({ path, file })
+    }
 
     if (uploadQueue.length === 0) {
-      throw new Error('没有可上传文件，请先选择并扫描工作区')
+      throw new Error('没有可上传文件，请先选择资源文件')
     }
 
     let latestCommitSha = ''
