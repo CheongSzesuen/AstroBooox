@@ -516,6 +516,19 @@
                     <div class="space-y-2 text-sm">
                       <div v-if="submissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
                         <div class="text-xs text-muted-foreground">Icon · {{ submissionOverview.images.icon.file }}</div>
+                        <a
+                          :href="submissionOverview.images.icon.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
+                        >
+                          <img
+                            :src="getDisplayImageUrl(submissionOverview.images.icon.url)"
+                            alt="Icon 预览"
+                            class="max-h-44 w-full object-contain"
+                            loading="lazy"
+                          />
+                        </a>
                         <span class="inline-flex items-center gap-1.5">
                           <a :href="submissionOverview.images.icon.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
                             {{ submissionOverview.images.icon.url }}
@@ -524,6 +537,19 @@
                       </div>
                       <div v-if="submissionOverview.images.cover" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
                         <div class="text-xs text-muted-foreground">Cover · {{ submissionOverview.images.cover.file }}</div>
+                        <a
+                          :href="submissionOverview.images.cover.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
+                        >
+                          <img
+                            :src="getDisplayImageUrl(submissionOverview.images.cover.url)"
+                            alt="Cover 预览"
+                            class="max-h-52 w-full object-contain"
+                            loading="lazy"
+                          />
+                        </a>
                         <span class="inline-flex items-center gap-1.5">
                           <a :href="submissionOverview.images.cover.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
                             {{ submissionOverview.images.cover.url }}
@@ -536,6 +562,19 @@
                         class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
                       >
                         <div class="text-xs text-muted-foreground">Preview · {{ preview.file }}</div>
+                        <a
+                          :href="preview.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
+                        >
+                          <img
+                            :src="getDisplayImageUrl(preview.url)"
+                            :alt="`${preview.file} 预览`"
+                            class="max-h-56 w-full object-contain"
+                            loading="lazy"
+                          />
+                        </a>
                         <span class="inline-flex items-center gap-1.5">
                           <a :href="preview.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
                             {{ preview.url }}
@@ -635,7 +674,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import {
   PhCheckCircle as CheckCircleIcon,
   PhWarningCircle as WarningCircleIcon,
@@ -1009,6 +1048,8 @@ const pickerMatchedLineNumbers = computed(() => {
 })
 const pickerMatchCursor = ref(-1)
 const pickerLineRowRefs = new Map<number, HTMLElement>()
+const imageBlobUrlMap = ref<Record<string, string>>({})
+const loadingImageSet = new Set<string>()
 
 const setPickerLineRowRef = (lineNumber: number, element: Element | null): void => {
   if (!(element instanceof HTMLElement)) {
@@ -1162,6 +1203,66 @@ const decodeBase64Utf8 = (base64: string): string => {
   return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
 }
 
+const decodeBase64ToBytes = (base64: string): Uint8Array => {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+const inferImageMimeType = (url: string): string => {
+  const lower = url.toLowerCase()
+  if (lower.endsWith('.png')) return 'image/png'
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
+  if (lower.endsWith('.webp')) return 'image/webp'
+  if (lower.endsWith('.gif')) return 'image/gif'
+  if (lower.endsWith('.svg')) return 'image/svg+xml'
+  if (lower.endsWith('.bmp')) return 'image/bmp'
+  if (lower.endsWith('.avif')) return 'image/avif'
+  return 'application/octet-stream'
+}
+
+const parseRawGithubUrl = (rawUrl: string): { owner: string; repo: string; ref: string; path: string } | null => {
+  const matched = rawUrl.match(/^https?:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)$/i)
+  if (!matched) return null
+  return {
+    owner: matched[1],
+    repo: matched[2],
+    ref: matched[3],
+    path: matched[4]
+  }
+}
+
+const getDisplayImageUrl = (url: string): string => imageBlobUrlMap.value[url] || url
+
+const ensureImageDisplayUrl = async (url: string): Promise<void> => {
+  if (!url || imageBlobUrlMap.value[url] || loadingImageSet.has(url)) return
+  const parsed = parseRawGithubUrl(url)
+  if (!parsed) return
+  if (!props.token.trim()) return
+  loadingImageSet.add(url)
+  try {
+    const encodedPath = parsed.path.split('/').map(segment => encodeURIComponent(segment)).join('/')
+    const file = await githubGet<{ content?: string; encoding?: string }>(
+      `/repos/${parsed.owner}/${parsed.repo}/contents/${encodedPath}?ref=${encodeURIComponent(parsed.ref)}`
+    )
+    if (!file.content || (file.encoding && file.encoding !== 'base64')) return
+    const bytes = decodeBase64ToBytes(file.content.replace(/\n/g, ''))
+    const blob = new Blob([bytes], { type: inferImageMimeType(url) })
+    const objectUrl = URL.createObjectURL(blob)
+    imageBlobUrlMap.value = {
+      ...imageBlobUrlMap.value,
+      [url]: objectUrl
+    }
+  } catch {
+    // 保持原始 URL 作为回退
+  } finally {
+    loadingImageSet.delete(url)
+  }
+}
+
 const parseResourceRepoFromPrBody = (body: string): { owner: string; repo: string } | null => {
   if (!body) return null
   const labeled = body.match(/资源仓库\s*[:：]\s*https?:\/\/github\.com\/([^\/\s]+)\/([^\/\s#?]+)/i)
@@ -1174,6 +1275,26 @@ const parseResourceRepoFromPrBody = (body: string): { owner: string; repo: strin
   }
   return null
 }
+
+watch(
+  () => [
+    submissionOverview.value.images.icon?.url || '',
+    submissionOverview.value.images.cover?.url || '',
+    ...submissionOverview.value.images.previews.map(item => item.url)
+  ],
+  (urls) => {
+    urls
+      .filter(Boolean)
+      .forEach((url) => {
+        void ensureImageDisplayUrl(url)
+      })
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(() => {
+  Object.values(imageBlobUrlMap.value).forEach((url) => URL.revokeObjectURL(url))
+})
 
 const stripMarkdown = (value: string): string => value
   .replace(/`([^`]+)`/g, '$1')
