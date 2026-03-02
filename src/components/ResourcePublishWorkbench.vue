@@ -280,6 +280,44 @@
 
               <Card class="border-border/70 shadow-none">
                 <CardHeader class="pb-3">
+                  <CardTitle class="text-base">相关链接（links）</CardTitle>
+                  <CardDescription>icon 请填写 phosphor 图标名，可点击搜索按钮选择。</CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-3 pt-0">
+                  <div
+                    v-for="(link, index) in links"
+                    :key="`link-${index}`"
+                    class="space-y-2 rounded-lg border border-border bg-muted/20 p-3"
+                  >
+                    <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+                      <div class="space-y-1.5">
+                        <Label :for="`link-icon-${index}`">图标名（icon）</Label>
+                        <div class="flex gap-2">
+                          <Input
+                            :id="`link-icon-${index}`"
+                            v-model="link.icon"
+                            placeholder="github-logo / house / globe"
+                          />
+                          <Button variant="outline" @click="openLinkIconPicker(index)">搜索图标</Button>
+                        </div>
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label :for="`link-title-${index}`">标题（title）</Label>
+                        <Input :id="`link-title-${index}`" v-model="link.title" placeholder="开源地址" />
+                      </div>
+                      <Button variant="outline" @click="removeLink(index)">删除链接</Button>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label :for="`link-url-${index}`">URL</Label>
+                      <Input :id="`link-url-${index}`" v-model="link.url" placeholder="https://github.com/xxx/yyy" />
+                    </div>
+                  </div>
+                  <Button variant="default" class="font-semibold" @click="addLink">+ 添加链接</Button>
+                </CardContent>
+              </Card>
+
+              <Card class="border-border/70 shadow-none">
+                <CardHeader class="pb-3">
                   <CardTitle class="text-base">下载资源</CardTitle>
                 </CardHeader>
                 <CardContent class="space-y-3 pt-0">
@@ -513,6 +551,40 @@
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" @click="showOutOfWorkspaceFileDialog = false">我知道了</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog :open="showLinkIconPicker" @update:open="showLinkIconPicker = $event">
+        <DialogContent class="w-[95vw] !max-w-[900px]">
+          <DialogHeader>
+            <DialogTitle>搜索 phosphor 图标</DialogTitle>
+            <DialogDescription>选择后会自动填入 links.icon 的图标名。</DialogDescription>
+          </DialogHeader>
+          <div class="space-y-3">
+            <Input v-model="linkIconQuery" placeholder="输入关键词，例如 github / house / chat / code" />
+            <div class="max-h-[60vh] overflow-y-auto rounded-lg border border-border bg-muted/20 p-3">
+              <div class="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-2">
+                <button
+                  v-for="name in filteredPhosphorIconNames"
+                  :key="`icon-${name}`"
+                  type="button"
+                  class="rounded-md border border-border bg-background px-2.5 py-2 text-left text-xs text-foreground transition hover:bg-accent"
+                  @click="selectLinkIcon(name)"
+                >
+                  {{ name }}
+                </button>
+              </div>
+              <div
+                v-if="filteredPhosphorIconNames.length === 0"
+                class="rounded-md border border-dashed border-border px-3 py-8 text-center text-xs text-muted-foreground"
+              >
+                没有匹配结果
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="showLinkIconPicker = false">取消</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -779,9 +851,13 @@ const downloads = ref<Record<string, { version: string; file_name: string }>>({}
 const authors = ref<Array<{ name: string; bindABAccount: boolean }>>([
   { name: '', bindABAccount: true }
 ])
+const links = ref<Array<{ icon: string; title: string; url: string }>>([])
 const showDeviceSelector = ref(false)
 const showResourceIdGuide = ref(false)
 const showOutOfWorkspaceFileDialog = ref(false)
+const showLinkIconPicker = ref(false)
+const linkIconPickerIndex = ref<number | null>(null)
+const linkIconQuery = ref('')
 const iconPath = ref('')
 const coverPath = ref('')
 const previewItems = ref<Array<{ id: string; path: string }>>([])
@@ -922,6 +998,30 @@ const canSubmitPr = computed(
     )
 )
 
+const phosphorIconNames = [
+  'github-logo', 'git-branch', 'git-pull-request', 'git-commit', 'code', 'code-block',
+  'terminal', 'folder', 'folder-open', 'file', 'files', 'house', 'globe', 'link',
+  'link-simple', 'arrow-square-out', 'share-network', 'download', 'upload', 'cloud',
+  'cloud-arrow-up', 'cloud-arrow-down', 'chat-circle', 'chat-text', 'chats-circle',
+  'paper-plane-tilt', 'envelope', 'phone', 'device-mobile', 'monitor', 'desktop',
+  'book', 'book-open', 'newspaper', 'article', 'notebook', 'list', 'list-bullets',
+  'list-checks', 'check-circle', 'warning-circle', 'info', 'question', 'lightbulb',
+  'star', 'heart', 'bookmark', 'medal', 'trophy', 'rocket', 'planet', 'sparkle',
+  'camera', 'image', 'images', 'play-circle', 'pause-circle', 'music-note', 'headphones',
+  'film-strip', 'television', 'game-controller', 'app-window', 'grid-four', 'squares-four',
+  'wrench', 'gear', 'sliders-horizontal', 'bug', 'shield-check', 'lock', 'key',
+  'currency-circle-dollar', 'credit-card', 'shopping-cart', 'package', 'cube',
+  'chart-bar', 'chart-line', 'trend-up', 'calendar', 'clock', 'timer', 'map-pin',
+  'map-trifold', 'compass', 'users', 'user-circle', 'identification-card', 'at',
+  'telegram-logo', 'twitter-logo', 'youtube-logo', 'bilibili-logo', 'qq-logo'
+] as const
+
+const filteredPhosphorIconNames = computed(() => {
+  const keyword = linkIconQuery.value.trim().toLowerCase()
+  if (!keyword) return [...phosphorIconNames]
+  return phosphorIconNames.filter(name => name.includes(keyword))
+})
+
 const stepList = computed(() => [
   {
     label: '创建文件夹',
@@ -982,6 +1082,31 @@ const addAuthor = (): void => {
 
 const removeAuthor = (index: number): void => {
   authors.value.splice(index, 1)
+}
+
+const addLink = (): void => {
+  links.value.push({
+    icon: '',
+    title: '',
+    url: ''
+  })
+}
+
+const removeLink = (index: number): void => {
+  links.value.splice(index, 1)
+}
+
+const openLinkIconPicker = (index: number): void => {
+  linkIconPickerIndex.value = index
+  linkIconQuery.value = links.value[index]?.icon || ''
+  showLinkIconPicker.value = true
+}
+
+const selectLinkIcon = (iconName: string): void => {
+  const index = linkIconPickerIndex.value
+  if (index === null || !links.value[index]) return
+  links.value[index].icon = iconName
+  showLinkIconPicker.value = false
 }
 
 const addTag = (): void => {
@@ -1379,6 +1504,7 @@ const resetResourceInfoFields = (): void => {
   selectedDeviceIds.value = []
   downloads.value = {}
   authors.value = [{ name: '', bindABAccount: true }]
+  links.value = []
 }
 
 const scanWorkspace = async (options: { forceSync?: boolean } = {}): Promise<void> => {
@@ -1405,6 +1531,7 @@ const scanWorkspace = async (options: { forceSync?: boolean } = {}): Promise<voi
             cover?: string
             author?: Array<{ name?: string; bindABAccount?: boolean }>
           }
+          links?: Array<{ icon?: string; title?: string; url?: string }>
           downloads?: Record<string, { version?: string; file_name?: string }>
         }
         if (forceSync) {
@@ -1433,6 +1560,14 @@ const scanWorkspace = async (options: { forceSync?: boolean } = {}): Promise<voi
           authors.value = parsed.item.author.map(author => ({
             name: author.name || '',
             bindABAccount: Boolean(author.bindABAccount)
+          }))
+        }
+
+        if (forceSync || links.value.length === 0) {
+          links.value = (parsed.links || []).map(link => ({
+            icon: link.icon || '',
+            title: link.title || '',
+            url: link.url || ''
           }))
         }
 
@@ -1524,6 +1659,14 @@ const buildManifestV2Text = (): string => {
     .map(item => item.path.trim())
     .filter(Boolean)
 
+  const normalizedLinks = links.value
+    .map(link => ({
+      icon: link.icon.trim(),
+      title: link.title.trim(),
+      url: link.url.trim()
+    }))
+    .filter(link => link.title || link.url || link.icon)
+
   const manifestObject = {
     item: {
       id: itemId.value.trim(),
@@ -1535,7 +1678,7 @@ const buildManifestV2Text = (): string => {
       cover: coverPath.value.trim(),
       author: normalizedAuthors
     },
-    links: [],
+    links: normalizedLinks,
     downloads: normalizedDownloads,
     ext: {}
   }
@@ -1672,7 +1815,7 @@ const handleCreateCatalogPr = async (): Promise<void> => {
         restype: restype.value.trim(),
         repo_owner: uploadedRepoOwner.value,
         repo_name: uploadedRepoName.value,
-        repo_commit_hash: uploadedCommitSha.value,
+        repo_commit_hash: uploadedCommitSha.value.slice(0, 7),
         icon: iconPath.value.trim(),
         cover: coverPath.value.trim(),
         tags: normalizedTagsText.value,
