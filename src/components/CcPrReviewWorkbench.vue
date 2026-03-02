@@ -393,6 +393,21 @@
             </DialogContent>
           </Dialog>
 
+          <Dialog :open="deleteCommentDialogOpen" @update:open="deleteCommentDialogOpen = $event">
+            <DialogContent class="max-w-[420px]">
+              <DialogHeader>
+                <DialogTitle>确认删除评论</DialogTitle>
+                <DialogDescription>
+                  确认删除评论 #{{ deleteCommentTarget?.id || '-' }}？删除后不可恢复。
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" @click="deleteCommentDialogOpen = false">取消</Button>
+                <Button variant="destructive" @click="confirmDeleteComment">删除</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Card>
             <CardHeader class="pb-3">
               <CardTitle class="text-base">资源提交信息</CardTitle>
@@ -853,6 +868,8 @@ const commentResultDialogMessage = ref('')
 const pendingCreatedComments = new Map<number, IssueCommentItem>()
 const replyTargetComment = ref<IssueCommentItem | null>(null)
 const editingCommentTarget = ref<IssueCommentItem | null>(null)
+const deleteCommentDialogOpen = ref(false)
+const deleteCommentTarget = ref<IssueCommentItem | null>(null)
 
 const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && resolvedToken.value))
 const sidebarClass = computed(() => [
@@ -1195,13 +1212,13 @@ const escapeHtml = (value: string): string => value
 const buildCommentPreviewCardHtml = (body: string): string => {
   const parsed = parseReviewCommentBody(body)
   const tag = parsed.tagId
-    ? `<div class="mb-2 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">${escapeHtml(parsed.tagType || 'COMMENT')} · ${escapeHtml(parsed.tagId)}</div>`
+    ? `<span class="mr-1 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">${escapeHtml(parsed.tagType || 'COMMENT')} · ${escapeHtml(parsed.tagId)}</span>`
     : ''
   const reply = parsed.replyTarget
     ? `<div class="mb-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground"><div class="font-medium text-foreground">回复 ${escapeHtml(parsed.replyTarget)}</div>${parsed.replyExcerpt ? `<div class="mt-1">${renderCommentMarkdownHtml(parsed.replyExcerpt)}</div>` : ''}</div>`
     : ''
-  const content = `<div class="pt-1 break-words text-foreground">${renderCommentMarkdownHtml(parsed.content)}</div>`
-  return `${tag}${reply}${content}`
+  const content = `<div class="pt-1 break-words text-foreground">${tag}<span>${renderCommentMarkdownHtml(parsed.content)}</span></div>`
+  return `${reply}${content}`
 }
 
 const openCommentResultDialog = (title: string, message: string): void => {
@@ -2495,15 +2512,22 @@ const onEditComment = (comment: IssueCommentItem): void => {
 }
 
 const onDeleteComment = async (comment: IssueCommentItem): Promise<void> => {
-  if (!selectedPr.value) return
-  const confirmed = window.confirm(`确认删除评论 #${comment.id} 吗？`)
-  if (!confirmed) return
+  deleteCommentTarget.value = comment
+  deleteCommentDialogOpen.value = true
+}
+
+const confirmDeleteComment = async (): Promise<void> => {
+  if (!selectedPr.value || !deleteCommentTarget.value) return
+  const target = deleteCommentTarget.value
   try {
-    await githubDelete(`/repos/${props.owner}/${props.repo}/issues/comments/${comment.id}`)
-    if (editingCommentTarget.value?.id === comment.id) clearEditingComment()
-    if (replyTargetComment.value?.id === comment.id) clearReplyTarget()
+    await githubDelete(`/repos/${props.owner}/${props.repo}/issues/comments/${target.id}`)
+    if (editingCommentTarget.value?.id === target.id) clearEditingComment()
+    if (replyTargetComment.value?.id === target.id) clearReplyTarget()
+    deleteCommentDialogOpen.value = false
+    deleteCommentTarget.value = null
+    prComments.value = prComments.value.filter(item => item.id !== target.id)
     await refreshPrCommentsAndStatus(selectedPr.value)
-    openCommentResultDialog('删除成功', `评论 #${comment.id} 已删除。`)
+    openCommentResultDialog('删除成功', `评论 #${target.id} 已删除。`)
   } catch (error: unknown) {
     openCommentResultDialog('删除失败', error instanceof Error ? error.message : '评论删除失败')
   }

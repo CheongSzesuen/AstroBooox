@@ -29,44 +29,62 @@
             <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
             <span class="shrink-0">{{ formatCommentRelativeTime(comment.created_at || '') }}</span>
           </span>
-          <div class="inline-flex items-center gap-3">
-            <button
-              v-if="showReplyAction"
-              type="button"
-              class="text-primary hover:underline"
-              @click="emit('reply', comment)"
-            >
-              回复
-            </button>
-            <button
-              v-if="showEditAction"
-              type="button"
-              class="text-primary hover:underline"
-              @click="emit('edit', comment)"
-            >
-              编辑
-            </button>
-            <button
-              v-if="showDeleteAction"
-              type="button"
-              class="text-destructive hover:underline"
-              @click="emit('delete', comment)"
-            >
-              删除
-            </button>
-            <a
-              v-if="showOpenLink && comment.html_url"
-              :href="comment.html_url"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-primary hover:underline"
-            >
-              打开评论
-            </a>
-          </div>
-        </div>
-        <div v-if="parsedOf(comment).tagId" class="mb-2 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">
-          {{ parsedOf(comment).tagType || 'COMMENT' }} · {{ parsedOf(comment).tagId }}
+          <DropdownMenuRoot>
+            <DropdownMenuTrigger as-child>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded border border-border bg-background px-2 py-1 text-xs text-foreground hover:bg-accent"
+              >
+                <DetailIcon :size="12" />
+                详情
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuContent
+                side="bottom"
+                align="end"
+                :side-offset="6"
+                class="z-50 min-w-[150px] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
+              >
+                <DropdownMenuItem
+                  v-if="showReplyAction"
+                  class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
+                  @select="emit('reply', comment)"
+                >
+                  <ReplyIcon :size="14" />
+                  回复
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  v-if="showEditAction"
+                  class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
+                  @select="emit('edit', comment)"
+                >
+                  <EditIcon :size="14" />
+                  编辑
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  v-if="showDeleteAction"
+                  class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-destructive outline-none hover:bg-accent"
+                  @select="emit('delete', comment)"
+                >
+                  <DeleteIcon :size="14" />
+                  删除
+                </DropdownMenuItem>
+                <DropdownMenuSeparator
+                  v-if="showOpenLink && comment.html_url"
+                  class="my-1 h-px bg-border"
+                />
+                <DropdownMenuItem
+                  v-if="showOpenLink && comment.html_url"
+                  class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
+                  @select="openCommentLink(comment.html_url)"
+                >
+                  <OpenIcon :size="14" />
+                  打开评论
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenuPortal>
+          </DropdownMenuRoot>
         </div>
         <div
           v-if="parsedOf(comment).replyTarget"
@@ -85,8 +103,15 @@
         <div
           class="pt-1 break-words text-foreground"
           :class="isCollapsed(comment) ? 'max-h-36 overflow-hidden' : ''"
-          v-html="renderCommentHtml(parsedOf(comment).content)"
-        ></div>
+        >
+          <span
+            v-if="parsedOf(comment).tagId"
+            class="mr-1 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground"
+          >
+            {{ parsedOf(comment).tagType || 'COMMENT' }} · {{ parsedOf(comment).tagId }}
+          </span>
+          <span v-html="renderCommentHtml(parsedOf(comment).content)"></span>
+        </div>
         <button
           v-if="isLongContent(comment)"
           type="button"
@@ -106,6 +131,21 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import {
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuRoot,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from 'reka-ui'
+import {
+  PhArrowSquareOut as OpenIcon,
+  PhDotsThreeVertical as DetailIcon,
+  PhPencilSimple as EditIcon,
+  PhTrash as DeleteIcon,
+  PhArrowBendUpLeft as ReplyIcon
+} from '@phosphor-icons/vue'
 import { parseReviewCommentBody, renderCommentMarkdownHtml, type ParsedReviewComment } from '@/utils/reviewComment'
 
 interface ReviewCommentUser {
@@ -149,6 +189,11 @@ const emit = defineEmits<{
   edit: [comment: ReviewCommentItem]
   delete: [comment: ReviewCommentItem]
 }>()
+
+const openCommentLink = (url?: string): void => {
+  if (!url) return
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
 
 const avatarClass = computed(() => [
   'relative z-10 h-8 w-8 shrink-0 bg-background object-cover',

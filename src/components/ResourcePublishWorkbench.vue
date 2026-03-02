@@ -1015,6 +1015,21 @@
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <Dialog :open="reviewDeleteCommentDialogOpen" @update:open="reviewDeleteCommentDialogOpen = $event">
+      <DialogContent class="max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>确认删除评论</DialogTitle>
+          <DialogDescription>
+            确认删除评论 #{{ reviewDeleteCommentTarget?.id || '-' }}？删除后不可恢复。
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="reviewDeleteCommentDialogOpen = false">取消</Button>
+          <Button variant="destructive" @click="confirmReviewDeleteComment">删除</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -1241,6 +1256,12 @@ const reviewCommentSubmitting = ref(false)
 const reviewCommentResultDialogOpen = ref(false)
 const reviewCommentResultDialogTitle = ref('')
 const reviewCommentResultDialogMessage = ref('')
+const reviewDeleteCommentDialogOpen = ref(false)
+const reviewDeleteCommentTarget = ref<{
+  id: number
+  body?: string
+  user?: { login?: string }
+} | null>(null)
 const reviewEditingCommentTarget = ref<{
   id: number
   body?: string
@@ -1317,13 +1338,13 @@ const stripReleaseFolderSuffix = (raw: string): string =>
 const buildReviewCommentPreviewCardHtml = (body: string): string => {
   const parsed = parseReviewCommentBody(body)
   const tag = parsed.tagId
-    ? `<div class="mb-2 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">${escapeHtml(parsed.tagType || 'COMMENT')} · ${escapeHtml(parsed.tagId)}</div>`
+    ? `<span class="mr-1 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">${escapeHtml(parsed.tagType || 'COMMENT')} · ${escapeHtml(parsed.tagId)}</span>`
     : ''
   const reply = parsed.replyTarget
     ? `<div class="mb-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground"><div class="font-medium text-foreground">回复 ${escapeHtml(parsed.replyTarget)}</div>${parsed.replyExcerpt ? `<div class="mt-1">${renderCommentMarkdownHtml(parsed.replyExcerpt)}</div>` : ''}</div>`
     : ''
-  const content = `<div class="pt-1 break-words text-foreground">${renderCommentMarkdownHtml(parsed.content)}</div>`
-  return `${tag}${reply}${content}`
+  const content = `<div class="pt-1 break-words text-foreground">${tag}<span>${renderCommentMarkdownHtml(parsed.content)}</span></div>`
+  return `${reply}${content}`
 }
 
 const workspaceFolderPrefixInput = computed({
@@ -2988,20 +3009,27 @@ const onReviewDeleteComment = async (comment: {
   body?: string
   user?: { login?: string }
 }): Promise<void> => {
-  if (!selectedReviewItem.value) return
-  const confirmed = window.confirm(`确认删除评论 #${comment.id} 吗？`)
-  if (!confirmed) return
+  reviewDeleteCommentTarget.value = comment
+  reviewDeleteCommentDialogOpen.value = true
+}
+
+const confirmReviewDeleteComment = async (): Promise<void> => {
+  if (!selectedReviewItem.value || !reviewDeleteCommentTarget.value) return
+  const target = reviewDeleteCommentTarget.value
   try {
     await deletePullRequestIssueComment({
       token: requireToken(),
       owner: upstreamOwner.value.trim(),
       repo: upstreamRepo.value.trim(),
-      commentId: comment.id
+      commentId: target.id
     })
-    if (reviewEditingCommentTarget.value?.id === comment.id) clearReviewEditingTarget()
-    if (reviewReplyTargetComment.value?.id === comment.id) clearReviewReplyTarget()
+    if (reviewEditingCommentTarget.value?.id === target.id) clearReviewEditingTarget()
+    if (reviewReplyTargetComment.value?.id === target.id) clearReviewReplyTarget()
+    reviewDeleteCommentDialogOpen.value = false
+    reviewDeleteCommentTarget.value = null
+    selectedReviewComments.value = selectedReviewComments.value.filter(item => item.id !== target.id)
     await loadReviewComments(selectedReviewItem.value.prNumber)
-    openReviewCommentResultDialog('删除成功', `评论 #${comment.id} 已删除。`)
+    openReviewCommentResultDialog('删除成功', `评论 #${target.id} 已删除。`)
   } catch (error: unknown) {
     openReviewCommentResultDialog('删除失败', error instanceof Error ? error.message : '评论删除失败')
   }
@@ -3070,6 +3098,8 @@ const closeReviewDetail = (): void => {
   reviewCommentEditorTab.value = 'edit'
   clearReviewEditingTarget()
   clearReviewReplyTarget()
+  reviewDeleteCommentDialogOpen.value = false
+  reviewDeleteCommentTarget.value = null
 }
 
 const loadOwnedList = async (): Promise<void> => {
