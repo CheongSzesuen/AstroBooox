@@ -183,37 +183,17 @@
                   <div class="grid gap-3 md:grid-cols-2">
                     <div class="space-y-1.5">
                       <Label for="icon-path">icon 文件</Label>
-                      <Select v-model="iconPath">
-                        <SelectTrigger id="icon-path">
-                          <SelectValue placeholder="从工作区选择 icon 文件" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem
-                            v-for="path in workspaceFileOptions"
-                            :key="`icon-${path}`"
-                            :value="path"
-                          >
-                            {{ path }}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div class="flex gap-2 max-sm:flex-col">
+                        <Input id="icon-path" v-model="iconPath" readonly placeholder="点击右侧按钮从工作区选择文件" />
+                        <Button variant="outline" @click="selectIconFile">选择文件</Button>
+                      </div>
                     </div>
                     <div class="space-y-1.5">
                       <Label for="cover-path">cover 文件</Label>
-                      <Select v-model="coverPath">
-                        <SelectTrigger id="cover-path">
-                          <SelectValue placeholder="从工作区选择 cover 文件" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem
-                            v-for="path in workspaceFileOptions"
-                            :key="`cover-${path}`"
-                            :value="path"
-                          >
-                            {{ path }}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div class="flex gap-2 max-sm:flex-col">
+                        <Input id="cover-path" v-model="coverPath" readonly placeholder="点击右侧按钮从工作区选择文件" />
+                        <Button variant="outline" @click="selectCoverFile">选择文件</Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -264,9 +244,6 @@
                 <CardContent class="space-y-3 pt-0">
                   <div class="flex flex-wrap items-center gap-2">
                     <Button variant="outline" @click="showDeviceSelector = true">+ 选择支持设备</Button>
-                    <Badge v-for="deviceId in selectedDeviceIds" :key="`selected-${deviceId}`" variant="outline">
-                      {{ getDeviceLabel(deviceId) }}
-                    </Badge>
                     <span v-if="selectedDeviceIds.length === 0" class="text-xs text-muted-foreground">尚未选择设备</span>
                   </div>
 
@@ -286,20 +263,15 @@
                       </div>
                       <div class="space-y-1.5">
                         <Label :for="`download-file-${deviceId}`">文件路径</Label>
-                        <Select v-model="downloads[deviceId].file_name">
-                          <SelectTrigger :id="`download-file-${deviceId}`">
-                            <SelectValue placeholder="选择下载文件" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem
-                              v-for="path in workspaceFileOptions"
-                              :key="`download-file-${deviceId}-${path}`"
-                              :value="path"
-                            >
-                              {{ path }}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div class="flex gap-2 max-sm:flex-col">
+                          <Input
+                            :id="`download-file-${deviceId}`"
+                            v-model="downloads[deviceId].file_name"
+                            readonly
+                            placeholder="点击右侧按钮从工作区选择文件"
+                          />
+                          <Button variant="outline" @click="selectDownloadFile(deviceId)">选择文件</Button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -622,6 +594,7 @@ import {
 
 interface WorkspaceFileHandle {
   kind: 'file'
+  name: string
   getFile(): Promise<File>
 }
 
@@ -635,6 +608,7 @@ interface WorkspaceDirectoryHandle {
       create?: boolean
     }
   ): Promise<WorkspaceDirectoryHandle>
+  resolve?(possibleDescendant: WorkspaceFileHandle): Promise<string[] | null>
   [Symbol.asyncIterator](): AsyncIterableIterator<[string, WorkspaceFileHandle | WorkspaceDirectoryHandle]>
 }
 
@@ -711,7 +685,7 @@ const props = withDefaults(defineProps<{ mode?: WorkbenchMode }>(), {
 const mode = computed<WorkbenchMode>(() => props.mode)
 
 const { token, currentUser } = useCcSession()
-const { workspacePath, workspaceTree, setWorkspace, clearWorkspace } = useCcWorkspace()
+const { workspacePath, setWorkspace, clearWorkspace } = useCcWorkspace()
 const { appendPublishLog: appendLog } = useCcPublishLogs()
 const workspaceBusy = ref(false)
 const newWorkspaceName = ref('')
@@ -789,13 +763,6 @@ const resolvedRepoName = computed(() => {
 
   return slug ? `ab-resource-${slug}` : ''
 })
-
-const workspaceFileOptions = computed(() =>
-  workspaceTree.value
-    .filter(item => item.type === 'file')
-    .map(item => item.path)
-    .sort((a, b) => a.localeCompare(b, 'zh-CN'))
-)
 
 const uploadQueueCount = computed(() => 1 + mediaFiles.value.length + downloadFiles.value.length)
 
@@ -938,6 +905,60 @@ const addTag = (): void => {
 
 const removeTag = (index: number): void => {
   tags.value.splice(index, 1)
+}
+
+const pickFilePathFromWorkspace = async (): Promise<string | null> => {
+  if (!workspaceHandle.value) {
+    appendLog('请先选择工作区文件夹')
+    return null
+  }
+
+  const picker = (window as unknown as { showOpenFilePicker?: Function }).showOpenFilePicker
+  if (typeof picker !== 'function') {
+    appendLog('当前浏览器不支持文件选择器 API')
+    return null
+  }
+
+  try {
+    const handles = (await picker({
+      multiple: false,
+      startIn: workspaceHandle.value
+    })) as WorkspaceFileHandle[]
+
+    const fileHandle = handles?.[0]
+    if (!fileHandle) return null
+
+    if (typeof workspaceHandle.value.resolve === 'function') {
+      const relativeParts = await workspaceHandle.value.resolve(fileHandle)
+      if (relativeParts && relativeParts.length > 0) {
+        return relativeParts.join('/')
+      }
+    }
+
+    return fileHandle.name || null
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') return null
+    appendLog(`选择文件失败: ${error instanceof Error ? error.message : '未知错误'}`)
+    return null
+  }
+}
+
+const selectIconFile = async (): Promise<void> => {
+  const path = await pickFilePathFromWorkspace()
+  if (path) iconPath.value = path
+}
+
+const selectCoverFile = async (): Promise<void> => {
+  const path = await pickFilePathFromWorkspace()
+  if (path) coverPath.value = path
+}
+
+const selectDownloadFile = async (deviceId: string): Promise<void> => {
+  const path = await pickFilePathFromWorkspace()
+  if (path) {
+    ensureDownload(deviceId)
+    downloads.value[deviceId].file_name = path
+  }
 }
 
 watch(
