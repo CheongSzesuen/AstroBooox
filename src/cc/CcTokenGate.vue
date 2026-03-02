@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-h-screen lg:grid lg:grid-cols-[1.18fr_0.82fr]">
+  <div class="dark relative min-h-screen lg:grid lg:grid-cols-[1.18fr_0.82fr]">
     <div class="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex">
       <div class="absolute inset-0 bg-zinc-900" />
       <div class="relative z-20 flex items-center text-lg font-medium">
@@ -21,7 +21,7 @@
       </div>
     </div>
 
-    <div class="flex min-h-screen items-center justify-center p-4 lg:p-8">
+    <div class="flex min-h-screen items-center justify-center bg-zinc-950 p-4 lg:p-8">
       <div class="w-full max-w-md space-y-6">
         <div class="space-y-2 text-center">
           <h2 class="text-2xl font-semibold tracking-tight">Token 登录</h2>
