@@ -890,7 +890,7 @@ const targetOwner = ref('AstralSightStudios')
 const targetRepo = ref('ABRepo-TestEnv')
 const catalogPath = ref('index_v2.csv')
 
-const prTitle = ref('[ABCC] Add new resource')
+const prTitle = ref('')
 const prBody = ref('')
 const latestPrUrl = ref('')
 
@@ -1031,6 +1031,125 @@ const canSubmitPr = computed(
     )
 )
 
+const formatResourceTypeForCatalog = (value: string): string =>
+  value.trim() === 'quickapp' ? 'quick_app' : 'watchface'
+
+const formatResourceTypeForTitle = (value: string): string =>
+  value.trim() === 'quickapp' ? '快应用' : '表盘'
+
+const formatPaidTypeLabel = (value: string): string => {
+  const normalized = value.trim()
+  if (!normalized) return '免费'
+  if (normalized === 'paid') return '应用内付费（paid）'
+  if (normalized === 'force_paid') return '强制付费（force_paid）'
+  return normalized
+}
+
+const encodeUrlPath = (path: string): string =>
+  path
+    .split('/')
+    .filter(Boolean)
+    .map(segment => encodeURIComponent(segment))
+    .join('/')
+
+const getRawUrl = (path: string): string => {
+  const owner = uploadedRepoOwner.value || currentUser.value || ''
+  const repo = uploadedRepoName.value || resolveRepoNameForSubmit()
+  const encodedPath = encodeUrlPath(path)
+  return `https://raw.githubusercontent.com/${owner}/${repo}/${MAIN_BRANCH}/${encodedPath}`
+}
+
+const buildAutoPrTitle = (): string => {
+  const name = itemName.value.trim() || '未命名资源'
+  return `[ABoooxCC]添加 ${name} ${formatResourceTypeForTitle(restype.value)}`
+}
+
+const buildAutoPrBody = (): string => {
+  const normalizedTagText = tags.value
+    .map(tag => tag.trim())
+    .filter(Boolean)
+    .join(' / ') || '无'
+
+  const supportDevices = selectedDeviceIds.value
+    .map(id => `- ${id}（${getDeviceLabel(id)}）`)
+    .join('\n') || '- 无'
+
+  const repoUrl = uploadedRepoUrl.value || `https://github.com/${uploadedRepoOwner.value || currentUser.value || '--'}/${uploadedRepoName.value || resolvedRepoName.value || '--'}`
+  const shortHash = uploadedCommitSha.value ? uploadedCommitSha.value.slice(0, 7) : '--'
+  const iconFile = iconPath.value.trim()
+  const coverFile = coverPath.value.trim()
+
+  const previewSection = previewItems.value.length
+    ? previewItems.value
+        .map(item => `- \`${item.path}\`\n  ${getRawUrl(item.path)}`)
+        .join('\n')
+    : '- 无'
+
+  const downloadsSection = selectedDeviceIds.value.length
+    ? selectedDeviceIds.value
+        .map(deviceId => {
+          const entry = downloads.value[deviceId]
+          if (!entry) return `- \`${deviceId}\`\n  - version: \`--\`\n  - file: \`--\`\n  - raw: --`
+          const filePath = entry.file_name.trim()
+          return [
+            `- \`${deviceId}\``,
+            `  - version: \`${entry.version.trim() || '--'}\``,
+            `  - file: \`${filePath || '--'}\``,
+            `  - raw: ${filePath ? getRawUrl(filePath) : '--'}`
+          ].join('\n')
+        })
+        .join('\n')
+    : '- 无'
+
+  const linksSection = links.value.length
+    ? links.value
+        .filter(link => link.icon.trim() || link.title.trim() || link.url.trim())
+        .map(link => `- ${link.title.trim() || '未命名链接'}（${link.icon.trim() || '无图标'}）：${link.url.trim() || '--'}`)
+        .join('\n') || '- 无'
+    : '- 无'
+
+  return [
+    '## 资源信息',
+    '',
+    `- 资源名称：${itemName.value.trim() || '--'}`,
+    `- 资源 ID：${itemId.value.trim() || '--'}`,
+    `- 资源类型：${formatResourceTypeForTitle(restype.value)}（${formatResourceTypeForCatalog(restype.value)}）`,
+    `- 付费类型：${formatPaidTypeLabel(paidType.value)}`,
+    `- 标签：${normalizedTagText}`,
+    '',
+    '## 支持设备',
+    '',
+    supportDevices,
+    '',
+    '## 仓库信息',
+    '',
+    `- 资源仓库：${repoUrl}`,
+    `- 提交短哈希：\`${shortHash}\``,
+    '',
+    '## 图片资源（Raw）',
+    '',
+    `- Icon：\`${iconFile || '--'}\`  `,
+    iconFile ? getRawUrl(iconFile) : '--',
+    `- Cover：\`${coverFile || '--'}\`  `,
+    coverFile ? getRawUrl(coverFile) : '--',
+    '- Preview：',
+    previewSection,
+    '',
+    '## 下载资源（downloads）',
+    '',
+    downloadsSection,
+    '',
+    '## 链接（manifest_v2.links）',
+    '',
+    linksSection,
+    '',
+    '## 说明',
+    '',
+    '- 已上传 `manifest_v2.json`、图片资源和下载资源。',
+    '- 本 PR 已同步更新 `index_v2.csv`。'
+  ].join('\n')
+}
+
 const phosphorIconOptions = computed<LinkIconOption[]>(() =>
   phosphorCoreIcons.map(icon => ({
     key: icon.name,
@@ -1099,6 +1218,10 @@ const canAccessStep = (index: number): boolean => {
 
 const goToStep = (index: number): void => {
   if (canAccessStep(index)) {
+    if (index === 3) {
+      prTitle.value = buildAutoPrTitle()
+      prBody.value = buildAutoPrBody()
+    }
     activeStep.value = index
     return
   }
@@ -1887,6 +2010,9 @@ const handleCreateCatalogPr = async (): Promise<void> => {
       throw new Error('请先完成资源仓库上传')
     }
 
+    prTitle.value = buildAutoPrTitle()
+    prBody.value = buildAutoPrBody()
+
     const branchName = `astrobooox-submit-${Date.now()}`
     const forkResult = await updateCatalogInForkBranch({
       token: accessToken,
@@ -1899,7 +2025,7 @@ const handleCreateCatalogPr = async (): Promise<void> => {
       entry: {
         id: itemId.value.trim(),
         name: itemName.value.trim(),
-        restype: restype.value.trim() === 'quickapp' ? 'quick_app' : 'watchface',
+        restype: formatResourceTypeForCatalog(restype.value),
         repo_owner: uploadedRepoOwner.value,
         repo_name: uploadedRepoName.value,
         repo_commit_hash: uploadedCommitSha.value.slice(0, 7),
