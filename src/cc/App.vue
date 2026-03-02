@@ -42,29 +42,58 @@
         </div>
 
         <div class="ml-auto flex items-center gap-2">
-          <a
-            v-if="currentUser"
-            :href="`https://github.com/${currentUser}`"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
-            :title="`打开 ${currentUser} 的 GitHub 页面`"
-          >
-            <img
-              v-if="avatarUrl"
-              :src="avatarUrl"
-              alt="User Avatar"
-              class="h-6 w-6 rounded-full border border-border object-cover"
-            />
-            <UserCircle v-else :size="18" weight="duotone" class="text-muted-foreground" />
-            <span class="hidden sm:inline">{{ currentUser }}</span>
-          </a>
-          <div
-            v-else
-            class="inline-flex items-center gap-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-xs text-muted-foreground"
-          >
-            <UserCircle :size="18" weight="duotone" />
-            <span class="hidden sm:inline">未校验 Token</span>
+          <div ref="userMenuRoot" class="relative">
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
+              :class="{ 'bg-accent': showUserMenu }"
+              :title="currentUser ? `当前用户：${currentUser}` : '未校验 Token'"
+              @click="toggleUserMenu"
+            >
+              <img
+                v-if="avatarUrl"
+                :src="avatarUrl"
+                alt="User Avatar"
+                class="h-6 w-6 rounded-full border border-border object-cover"
+              />
+              <UserCircle v-else :size="18" weight="duotone" class="text-muted-foreground" />
+              <span class="hidden sm:inline">{{ currentUser || '未校验 Token' }}</span>
+              <CaretDown :size="14" weight="bold" class="text-muted-foreground" />
+            </button>
+
+            <div
+              v-if="showUserMenu && currentUser"
+              class="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[190px] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
+            >
+              <a
+                :href="profileUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+                @click="closeUserMenu"
+              >
+                <UserCircle :size="16" weight="duotone" />
+                Profile
+              </a>
+              <a
+                :href="repositoriesUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+                @click="closeUserMenu"
+              >
+                <Folders :size="16" weight="duotone" />
+                Repositories
+              </a>
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                @click="handleSignOut"
+              >
+                <SignOut :size="16" weight="duotone" />
+                退出
+              </button>
+            </div>
           </div>
 
           <Button
@@ -78,10 +107,6 @@
             <Sun v-else :size="16" weight="duotone" />
           </Button>
 
-          <Button variant="outline" size="sm" class="h-8 px-2" @click="handleSignOut">
-            <SignOut :size="15" weight="duotone" />
-            <span class="hidden sm:inline">退出</span>
-          </Button>
         </div>
       </div>
     </header>
@@ -95,10 +120,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   PhArchiveBox as ArchiveBox,
+  PhCaretDown as CaretDown,
   PhClockCounterClockwise as ClockCounterClockwise,
+  PhFolders as Folders,
   PhMoon as Moon,
   PhSignOut as SignOut,
   PhSun as Sun,
@@ -116,12 +143,61 @@ const tab = ref<'publish' | 'review' | 'published'>('publish')
 const { currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
 const { clearWorkspace, clearRemoteWorkspace } = useCcWorkspace()
 const { theme, toggleTheme } = useTheme()
+const showUserMenu = ref(false)
+const userMenuRoot = ref<HTMLElement | null>(null)
+
+const profileUrl = computed(() =>
+  currentUser.value ? `https://github.com/${currentUser.value}` : 'https://github.com'
+)
+const repositoriesUrl = computed(() =>
+  currentUser.value
+    ? `https://github.com/${currentUser.value}?tab=repositories`
+    : 'https://github.com'
+)
+
+const closeUserMenu = (): void => {
+  showUserMenu.value = false
+}
+
+const toggleUserMenu = (): void => {
+  if (!currentUser.value) return
+  showUserMenu.value = !showUserMenu.value
+}
+
+const handleGlobalPointerDown = (event: MouseEvent): void => {
+  if (!showUserMenu.value) return
+  const root = userMenuRoot.value
+  if (!root) return
+  if (event.target instanceof Node && !root.contains(event.target)) {
+    closeUserMenu()
+  }
+}
+
+const handleEscapeKey = (event: KeyboardEvent): void => {
+  if (event.key === 'Escape') {
+    closeUserMenu()
+  }
+}
 
 const handleAuthenticated = (): void => {
   tab.value = 'publish'
 }
 
 const handleSignOut = (): void => {
+  closeUserMenu()
+  clearWorkspace()
+  clearRemoteWorkspace()
   clearSession()
+  tab.value = 'publish'
 }
+
+onMounted(() => {
+  document.addEventListener('mousedown', handleGlobalPointerDown)
+  document.addEventListener('keydown', handleEscapeKey)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', handleGlobalPointerDown)
+  document.removeEventListener('keydown', handleEscapeKey)
+})
 </script>
