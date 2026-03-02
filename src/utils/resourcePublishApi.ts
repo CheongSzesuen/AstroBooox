@@ -263,6 +263,27 @@ export const fetchRepoFileOrNull = async (
   }
 }
 
+export const repoPathExists = async (params: {
+  token: string
+  owner: string
+  repo: string
+  path: string
+  ref: string
+}): Promise<boolean> => {
+  const { token, owner, repo, path, ref } = params
+  const response = await fetch(
+    `${API_BASE}/repos/${owner}/${repo}/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`,
+    {
+      headers: buildHeaders(token)
+    }
+  )
+  if (response.status === 404) return false
+  if (!response.ok) {
+    await parseError(response)
+  }
+  return true
+}
+
 export const putRepoFile = async (params: {
   token: string
   owner: string

@@ -798,6 +798,7 @@ import {
   loadInProgressResources,
   loadOwnedResources,
   putRepoFile,
+  repoPathExists,
   textToBase64,
   updateCatalogInForkBranch,
   updateLegacyCatalogAndResourceJsonInForkBranch
@@ -2049,6 +2050,33 @@ const buildLegacyResourceJsonFileName = (): string => {
   return `${base || 'resource'}.json`
 }
 
+const resolveLegacyAuthorFolder = async (accessToken: string): Promise<string> => {
+  const fallback = uploadedRepoOwner.value
+  const candidates = [...new Set(authors.value.map(author => author.name.trim()).filter(Boolean))]
+  if (!candidates.length) return fallback
+
+  for (const candidate of candidates) {
+    try {
+      const exists = await repoPathExists({
+        token: accessToken,
+        owner: upstreamOwner.value.trim(),
+        repo: upstreamRepo.value.trim(),
+        path: `${LEGACY_RESOURCES_DIR}/${candidate}`,
+        ref: MAIN_BRANCH
+      })
+      if (exists) {
+        appendLog(`已复用 v1 作者目录: ${candidate}`)
+        return candidate
+      }
+    } catch (error: unknown) {
+      appendLog(`检查 v1 作者目录失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      break
+    }
+  }
+
+  return fallback
+}
+
 const resolveRepoNameForSubmit = (): string => {
   const name = resolvedRepoName.value.trim()
   if (!name) {
@@ -2218,6 +2246,7 @@ const handleCreateCatalogPr = async (): Promise<void> => {
 
     if (submitMode.value === 'v1' || submitMode.value === 'both') {
       const legacyFileName = buildLegacyResourceJsonFileName()
+      const legacyAuthorFolder = await resolveLegacyAuthorFolder(accessToken)
       const legacyEntry: LegacyCatalogEntry = {
         name: itemName.value.trim(),
         icon: getRawUrl(iconPath.value.trim()),
@@ -2225,7 +2254,7 @@ const handleCreateCatalogPr = async (): Promise<void> => {
         restype: formatResourceTypeForLegacy(restype.value),
         tags: normalizedTagsText.value,
         devices: normalizedLegacyDevicesText.value,
-        path: `${uploadedRepoOwner.value}/${legacyFileName}`,
+        path: `${legacyAuthorFolder}/${legacyFileName}`,
         paid_type: paidType.value.trim()
       }
       const legacyManifestRef = JSON.stringify(
@@ -2244,7 +2273,7 @@ const handleCreateCatalogPr = async (): Promise<void> => {
         currentUser: username,
         branchName,
         catalogPath: LEGACY_CATALOG_PATH,
-        resourceJsonPath: `${LEGACY_RESOURCES_DIR}/${uploadedRepoOwner.value}/${legacyFileName}`,
+        resourceJsonPath: `${LEGACY_RESOURCES_DIR}/${legacyAuthorFolder}/${legacyFileName}`,
         legacyEntry,
         resourceManifestJson: legacyManifestRef
       })
