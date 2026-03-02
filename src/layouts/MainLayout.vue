@@ -2,7 +2,7 @@
   <div class="flex min-h-screen flex-col">
     <NavBar :mode="mode" @update:mode="setMode" />
 
-    <Dialog :open="showPhonePrompt">
+    <Dialog :open="showPhonePrompt" :modal="false">
       <DialogContent class="sm:max-w-[560px]">
         <DialogHeader class="gap-3">
           <div class="flex items-start gap-3">
@@ -18,7 +18,7 @@
       </DialogContent>
     </Dialog>
 
-    <Dialog :open="showUnsupportedPrompt">
+    <Dialog :open="showUnsupportedPrompt" :modal="false">
       <DialogContent class="sm:max-w-[560px]">
         <DialogHeader class="gap-3">
           <div class="flex items-start gap-3">
@@ -40,7 +40,7 @@
       </DialogContent>
     </Dialog>
 
-    <Dialog :open="showDirectoryPrompt">
+    <Dialog :open="showDirectoryPrompt" :modal="false">
       <DialogContent class="sm:max-w-[560px]">
         <DialogHeader class="gap-3">
           <div class="flex items-start gap-3">
