@@ -131,10 +131,10 @@
     <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
       <section class="min-w-0 flex justify-center">
         <ResourcePublishWorkbench v-if="tab !== 'settings' && tab !== 'audit'" :mode="workbenchMode" />
-        <FuckCodeReview
+        <CcPrAuditPanel
           v-else-if="tab === 'audit'"
-          :repo-owner="defaultTargetOwner"
-          :repo-name="defaultTargetRepo"
+          :owner="defaultTargetOwner"
+          :repo="defaultTargetRepo"
           :token="token"
         />
         <Card v-else class="w-full max-w-[920px]">
@@ -181,7 +181,7 @@ import {
   PhUserCircle as UserCircle
 } from '@phosphor-icons/vue'
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
-import FuckCodeReview from '@/components/FuckCodeReview.vue'
+import CcPrAuditPanel from '@/components/CcPrAuditPanel.vue'
 import { Button } from '@/components/ui/button'
 import {
   Card,
