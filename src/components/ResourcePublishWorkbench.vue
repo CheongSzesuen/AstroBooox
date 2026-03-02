@@ -459,7 +459,7 @@
             <div
               v-for="entry in deviceSelectorEntries"
               :key="`device-option-${entry.key}`"
-              class="cursor-pointer rounded-lg border p-3 transition-colors"
+              class="h-full min-h-[92px] cursor-pointer rounded-lg border p-3 transition-colors"
               :class="
                 isDeviceSelected(entry.id)
                   ? 'border-primary/50 bg-primary/10'

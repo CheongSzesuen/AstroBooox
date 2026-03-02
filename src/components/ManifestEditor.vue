@@ -237,7 +237,7 @@
               v-for="device in supportedDevices"
               :key="device.codename + device.name"
               :class="[
-                'cursor-pointer rounded-lg border p-4 transition-colors',
+                'h-full min-h-[96px] cursor-pointer rounded-lg border p-4 transition-colors',
                 isDeviceSelected(device) ? 'border-ring bg-muted' : 'border-border bg-background hover:bg-accent'
               ]"
               @click="toggleDeviceSelection(device)"
