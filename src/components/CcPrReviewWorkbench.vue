@@ -781,6 +781,9 @@ const props = withDefaults(defineProps<{
   token: ''
 })
 
+const SITE_DEFAULT_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim() ?? ''
+const resolvedToken = computed(() => props.token.trim() || SITE_DEFAULT_TOKEN)
+
 const loading = ref(false)
 const errorMessage = ref('')
 const pullRequests = ref<PullListItem[]>([])
@@ -819,7 +822,7 @@ const commentResultDialogOpen = ref(false)
 const commentResultDialogTitle = ref('')
 const commentResultDialogMessage = ref('')
 
-const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && props.token.trim()))
+const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && resolvedToken.value))
 const sidebarClass = computed(() => [
   'flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-300 lg:sticky lg:top-0',
   isSidebarCollapsed.value
@@ -1281,7 +1284,7 @@ const ensureImageDisplayUrl = async (url: string): Promise<void> => {
   if (!url || imageBlobUrlMap.value[url] || loadingImageSet.has(url)) return
   const parsed = parseRawGithubUrl(url)
   if (!parsed) return
-  if (!props.token.trim()) return
+  if (!resolvedToken.value) return
   loadingImageSet.add(url)
   try {
     const encodedPath = parsed.path.split('/').map(segment => encodeURIComponent(segment)).join('/')
@@ -1897,7 +1900,7 @@ const ruleChecks = computed<RuleCheckItem[]>(() => {
 
 async function githubGet<T>(path: string): Promise<T> {
   try {
-    const { rest } = createGitHubClient(props.token.trim())
+    const { rest } = createGitHubClient(resolvedToken.value)
     const response = await rest.request(`GET ${path}`)
     return response.data as T
   } catch (error: unknown) {
@@ -1908,7 +1911,7 @@ async function githubGet<T>(path: string): Promise<T> {
 
 async function githubPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
   try {
-    const { rest } = createGitHubClient(props.token.trim())
+    const { rest } = createGitHubClient(resolvedToken.value)
     const response = await rest.request(`POST ${path}`, { data: body })
     return response.data as T
   } catch (error: unknown) {
@@ -1983,7 +1986,7 @@ const loadPullRequests = async (): Promise<void> => {
   loading.value = true
   errorMessage.value = ''
   try {
-    if (!canLoad.value) throw new Error('请先登录并配置目标仓库')
+    if (!canLoad.value) throw new Error('请先配置目标仓库与 GitHub Token（支持 .env.local 的 VITE_GITHUB_TOKEN）')
 
     const pulls = await githubGet<Array<{
       number: number

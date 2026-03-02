@@ -132,8 +132,10 @@ const props = withDefaults(defineProps<{
   token: ''
 })
 
-const githubTokenSetupHint = '当前会话未检测到 GitHub Token，请先返回 Creator Console 登录。'
-const hasGithubToken = computed(() => Boolean(props.token.trim()))
+const SITE_DEFAULT_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim() ?? ''
+const githubTokenSetupHint = '当前未检测到 GitHub Token，请配置 .env.local 的 VITE_GITHUB_TOKEN 或在会话中提供 token。'
+const resolvedToken = computed(() => props.token.trim() || SITE_DEFAULT_TOKEN)
+const hasGithubToken = computed(() => Boolean(resolvedToken.value))
 
 interface GitHubResponse<T> {
   data: T
@@ -143,8 +145,7 @@ async function githubGet<T = any>(
   pathOrUrl: string,
   options?: { params?: Record<string, unknown>; headers?: Record<string, string> }
 ): Promise<GitHubResponse<T>> {
-  const token = props.token.trim()
-  const { rest } = createGitHubClient(token)
+  const { rest } = createGitHubClient(resolvedToken.value)
   let path = pathOrUrl.startsWith('http')
     ? pathOrUrl.replace(/^https?:\/\/api\.github\.com/i, '')
     : pathOrUrl
