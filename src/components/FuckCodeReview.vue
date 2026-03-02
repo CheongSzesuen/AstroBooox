@@ -112,7 +112,6 @@ import PRHeader from '@/components/CodeReview/PRHeader.vue'
 import PRTabs from '@/components/CodeReview/PRTabs.vue'
 import FilesTabContent from '@/components/CodeReview/PRTabs/FilesTabContent.vue'
 import AnalysisTabContent from '@/components/CodeReview/PRTabs/AnalysisTabContent.vue'
-import { api, githubTokenSetupHint, hasGithubToken } from '../utils/githubClient'
 import type { 
   PullRequest, 
   FileChange, 
@@ -122,9 +121,37 @@ import type {
   CSVChange,
   ResourceChange
 } from '@/type/codeReview'
-// 常量定义
-const REPO_OWNER = 'AstralSightStudios'
-const REPO_NAME = 'AstroBox-Repo'
+
+const props = withDefaults(defineProps<{
+  repoOwner?: string
+  repoName?: string
+  token?: string
+}>(), {
+  repoOwner: 'AstralSightStudios',
+  repoName: 'AstroBox-Repo',
+  token: ''
+})
+
+const githubTokenSetupHint = '当前会话未检测到 GitHub Token，请先返回 Creator Console 登录。'
+const GITHUB_API_BASE = 'https://api.github.com'
+const hasGithubToken = computed(() => Boolean(props.token.trim()))
+
+const githubGet = async <T>(pathOrUrl: string, options?: { params?: Record<string, unknown>; headers?: Record<string, string> }) => {
+  const token = props.token.trim()
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    ...(options?.headers || {})
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+  const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${GITHUB_API_BASE}${pathOrUrl}`
+  return axios.get<T>(url, {
+    params: options?.params,
+    headers
+  })
+}
 
 // 响应式状态
 const pullRequests = ref<PullRequest[]>([])
@@ -159,7 +186,7 @@ const isAxiosError = (error: unknown): error is AxiosError => {
 }
 
 onMounted(() => {
-  if (!hasGithubToken) {
+  if (!hasGithubToken.value) {
     errorMessage.value = githubTokenSetupHint
   }
   fetchPullRequests()
@@ -167,16 +194,19 @@ onMounted(() => {
 
 const fetchPullRequests = async () => {
   loadingPRs.value = true
-  errorMessage.value = hasGithubToken ? '' : githubTokenSetupHint
+  errorMessage.value = hasGithubToken.value ? '' : githubTokenSetupHint
   
   try {
     console.log('开始获取PR列表...')
-    const { data } = await api.get(`/repos/${REPO_OWNER}/${REPO_NAME}/pulls`, {
-      params: {
-        state: 'open',
-        sort: 'created',
-        direction: 'desc',
-        per_page: 100
+    const { data } = await githubGet<any[]>(
+      `/repos/${props.repoOwner}/${props.repoName}/pulls`,
+      {
+        params: {
+          state: 'open',
+          sort: 'created',
+          direction: 'desc',
+          per_page: 100
+        }
       }
     })
     
@@ -213,21 +243,21 @@ const fetchPullRequests = async () => {
     if (isAxiosError(error)) {
       const errorData = error.response?.data as { message?: string } || {}
       if (error.response?.status === 401) {
-        errorMessage.value = hasGithubToken
+        errorMessage.value = hasGithubToken.value
           ? 'GitHub认证失败，请检查Token是否有效'
           : `${githubTokenSetupHint} 当前请求返回 401，请先配置可用 token。`
       } else if (error.response?.status === 404) {
-        errorMessage.value = `仓库不存在: ${REPO_OWNER}/${REPO_NAME}`
+        errorMessage.value = `仓库不存在: ${props.repoOwner}/${props.repoName}`
       } else {
         const detail = `获取PR列表失败: ${errorData.message || error.message}`
-        errorMessage.value = hasGithubToken ? detail : `${githubTokenSetupHint} ${detail}`
+        errorMessage.value = hasGithubToken.value ? detail : `${githubTokenSetupHint} ${detail}`
       }
     } else if (error instanceof Error) {
       const detail = `获取PR列表失败: ${error.message}`
-      errorMessage.value = hasGithubToken ? detail : `${githubTokenSetupHint} ${detail}`
+      errorMessage.value = hasGithubToken.value ? detail : `${githubTokenSetupHint} ${detail}`
     } else {
       const detail = '获取PR列表失败: 未知错误'
-      errorMessage.value = hasGithubToken ? detail : `${githubTokenSetupHint} ${detail}`
+      errorMessage.value = hasGithubToken.value ? detail : `${githubTokenSetupHint} ${detail}`
     }
   } finally {
     loadingPRs.value = false
@@ -257,8 +287,8 @@ const fetchPRDetails = async () => {
   loadingDetails.value = true
   try {
     console.log(`获取PR #${selectedPR.value.number} 的详情...`)
-    const { data } = await api.get(
-      `/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${selectedPR.value.number}/files`
+    const { data } = await githubGet<FileChange[]>(
+      `/repos/${props.repoOwner}/${props.repoName}/pulls/${selectedPR.value.number}/files`
     )
     
     console.log('获取到的文件变更:', data)
@@ -292,7 +322,7 @@ const analyzeFile = async (file: FileChange) => {
   errorMessage.value = ''
   try {
     console.log(`分析文件: ${file.filename}`)
-    const { data } = await api.get(file.contents_url)
+    const { data } = await githubGet<any>(file.contents_url)
     let content = ''
     if (data.content) {
       content = atob(data.content.replace(/\n/g, ''))
@@ -457,7 +487,7 @@ const fetchRepoManifest = async (repoUrl: string) => {
 
 const fetchViaGitHubAPI = async (owner: string, repo: string): Promise<ManifestData> => {
   try {
-    const { data } = await api.get(`/repos/${owner}/${repo}/contents/manifest.json`, {
+    const { data } = await githubGet<any>(`/repos/${owner}/${repo}/contents/manifest.json`, {
       headers: {
         Accept: 'application/vnd.github.v3.raw'
       }

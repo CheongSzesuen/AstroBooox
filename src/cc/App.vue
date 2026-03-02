@@ -38,6 +38,15 @@
               <ArchiveBox :size="15" weight="duotone" />
               已发布资源
             </Button>
+            <Button
+              size="sm"
+              class="h-8 shrink-0"
+              :variant="tab === 'audit' ? 'default' : 'ghost'"
+              @click="tab = 'audit'"
+            >
+              <CheckCircle :size="15" weight="duotone" />
+              审核
+            </Button>
           </div>
         </div>
 
@@ -121,11 +130,17 @@
 
     <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
       <section class="min-w-0 flex justify-center">
-        <ResourcePublishWorkbench v-if="tab !== 'settings'" :mode="workbenchMode" />
+        <ResourcePublishWorkbench v-if="tab !== 'settings' && tab !== 'audit'" :mode="workbenchMode" />
+        <FuckCodeReview
+          v-else-if="tab === 'audit'"
+          :repo-owner="defaultTargetOwner"
+          :repo-name="defaultTargetRepo"
+          :token="token"
+        />
         <Card v-else class="w-full max-w-[920px]">
           <CardHeader>
             <CardTitle>设置</CardTitle>
-            <CardDescription>配置默认目标仓库，用于“等待审核 / 已发布资源”调试。</CardDescription>
+            <CardDescription>配置默认目标仓库，用于“等待审核 / 已发布资源 / 审核”调试。</CardDescription>
           </CardHeader>
           <CardContent class="space-y-3">
             <div class="space-y-1.5">
@@ -155,6 +170,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   PhArchiveBox as ArchiveBox,
   PhCaretDown as CaretDown,
+  PhCheckCircle as CheckCircle,
   PhClockCounterClockwise as ClockCounterClockwise,
   PhFolders as Folders,
   PhGearSix as GearSix,
@@ -165,6 +181,7 @@ import {
   PhUserCircle as UserCircle
 } from '@phosphor-icons/vue'
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
+import FuckCodeReview from '@/components/FuckCodeReview.vue'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -181,8 +198,8 @@ import { useCcSession } from '@/composables/useCcSession'
 import { useCcWorkspace } from '@/composables/useCcWorkspace'
 import { useTheme } from '@/composables/useTheme'
 
-const tab = ref<'publish' | 'review' | 'published' | 'settings'>('publish')
-const { currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
+const tab = ref<'publish' | 'review' | 'published' | 'audit' | 'settings'>('publish')
+const { token, currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
 const { clearWorkspace, clearRemoteWorkspace } = useCcWorkspace()
 const { theme, toggleTheme } = useTheme()
 const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath, saveDefaults } = useCcSettings()
@@ -194,7 +211,7 @@ const settingsForm = ref({
   defaultCatalogPath: defaultCatalogPath.value
 })
 const workbenchMode = computed<'publish' | 'review' | 'published'>(() =>
-  tab.value === 'settings' ? 'publish' : tab.value
+  tab.value === 'settings' || tab.value === 'audit' ? 'publish' : tab.value
 )
 
 const profileUrl = computed(() =>
