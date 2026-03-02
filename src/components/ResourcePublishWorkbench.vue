@@ -279,43 +279,6 @@
         <div class="space-y-4 xl:sticky xl:top-[84px] xl:self-start">
           <Card>
             <CardHeader class="pb-3">
-              <CardTitle class="text-base">发布状态</CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-3 pt-0">
-              <div class="flex flex-wrap gap-2">
-                <Badge variant="outline">用户: {{ currentUser || '未校验' }}</Badge>
-                <Badge variant="outline">仓库: {{ resolvedRepoName || '--' }}</Badge>
-                <Badge variant="outline">Commit: {{ uploadedCommitSha ? uploadedCommitSha.slice(0, 7) : '--' }}</Badge>
-              </div>
-
-              <div v-if="uploadedRepoUrl" class="rounded-lg border border-border bg-muted/25 p-3 text-sm">
-                <p class="mb-1 font-medium text-foreground">资源仓库</p>
-                <a
-                  :href="uploadedRepoUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="break-all text-primary hover:underline"
-                >
-                  {{ uploadedRepoUrl }}
-                </a>
-              </div>
-
-              <div v-if="latestPrUrl" class="rounded-lg border border-border bg-muted/25 p-3 text-sm">
-                <p class="mb-1 font-medium text-foreground">最新 PR</p>
-                <a
-                  :href="latestPrUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="break-all text-primary hover:underline"
-                >
-                  {{ latestPrUrl }}
-                </a>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader class="pb-3">
               <div class="flex items-center justify-between">
                 <CardTitle class="text-base">发布日志</CardTitle>
                 <Button variant="ghost" size="sm" @click="publishLogs = []">清空</Button>
@@ -760,6 +723,8 @@ const collectWorkspaceTree = async (
   const files: string[] = []
 
   for await (const [name, handle] of dir) {
+    if (name.startsWith('.')) continue
+
     if (handle.kind === 'directory') {
       folders.push({ name, handle: handle as WorkspaceDirectoryHandle })
     } else {
