@@ -153,25 +153,10 @@
           <Card>
             <CardHeader class="pb-3">
               <CardTitle class="text-base">审核评论</CardTitle>
-              <CardDescription>支持预设格式：ABCC_NEEDFIX / ABCC_FIXED</CardDescription>
+              <CardDescription>预设格式：ABCC_NEEDFIX</CardDescription>
             </CardHeader>
             <CardContent class="space-y-3 pt-0">
-              <div class="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  :variant="commentType === 'NEEDFIX' ? 'default' : 'outline'"
-                  @click="commentType = 'NEEDFIX'"
-                >
-                  ABCC_NEEDFIX
-                </Button>
-                <Button
-                  size="sm"
-                  :variant="commentType === 'FIXED' ? 'default' : 'outline'"
-                  @click="commentType = 'FIXED'"
-                >
-                  ABCC_FIXED
-                </Button>
-              </div>
+              <Badge class="w-fit" variant="secondary">ABCC_NEEDFIX</Badge>
 
               <div class="grid gap-2 md:grid-cols-2">
                 <Input v-model="commentId" placeholder="评论 ID，例如 icon_png_check" />
@@ -380,7 +365,6 @@ const detailsLoading = ref(false)
 const detailsError = ref('')
 const prComments = ref<IssueCommentItem[]>([])
 const prFiles = ref<PullFileItem[]>([])
-const commentType = ref<'NEEDFIX' | 'FIXED'>('NEEDFIX')
 const commentId = ref('')
 const commentMessage = ref('')
 const commentSubmitting = ref(false)
@@ -430,7 +414,7 @@ const commentBodyPreview = computed(() => {
   const id = normalizeCommentId(commentId.value)
   const msg = commentMessage.value.trim()
   if (!id) return ''
-  return `[ABCC_${commentType.value}_${id}] ${msg}`.trim()
+  return `[ABCC_NEEDFIX_${id}] ${msg}`.trim()
 })
 
 async function githubGet<T>(path: string): Promise<T> {
@@ -598,7 +582,6 @@ const refreshSelectedPrDetails = async (): Promise<void> => {
 }
 
 const applyFileNeedFixTemplate = (filename: string): void => {
-  commentType.value = 'NEEDFIX'
   commentId.value = normalizeCommentId(filename)
   commentMessage.value = `请检查文件 ${filename} 的改动`
 }
