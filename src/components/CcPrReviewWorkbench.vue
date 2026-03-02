@@ -801,6 +801,7 @@ const detailsLoading = ref(false)
 const detailsError = ref('')
 const prComments = ref<IssueCommentItem[]>([])
 const prFiles = ref<PullFileItem[]>([])
+const csvRowFromRepoDiff = ref<CsvV2Row | null>(null)
 const repoFiles = ref<string[]>([])
 const repoFilesLoading = ref(false)
 const repoFilesError = ref('')
@@ -1343,6 +1344,7 @@ const knownDeviceIds = new Set([
   'xmrw5', 'xmrw5xring', 'xmrw6',
   'vivowgt2'
 ])
+const repoTreeCache = new Map<string, Array<{ path?: string; type?: string; sha?: string }>>()
 
 const normalizeText = (value: string): string => value.trim().toLowerCase()
 
@@ -1379,21 +1381,146 @@ const splitCsvLine = (line: string): string[] => {
 
 const parseCsvV2Row = (line: string): CsvV2Row | null => {
   const cells = splitCsvLine(line)
-  if (cells.length < 12) return null
-  return {
-    id: cells[0],
-    name: cells[1],
-    restype: cells[2],
-    repo_owner: cells[3],
-    repo_name: cells[4],
-    repo_commit_hash: cells[5],
-    icon: cells[6],
-    cover: cells[7],
-    tags: cells[8],
-    device_vendors: cells[9],
-    devices: cells[10],
-    paid_type: cells[11]
+  if (cells.length >= 12) {
+    return {
+      id: cells[0],
+      name: cells[1],
+      restype: cells[2],
+      repo_owner: cells[3],
+      repo_name: cells[4],
+      repo_commit_hash: cells[5],
+      icon: cells[6],
+      cover: cells[7],
+      tags: cells[8],
+      device_vendors: cells[9],
+      devices: cells[10],
+      paid_type: cells[11]
+    }
   }
+  if (cells.length >= 8) {
+    // 兼容旧 index.csv 结构: name,icon,cover,restype,tags,devices,path,paid_type
+    return {
+      id: '',
+      name: cells[0],
+      restype: cells[3],
+      repo_owner: '',
+      repo_name: '',
+      repo_commit_hash: '',
+      icon: cells[1],
+      cover: cells[2],
+      tags: cells[4],
+      device_vendors: '',
+      devices: cells[5],
+      paid_type: cells[7]
+    }
+  }
+  return null
+}
+
+const parseCsvRowsFromText = (text: string): CsvV2Row[] => text
+  .split('\n')
+  .map(line => line.trim())
+  .filter(line => line && !line.startsWith('#') && !line.startsWith('id,'))
+  .map(parseCsvV2Row)
+  .filter((row): row is CsvV2Row => Boolean(row))
+
+const serializeCsvRow = (row: CsvV2Row): string => [
+  row.id,
+  row.name,
+  row.restype,
+  row.repo_owner,
+  row.repo_name,
+  row.repo_commit_hash,
+  row.icon,
+  row.cover,
+  row.tags,
+  row.device_vendors,
+  row.devices,
+  row.paid_type
+].join('||')
+
+const pickBestCsvRow = (rows: CsvV2Row[]): CsvV2Row | null => {
+  if (rows.length === 0) return null
+  const wantedId = getResourceInfoValue(['资源 id', 'id'])
+  const wantedName = getResourceInfoValue(['资源名称', 'name'])
+  if (wantedId) {
+    const found = rows.find(row => row.id === wantedId)
+    if (found) return found
+  }
+  if (wantedName) {
+    const found = rows.find(row => row.name === wantedName)
+    if (found) return found
+  }
+  return rows[rows.length - 1]
+}
+
+const fetchTextFileFromRepo = async (
+  owner: string,
+  repo: string,
+  ref: string,
+  path: string
+): Promise<string> => {
+  const readByGitBlob = async (): Promise<string> => {
+    try {
+      const cacheKey = `${owner}/${repo}@${ref}`
+      let tree = repoTreeCache.get(cacheKey)
+      if (!tree) {
+        const commit = await githubGet<{ commit?: { tree?: { sha?: string } } }>(
+          `/repos/${owner}/${repo}/commits/${encodeURIComponent(ref)}`
+        )
+        const rootTreeSha = commit.commit?.tree?.sha
+        if (!rootTreeSha) return ''
+        const treeResp = await githubGet<{ tree?: Array<{ path?: string; type?: string; sha?: string }> }>(
+          `/repos/${owner}/${repo}/git/trees/${rootTreeSha}?recursive=1`
+        )
+        tree = treeResp.tree || []
+        repoTreeCache.set(cacheKey, tree)
+      }
+      const node = tree.find(item => item.path === path && item.type === 'blob')
+      if (!node?.sha) return ''
+      const blob = await githubGet<{ content?: string; encoding?: string }>(
+        `/repos/${owner}/${repo}/git/blobs/${node.sha}`
+      )
+      if (!blob.content || (blob.encoding && blob.encoding !== 'base64')) return ''
+      return decodeBase64Utf8(blob.content.replace(/\n/g, ''))
+    } catch {
+      return ''
+    }
+  }
+
+  try {
+    const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/')
+    const file = await githubGet<{ content?: string; encoding?: string }>(
+      `/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(ref)}`
+    )
+    if (!file.content || (file.encoding && file.encoding !== 'base64')) {
+      return readByGitBlob()
+    }
+    return decodeBase64Utf8(file.content.replace(/\n/g, ''))
+  } catch {
+    return readByGitBlob()
+  }
+}
+
+const detectCsvAddedRowByRepoDiff = async (pr: PullListItem, baseRef: string): Promise<CsvV2Row | null> => {
+  const csvCandidates = prFiles.value.filter(file => /(^|\/)index(_v2)?\.csv$/i.test(file.filename))
+  if (csvCandidates.length === 0) return null
+  const addedRows: CsvV2Row[] = []
+  for (const file of csvCandidates) {
+    const path = file.filename
+    const baseText = await fetchTextFileFromRepo(props.owner, props.repo, baseRef, path)
+    const headText = await fetchTextFileFromRepo(pr.headOwner, pr.headRepo, pr.headRef, path)
+    if (!headText) continue
+    const baseRows = parseCsvRowsFromText(baseText)
+    const headRows = parseCsvRowsFromText(headText)
+    const baseSet = new Set(baseRows.map(serializeCsvRow))
+    for (const row of headRows) {
+      if (!baseSet.has(serializeCsvRow(row))) {
+        addedRows.push(row)
+      }
+    }
+  }
+  return pickBestCsvRow(addedRows)
 }
 
 const addedCsvLines = computed(() => {
@@ -1417,7 +1544,7 @@ const parsedCsvRow = computed<CsvV2Row | null>(() => {
     const row = parseCsvV2Row(line)
     if (row) return row
   }
-  return null
+  return csvRowFromRepoDiff.value
 })
 
 const isPrivateHost = (hostname: string): boolean => {
@@ -1723,9 +1850,10 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
   selectedPickerPath.value = ''
   selectedPickerContent.value = ''
   selectedPickerLine.value = null
+  csvRowFromRepoDiff.value = null
   try {
     const [pullDetail, comments, files] = await Promise.all([
-      githubGet<{ body?: string }>(
+      githubGet<{ body?: string; base?: { ref?: string } }>(
         `/repos/${props.owner}/${props.repo}/pulls/${pr.number}`
       ),
       githubGet<IssueCommentItem[]>(
@@ -1738,6 +1866,8 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
     pr.body = pullDetail.body || pr.body
     prComments.value = comments
     prFiles.value = files
+    const baseRef = pullDetail.base?.ref || 'main'
+    csvRowFromRepoDiff.value = await detectCsvAddedRowByRepoDiff(pr, baseRef)
     await loadRepoFiles(pr)
     prPickerOpenFolders.value = getTopLevelFolders(prFiles.value.map(file => file.filename))
     repoPickerOpenFolders.value = getTopLevelFolders(repoFiles.value)
