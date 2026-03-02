@@ -435,8 +435,7 @@
 
           <Card>
             <CardHeader class="pb-3">
-              <CardTitle class="text-base">变更文件</CardTitle>
-              <CardDescription>快速打开 GitHub / Raw 链接检查图片和资源文件</CardDescription>
+              <CardTitle class="text-base">分析总览</CardTitle>
             </CardHeader>
             <CardContent class="space-y-3 pt-0 text-sm">
               <div v-if="detailsLoading" class="text-xs text-muted-foreground">正在加载文件变更...</div>
@@ -446,56 +445,104 @@
               >
                 当前 PR 没有可展示的文件变更
               </div>
-              <div v-else class="space-y-2">
-                <div
-                  v-for="file in prFiles"
-                  :key="file.sha"
-                  class="rounded-md border border-border px-3 py-3"
-                >
-                  <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div class="min-w-0">
-                      <div class="truncate font-medium text-foreground">{{ file.filename }}</div>
-                      <div class="text-xs text-muted-foreground">
-                        {{ file.status }} · +{{ file.additions }} / -{{ file.deletions }} · {{ file.changes }} changes
+              <div v-else class="space-y-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" class="h-6 gap-1.5 rounded-full px-2.5 text-xs">
+                    <ChartBar :size="14" weight="duotone" class="shrink-0" />
+                    文件 {{ prFiles.length }}
+                  </Badge>
+                  <Badge variant="outline" class="h-6 rounded-full px-2.5 text-xs">
+                    +{{ totalAdditions }} / -{{ totalDeletions }}
+                  </Badge>
+                  <Badge
+                    :variant="analysisRiskLevel === 'high' ? 'destructive' : analysisRiskLevel === 'medium' ? 'secondary' : 'outline'"
+                    class="h-6 rounded-full px-2.5 text-xs"
+                  >
+                    风险：{{ analysisRiskLabel }}
+                  </Badge>
+                </div>
+
+                <div class="grid gap-3 lg:grid-cols-2">
+                  <div class="rounded-md border border-border p-3">
+                    <div class="mb-2 text-xs font-semibold text-muted-foreground">变更统计</div>
+                    <div class="grid grid-cols-2 gap-2">
+                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                        <div class="text-[11px] text-muted-foreground">图片资源</div>
+                        <div class="text-base font-semibold text-foreground">{{ imageFileCount }}</div>
+                      </div>
+                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                        <div class="text-[11px] text-muted-foreground">清单文件</div>
+                        <div class="text-base font-semibold text-foreground">{{ manifestFileCount }}</div>
+                      </div>
+                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                        <div class="text-[11px] text-muted-foreground">二进制/无Diff</div>
+                        <div class="text-base font-semibold text-foreground">{{ binaryLikeFileCount }}</div>
+                      </div>
+                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                        <div class="text-[11px] text-muted-foreground">删除文件</div>
+                        <div class="text-base font-semibold text-foreground">{{ removedFileCount }}</div>
                       </div>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                      <Button size="sm" variant="outline" @click="applyFileNeedFixTemplate(file.filename)">
-                        设为 NEEDFIX
-                      </Button>
-                      <a
-                        v-if="file.blob_url"
-                        :href="file.blob_url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-xs text-primary hover:underline"
-                      >
-                        GitHub
-                      </a>
-                      <a
-                        v-if="file.raw_url && isImageFile(file.filename)"
-                        :href="file.raw_url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-xs text-primary hover:underline"
-                      >
-                        预览图
-                      </a>
-                      <a
-                        v-if="file.raw_url && !isImageFile(file.filename)"
-                        :href="file.raw_url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-xs text-primary hover:underline"
-                      >
-                        Raw
-                      </a>
+                  </div>
+
+                  <div class="rounded-md border border-border p-3">
+                    <div class="mb-2 text-xs font-semibold text-muted-foreground">审核提示</div>
+                    <div class="space-y-2">
+                      <div v-for="item in analysisChecklist" :key="item.label" class="flex items-start gap-2">
+                        <component
+                          :is="item.ok ? CheckCircle : WarningCircle"
+                          :size="16"
+                          weight="fill"
+                          :class="item.ok ? 'text-emerald-600' : 'text-amber-500'"
+                          class="mt-0.5 shrink-0"
+                        />
+                        <div class="min-w-0">
+                          <div class="text-sm font-medium text-foreground">{{ item.label }}</div>
+                          <div class="text-xs text-muted-foreground">{{ item.detail }}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <pre
-                    v-if="file.patch"
-                    class="mt-2 max-h-44 overflow-auto rounded-md bg-muted p-2 text-xs text-muted-foreground"
-                  >{{ file.patch }}</pre>
+                </div>
+
+                <div class="rounded-md border border-border p-3">
+                  <div class="mb-2 text-xs font-semibold text-muted-foreground">快速链接</div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <a
+                      :href="selectedPr.url"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-xs text-primary hover:underline"
+                    >
+                      打开 PR
+                    </a>
+                    <a
+                      :href="`${selectedPr.url}/files`"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-xs text-primary hover:underline"
+                    >
+                      查看 Files
+                    </a>
+                    <a
+                      v-if="resourceRepoUrl"
+                      :href="resourceRepoUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-xs text-primary hover:underline"
+                    >
+                      打开作者仓库
+                    </a>
+                    <a
+                      v-if="firstImageRawUrl"
+                      :href="firstImageRawUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-xs text-primary hover:underline"
+                    >
+                      打开首张变更图片
+                    </a>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -509,6 +556,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import {
+  PhChartBar as ChartBar,
   PhArrowLeft as ArrowLeft,
   PhArrowDown as ArrowDown,
   PhArrowUp as ArrowUp,
@@ -520,6 +568,8 @@ import {
   PhFolder as FolderIcon,
   PhGithubLogo as GithubLogo,
   PhGitPullRequest as GitPullRequest,
+  PhWarningCircle as WarningCircle,
+  PhCheckCircle as CheckCircle,
   PhLinkSimple as LinkSimple,
   PhMagnifyingGlass as MagnifyingGlass
 } from '@phosphor-icons/vue'
@@ -538,7 +588,6 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle
 } from '@/components/ui/card'
@@ -720,6 +769,52 @@ const renderedCommentPreviewHtml = computed(() => {
 })
 const canSubmitComment = computed(() => Boolean(normalizedCommentId.value))
 const submitButtonTitle = computed(() => (canSubmitComment.value ? '' : '请填写id'))
+const totalAdditions = computed(() => prFiles.value.reduce((sum, file) => sum + file.additions, 0))
+const totalDeletions = computed(() => prFiles.value.reduce((sum, file) => sum + file.deletions, 0))
+const imageFileCount = computed(() => prFiles.value.filter(file => isImageFile(file.filename)).length)
+const manifestFileCount = computed(() =>
+  prFiles.value.filter(file => /(^|\/)(manifest(_v2)?\.json|catalog\.csv)$/i.test(file.filename)).length
+)
+const binaryLikeFileCount = computed(() => prFiles.value.filter(file => !file.patch).length)
+const removedFileCount = computed(() => prFiles.value.filter(file => file.status === 'removed').length)
+const analysisRiskLevel = computed<'low' | 'medium' | 'high'>(() => {
+  const changeVolume = totalAdditions.value + totalDeletions.value
+  if (prFiles.value.length > 20 || changeVolume > 1200 || removedFileCount.value >= 3) return 'high'
+  if (prFiles.value.length > 8 || changeVolume > 400 || binaryLikeFileCount.value > 0) return 'medium'
+  return 'low'
+})
+const analysisRiskLabel = computed(() => {
+  if (analysisRiskLevel.value === 'high') return '高'
+  if (analysisRiskLevel.value === 'medium') return '中'
+  return '低'
+})
+const analysisChecklist = computed(() => [
+  {
+    label: '资源清单文件',
+    ok: manifestFileCount.value > 0,
+    detail: manifestFileCount.value > 0 ? '检测到 manifest/catalog 相关变更' : '未检测到 manifest/catalog 变更'
+  },
+  {
+    label: '图片资源检查',
+    ok: imageFileCount.value > 0,
+    detail: imageFileCount.value > 0 ? `检测到 ${imageFileCount.value} 个图片文件` : '未检测到图片文件变更'
+  },
+  {
+    label: '二进制文件风险',
+    ok: binaryLikeFileCount.value === 0,
+    detail: binaryLikeFileCount.value === 0 ? '均可直接审阅 diff' : `${binaryLikeFileCount.value} 个文件无可读 diff`
+  },
+  {
+    label: '删除改动',
+    ok: removedFileCount.value === 0,
+    detail: removedFileCount.value === 0 ? '未检测到删除文件' : `检测到 ${removedFileCount.value} 个删除文件`
+  }
+])
+const resourceRepoUrl = computed(() => {
+  if (!selectedPr.value?.resourceRepoOwner || !selectedPr.value.resourceRepoName) return ''
+  return `https://github.com/${selectedPr.value.resourceRepoOwner}/${selectedPr.value.resourceRepoName}`
+})
+const firstImageRawUrl = computed(() => prFiles.value.find(file => isImageFile(file.filename))?.raw_url || '')
 const pickerPaths = computed(() => {
   const source = filePickerTab.value === 'pr'
     ? prFiles.value.map(file => file.filename)
@@ -1200,13 +1295,6 @@ const selectPr = async (pr: PullListItem): Promise<void> => {
 const refreshSelectedPrDetails = async (): Promise<void> => {
   if (!selectedPr.value) return
   await loadPrDetails(selectedPr.value)
-}
-
-const applyFileNeedFixTemplate = (filename: string): void => {
-  commentId.value = normalizeCommentId(filename)
-  if (!commentMessage.value.trim()) {
-    commentMessage.value = `请检查文件 ${filename} 的改动`
-  }
 }
 
 const getTopLevelFolders = (paths: string[]): string[] =>
