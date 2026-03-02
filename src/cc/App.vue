@@ -87,8 +87,8 @@
     </header>
 
     <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
-      <div class="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <div class="space-y-4 lg:sticky lg:top-[84px] lg:self-start">
+      <div class="grid gap-4" :class="hasLeftSidebar ? 'lg:grid-cols-[260px_minmax(0,1fr)]' : 'lg:grid-cols-1'">
+        <div v-if="hasLeftSidebar" class="space-y-4 lg:sticky lg:top-[84px] lg:self-start">
           <aside v-if="workspacePath || workspaceTree.length" class="rounded-xl border border-border bg-card p-3">
             <div class="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">File Tree</div>
             <p class="truncate px-1 text-[11px] text-muted-foreground">{{ workspacePath || '未选择文件夹' }}</p>
@@ -304,6 +304,16 @@ const visibleRemoteItems = computed(() => {
 
   return items.filter(item => !item.hidden)
 })
+
+const hasLeftSidebar = computed(
+  () =>
+    Boolean(
+      workspacePath.value ||
+        workspaceTree.value.length ||
+        remoteWorkspacePath.value ||
+        remoteWorkspaceTree.value.length
+    )
+)
 
 const toggleFolder = (path: string): void => {
   if (collapsedFolders.value.includes(path)) {
