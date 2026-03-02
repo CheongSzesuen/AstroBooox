@@ -1,5 +1,5 @@
 <template>
-  <div class="dark relative min-h-screen lg:grid lg:grid-cols-[1.18fr_0.82fr]">
+  <div class="relative min-h-screen lg:grid lg:grid-cols-[1.18fr_0.82fr]">
     <div class="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex">
       <div class="absolute inset-0 bg-zinc-900" />
       <div class="relative z-20 flex items-center text-lg font-medium">
@@ -21,14 +21,34 @@
       </div>
     </div>
 
-    <div class="flex min-h-screen items-center justify-center bg-zinc-950 p-4 lg:p-8">
+    <div class="relative min-h-screen overflow-hidden p-6 text-white sm:p-8 lg:hidden">
+      <div class="absolute inset-0 bg-zinc-900" />
+      <div class="relative z-20 flex items-center text-lg font-medium">
+        <Code :size="22" weight="duotone" class="mr-2" />
+        AstroBooox Creator Console
+      </div>
+
+      <CcInteractiveGrid
+        class="absolute inset-x-0 inset-y-0 h-full w-full skew-y-12 [mask-image:radial-gradient(420px_circle_at_center,white,transparent)]"
+      />
+
+      <div class="relative z-20 mt-auto space-y-2 pb-2">
+        <p class="text-base leading-7">“请先完成 Token 验证后再进入控制台。”</p>
+      </div>
+    </div>
+
+    <div
+      class="absolute inset-0 z-30 flex items-center justify-center bg-gradient-to-b from-black/15 via-black/30 to-black/45 p-4 backdrop-blur-[1px] sm:p-6 lg:static lg:z-auto lg:min-h-screen lg:bg-none lg:bg-background lg:p-8 lg:backdrop-blur-none"
+    >
       <div class="w-full max-w-md space-y-6">
-        <div class="space-y-2 text-center">
-          <h2 class="text-2xl font-semibold tracking-tight">Token 登录</h2>
-          <p class="text-sm text-muted-foreground">输入细粒度 GitHub Token 后进入 Creator Console。</p>
+        <div class="space-y-2 text-center lg:text-left">
+          <h2 class="text-2xl font-semibold tracking-tight text-white lg:text-foreground">Token 登录</h2>
+          <p class="text-sm text-zinc-100/90 lg:text-muted-foreground">
+            输入细粒度 GitHub Token 后进入 Creator Console。
+          </p>
         </div>
 
-        <Card class="border-border/80 bg-card">
+        <Card class="border-border/80 bg-card/95 shadow-xl backdrop-blur">
           <CardHeader class="pb-3">
             <CardTitle class="text-base">认证凭据</CardTitle>
             <CardDescription>不会写入 localStorage，仅在当前页面会话中使用。</CardDescription>
