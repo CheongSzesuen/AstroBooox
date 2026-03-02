@@ -156,18 +156,61 @@
               <CardDescription>预设格式：ABCC_NEEDFIX</CardDescription>
             </CardHeader>
             <CardContent class="space-y-3 pt-0">
-              <Badge class="w-fit" variant="secondary">ABCC_NEEDFIX</Badge>
-
-              <div class="grid gap-2 md:grid-cols-2">
-                <Input v-model="commentId" placeholder="评论 ID，例如 icon_png_check" />
-                <Input v-model="commentMessage" placeholder="评论说明，例如图片比例不合规" />
+              <div class="space-y-2 rounded-md border border-border p-3">
+                <div class="text-xs font-medium text-muted-foreground">快速选择文件（自动填充 ID）</div>
+                <div class="grid gap-2 md:grid-cols-2">
+                  <div class="space-y-1">
+                    <div class="text-xs text-muted-foreground">从当前 PR 变更文件选择</div>
+                    <select
+                      v-model="quickPrFile"
+                      class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                      @change="fillCommentIdByPath(quickPrFile)"
+                    >
+                      <option value="">请选择 PR 文件</option>
+                      <option v-for="file in prFiles" :key="`pr-${file.sha}`" :value="file.filename">
+                        {{ file.filename }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="space-y-1">
+                    <div class="text-xs text-muted-foreground">
+                      从仓库文件选择
+                      <span v-if="repoFilesLoading">（加载中）</span>
+                    </div>
+                    <select
+                      v-model="quickRepoFile"
+                      class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                      @change="fillCommentIdByPath(quickRepoFile)"
+                    >
+                      <option value="">请选择仓库文件</option>
+                      <option v-for="path in repoFiles" :key="`repo-${path}`" :value="path">
+                        {{ path }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                <div v-if="repoFilesError" class="text-xs text-destructive">{{ repoFilesError }}</div>
               </div>
 
-              <Textarea
-                :model-value="commentBodyPreview"
-                readonly
-                class="min-h-[88px] font-mono text-xs"
-              />
+              <div class="space-y-2 rounded-md border border-border p-3">
+                <div class="text-xs font-medium text-muted-foreground">评论内容</div>
+                <div class="grid gap-2">
+                  <Input v-model="commentId" placeholder="ID，例如 icon_png_check" />
+                  <Textarea
+                    v-model="commentMessage"
+                    placeholder="评论说明，例如图片比例不合规"
+                    class="min-h-[88px]"
+                  />
+                </div>
+              </div>
+
+              <div class="space-y-2 rounded-md border border-dashed border-border p-3">
+                <div class="text-xs font-medium text-muted-foreground">消息预览（不可编辑）</div>
+                <div class="rounded-md bg-muted px-3 py-2 font-mono text-xs text-foreground">{{ commentPrefix }}</div>
+                <div class="rounded-md bg-muted px-3 py-2 text-sm text-foreground whitespace-pre-wrap break-words">
+                  {{ commentMessage || '（这里显示评论内容）' }}
+                </div>
+              </div>
 
               <div class="flex items-center gap-2">
                 <Button
@@ -365,6 +408,11 @@ const detailsLoading = ref(false)
 const detailsError = ref('')
 const prComments = ref<IssueCommentItem[]>([])
 const prFiles = ref<PullFileItem[]>([])
+const repoFiles = ref<string[]>([])
+const repoFilesLoading = ref(false)
+const repoFilesError = ref('')
+const quickPrFile = ref('')
+const quickRepoFile = ref('')
 const commentId = ref('')
 const commentMessage = ref('')
 const commentSubmitting = ref(false)
@@ -410,6 +458,10 @@ const cacheAvatar = (login: string, avatarUrl: string): void => {
 
 const isImageFile = (filename: string): boolean => /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)$/i.test(filename)
 const normalizeCommentId = (value: string): string => value.trim().replace(/\s+/g, '_').replace(/\]/g, '')
+const commentPrefix = computed(() => {
+  const id = normalizeCommentId(commentId.value)
+  return id ? `[ABCC_NEEDFIX_${id}]` : '[ABCC_NEEDFIX_<id>]'
+})
 const commentBodyPreview = computed(() => {
   const id = normalizeCommentId(commentId.value)
   const msg = commentMessage.value.trim()
@@ -551,6 +603,9 @@ const loadPullRequests = async (): Promise<void> => {
 const loadPrDetails = async (pr: PullListItem): Promise<void> => {
   detailsLoading.value = true
   detailsError.value = ''
+  repoFilesError.value = ''
+  quickPrFile.value = ''
+  quickRepoFile.value = ''
   try {
     const [comments, files] = await Promise.all([
       githubGet<IssueCommentItem[]>(
@@ -562,12 +617,45 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
     ])
     prComments.value = comments
     prFiles.value = files
+    await loadRepoFiles(pr)
   } catch (error: unknown) {
     detailsError.value = error instanceof Error ? error.message : '加载 PR 详情失败'
     prComments.value = []
     prFiles.value = []
+    repoFiles.value = []
   } finally {
     detailsLoading.value = false
+  }
+}
+
+const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
+  repoFilesLoading.value = true
+  repoFilesError.value = ''
+  try {
+    if (!pr.headOwner || !pr.headRepo || !pr.headRef) {
+      repoFiles.value = []
+      return
+    }
+    const commit = await githubGet<{ commit?: { tree?: { sha?: string } } }>(
+      `/repos/${pr.headOwner}/${pr.headRepo}/commits/${encodeURIComponent(pr.headRef)}`
+    )
+    const treeSha = commit.commit?.tree?.sha
+    if (!treeSha) {
+      repoFiles.value = []
+      return
+    }
+    const tree = await githubGet<{ tree?: Array<{ path?: string; type?: string }> }>(
+      `/repos/${pr.headOwner}/${pr.headRepo}/git/trees/${treeSha}?recursive=1`
+    )
+    repoFiles.value = (tree.tree || [])
+      .filter(item => item.type === 'blob' && item.path)
+      .map(item => item.path as string)
+      .slice(0, 3000)
+  } catch (error: unknown) {
+    repoFilesError.value = error instanceof Error ? error.message : '仓库文件加载失败'
+    repoFiles.value = []
+  } finally {
+    repoFilesLoading.value = false
   }
 }
 
@@ -584,6 +672,14 @@ const refreshSelectedPrDetails = async (): Promise<void> => {
 const applyFileNeedFixTemplate = (filename: string): void => {
   commentId.value = normalizeCommentId(filename)
   commentMessage.value = `请检查文件 ${filename} 的改动`
+}
+
+const fillCommentIdByPath = (path: string): void => {
+  if (!path) return
+  commentId.value = normalizeCommentId(path)
+  if (!commentMessage.value.trim()) {
+    commentMessage.value = `请检查文件 ${path} 的改动`
+  }
 }
 
 const submitPresetComment = async (): Promise<void> => {
