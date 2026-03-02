@@ -466,6 +466,23 @@
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog :open="showOutOfWorkspaceFileDialog" @update:open="showOutOfWorkspaceFileDialog = $event">
+        <DialogContent class="max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>文件不在当前工作区</DialogTitle>
+            <DialogDescription>
+              请选择当前工作区文件夹内的文件（icon、cover、下载文件均要求在工作区内）。
+            </DialogDescription>
+          </DialogHeader>
+          <div class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            {{ outOfWorkspaceFileName ? `你选择的文件：${outOfWorkspaceFileName}` : '你选择的文件无法映射到当前工作区。' }}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="showOutOfWorkspaceFileDialog = false">我知道了</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </template>
 
     <template v-else-if="mode === 'review'">
@@ -722,6 +739,8 @@ const authors = ref<Array<{ name: string; bindABAccount: boolean }>>([
 ])
 const showDeviceSelector = ref(false)
 const showResourceIdGuide = ref(false)
+const showOutOfWorkspaceFileDialog = ref(false)
+const outOfWorkspaceFileName = ref('')
 const iconPath = ref('')
 const coverPath = ref('')
 
@@ -949,6 +968,10 @@ const pickFilePathFromWorkspace = async (): Promise<string | null> => {
       if (relativeParts && relativeParts.length > 0) {
         return relativeParts.join('/')
       }
+
+      outOfWorkspaceFileName.value = fileHandle.name || ''
+      showOutOfWorkspaceFileDialog.value = true
+      return null
     }
 
     return fileHandle.name || null
