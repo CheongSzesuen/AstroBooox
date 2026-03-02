@@ -156,43 +156,18 @@
             </CardHeader>
             <CardContent class="space-y-3 pt-0">
               <div class="space-y-2 rounded-md border border-border p-3">
-                <div class="text-xs font-medium text-muted-foreground">快速插入文件链接（Markdown）</div>
-                <div class="grid gap-2 md:grid-cols-2">
-                  <div class="space-y-1">
-                    <div class="text-xs text-muted-foreground">从当前 PR 变更文件选择</div>
-                    <select
-                      v-model="quickPrFile"
-                      class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                      @change="insertPrFileLink(quickPrFile)"
-                    >
-                      <option value="">请选择 PR 文件</option>
-                      <option v-for="file in prFiles" :key="`pr-${file.sha}`" :value="file.filename">
-                        {{ file.filename }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="space-y-1">
-                    <div class="text-xs text-muted-foreground">
-                      从仓库文件选择
-                      <span v-if="repoFilesLoading">（加载中）</span>
-                    </div>
-                    <select
-                      v-model="quickRepoFile"
-                      class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                      @change="insertRepoFileLink(quickRepoFile)"
-                    >
-                      <option value="">请选择仓库文件</option>
-                      <option v-for="path in repoFiles" :key="`repo-${path}`" :value="path">
-                        {{ path }}
-                      </option>
-                    </select>
-                  </div>
+                <div class="flex items-center justify-between gap-2">
+                  <div class="text-xs font-medium text-muted-foreground">评论内容</div>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    class="h-8 w-8"
+                    title="插入文件链接"
+                    @click="linkPickerOpen = true"
+                  >
+                    <LinkSimple :size="16" weight="bold" />
+                  </Button>
                 </div>
-                <div v-if="repoFilesError" class="text-xs text-destructive">{{ repoFilesError }}</div>
-              </div>
-
-              <div class="space-y-2 rounded-md border border-border p-3">
-                <div class="text-xs font-medium text-muted-foreground">评论内容</div>
                 <div class="grid gap-2">
                   <div class="flex items-center rounded-md border border-input bg-background">
                     <span class="shrink-0 border-r border-border px-3 text-xs text-muted-foreground">[ABCC_NEEDFIX_</span>
@@ -217,7 +192,7 @@
                   class="rounded-md bg-muted px-3 py-2 text-sm text-foreground break-words"
                   v-html="renderedCommentPreviewHtml"
                 />
-                </div>
+              </div>
 
               <div class="flex items-center gap-2">
                 <Button
@@ -255,6 +230,64 @@
               </div>
             </CardContent>
           </Card>
+
+          <Dialog :open="linkPickerOpen" @update:open="linkPickerOpen = $event">
+            <DialogContent class="sm:max-w-[640px]">
+              <DialogHeader>
+                <DialogTitle>插入文件链接</DialogTitle>
+                <DialogDescription>选择文件后会以 Markdown 链接插入到评论内容中。</DialogDescription>
+              </DialogHeader>
+
+              <div class="space-y-3">
+                <div class="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    :variant="linkPickerSource === 'pr' ? 'default' : 'outline'"
+                    @click="linkPickerSource = 'pr'"
+                  >
+                    当前 PR 文件
+                  </Button>
+                  <Button
+                    size="sm"
+                    :variant="linkPickerSource === 'repo' ? 'default' : 'outline'"
+                    @click="linkPickerSource = 'repo'"
+                  >
+                    仓库文件
+                  </Button>
+                </div>
+
+                <div v-if="linkPickerSource === 'pr'" class="space-y-2">
+                  <select v-model="quickPrFile" class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm">
+                    <option value="">请选择 PR 文件</option>
+                    <option v-for="file in prFiles" :key="`picker-pr-${file.sha}`" :value="file.filename">
+                      {{ file.filename }}
+                    </option>
+                  </select>
+                  <div class="flex justify-end">
+                    <Button size="sm" :disabled="!quickPrFile" @click="insertPrFileLinkFromDialog">插入链接</Button>
+                  </div>
+                </div>
+
+                <div v-else class="space-y-2">
+                  <div class="text-xs text-muted-foreground">
+                    <span v-if="repoFilesLoading">正在加载仓库文件...</span>
+                    <span v-else>选择仓库中的文件</span>
+                  </div>
+                  <select v-model="quickRepoFile" class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm">
+                    <option value="">请选择仓库文件</option>
+                    <option v-for="path in repoFiles" :key="`picker-repo-${path}`" :value="path">
+                      {{ path }}
+                    </option>
+                  </select>
+                  <div class="flex justify-end">
+                    <Button size="sm" :disabled="!quickRepoFile" @click="insertRepoFileLinkFromDialog">插入链接</Button>
+                  </div>
+                </div>
+
+                <div v-if="repoFilesError" class="text-xs text-destructive">{{ repoFilesError }}</div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <Card>
             <CardHeader class="pb-3">
@@ -335,12 +368,20 @@ import {
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDoubleRight as CaretDoubleRight,
   PhGithubLogo as GithubLogo,
-  PhGitPullRequest as GitPullRequest
+  PhGitPullRequest as GitPullRequest,
+  PhLinkSimple as LinkSimple
 } from '@phosphor-icons/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import {
   Card,
   CardContent,
@@ -420,6 +461,8 @@ const repoFilesLoading = ref(false)
 const repoFilesError = ref('')
 const quickPrFile = ref('')
 const quickRepoFile = ref('')
+const linkPickerOpen = ref(false)
+const linkPickerSource = ref<'pr' | 'repo'>('pr')
 const commentId = ref('')
 const commentMessage = ref('')
 const commentSubmitting = ref(false)
@@ -728,6 +771,18 @@ const insertRepoFileLink = (path: string): void => {
   if (!path) return
   appendMarkdownLinkToComment(path, buildRepoBlobUrl(path))
   quickRepoFile.value = ''
+}
+
+const insertPrFileLinkFromDialog = (): void => {
+  if (!quickPrFile.value) return
+  insertPrFileLink(quickPrFile.value)
+  linkPickerOpen.value = false
+}
+
+const insertRepoFileLinkFromDialog = (): void => {
+  if (!quickRepoFile.value) return
+  insertRepoFileLink(quickRepoFile.value)
+  linkPickerOpen.value = false
 }
 
 const submitPresetComment = async (): Promise<void> => {
