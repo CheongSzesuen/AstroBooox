@@ -36,7 +36,7 @@
           aria-label="进入 CC 页面"
         >
           <Compass :size="15" weight="duotone" />
-          <span class="hidden sm:inline">CC</span>
+          <span>Creator Console</span>
         </Button>
 
         <Button
