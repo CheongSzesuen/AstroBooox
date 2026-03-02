@@ -1276,22 +1276,6 @@ const parseResourceRepoFromPrBody = (body: string): { owner: string; repo: strin
   return null
 }
 
-watch(
-  () => [
-    submissionOverview.value.images.icon?.url || '',
-    submissionOverview.value.images.cover?.url || '',
-    ...submissionOverview.value.images.previews.map(item => item.url)
-  ],
-  (urls) => {
-    urls
-      .filter(Boolean)
-      .forEach((url) => {
-        void ensureImageDisplayUrl(url)
-      })
-  },
-  { immediate: true }
-)
-
 onBeforeUnmount(() => {
   Object.values(imageBlobUrlMap.value).forEach((url) => URL.revokeObjectURL(url))
 })
@@ -1457,6 +1441,22 @@ const hasSubmissionOverview = computed(() =>
   || Boolean(submissionOverview.value.images.icon)
   || Boolean(submissionOverview.value.images.cover)
   || submissionOverview.value.images.previews.length > 0
+)
+
+watch(
+  () => [
+    submissionOverview.value.images.icon?.url || '',
+    submissionOverview.value.images.cover?.url || '',
+    ...submissionOverview.value.images.previews.map(item => item.url)
+  ],
+  (urls) => {
+    urls
+      .filter(Boolean)
+      .forEach((url) => {
+        void ensureImageDisplayUrl(url)
+      })
+  },
+  { immediate: true }
 )
 
 const knownDeviceIds = new Set([
