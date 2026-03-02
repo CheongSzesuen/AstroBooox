@@ -155,83 +155,83 @@
               <CardTitle class="text-base">审核评论</CardTitle>
             </CardHeader>
             <CardContent class="space-y-3 pt-0">
-              <div class="space-y-2 rounded-md border border-border p-3">
-                <div class="flex items-center justify-between gap-2">
-                  <div class="text-xs font-medium text-muted-foreground">评论内容</div>
-                  <Button size="sm" variant="outline" class="h-8 gap-1.5 px-2.5 text-xs" @click="openFilePicker">
-                    <LinkSimple :size="14" weight="bold" />
-                    插入文件定位
-                  </Button>
-                </div>
-                <Tabs v-model="commentEditorTab">
-                  <TabsList class="inline-flex h-8 w-auto">
-                    <TabsTrigger value="edit">评论说明</TabsTrigger>
-                    <TabsTrigger value="preview">评论预览</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="edit" class="mt-3">
-                    <div class="grid gap-2">
-                      <div class="flex items-center rounded-md border border-input bg-background">
-                        <span class="shrink-0 border-r border-border px-3 text-xs text-muted-foreground">[ABCC_NEEDFIX_</span>
-                        <Input
-                          v-model="commentId"
-                          class="border-0 shadow-none focus-visible:ring-0"
-                          placeholder="自定义 ID，例如 icon_png_check"
-                        />
-                        <span class="shrink-0 px-3 text-xs text-muted-foreground">]</span>
-                      </div>
-                      <Textarea
-                        id="review-comment-message"
-                        ref="commentMessageTextareaRef"
-                        v-model="commentMessage"
-                        placeholder="评论说明（文件引用请用上方按钮插入）"
-                        class="min-h-[88px]"
-                        @click="syncCommentCursor"
-                        @keyup="syncCommentCursor"
-                        @select="syncCommentCursor"
-                      />
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="preview" class="mt-3">
-                    <div class="flex items-start gap-3">
-                      <img
-                        v-if="selectedPr?.authorAvatar"
-                        :src="getOptimizedAvatarUrl(selectedPr.author, selectedPr.authorAvatar)"
-                        class="h-8 w-8 shrink-0 rounded-full object-cover"
-                        loading="lazy"
-                        @load="cacheAvatar(selectedPr.author, selectedPr.authorAvatar)"
-                      />
-                      <div class="min-w-0 flex-1 rounded-md border border-border px-3 py-2 text-sm">
-                        <div class="mb-3 flex items-center gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
-                          <span class="truncate font-medium text-foreground">{{ selectedPr?.author || '当前用户' }}</span>
-                          <span class="shrink-0">{{ previewCommentTime }}</span>
-                        </div>
-                        <div
-                          class="pt-1 whitespace-pre-wrap break-words text-foreground"
-                          v-html="renderedCommentPreviewHtml"
-                        />
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
-
-              <div class="flex items-center gap-2">
-                <span :title="submitButtonTitle" class="inline-flex">
-                  <Button
-                    size="sm"
-                    :disabled="!canSubmitComment || commentSubmitting"
-                    @click="submitPresetComment"
-                  >
-                    {{ commentSubmitting ? '发送中...' : '发送评论' }}
-                  </Button>
-                </span>
-              </div>
-
               <div v-if="detailsError" class="text-xs text-destructive">{{ detailsError }}</div>
               <div v-if="repoFilesError" class="text-xs text-destructive">{{ repoFilesError }}</div>
 
               <div class="space-y-2">
-                <div class="text-xs font-medium text-muted-foreground">最近评论</div>
+                <div class="flex items-start gap-3">
+                  <img
+                    v-if="selectedPr?.authorAvatar"
+                    :src="getOptimizedAvatarUrl(selectedPr.author, selectedPr.authorAvatar)"
+                    class="h-8 w-8 shrink-0 rounded-full object-cover"
+                    loading="lazy"
+                    @load="cacheAvatar(selectedPr.author, selectedPr.authorAvatar)"
+                  />
+                  <div class="min-w-0 flex-1 overflow-hidden rounded-md border border-border">
+                    <Tabs v-model="commentEditorTab">
+                      <div class="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-2">
+                        <TabsList class="inline-flex h-8 rounded-none border-0 bg-transparent p-0">
+                          <TabsTrigger value="edit">Write</TabsTrigger>
+                          <TabsTrigger value="preview">Preview</TabsTrigger>
+                        </TabsList>
+                        <Button size="sm" variant="outline" class="h-8 gap-1.5 px-2.5 text-xs" @click="openFilePicker">
+                          <LinkSimple :size="14" weight="bold" />
+                          插入文件定位
+                        </Button>
+                      </div>
+                      <div class="px-3 py-3">
+                        <TabsContent value="edit" class="mt-0">
+                          <div class="grid gap-2">
+                            <div class="flex items-center rounded-md border border-input bg-background">
+                              <span class="shrink-0 border-r border-border px-3 text-xs text-muted-foreground">[ABCC_NEEDFIX_</span>
+                              <Input
+                                v-model="commentId"
+                                class="border-0 shadow-none focus-visible:ring-0"
+                                placeholder="自定义 ID，例如 icon_png_check"
+                              />
+                              <span class="shrink-0 px-3 text-xs text-muted-foreground">]</span>
+                            </div>
+                            <Textarea
+                              id="review-comment-message"
+                              ref="commentMessageTextareaRef"
+                              v-model="commentMessage"
+                              placeholder="评论说明（文件引用请用上方按钮插入）"
+                              class="min-h-[108px]"
+                              @click="syncCommentCursor"
+                              @keyup="syncCommentCursor"
+                              @select="syncCommentCursor"
+                            />
+                          </div>
+                        </TabsContent>
+                        <TabsContent value="preview" class="mt-0">
+                          <div class="rounded-md border border-border text-sm">
+                            <div class="flex items-center gap-2 border-b border-border px-3 py-2 text-xs text-muted-foreground">
+                              <span class="truncate font-medium text-foreground">{{ selectedPr?.author || '当前用户' }}</span>
+                              <span class="shrink-0">{{ previewCommentTime }}</span>
+                            </div>
+                            <div
+                              class="px-3 py-3 whitespace-pre-wrap break-words text-foreground"
+                              v-html="renderedCommentPreviewHtml"
+                            />
+                          </div>
+                        </TabsContent>
+                      </div>
+                    </Tabs>
+                    <div class="flex items-center justify-end border-t border-border bg-muted/20 px-3 py-2">
+                      <span :title="submitButtonTitle" class="inline-flex">
+                        <Button
+                          size="sm"
+                          :disabled="!canSubmitComment || commentSubmitting"
+                          @click="submitPresetComment"
+                        >
+                          {{ commentSubmitting ? '发送中...' : '发送评论' }}
+                        </Button>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pt-1 text-xs font-medium text-muted-foreground">最近评论</div>
                 <div
                   v-if="prComments.length === 0"
                   class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
