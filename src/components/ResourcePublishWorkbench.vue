@@ -257,6 +257,11 @@
                       </div>
                       <Button variant="outline" @click="removeAuthor(index)">删除作者</Button>
                     </div>
+                    <div class="space-y-1.5">
+                      <Label :for="`author-url-${index}`">作者链接（仅 v1）</Label>
+                      <Input :id="`author-url-${index}`" v-model="author.authorUrl" placeholder="https://github.com/yourname" />
+                      <p class="text-xs text-muted-foreground">该字段仅用于生成 v1 的 `manifest.json`（author_url）。</p>
+                    </div>
                     <div class="flex flex-wrap gap-2">
                       <Button
                         :variant="author.bindABAccount ? 'default' : 'outline'"
@@ -899,8 +904,8 @@ const tags = ref<string[]>([])
 const tagInput = ref('')
 const selectedDeviceIds = ref<string[]>([])
 const downloads = ref<Record<string, { version: string; file_name: string }>>({})
-const authors = ref<Array<{ name: string; bindABAccount: boolean }>>([
-  { name: '', bindABAccount: true }
+const authors = ref<Array<{ name: string; authorUrl: string; bindABAccount: boolean }>>([
+  { name: '', authorUrl: '', bindABAccount: true }
 ])
 const links = ref<Array<{ icon: string; title: string; url: string }>>([])
 const showDeviceSelector = ref(false)
@@ -1195,20 +1200,7 @@ const buildAutoPrBody = (): string => {
     '',
     '## 链接（manifest_v2.links）',
     '',
-    linksSection,
-    '',
-    '## 说明',
-    '',
-    submitMode.value === 'both'
-      ? '- 已上传 `manifest_v2.json`、`manifest.json`、图片资源和下载资源。'
-      : submitMode.value === 'v1'
-        ? '- 已上传 `manifest.json`、图片资源和下载资源。'
-        : '- 已上传 `manifest_v2.json`、图片资源和下载资源。',
-    submitMode.value === 'both'
-      ? '- 本 PR 已同步更新 `index_v2.csv` 与 `index.csv`。'
-      : submitMode.value === 'v1'
-        ? '- 本 PR 已同步更新 `index.csv`。'
-        : '- 本 PR 已同步更新 `index_v2.csv`。'
+    linksSection
   ].join('\n')
 }
 
@@ -1340,7 +1332,7 @@ const removeDevice = (deviceId: string): void => {
 }
 
 const addAuthor = (): void => {
-  authors.value.push({ name: '', bindABAccount: true })
+  authors.value.push({ name: '', authorUrl: '', bindABAccount: true })
 }
 
 const removeAuthor = (index: number): void => {
@@ -1778,7 +1770,7 @@ const resetResourceInfoFields = (): void => {
   previewItems.value = []
   selectedDeviceIds.value = []
   downloads.value = {}
-  authors.value = [{ name: '', bindABAccount: true }]
+  authors.value = [{ name: '', authorUrl: '', bindABAccount: true }]
   links.value = []
 }
 
@@ -1804,7 +1796,7 @@ const scanWorkspace = async (options: { forceSync?: boolean } = {}): Promise<voi
             preview?: string[]
             icon?: string
             cover?: string
-            author?: Array<{ name?: string; bindABAccount?: boolean }>
+            author?: Array<{ name?: string; author_url?: string; bindABAccount?: boolean }>
           }
           links?: Array<{ icon?: string; title?: string; url?: string }>
           downloads?: Record<string, { version?: string; file_name?: string }>
@@ -1834,6 +1826,7 @@ const scanWorkspace = async (options: { forceSync?: boolean } = {}): Promise<voi
         if ((forceSync || !authors.value.some(author => author.name.trim())) && parsed.item?.author?.length) {
           authors.value = parsed.item.author.map(author => ({
             name: author.name || '',
+            authorUrl: author.author_url || '',
             bindABAccount: Boolean(author.bindABAccount)
           }))
         }
@@ -1963,9 +1956,14 @@ const buildManifestV2Text = (): string => {
 
 const buildManifestV1Text = (repoUrl: string): string => {
   const normalizedAuthors = authors.value
-    .map(author => ({
-      name: author.name.trim()
-    }))
+    .map(author => {
+      const name = author.name.trim()
+      const authorUrl = author.authorUrl.trim()
+      return {
+        name,
+        ...(authorUrl ? { author_url: authorUrl } : {})
+      }
+    })
     .filter(author => author.name)
 
   const normalizedDownloads = selectedDeviceIds.value.reduce<Record<string, { version: string; file_name: string }>>(

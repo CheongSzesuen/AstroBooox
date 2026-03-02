@@ -481,7 +481,6 @@ const appendOrReplaceCatalogRow = (existingCsv: string, entry: CatalogEntry): st
 }
 
 const appendLegacyCatalogRow = (existingCsv: string, entry: LegacyCatalogEntry): string => {
-  const rows = existingCsv.split(/\r?\n/).filter(line => line.trim().length > 0)
   const row = [
     entry.name,
     entry.icon,
@@ -492,7 +491,12 @@ const appendLegacyCatalogRow = (existingCsv: string, entry: LegacyCatalogEntry):
     entry.path,
     entry.paid_type
   ].join(',')
-  return [...rows, row].join('\n')
+  const newline = existingCsv.includes('\r\n') ? '\r\n' : '\n'
+  if (!existingCsv) return row
+  if (existingCsv.endsWith('\n') || existingCsv.endsWith('\r\n')) {
+    return `${existingCsv}${row}`
+  }
+  return `${existingCsv}${newline}${row}`
 }
 
 export const updateCatalogInForkBranch = async (params: {
