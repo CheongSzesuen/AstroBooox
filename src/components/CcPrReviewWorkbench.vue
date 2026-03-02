@@ -245,7 +245,7 @@
           </Card>
 
           <Dialog :open="filePickerOpen" @update:open="filePickerOpen = $event">
-            <DialogContent class="h-[84vh] w-[96vw] max-w-[1480px] p-0">
+            <DialogContent class="h-[88vh] w-[92vw] max-w-[1120px] p-0">
               <div class="flex h-full flex-col">
                 <DialogHeader class="border-b border-border px-5 py-4">
                   <DialogTitle>插入文件定位</DialogTitle>
@@ -770,6 +770,15 @@ const renderMarkdownPreview = (source: string): string => {
   return html
 }
 
+const decodeBase64Utf8 = (base64: string): string => {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+}
+
 async function githubGet<T>(path: string): Promise<T> {
   const response = await fetch(`https://api.github.com${path}`, {
     headers: {
@@ -1020,7 +1029,7 @@ const readRepoTextFileOrEmpty = async (path: string): Promise<string> => {
     )
     if (!file.content) return ''
     if (file.encoding && file.encoding !== 'base64') return ''
-    return atob(file.content.replace(/\n/g, ''))
+    return decodeBase64Utf8(file.content.replace(/\n/g, ''))
   } catch {
     return ''
   }
