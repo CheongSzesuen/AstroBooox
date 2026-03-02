@@ -1,16 +1,41 @@
 <template>
   <div class="w-full py-1 md:py-2">
     <div class="mx-auto flex max-w-[1600px] flex-col gap-4 lg:flex-row">
-      <aside class="flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm lg:sticky lg:top-0 lg:w-[18rem] xl:w-80">
-        <div class="mb-2 flex items-center justify-between gap-2 border-b border-border px-2 pb-2">
-          <div class="min-w-0">
+      <aside :class="sidebarClass">
+        <div
+          class="mb-2 hidden items-center border-b border-border pb-2 lg:flex"
+          :class="isSidebarCollapsed ? 'justify-center px-1' : 'justify-between gap-2 px-2'"
+        >
+          <div v-if="!isSidebarCollapsed" class="min-w-0">
             <p class="truncate text-xs font-semibold text-foreground">Pull Requests</p>
-            <p class="text-xs text-muted-foreground">{{ owner }}/{{ repo }}</p>
           </div>
-          <Button :disabled="loading || !canLoad" size="sm" variant="outline" @click="loadPullRequests">
-            <ArrowsClockwise :size="14" weight="duotone" />
-            {{ loading ? '加载中' : '刷新' }}
-          </Button>
+          <div class="flex items-center gap-1.5" :class="isSidebarCollapsed ? 'flex-col gap-2' : ''">
+            <Button
+              v-if="!isSidebarCollapsed"
+              :disabled="loading || !canLoad"
+              size="sm"
+              variant="outline"
+              @click="loadPullRequests"
+            >
+              <ArrowsClockwise :size="14" weight="duotone" />
+              <span>{{ loading ? '加载中' : '刷新' }}</span>
+            </Button>
+            <button
+              type="button"
+              :title="isSidebarCollapsed ? '展开边栏' : '收起边栏'"
+              class="inline-flex h-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              :class="isSidebarCollapsed ? 'w-8' : 'w-[72px] gap-1.5 px-2'"
+              aria-label="折叠或展开边栏"
+              @click="isSidebarCollapsed = !isSidebarCollapsed"
+            >
+              <span v-if="!isSidebarCollapsed" class="shrink-0 whitespace-nowrap text-xs">收起</span>
+              <CaretDoubleRight
+                :size="16"
+                weight="bold"
+                :class="['transition-transform duration-200', isSidebarCollapsed ? 'rotate-180' : 'rotate-0']"
+              />
+            </button>
+          </div>
         </div>
 
         <div
@@ -32,18 +57,31 @@
             v-for="item in pullRequests"
             :key="item.number"
             type="button"
-            class="w-full rounded-lg border px-3 py-2 text-left transition"
+            class="group flex items-center rounded-lg border text-left transition-colors"
             :class="
               selectedPr?.number === item.number
-                ? 'border-border bg-muted shadow-sm'
-                : 'border-transparent hover:bg-accent'
+                ? isSidebarCollapsed
+                  ? 'mx-auto h-12 w-12 justify-center p-1.5 border-border bg-muted shadow-sm'
+                  : 'w-full gap-2.5 px-2.5 py-2 border-border bg-muted shadow-sm'
+                : isSidebarCollapsed
+                  ? 'mx-auto h-12 w-12 justify-center p-1.5 border-transparent hover:bg-accent'
+                  : 'w-full gap-2.5 px-2.5 py-2 border-transparent hover:bg-accent'
             "
             @click="selectPr(item)"
           >
-            <div class="line-clamp-2 text-sm font-semibold text-foreground">#{{ item.number }} {{ item.title }}</div>
-            <div class="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span>{{ item.author }}</span>
-              <Badge variant="outline">{{ reviewStateText(item.status) }}</Badge>
+            <img
+              :src="getOptimizedAvatarUrl(item.author, item.authorAvatar)"
+              :class="isSidebarCollapsed ? 'h-10 w-10 rounded-md' : 'h-8 w-8 rounded-md'"
+              class="shrink-0 object-cover"
+              loading="lazy"
+              @load="cacheAvatar(item.author, item.authorAvatar)"
+            />
+
+            <div v-if="!isSidebarCollapsed" class="min-w-0 flex-1">
+              <div class="line-clamp-2 text-sm font-semibold text-foreground">#{{ item.number }} {{ item.title }}</div>
+              <div class="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>{{ item.author }}</span>
+              </div>
             </div>
           </button>
         </div>
@@ -57,25 +95,60 @@
         </Card>
 
         <template v-else>
-          <Card>
-            <CardHeader class="pb-3">
-              <CardTitle class="text-base">PR 概览</CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-2 pt-0 text-sm">
-              <div class="font-semibold text-foreground">#{{ selectedPr.number }} {{ selectedPr.title }}</div>
-              <div class="text-muted-foreground">作者：{{ selectedPr.author }}</div>
-              <div class="text-muted-foreground">创建时间：{{ formatDate(selectedPr.createdAt) }}</div>
-              <div class="text-muted-foreground">状态：{{ reviewStateText(selectedPr.status) }}</div>
-              <a
-                :href="selectedPr.url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex text-primary hover:underline"
-              >
-                在 GitHub 打开此 PR
-              </a>
-            </CardContent>
-          </Card>
+          <header class="rounded-xl border border-border bg-card p-5 md:p-6">
+            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div class="min-w-0 space-y-3">
+                <div class="flex flex-wrap items-end gap-x-2 gap-y-1">
+                  <h1 class="min-w-0 break-words text-xl font-semibold leading-tight text-foreground md:text-2xl">
+                    {{ selectedPr.title }}
+                  </h1>
+                  <span class="text-sm font-medium text-muted-foreground md:text-base">#{{ selectedPr.number }}</span>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <Badge variant="secondary" class="h-6 gap-1.5 rounded-full px-2.5 text-xs">
+                    <GitPullRequest :size="14" weight="duotone" class="shrink-0" />
+                    Open
+                  </Badge>
+                  <span class="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                    <img
+                      :src="getOptimizedAvatarUrl(selectedPr.author, selectedPr.authorAvatar)"
+                      class="h-6 w-6 shrink-0 rounded-full object-cover"
+                      loading="lazy"
+                      @load="cacheAvatar(selectedPr.author, selectedPr.authorAvatar)"
+                    />
+                    <span class="truncate font-medium text-foreground">{{ selectedPr.author }}</span>
+                    <span class="shrink-0">opened {{ formatDate(selectedPr.createdAt) }}</span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="flex shrink-0 items-center gap-2 md:justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="h-9 gap-1.5 px-3"
+                  :disabled="detailsLoading"
+                  @click="refreshSelectedPrDetails"
+                >
+                  <ArrowsClockwise :size="16" weight="bold" />
+                  刷新
+                </Button>
+                <Button
+                  as="a"
+                  :href="selectedPr.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="outline"
+                  size="sm"
+                  class="h-9 gap-1.5 px-3"
+                >
+                  <GithubLogo :size="16" weight="duotone" />
+                  GitHub
+                </Button>
+              </div>
+            </div>
+          </header>
 
           <Card>
             <CardHeader class="pb-3">
@@ -153,7 +226,12 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { PhArrowsClockwise as ArrowsClockwise } from '@phosphor-icons/vue'
+import {
+  PhArrowsClockwise as ArrowsClockwise,
+  PhCaretDoubleRight as CaretDoubleRight,
+  PhGithubLogo as GithubLogo,
+  PhGitPullRequest as GitPullRequest
+} from '@phosphor-icons/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -181,6 +259,7 @@ interface PullListItem {
   number: number
   title: string
   author: string
+  authorAvatar: string
   createdAt: string
   url: string
   headOwner: string
@@ -229,12 +308,20 @@ const loading = ref(false)
 const errorMessage = ref('')
 const pullRequests = ref<PullListItem[]>([])
 const selectedPr = ref<PullListItem | null>(null)
+const isSidebarCollapsed = ref(false)
 const detailsLoading = ref(false)
 const detailsError = ref('')
 const manifestV2 = ref<ManifestV2 | null>(null)
 const manifestV1 = ref<ManifestV1 | null>(null)
 
 const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && props.token.trim()))
+const sidebarClass = computed(() => [
+  'flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-300 lg:sticky lg:top-0',
+  isSidebarCollapsed.value
+    ? 'w-full p-2.5 lg:w-[5.2rem] lg:p-2.5'
+    : 'w-full p-3 lg:w-[18rem] lg:p-3 xl:w-80'
+])
+const avatarCache = new Map<string, string>()
 
 const COMMENT_PATTERN = /^\s*\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]\s*(.*)$/i
 
@@ -248,6 +335,28 @@ const formatDate = (value: string): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('zh-CN', { hour12: false })
+}
+
+const getOptimizedAvatarUrl = (login: string, avatarUrl: string): string => {
+  if (avatarCache.has(login)) {
+    return avatarCache.get(login)!
+  }
+  const cachedUrl = localStorage.getItem(`avatar_${login}`)
+  if (cachedUrl) {
+    avatarCache.set(login, cachedUrl)
+    return cachedUrl
+  }
+  let url = avatarUrl
+  if (url.includes('githubusercontent.com')) {
+    url += (url.includes('?') ? '&' : '?') + 's=64&q=70'
+  }
+  avatarCache.set(login, url)
+  return url
+}
+
+const cacheAvatar = (login: string, avatarUrl: string): void => {
+  const url = getOptimizedAvatarUrl(login, avatarUrl)
+  localStorage.setItem(`avatar_${login}`, url)
 }
 
 async function githubGet<T>(path: string): Promise<T> {
@@ -319,7 +428,7 @@ const loadPullRequests = async (): Promise<void> => {
       title: string
       html_url: string
       created_at: string
-      user?: { login?: string }
+      user?: { login?: string; avatar_url?: string }
       head?: { ref?: string; repo?: { name?: string; owner?: { login?: string } } }
     }>>(`/repos/${props.owner}/${props.repo}/pulls?state=open&per_page=50`)
 
@@ -336,6 +445,7 @@ const loadPullRequests = async (): Promise<void> => {
         number: pr.number,
         title: pr.title,
         author: pr.user?.login || 'unknown',
+        authorAvatar: pr.user?.avatar_url || '',
         createdAt: pr.created_at,
         url: pr.html_url,
         headOwner,
@@ -400,6 +510,11 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
 const selectPr = async (pr: PullListItem): Promise<void> => {
   selectedPr.value = pr
   await loadPrDetails(pr)
+}
+
+const refreshSelectedPrDetails = async (): Promise<void> => {
+  if (!selectedPr.value) return
+  await loadPrDetails(selectedPr.value)
 }
 
 const merged = computed(() => {
