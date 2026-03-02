@@ -321,46 +321,46 @@ export const ensureUserRepository = async (params: {
   const { token, owner, repoName, description } = params
 
   try {
-    const existing = await githubFetch<{
+    const created = await githubFetch<{
       name: string
       html_url: string
       default_branch: string
       owner: { login: string }
-    }>(`/repos/${owner}/${repoName}`, token)
+    }>('/user/repos', token, {
+      method: 'POST',
+      headers: buildHeaders(token, 'application/json'),
+      body: JSON.stringify({
+        name: repoName,
+        description,
+        private: false,
+        auto_init: false
+      })
+    })
 
     return {
-      owner: existing.owner.login,
-      name: existing.name,
-      defaultBranch: existing.default_branch || 'main',
-      htmlUrl: existing.html_url
+      owner: created.owner.login,
+      name: created.name,
+      defaultBranch: created.default_branch || 'main',
+      htmlUrl: created.html_url
     }
   } catch (error: unknown) {
-    if ((error as GitHubApiError)?.status !== 404) {
+    if ((error as GitHubApiError)?.status !== 422) {
       throw error
     }
   }
 
-  const created = await githubFetch<{
+  const existing = await githubFetch<{
     name: string
     html_url: string
     default_branch: string
     owner: { login: string }
-  }>('/user/repos', token, {
-    method: 'POST',
-    headers: buildHeaders(token, 'application/json'),
-    body: JSON.stringify({
-      name: repoName,
-      description,
-      private: false,
-      auto_init: false
-    })
-  })
+  }>(`/repos/${owner}/${repoName}`, token)
 
   return {
-    owner: created.owner.login,
-    name: created.name,
-    defaultBranch: created.default_branch || 'main',
-    htmlUrl: created.html_url
+    owner: existing.owner.login,
+    name: existing.name,
+    defaultBranch: existing.default_branch || 'main',
+    htmlUrl: existing.html_url
   }
 }
 

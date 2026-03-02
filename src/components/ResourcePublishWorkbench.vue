@@ -213,11 +213,14 @@
                 <div class="space-y-3">
                   <div class="space-y-1.5">
                     <Label for="workspace-folder-name">新文件夹名称</Label>
-                    <Input
-                      id="workspace-folder-name"
-                      v-model="newWorkspaceName"
-                      placeholder="MyApp_AstroBox_Release"
-                    />
+                    <div class="flex items-center gap-2">
+                      <Input
+                        id="workspace-folder-name"
+                        v-model="workspaceFolderPrefixInput"
+                        placeholder="例如：MyApp"
+                      />
+                      <span class="text-xs text-muted-foreground">_AstroBox_Release</span>
+                    </div>
                   </div>
                   <div class="flex flex-wrap items-center gap-2">
                     <Button :disabled="isBusy" @click="createWorkspaceFolder">
@@ -303,11 +306,9 @@
                     <Label for="item-description">资源描述</Label>
                     <Textarea
                       id="item-description"
-                      ref="descriptionTextareaRef"
                       v-model="itemDescription"
                       class="min-h-[90px] resize-y overflow-auto"
                       placeholder="填写资源描述（manifest_v2.item.description）"
-                      @input="autoResizeDescription"
                     />
                   </div>
                 </CardContent>
@@ -470,6 +471,9 @@
                     </div>
                   </div>
                   <Button variant="default" class="font-semibold" @click="addLink">+ 添加链接</Button>
+                  <p v-if="linksValidationMessage" class="text-xs text-destructive">
+                    {{ linksValidationMessage }}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -596,24 +600,23 @@
                 <Textarea id="pr-body" v-model="prBody" class="min-h-[110px]" />
               </div>
 
-              <div class="flex flex-wrap items-center gap-2">
-                <Button :disabled="creatingPr || !canSubmitPr" @click="handleCreateCatalogPr">
-                  <GitPullRequest :size="16" weight="duotone" />
-                  {{ creatingPr ? '创建中...' : '提交 Pull Request' }}
-                </Button>
-                <a
-                  v-if="latestPrUrl"
-                  :href="latestPrUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="text-sm text-primary hover:underline"
-                >
-                  查看最新 PR
-                </a>
-              </div>
-
-              <div class="flex justify-start">
+              <div class="flex flex-wrap items-center justify-between gap-2">
                 <Button variant="outline" @click="goToStep(2)">上一步</Button>
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                  <a
+                    v-if="latestPrUrl"
+                    :href="latestPrUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-sm text-primary hover:underline"
+                  >
+                    查看最新 PR
+                  </a>
+                  <Button :disabled="creatingPr || !canSubmitPr" @click="handleCreateCatalogPr">
+                    <GitPullRequest :size="16" weight="duotone" />
+                    {{ creatingPr ? '创建中...' : '提交 Pull Request' }}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -882,7 +885,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, ref, watch, type Component } from 'vue'
+import { computed, defineAsyncComponent, ref, watch, type Component } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
@@ -1075,6 +1078,7 @@ const {
 const { appendPublishLog: appendLog, publishLogsText, clearPublishLogs } = useCcPublishLogs()
 const workspaceBusy = ref(false)
 const newWorkspaceName = ref('')
+const RELEASE_FOLDER_SUFFIX = '_AstroBox_Release'
 const workspaceDisplayPath = ref('')
 const activeStep = ref(0)
 const fileTreeTab = ref<'workspace' | 'remote'>('workspace')
@@ -1096,7 +1100,6 @@ const itemName = ref('')
 const restype = ref('quickapp')
 const paidType = ref('')
 const itemDescription = ref('')
-const descriptionTextareaRef = ref<HTMLTextAreaElement | null>(null)
 const tags = ref<string[]>([])
 const tagInput = ref('')
 const selectedDeviceIds = ref<string[]>([])
@@ -1148,6 +1151,20 @@ const paidTypeSelectValue = computed({
   get: () => paidType.value || 'free',
   set: value => {
     paidType.value = value === 'free' ? '' : value
+  }
+})
+
+const stripReleaseFolderSuffix = (raw: string): string =>
+  raw
+    .trim()
+    .replace(/_AstroBox_Release$/i, '')
+    .replace(/_+$/g, '')
+
+const workspaceFolderPrefixInput = computed({
+  get: () => stripReleaseFolderSuffix(newWorkspaceName.value),
+  set: (value: string) => {
+    const prefix = stripReleaseFolderSuffix(value)
+    newWorkspaceName.value = prefix ? `${prefix}${RELEASE_FOLDER_SUFFIX}` : ''
   }
 })
 
@@ -1279,6 +1296,30 @@ const areDownloadsComplete = computed(
     })
 )
 
+const validateLinkUrl = (raw: string): string | null => {
+  const value = raw.trim()
+  if (!value) return 'URL 不能为空'
+  if (!/^https:\/\//i.test(value)) return 'URL 必须以 https:// 开头'
+  try {
+    const parsed = new URL(value)
+    if (parsed.protocol !== 'https:') return 'URL 必须使用 https 协议'
+  } catch {
+    return 'URL 格式不合法'
+  }
+  return null
+}
+
+const linksValidationMessage = computed(() => {
+  for (let i = 0; i < links.value.length; i++) {
+    const link = links.value[i]
+    const hasValue = Boolean(link.icon.trim() || link.title.trim() || link.url.trim())
+    if (!hasValue) continue
+    const error = validateLinkUrl(link.url)
+    if (error) return `第 ${i + 1} 个相关链接：${error}`
+  }
+  return ''
+})
+
 const isResourceInfoValid = computed(
   () =>
     Boolean(
@@ -1288,7 +1329,8 @@ const isResourceInfoValid = computed(
         iconPath.value.trim() &&
         coverPath.value.trim() &&
         normalizedTagsText.value &&
-        areDownloadsComplete.value
+        areDownloadsComplete.value &&
+        !linksValidationMessage.value
     )
 )
 
@@ -1632,14 +1674,6 @@ const removeTag = (index: number): void => {
   tags.value.splice(index, 1)
 }
 
-const autoResizeDescription = (): void => {
-  const el = descriptionTextareaRef.value
-  if (!el) return
-  const minHeight = 90
-  const nextHeight = Math.max(el.scrollHeight, el.offsetHeight, minHeight)
-  el.style.height = `${nextHeight}px`
-}
-
 const pickFileFromWorkspace = async (): Promise<PickedWorkspaceFile | null> => {
   const handle = await ensureWorkspaceHandle()
   if (!handle) {
@@ -1826,14 +1860,6 @@ watch(
 )
 
 watch(
-  itemDescription,
-  () => {
-    void nextTick(() => autoResizeDescription())
-  },
-  { immediate: true }
-)
-
-watch(
   workspacePath,
   path => {
     if (newWorkspaceName.value.trim()) return
@@ -1882,7 +1908,7 @@ watch(
 )
 
 const toReleaseFolderName = (raw: string): string => {
-  const normalized = raw
+  const normalized = stripReleaseFolderSuffix(raw)
     .trim()
     .replace(/[\\/:*?"<>|]/g, '-')
     .replace(/\s+/g, '_')
@@ -1890,7 +1916,7 @@ const toReleaseFolderName = (raw: string): string => {
     .replace(/^_+|_+$/g, '')
 
   const prefix = normalized || `Resource_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`
-  return prefix.endsWith('_AstroBox_Release') ? prefix : `${prefix}_AstroBox_Release`
+  return `${prefix}${RELEASE_FOLDER_SUFFIX}`
 }
 
 const validateGitHubRepoName = (name: string): string | null => {
@@ -2447,6 +2473,10 @@ const handleUploadResources = async (): Promise<void> => {
     latestPrUrl.value = ''
     showUploadCompleteDialog.value = false
 
+    if (linksValidationMessage.value) {
+      throw new Error(linksValidationMessage.value)
+    }
+
     const workspace = await ensureWorkspaceHandle()
     if (!workspace) {
       throw new Error('请先选择并授权工作区文件夹')
@@ -2500,28 +2530,51 @@ const handleUploadResources = async (): Promise<void> => {
     let latestCommitSha = ''
 
     for (const item of uploadQueue) {
-      const oldFile = await fetchRepoFileOrNull(
-        accessToken,
-        repo.owner,
-        repo.name,
-        item.path,
-        MAIN_BRANCH
-      )
-
       const contentBase64 = item.file
         ? arrayBufferToBase64(await item.file.arrayBuffer())
         : textToBase64(item.text || '')
 
-      const result = await putRepoFile({
-        token: accessToken,
-        owner: repo.owner,
-        repo: repo.name,
-        path: item.path,
-        branch: MAIN_BRANCH,
-        message: `sync: ${item.path}`,
-        contentBase64,
-        sha: oldFile?.sha
-      })
+      let result: { commit: { sha: string; html_url: string } }
+      try {
+        result = await putRepoFile({
+          token: accessToken,
+          owner: repo.owner,
+          repo: repo.name,
+          path: item.path,
+          branch: MAIN_BRANCH,
+          message: `sync: ${item.path}`,
+          contentBase64
+        })
+      } catch (error: unknown) {
+        const githubError = error as { status?: number; message?: string }
+        const message = githubError.message || ''
+        const shouldRetryWithSha =
+          githubError.status === 422 &&
+          (message.includes('sha') || message.includes('does not match') || message.includes('already exists'))
+        if (!shouldRetryWithSha) {
+          throw error
+        }
+        const oldFile = await fetchRepoFileOrNull(
+          accessToken,
+          repo.owner,
+          repo.name,
+          item.path,
+          MAIN_BRANCH
+        )
+        if (!oldFile?.sha) {
+          throw error
+        }
+        result = await putRepoFile({
+          token: accessToken,
+          owner: repo.owner,
+          repo: repo.name,
+          path: item.path,
+          branch: MAIN_BRANCH,
+          message: `sync: ${item.path}`,
+          contentBase64,
+          sha: oldFile.sha
+        })
+      }
 
       latestCommitSha = result.commit.sha
       appendLog(`上传完成: ${item.path}`)
