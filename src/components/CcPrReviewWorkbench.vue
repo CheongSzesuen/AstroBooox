@@ -820,6 +820,7 @@ const commentSubmitting = ref(false)
 const commentResultDialogOpen = ref(false)
 const commentResultDialogTitle = ref('')
 const commentResultDialogMessage = ref('')
+const pendingCreatedComments = new Map<number, IssueCommentItem>()
 
 const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && resolvedToken.value))
 const sidebarClass = computed(() => [
@@ -831,6 +832,7 @@ const sidebarClass = computed(() => [
 const avatarCache = new Map<string, string>()
 
 const COMMENT_PATTERN = /^\s*\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]\s*(.*)$/i
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 const formatDate = (value: string): string => {
   const date = new Date(value)
@@ -2025,6 +2027,44 @@ const deriveReviewStatus = (comments: Array<{ body?: string }>): ReviewStatusRes
   }
 }
 
+const sortCommentsByTime = (comments: IssueCommentItem[]): IssueCommentItem[] =>
+  [...comments].sort((a, b) => {
+    const ta = new Date(a.created_at || '').getTime()
+    const tb = new Date(b.created_at || '').getTime()
+    if (Number.isNaN(ta) || Number.isNaN(tb)) return a.id - b.id
+    return ta - tb
+  })
+
+const fetchIssueComments = async (prNumber: number): Promise<IssueCommentItem[]> => {
+  const comments = await githubGet<IssueCommentItem[]>(
+    `/repos/${props.owner}/${props.repo}/issues/${prNumber}/comments?per_page=100&sort=updated&direction=desc`
+  )
+  return sortCommentsByTime(comments)
+}
+
+const mergePendingComments = (comments: IssueCommentItem[]): IssueCommentItem[] => {
+  const merged = [...comments]
+  for (const [id, pending] of pendingCreatedComments.entries()) {
+    if (merged.some(item => item.id === id)) {
+      pendingCreatedComments.delete(id)
+      continue
+    }
+    merged.push(pending)
+  }
+  return sortCommentsByTime(merged)
+}
+
+const upsertCommentInList = (comment: IssueCommentItem): void => {
+  const current = [...prComments.value]
+  const index = current.findIndex(item => item.id === comment.id)
+  if (index >= 0) {
+    current[index] = { ...current[index], ...comment }
+  } else {
+    current.push(comment)
+  }
+  prComments.value = sortCommentsByTime(current)
+}
+
 const loadPullRequests = async (): Promise<void> => {
   loading.value = true
   errorMessage.value = ''
@@ -2043,9 +2083,7 @@ const loadPullRequests = async (): Promise<void> => {
 
     const list: PullListItem[] = []
     for (const pr of pulls) {
-      const comments = await githubGet<Array<{ body?: string }>>(
-        `/repos/${props.owner}/${props.repo}/issues/${pr.number}/comments?per_page=100`
-      )
+      const comments = await fetchIssueComments(pr.number)
       const review = deriveReviewStatus(comments)
       const headOwner = pr.head?.repo?.owner?.login || ''
       const headRepo = pr.head?.repo?.name || ''
@@ -2102,9 +2140,7 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
       githubGet<{ body?: string; base?: { ref?: string } }>(
         `/repos/${props.owner}/${props.repo}/pulls/${pr.number}`
       ),
-      githubGet<IssueCommentItem[]>(
-        `/repos/${props.owner}/${props.repo}/issues/${pr.number}/comments?per_page=100`
-      ),
+      fetchIssueComments(pr.number),
       githubGet<PullFileItem[]>(
         `/repos/${props.owner}/${props.repo}/pulls/${pr.number}/files?per_page=100`
       )
@@ -2247,10 +2283,8 @@ const refreshSelectedPrDetails = async (): Promise<void> => {
 }
 
 const refreshPrCommentsAndStatus = async (pr: PullListItem): Promise<void> => {
-  const comments = await githubGet<IssueCommentItem[]>(
-    `/repos/${props.owner}/${props.repo}/issues/${pr.number}/comments?per_page=100`
-  )
-  prComments.value = comments
+  const comments = await fetchIssueComments(pr.number)
+  prComments.value = mergePendingComments(comments)
   const review = deriveReviewStatus(comments)
   pr.review = review
   pr.status = review.state
@@ -2384,13 +2418,21 @@ const submitPresetComment = async (): Promise<void> => {
   }
   commentSubmitting.value = true
   try {
-    const created = await githubPost<{ id: number }>(
+    const created = await githubPost<IssueCommentItem>(
       `/repos/${props.owner}/${props.repo}/issues/${selectedPr.value.number}/comments`,
       { body }
     )
+    pendingCreatedComments.set(created.id, created)
     commentMessage.value = ''
     commentEditorTab.value = 'edit'
-    await refreshPrCommentsAndStatus(selectedPr.value)
+    upsertCommentInList(created)
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await refreshPrCommentsAndStatus(selectedPr.value)
+      if (prComments.value.some(comment => comment.id === created.id)) {
+        break
+      }
+      await sleep(600 * (attempt + 1))
+    }
     await scrollToCommentById(created.id)
     openCommentResultDialog('发送成功', '评论已发送并立即刷新评论列表。')
   } catch (error: unknown) {
