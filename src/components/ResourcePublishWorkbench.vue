@@ -1823,7 +1823,7 @@ const handleCreateCatalogPr = async (): Promise<void> => {
       entry: {
         id: itemId.value.trim(),
         name: itemName.value.trim(),
-        restype: restype.value.trim(),
+        restype: restype.value.trim() === 'quickapp' ? 'quick_app' : 'watchface',
         repo_owner: uploadedRepoOwner.value,
         repo_name: uploadedRepoName.value,
         repo_commit_hash: uploadedCommitSha.value.slice(0, 7),
