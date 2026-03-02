@@ -583,11 +583,9 @@
                   <component
                     :is="getLinkIconComponent(option.pascalName)"
                     :size="24"
-                    :weight="option.weight"
                     class="h-6 w-6 shrink-0 text-foreground"
                   />
                   <span class="line-clamp-2 break-all text-[11px] leading-4">{{ option.name }}</span>
-                  <span class="text-[10px] uppercase tracking-wide text-muted-foreground">{{ option.weight }}</span>
                 </button>
               </div>
               <div
@@ -694,7 +692,7 @@ import {
   PhMinus as MinusIcon,
   PhUploadSimple as UploadSimple
 } from '@phosphor-icons/vue'
-import { icons as phosphorCoreIcons, IconStyle } from '@phosphor-icons/core'
+import { icons as phosphorCoreIcons } from '@phosphor-icons/core'
 import draggable from 'vuedraggable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -782,18 +780,9 @@ interface LinkIconOption {
   key: string
   name: string
   pascalName: string
-  weight: IconStyle
   keywords: string
 }
 
-const LINK_ICON_WEIGHTS: IconStyle[] = [
-  IconStyle.REGULAR,
-  IconStyle.BOLD,
-  IconStyle.FILL,
-  IconStyle.DUOTONE,
-  IconStyle.LIGHT,
-  IconStyle.THIN
-]
 const LINK_ICON_MAX_RENDER = 720
 const phosphorIconModules = import.meta.glob('/node_modules/@phosphor-icons/vue/dist/icons/*.vue.mjs')
 const linkIconComponentCache = new Map<string, Component | null>()
@@ -1035,15 +1024,12 @@ const canSubmitPr = computed(
 )
 
 const phosphorIconOptions = computed<LinkIconOption[]>(() =>
-  phosphorCoreIcons.flatMap(icon =>
-    LINK_ICON_WEIGHTS.map(weight => ({
-      key: `${icon.name}:${weight}`,
-      name: icon.name,
-      pascalName: icon.pascal_name,
-      weight,
-      keywords: `${icon.name} ${icon.pascal_name} ${icon.tags.join(' ')} ${icon.categories.join(' ')}`.toLowerCase()
-    }))
-  )
+  phosphorCoreIcons.map(icon => ({
+    key: icon.name,
+    name: icon.name,
+    pascalName: icon.pascal_name,
+    keywords: `${icon.name} ${icon.pascal_name} ${icon.tags.join(' ')} ${icon.categories.join(' ')}`.toLowerCase()
+  }))
 )
 
 const filteredPhosphorIconOptions = computed(() => {
