@@ -95,60 +95,48 @@
         </Card>
 
         <template v-else>
-          <header class="rounded-xl border border-border bg-card p-5 md:p-6">
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div class="min-w-0 space-y-3">
-                <div class="flex flex-wrap items-end gap-x-2 gap-y-1">
-                  <h1 class="min-w-0 break-words text-xl font-semibold leading-tight text-foreground md:text-2xl">
-                    {{ selectedPr.title }}
-                  </h1>
-                  <span class="text-sm font-medium text-muted-foreground md:text-base">#{{ selectedPr.number }}</span>
-                </div>
-
-                <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <Badge variant="secondary" class="h-6 gap-1.5 rounded-full px-2.5 text-xs">
-                    <GitPullRequest :size="14" weight="duotone" class="shrink-0" />
-                    Open
-                  </Badge>
-                  <span class="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-                    <img
-                      :src="getOptimizedAvatarUrl(selectedPr.author, selectedPr.authorAvatar)"
-                      class="h-6 w-6 shrink-0 rounded-full object-cover"
-                      loading="lazy"
-                      @load="cacheAvatar(selectedPr.author, selectedPr.authorAvatar)"
-                    />
-                    <span class="truncate font-medium text-foreground">{{ selectedPr.author }}</span>
-                    <span class="shrink-0">opened {{ formatDate(selectedPr.createdAt) }}</span>
-                  </span>
-                </div>
-              </div>
-
-              <div class="flex shrink-0 items-center gap-2 md:justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="h-9 gap-1.5 px-3"
-                  :disabled="detailsLoading"
-                  @click="refreshSelectedPrDetails"
-                >
-                  <ArrowsClockwise :size="16" weight="bold" />
-                  刷新
-                </Button>
-                <Button
-                  as="a"
-                  :href="selectedPr.url"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="outline"
-                  size="sm"
-                  class="h-9 gap-1.5 px-3"
-                >
-                  <GithubLogo :size="16" weight="duotone" />
-                  GitHub
-                </Button>
-              </div>
-            </div>
-          </header>
+          <ReviewDetailHeader :title="selectedPr.title" :number="selectedPr.number">
+            <template #meta>
+              <Badge variant="secondary" class="h-6 gap-1.5 rounded-full px-2.5 text-xs">
+                <GitPullRequest :size="14" weight="duotone" class="shrink-0" />
+                Open
+              </Badge>
+              <span class="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                <img
+                  :src="getOptimizedAvatarUrl(selectedPr.author, selectedPr.authorAvatar)"
+                  class="h-6 w-6 shrink-0 rounded-full object-cover"
+                  loading="lazy"
+                  @load="cacheAvatar(selectedPr.author, selectedPr.authorAvatar)"
+                />
+                <span class="truncate font-medium text-foreground">{{ selectedPr.author }}</span>
+                <span class="shrink-0">opened {{ formatDate(selectedPr.createdAt) }}</span>
+              </span>
+            </template>
+            <template #actions>
+              <Button
+                variant="outline"
+                size="sm"
+                class="h-9 gap-1.5 px-3"
+                :disabled="detailsLoading"
+                @click="refreshSelectedPrDetails"
+              >
+                <ArrowsClockwise :size="16" weight="bold" />
+                刷新
+              </Button>
+              <Button
+                as="a"
+                :href="selectedPr.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="outline"
+                size="sm"
+                class="h-9 gap-1.5 px-3"
+              >
+                <GithubLogo :size="16" weight="duotone" />
+                GitHub
+              </Button>
+            </template>
+          </ReviewDetailHeader>
 
           <Card>
             <CardHeader class="pb-3">
@@ -227,40 +215,14 @@
                 </div>
 
                 <div class="pt-1 text-xs font-medium text-muted-foreground">最近评论</div>
-                <div
-                  v-if="prComments.length === 0"
-                  class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
-                >
-                  当前 PR 暂无评论
-                </div>
-                <div v-else class="relative space-y-3">
-                  <div class="pointer-events-none absolute bottom-3 left-[46px] top-4 w-px bg-border" />
-                  <div
-                    v-for="comment in prComments"
-                    :key="comment.id"
-                    class="relative flex items-start gap-3"
-                  >
-                    <img
-                      v-if="comment.user?.avatar_url && comment.user?.login"
-                      :src="getOptimizedAvatarUrl(comment.user.login, comment.user.avatar_url)"
-                      class="relative z-10 h-8 w-8 shrink-0 rounded-full bg-background object-cover"
-                      loading="lazy"
-                      @load="cacheAvatar(comment.user.login, comment.user.avatar_url)"
-                    />
-                    <div class="relative z-10 min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-2 text-sm">
-                      <div class="mb-3 flex items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
-                        <span class="inline-flex min-w-0 items-center gap-2">
-                          <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
-                          <span class="shrink-0">{{ formatCommentRelativeTime(comment.created_at) }}</span>
-                        </span>
-                        <a :href="comment.html_url" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">
-                          打开评论
-                        </a>
-                      </div>
-                      <div class="pt-1 whitespace-pre-wrap break-words text-foreground">{{ comment.body }}</div>
-                    </div>
-                  </div>
-                </div>
+                <ReviewCommentTimeline
+                  :comments="prComments"
+                  :line-left="54"
+                  show-open-link
+                  avatar-rounded="full"
+                  :get-avatar-url="getOptimizedAvatarUrl"
+                  :on-avatar-load="cacheAvatar"
+                />
               </div>
             </CardContent>
           </Card>
@@ -726,6 +688,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue'
+import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
 import {
   Card,
   CardContent,
@@ -900,25 +864,6 @@ const formatDate = (value: string): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('zh-CN', { hour12: false })
-}
-
-const formatCommentRelativeTime = (value: string): string => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'commented just now'
-  const diffMs = Date.now() - date.getTime()
-  const absMs = Math.abs(diffMs)
-  const minute = 60 * 1000
-  const hour = 60 * minute
-  const day = 24 * hour
-  const month = 30 * day
-  const year = 365 * day
-
-  if (absMs < minute) return 'commented just now'
-  if (absMs < hour) return `commented ${Math.max(1, Math.round(absMs / minute))} minute${Math.round(absMs / minute) > 1 ? 's' : ''} ago`
-  if (absMs < day) return `commented ${Math.max(1, Math.round(absMs / hour))} hour${Math.round(absMs / hour) > 1 ? 's' : ''} ago`
-  if (absMs < month) return `commented ${Math.max(1, Math.round(absMs / day))} day${Math.round(absMs / day) > 1 ? 's' : ''} ago`
-  if (absMs < year) return `commented ${Math.max(1, Math.round(absMs / month))} month${Math.round(absMs / month) > 1 ? 's' : ''} ago`
-  return `commented ${Math.max(1, Math.round(absMs / year))} year${Math.round(absMs / year) > 1 ? 's' : ''} ago`
 }
 
 const getOptimizedAvatarUrl = (login: string, avatarUrl: string): string => {

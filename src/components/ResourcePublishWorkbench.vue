@@ -852,51 +852,42 @@
       </div>
 
       <div v-else class="space-y-4">
-        <header class="rounded-xl border border-border bg-card p-5 md:p-6">
-          <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div class="min-w-0 space-y-3">
-              <Button variant="outline" size="sm" class="h-8 gap-1.5 px-2.5" @click="closeReviewDetail">
-                <ArrowLeft :size="14" weight="bold" />
-                返回
-              </Button>
-              <div class="flex flex-wrap items-end gap-x-2 gap-y-1">
-                <h1 class="min-w-0 break-words text-xl font-semibold leading-tight text-foreground md:text-2xl">
-                  {{ selectedReviewItem.prTitle }}
-                </h1>
-                <span class="text-sm font-medium text-muted-foreground md:text-base">#{{ selectedReviewItem.prNumber }}</span>
-              </div>
-              <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
-                <Badge variant="secondary" class="h-6 rounded-full px-2.5 text-xs">Open</Badge>
-                <span>{{ selectedReviewItem.id }} · {{ selectedReviewItem.name }}</span>
-                <span>{{ selectedReviewItem.restype }}</span>
-              </div>
-            </div>
-            <div class="flex shrink-0 items-center gap-2 md:justify-end">
-              <Button
-                :disabled="reviewCommentsLoading"
-                variant="outline"
-                size="sm"
-                class="h-9 gap-1.5 px-3"
-                @click="loadReviewComments(selectedReviewItem.prNumber)"
-              >
-                <ArrowsClockwise :size="14" weight="duotone" />
-                刷新评论
-              </Button>
-              <Button
-                as="a"
-                :href="selectedReviewItem.prUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                variant="outline"
-                size="sm"
-                class="h-9 gap-1.5 px-3"
-              >
-                <GitPullRequest :size="14" weight="duotone" />
-                打开 GitHub
-              </Button>
-            </div>
-          </div>
-        </header>
+        <ReviewDetailHeader
+          :title="selectedReviewItem.prTitle"
+          :number="selectedReviewItem.prNumber"
+          show-back
+          @back="closeReviewDetail"
+        >
+          <template #meta>
+            <Badge variant="secondary" class="h-6 rounded-full px-2.5 text-xs">Open</Badge>
+            <span class="text-sm text-muted-foreground">{{ selectedReviewItem.id }} · {{ selectedReviewItem.name }}</span>
+            <span class="text-sm text-muted-foreground">{{ selectedReviewItem.restype }}</span>
+          </template>
+          <template #actions>
+            <Button
+              :disabled="reviewCommentsLoading"
+              variant="outline"
+              size="sm"
+              class="h-9 gap-1.5 px-3"
+              @click="loadReviewComments(selectedReviewItem.prNumber)"
+            >
+              <ArrowsClockwise :size="14" weight="duotone" />
+              刷新评论
+            </Button>
+            <Button
+              as="a"
+              :href="selectedReviewItem.prUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="outline"
+              size="sm"
+              class="h-9 gap-1.5 px-3"
+            >
+              <GitPullRequest :size="14" weight="duotone" />
+              打开 GitHub
+            </Button>
+          </template>
+        </ReviewDetailHeader>
 
         <Card>
           <CardHeader class="pb-3">
@@ -910,36 +901,13 @@
               检测到 NEEDFIX 标签且尚未出现对应 FIXED：{{ selectedReviewItem.unresolvedTagIds.join(' / ') }}
             </div>
             <div v-if="reviewCommentsError" class="text-xs text-destructive">{{ reviewCommentsError }}</div>
-            <div
-              v-if="selectedReviewComments.length === 0 && !reviewCommentsLoading"
-              class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
-            >
-              当前 PR 暂无评论
-            </div>
-            <div v-else class="relative space-y-3">
-              <div class="pointer-events-none absolute bottom-3 left-[46px] top-4 w-px bg-border" />
-              <div
-                v-for="comment in selectedReviewComments"
-                :key="comment.id"
-                class="relative flex items-start gap-3"
-              >
-                <img
-                  v-if="comment.user?.avatar_url"
-                  :src="comment.user.avatar_url"
-                  class="relative z-10 h-8 w-8 shrink-0 rounded-full border border-border bg-background object-cover"
-                  loading="lazy"
-                />
-                <div class="relative z-10 min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-2 text-sm">
-                  <div class="mb-3 flex items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
-                    <span class="inline-flex min-w-0 items-center gap-2">
-                      <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
-                      <span class="shrink-0">{{ formatCommentRelativeTime(comment.created_at) }}</span>
-                    </span>
-                  </div>
-                  <div class="pt-1 whitespace-pre-wrap break-words text-foreground">{{ comment.body }}</div>
-                </div>
-              </div>
-            </div>
+            <ReviewCommentTimeline
+              v-if="!reviewCommentsLoading"
+              :comments="selectedReviewComments"
+              :line-left="54"
+              avatar-rounded="full"
+              :avatar-border="true"
+            />
           </CardContent>
         </Card>
       </div>
@@ -983,7 +951,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref, watch, type Component } from 'vue'
 import {
-  PhArrowLeft as ArrowLeft,
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
   PhCaretRight as CaretRight,
@@ -1025,6 +992,8 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue'
+import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
 import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
 import { useCcSettings } from '@/composables/useCcSettings'
 import { useCcSession } from '@/composables/useCcSession'
@@ -2872,25 +2841,4 @@ const formatDate = (value: string): string => {
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
-const formatCommentRelativeTime = (value: string): string => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'commented just now'
-  const diffMs = Date.now() - date.getTime()
-  const absMs = Math.abs(diffMs)
-  const minute = 60 * 1000
-  const hour = 60 * minute
-  const day = 24 * hour
-
-  if (absMs < minute) return 'commented just now'
-  if (absMs < hour) {
-    const m = Math.max(1, Math.round(absMs / minute))
-    return `commented ${m} minute${m > 1 ? 's' : ''} ago`
-  }
-  if (absMs < day) {
-    const h = Math.max(1, Math.round(absMs / hour))
-    return `commented ${h} hour${h > 1 ? 's' : ''} ago`
-  }
-  const d = Math.max(1, Math.round(absMs / day))
-  return `commented ${d} day${d > 1 ? 's' : ''} ago`
-}
 </script>
