@@ -18,7 +18,7 @@
                   : 'border-border bg-background text-muted-foreground hover:bg-muted/30',
                 step.done ? '!text-foreground' : ''
               ]"
-              @click="activeStep = index"
+              @click="goToStep(index)"
             >
               <span
                 class="inline-flex h-5 w-5 items-center justify-center rounded-full border text-[11px] font-semibold"
@@ -86,7 +86,7 @@
               </div>
 
               <div class="flex justify-end">
-                <Button :disabled="!stepList[0].done" @click="activeStep = 1">下一步</Button>
+                <Button :disabled="!stepList[0].done" @click="goToStep(1)">下一步</Button>
               </div>
             </CardContent>
           </Card>
@@ -358,8 +358,8 @@
               </Card>
 
               <div class="flex justify-between gap-2">
-                <Button variant="outline" @click="activeStep = 0">上一步</Button>
-                <Button :disabled="!stepList[1].done" @click="activeStep = 2">下一步</Button>
+                <Button variant="outline" @click="goToStep(0)">上一步</Button>
+                <Button :disabled="!stepList[1].done" @click="goToStep(2)">下一步</Button>
               </div>
             </CardContent>
           </Card>
@@ -373,27 +373,11 @@
               <div class="grid gap-3 md:grid-cols-2">
                 <div class="space-y-1.5">
                   <Label for="repo-name">资源仓库名（可选）</Label>
-                  <Input id="repo-name" v-model="repoName" placeholder="留空时按 ID 自动生成" />
+                  <Input id="repo-name" v-model="repoName" placeholder="留空时默认使用当前文件夹名" />
                 </div>
                 <div class="space-y-1.5">
                   <Label for="repo-desc">仓库描述（可选）</Label>
                   <Input id="repo-desc" v-model="repoDescription" placeholder="resource repository" />
-                </div>
-              </div>
-
-              <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
-                上传目标仓库: {{ currentUser || '--' }}/{{ resolvedRepoName || '--' }}
-              </div>
-
-              <div class="grid gap-2 md:grid-cols-3">
-                <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm">
-                  仓库: {{ currentUser || '--' }}/{{ resolvedRepoName || '--' }}
-                </div>
-                <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm">
-                  待上传文件: {{ uploadQueueCount }}
-                </div>
-                <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm">
-                  分支: {{ MAIN_BRANCH }}
                 </div>
               </div>
 
@@ -402,9 +386,6 @@
                   <UploadSimple :size="16" weight="duotone" />
                   {{ uploading ? '上传中...' : '创建仓库并上传' }}
                 </Button>
-                <span v-if="uploadedCommitSha" class="text-sm text-muted-foreground">
-                  最新 Commit: {{ uploadedCommitSha.slice(0, 10) }}
-                </span>
               </div>
 
               <div v-if="uploadedRepoUrl" class="rounded-lg border border-border bg-muted/25 p-3 text-sm">
@@ -420,8 +401,8 @@
               </div>
 
               <div class="flex justify-between gap-2">
-                <Button variant="outline" @click="activeStep = 1">上一步</Button>
-                <Button :disabled="!stepList[2].done" @click="activeStep = 3">下一步</Button>
+                <Button variant="outline" @click="goToStep(1)">上一步</Button>
+                <Button :disabled="!stepList[2].done" @click="goToStep(3)">下一步</Button>
               </div>
             </CardContent>
           </Card>
@@ -486,11 +467,23 @@
               </div>
 
               <div class="flex justify-start">
-                <Button variant="outline" @click="activeStep = 2">上一步</Button>
+                <Button variant="outline" @click="goToStep(2)">上一步</Button>
               </div>
             </CardContent>
           </Card>
       </div>
+
+      <Dialog :open="showUploadCompleteDialog" @update:open="showUploadCompleteDialog = $event">
+        <DialogContent class="max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>上传已完成</DialogTitle>
+            <DialogDescription>资源仓库已创建并上传完成，你可以继续下一步创建 PR。</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button @click="showUploadCompleteDialog = false">我知道了</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog :open="showDeviceSelector" @update:open="showDeviceSelector = $event">
         <DialogContent class="w-[95vw] !max-w-[1120px]">
@@ -731,6 +724,7 @@ import {
   createPullRequestWithHead,
   ensureUserRepository,
   fetchRepoFileOrNull,
+  loadRepositoryTree,
   loadInProgressResources,
   loadOwnedResources,
   putRepoFile,
@@ -845,9 +839,11 @@ const { token, currentUser } = useCcSession()
 const {
   workspacePath,
   workspaceHandle: persistedWorkspaceHandle,
+  setRemoteWorkspace,
   setWorkspace,
   setWorkspaceHandle,
-  clearWorkspace
+  clearWorkspace,
+  clearRemoteWorkspace
 } = useCcWorkspace()
 const { appendPublishLog: appendLog } = useCcPublishLogs()
 const workspaceBusy = ref(false)
@@ -880,6 +876,7 @@ const links = ref<Array<{ icon: string; title: string; url: string }>>([])
 const showDeviceSelector = ref(false)
 const showResourceIdGuide = ref(false)
 const showOutOfWorkspaceFileDialog = ref(false)
+const showUploadCompleteDialog = ref(false)
 const showLinkIconPicker = ref(false)
 const linkIconPickerIndex = ref<number | null>(null)
 const linkIconQuery = ref('')
@@ -924,6 +921,19 @@ const resolvedRepoName = computed(() => {
   const manual = repoName.value.trim()
   if (manual) return manual
 
+  const folderCandidate =
+    newWorkspaceName.value.trim() ||
+    workspaceName.value.trim() ||
+    getWorkspaceFolderNameFromPath(workspacePath.value || '')
+
+  const sanitizedFolderName = folderCandidate
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 100)
+
+  if (sanitizedFolderName) return sanitizedFolderName
+
   const slug = itemId.value
     .trim()
     .toLowerCase()
@@ -954,8 +964,6 @@ const selectedUploadPaths = computed(() => {
 
   return [...paths].sort((a, b) => a.localeCompare(b, 'zh-CN'))
 })
-
-const uploadQueueCount = computed(() => 1 + selectedUploadPaths.value.length)
 
 const normalizedTagsText = computed(() =>
   tags.value
@@ -1080,6 +1088,22 @@ const stepList = computed(() => [
     done: Boolean(latestPrUrl.value)
   }
 ])
+
+const canAccessStep = (index: number): boolean => {
+  if (index <= 0) return true
+  if (index === 1) return stepList.value[0].done
+  if (index === 2) return stepList.value[1].done
+  if (index === 3) return stepList.value[2].done
+  return false
+}
+
+const goToStep = (index: number): void => {
+  if (canAccessStep(index)) {
+    activeStep.value = index
+    return
+  }
+  appendLog('请先完成前一步后再继续')
+}
 
 const getDeviceById = (id: string): DeviceOption | undefined =>
   deviceOptions.find(device => device.id === id)
@@ -1530,6 +1554,18 @@ const collectWorkspaceTree = async (
   return items
 }
 
+const loadRemoteRepoTree = async (
+  tokenValue: string,
+  owner: string,
+  repo: string
+): Promise<WorkspaceTreeItem[]> =>
+  loadRepositoryTree({
+    token: tokenValue,
+    owner,
+    repo,
+    branch: MAIN_BRANCH
+  })
+
 const resetResourceInfoFields = (): void => {
   itemId.value = ''
   itemName.value = ''
@@ -1738,6 +1774,7 @@ const handleUploadResources = async (): Promise<void> => {
   try {
     uploading.value = true
     latestPrUrl.value = ''
+    showUploadCompleteDialog.value = false
 
     const workspace = await ensureWorkspaceHandle()
     if (!workspace) {
@@ -1818,8 +1855,18 @@ const handleUploadResources = async (): Promise<void> => {
     uploadedRepoName.value = repo.name
     uploadedRepoUrl.value = repo.htmlUrl
     uploadedCommitSha.value = latestCommitSha
-    appendLog(`上传步骤完成，commit: ${latestCommitSha.slice(0, 10)}`)
+    appendLog('上传步骤完成')
+    showUploadCompleteDialog.value = true
+
+    try {
+      const remoteTree = await loadRemoteRepoTree(accessToken, repo.owner, repo.name)
+      setRemoteWorkspace(`${repo.owner}/${repo.name}@${MAIN_BRANCH}`, remoteTree)
+      appendLog('已同步远程仓库文件树')
+    } catch (remoteError: unknown) {
+      appendLog(`远程文件树同步失败: ${remoteError instanceof Error ? remoteError.message : '未知错误'}`)
+    }
   } catch (error: unknown) {
+    clearRemoteWorkspace()
     appendLog(`上传失败: ${error instanceof Error ? error.message : '未知错误'}`)
   } finally {
     uploading.value = false

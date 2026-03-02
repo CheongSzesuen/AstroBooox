@@ -10,6 +10,8 @@ export interface WorkspaceTreeItem {
 const workspacePath = ref('')
 const workspaceTree = ref<WorkspaceTreeItem[]>([])
 const workspaceHandle = ref<unknown | null>(null)
+const remoteWorkspacePath = ref('')
+const remoteWorkspaceTree = ref<WorkspaceTreeItem[]>([])
 
 export const useCcWorkspace = () => {
   const setWorkspace = (path: string, tree: WorkspaceTreeItem[], handle?: unknown): void => {
@@ -30,12 +32,26 @@ export const useCcWorkspace = () => {
     workspaceHandle.value = null
   }
 
+  const setRemoteWorkspace = (path: string, tree: WorkspaceTreeItem[]): void => {
+    remoteWorkspacePath.value = path.trim()
+    remoteWorkspaceTree.value = [...tree]
+  }
+
+  const clearRemoteWorkspace = (): void => {
+    remoteWorkspacePath.value = ''
+    remoteWorkspaceTree.value = []
+  }
+
   return {
     workspacePath: computed(() => workspacePath.value),
     workspaceTree: computed(() => workspaceTree.value),
     workspaceHandle: computed(() => workspaceHandle.value),
+    remoteWorkspacePath: computed(() => remoteWorkspacePath.value),
+    remoteWorkspaceTree: computed(() => remoteWorkspaceTree.value),
     setWorkspace,
     setWorkspaceHandle,
-    clearWorkspace
+    clearWorkspace,
+    setRemoteWorkspace,
+    clearRemoteWorkspace
   }
 }

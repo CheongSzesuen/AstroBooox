@@ -31,6 +31,13 @@ export interface RepoFileData {
   content?: string
 }
 
+export interface RepoTreeItem {
+  type: 'folder' | 'file'
+  path: string
+  label: string
+  depth: number
+}
+
 interface GitHubApiError extends Error {
   status?: number
 }
@@ -90,6 +97,63 @@ const encodePath = (path: string): string =>
     .filter(Boolean)
     .map(segment => encodeURIComponent(segment))
     .join('/')
+
+const buildFlatTreeFromFilePaths = (filePaths: string[]): RepoTreeItem[] => {
+  type FolderNode = {
+    folders: Map<string, FolderNode>
+    files: Set<string>
+  }
+
+  const root: FolderNode = {
+    folders: new Map(),
+    files: new Set()
+  }
+
+  for (const path of filePaths) {
+    const parts = path.split('/').filter(Boolean)
+    if (parts.length === 0) continue
+
+    let current = root
+    for (let i = 0; i < parts.length - 1; i++) {
+      const segment = parts[i]
+      if (!current.folders.has(segment)) {
+        current.folders.set(segment, { folders: new Map(), files: new Set() })
+      }
+      current = current.folders.get(segment) as FolderNode
+    }
+    current.files.add(parts[parts.length - 1])
+  }
+
+  const output: RepoTreeItem[] = []
+  const walk = (node: FolderNode, depth: number, prefix: string): void => {
+    const folderNames = [...node.folders.keys()].sort((a, b) => a.localeCompare(b, 'zh-CN'))
+    const fileNames = [...node.files].sort((a, b) => a.localeCompare(b, 'zh-CN'))
+
+    for (const folderName of folderNames) {
+      const path = prefix ? `${prefix}/${folderName}` : folderName
+      output.push({
+        type: 'folder',
+        path,
+        label: folderName,
+        depth
+      })
+      walk(node.folders.get(folderName) as FolderNode, depth + 1, path)
+    }
+
+    for (const fileName of fileNames) {
+      const path = prefix ? `${prefix}/${fileName}` : fileName
+      output.push({
+        type: 'file',
+        path,
+        label: fileName,
+        depth
+      })
+    }
+  }
+
+  walk(root, 0, '')
+  return output
+}
 
 export const textToBase64 = (text: string): string => {
   const bytes = new TextEncoder().encode(text)
@@ -256,7 +320,7 @@ export const ensureUserRepository = async (params: {
       name: repoName,
       description,
       private: false,
-      auto_init: true
+      auto_init: false
     })
   })
 
@@ -305,6 +369,25 @@ export const createBranchIfMissing = async (params: {
     }
     throw error
   }
+}
+
+export const loadRepositoryTree = async (params: {
+  token: string
+  owner: string
+  repo: string
+  branch: string
+}): Promise<RepoTreeItem[]> => {
+  const { token, owner, repo, branch } = params
+  const refSha = await getRefSha(token, owner, repo, `heads/${branch}`)
+  const data = await githubFetch<{
+    tree: Array<{ path: string; type: 'blob' | 'tree' }>
+  }>(`/repos/${owner}/${repo}/git/trees/${refSha}?recursive=1`, token)
+
+  const filePaths = data.tree
+    .filter(entry => entry.type === 'blob' && Boolean(entry.path))
+    .map(entry => entry.path)
+
+  return buildFlatTreeFromFilePaths(filePaths)
 }
 
 export const ensureFork = async (params: {
@@ -602,4 +685,3 @@ export const loadOwnedResources = async (params: {
   const content = base64ToText(file.content || '')
   return parseCatalogCsv(content).filter(entry => entry.repo_owner === username)
 }
-

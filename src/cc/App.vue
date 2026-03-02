@@ -154,6 +154,69 @@
             </nav>
           </aside>
 
+          <aside v-if="remoteWorkspacePath || remoteWorkspaceTree.length" class="rounded-xl border border-border bg-card p-3">
+            <div class="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Remote</div>
+            <p class="truncate px-1 text-[11px] text-muted-foreground">{{ remoteWorkspacePath || '未同步远程仓库' }}</p>
+            <nav class="mt-2 max-h-56 overflow-y-auto" aria-label="Remote File Tree">
+              <div
+                v-if="remoteWorkspaceTree.length === 0"
+                class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
+              >
+                当前远程仓库暂无可识别文件
+              </div>
+              <ul v-else class="space-y-1" role="tree" aria-label="Remote Tree">
+                <li
+                  v-for="item in visibleRemoteItems"
+                  :key="item.path"
+                  role="treeitem"
+                  :aria-level="item.depth + 1"
+                >
+                  <button
+                    v-if="item.type === 'folder'"
+                    type="button"
+                    class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
+                    :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                    :title="item.path"
+                    @click="toggleRemoteFolder(item.path)"
+                  >
+                    <CaretRight
+                      v-if="item.collapsed"
+                      :size="12"
+                      weight="bold"
+                      class="shrink-0 text-muted-foreground"
+                    />
+                    <CaretDown
+                      v-else
+                      :size="12"
+                      weight="bold"
+                      class="shrink-0 text-muted-foreground"
+                    />
+                    <FolderIcon
+                      :size="14"
+                      weight="fill"
+                      class="shrink-0 text-muted-foreground"
+                    />
+                    <span class="truncate">{{ item.label }}</span>
+                  </button>
+                  <div
+                    v-else
+                    class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                    :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                    :title="item.path"
+                  >
+                    <span class="w-3 shrink-0" />
+                    <FileIcon
+                      :size="14"
+                      weight="duotone"
+                      class="shrink-0 text-muted-foreground"
+                    />
+                    <span class="truncate">{{ item.label }}</span>
+                  </div>
+                </li>
+              </ul>
+            </nav>
+          </aside>
+
           <Card v-if="tab === 'publish'" class="border-border bg-card">
             <CardHeader class="pb-2">
               <div class="flex items-center justify-between gap-2">
@@ -203,10 +266,18 @@ import { useTheme } from '@/composables/useTheme'
 
 const tab = ref<'publish' | 'review' | 'published'>('publish')
 const { currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
-const { workspacePath, workspaceTree, clearWorkspace } = useCcWorkspace()
+const {
+  workspacePath,
+  workspaceTree,
+  remoteWorkspacePath,
+  remoteWorkspaceTree,
+  clearWorkspace,
+  clearRemoteWorkspace
+} = useCcWorkspace()
 const { publishLogsText, clearPublishLogs } = useCcPublishLogs()
 const { theme, toggleTheme } = useTheme()
 const collapsedFolders = ref<string[]>([])
+const collapsedRemoteFolders = ref<string[]>([])
 
 const visibleWorkspaceItems = computed(() => {
   const collapsedSet = new Set(collapsedFolders.value)
@@ -214,6 +285,28 @@ const visibleWorkspaceItems = computed(() => {
   const items: Array<(typeof workspaceTree.value)[number] & { hidden: boolean; collapsed: boolean }> = []
 
   for (const item of workspaceTree.value) {
+    while (stack.length > item.depth) {
+      stack.pop()
+    }
+
+    const hidden = stack.some(path => collapsedSet.has(path))
+    const collapsed = item.type === 'folder' && collapsedSet.has(item.path)
+    items.push({ ...item, hidden, collapsed })
+
+    if (item.type === 'folder') {
+      stack.push(item.path)
+    }
+  }
+
+  return items.filter(item => !item.hidden)
+})
+
+const visibleRemoteItems = computed(() => {
+  const collapsedSet = new Set(collapsedRemoteFolders.value)
+  const stack: string[] = []
+  const items: Array<(typeof remoteWorkspaceTree.value)[number] & { hidden: boolean; collapsed: boolean }> = []
+
+  for (const item of remoteWorkspaceTree.value) {
     while (stack.length > item.depth) {
       stack.pop()
     }
@@ -238,11 +331,28 @@ const toggleFolder = (path: string): void => {
   collapsedFolders.value = [...collapsedFolders.value, path]
 }
 
+const toggleRemoteFolder = (path: string): void => {
+  if (collapsedRemoteFolders.value.includes(path)) {
+    collapsedRemoteFolders.value = collapsedRemoteFolders.value.filter(item => item !== path)
+    return
+  }
+  collapsedRemoteFolders.value = [...collapsedRemoteFolders.value, path]
+}
+
 watch(
   () => workspaceTree.value,
   tree => {
     const validFolderPaths = new Set(tree.filter(item => item.type === 'folder').map(item => item.path))
     collapsedFolders.value = collapsedFolders.value.filter(path => validFolderPaths.has(path))
+  },
+  { deep: true }
+)
+
+watch(
+  () => remoteWorkspaceTree.value,
+  tree => {
+    const validFolderPaths = new Set(tree.filter(item => item.type === 'folder').map(item => item.path))
+    collapsedRemoteFolders.value = collapsedRemoteFolders.value.filter(path => validFolderPaths.has(path))
   },
   { deep: true }
 )
@@ -254,6 +364,7 @@ const handleAuthenticated = (): void => {
 const handleSignOut = (): void => {
   clearPublishLogs()
   clearWorkspace()
+  clearRemoteWorkspace()
   clearSession()
 }
 </script>
