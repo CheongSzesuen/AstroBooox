@@ -1,54 +1,55 @@
 <template>
-  <div class="w-full">
-    <div class="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-      <Card class="xl:sticky xl:top-[72px] xl:self-start">
-        <CardHeader class="pb-3">
-          <div class="flex items-center justify-between gap-2">
-            <CardTitle class="text-base">PR 列表</CardTitle>
-            <Button :disabled="loading || !canLoad" size="sm" @click="loadPullRequests">
-              <ArrowsClockwise :size="14" weight="duotone" />
-              {{ loading ? '加载中' : '刷新' }}
-            </Button>
+  <div class="w-full py-1 md:py-2">
+    <div class="mx-auto flex max-w-[1600px] flex-col gap-4 lg:flex-row">
+      <aside class="flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm lg:sticky lg:top-0 lg:w-[18rem] xl:w-80">
+        <div class="mb-2 flex items-center justify-between gap-2 border-b border-border px-2 pb-2">
+          <div class="min-w-0">
+            <p class="truncate text-xs font-semibold text-foreground">Pull Requests</p>
+            <p class="text-xs text-muted-foreground">{{ owner }}/{{ repo }}</p>
           </div>
-          <CardDescription>{{ owner }}/{{ repo }}</CardDescription>
-        </CardHeader>
-        <CardContent class="pt-0">
-          <div
-            v-if="errorMessage"
-            class="mb-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-          >
-            {{ errorMessage }}
-          </div>
-          <div
-            v-if="pullRequests.length === 0 && !loading && !errorMessage"
-            class="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground"
-          >
-            暂无可审核 PR
-          </div>
-          <div v-else class="space-y-2">
-            <button
-              v-for="item in pullRequests"
-              :key="item.number"
-              type="button"
-              class="w-full rounded-lg border px-3 py-2 text-left transition"
-              :class="
-                selectedPr?.number === item.number
-                  ? 'border-primary/60 bg-primary/10'
-                  : 'border-border bg-card hover:bg-muted/30'
-              "
-              @click="selectPr(item)"
-            >
-              <div class="line-clamp-2 text-sm font-semibold text-foreground">#{{ item.number }} {{ item.title }}</div>
-              <div class="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                <span>{{ item.author }}</span>
-                <Badge variant="outline">{{ reviewStateText(item.status) }}</Badge>
-              </div>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+          <Button :disabled="loading || !canLoad" size="sm" variant="outline" @click="loadPullRequests">
+            <ArrowsClockwise :size="14" weight="duotone" />
+            {{ loading ? '加载中' : '刷新' }}
+          </Button>
+        </div>
 
-      <div class="space-y-4">
+        <div
+          v-if="errorMessage"
+          class="mb-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+        >
+          {{ errorMessage }}
+        </div>
+
+        <div
+          v-if="pullRequests.length === 0 && !loading && !errorMessage"
+          class="flex flex-1 items-center justify-center rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground"
+        >
+          暂无可审核 PR
+        </div>
+
+        <div v-else class="flex-1 space-y-2 overflow-y-auto pr-1 max-[1023px]:max-h-[20rem]">
+          <button
+            v-for="item in pullRequests"
+            :key="item.number"
+            type="button"
+            class="w-full rounded-lg border px-3 py-2 text-left transition"
+            :class="
+              selectedPr?.number === item.number
+                ? 'border-border bg-muted shadow-sm'
+                : 'border-transparent hover:bg-accent'
+            "
+            @click="selectPr(item)"
+          >
+            <div class="line-clamp-2 text-sm font-semibold text-foreground">#{{ item.number }} {{ item.title }}</div>
+            <div class="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>{{ item.author }}</span>
+              <Badge variant="outline">{{ reviewStateText(item.status) }}</Badge>
+            </div>
+          </button>
+        </div>
+      </aside>
+
+      <div class="min-w-0 flex-1 space-y-4">
         <Card v-if="!selectedPr">
           <CardContent class="pt-6 text-center text-sm text-muted-foreground">
             请先从左侧选择一个 PR
