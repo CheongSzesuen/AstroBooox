@@ -929,12 +929,25 @@
               @update:editor-tab="reviewCommentEditorTab = $event"
               @submit="submitReviewComment"
             />
+            <div
+              v-if="reviewReplyTargetComment"
+              class="flex items-center justify-between rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground"
+            >
+              <span class="truncate">
+                正在回复 #{{ reviewReplyTargetComment.id }} · @{{ reviewReplyTargetComment.user?.login || 'unknown' }}
+              </span>
+              <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" @click="clearReviewReplyTarget">
+                取消回复
+              </Button>
+            </div>
             <ReviewCommentTimeline
               v-if="!reviewCommentsLoading"
               :comments="selectedReviewComments"
               :line-left="54"
+              show-reply-action
               avatar-rounded="full"
               :avatar-border="true"
+              @reply="onReviewReplyComment"
             />
           </CardContent>
         </Card>
@@ -1208,6 +1221,11 @@ const reviewCommentSubmitting = ref(false)
 const reviewCommentResultDialogOpen = ref(false)
 const reviewCommentResultDialogTitle = ref('')
 const reviewCommentResultDialogMessage = ref('')
+const reviewReplyTargetComment = ref<{
+  id: number
+  body?: string
+  user?: { login?: string }
+} | null>(null)
 
 const ownedLoading = ref(false)
 const ownedItems = ref<CatalogEntry[]>([])
@@ -1217,14 +1235,36 @@ const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.val
 const normalizeReviewCommentId = (value: string): string =>
   value.trim().replace(/\s+/g, '_').replace(/\]/g, '')
 const normalizedReviewCommentId = computed(() => normalizeReviewCommentId(reviewCommentId.value))
+const buildReviewReplyContextBlock = (comment: {
+  id: number
+  body?: string
+  user?: { login?: string }
+} | null): string => {
+  if (!comment) return ''
+  const login = comment.user?.login || 'unknown'
+  const excerpt = (comment.body || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160)
+  return [
+    `> Reply-To: #${comment.id} @${login}`,
+    excerpt ? `> ${excerpt}` : ''
+  ].filter(Boolean).join('\n')
+}
 const reviewCommentBodyPreview = computed(() => {
-  const bodyParts = [reviewCommentMessage.value.trim()].filter(Boolean)
+  const bodyParts = [
+    reviewCommentMessage.value.trim(),
+    buildReviewReplyContextBlock(reviewReplyTargetComment.value)
+  ].filter(Boolean)
   const prefixId = normalizedReviewCommentId.value || '<填写ID>'
   return `[ABCC_NEEDFIX_${prefixId}] ${bodyParts.join('\n')}`.trim()
 })
 const reviewSubmitCommentBody = computed(() => {
   if (!normalizedReviewCommentId.value) return ''
-  const bodyParts = [reviewCommentMessage.value.trim()].filter(Boolean)
+  const bodyParts = [
+    reviewCommentMessage.value.trim(),
+    buildReviewReplyContextBlock(reviewReplyTargetComment.value)
+  ].filter(Boolean)
   return `[ABCC_NEEDFIX_${normalizedReviewCommentId.value}] ${bodyParts.join('\n')}`.trim()
 })
 const reviewRenderedCommentPreviewHtml = computed(() => {
@@ -2891,6 +2931,19 @@ const scrollToReviewCommentById = async (commentId: number): Promise<void> => {
   }
 }
 
+const onReviewReplyComment = (comment: {
+  id: number
+  body?: string
+  user?: { login?: string }
+}): void => {
+  reviewReplyTargetComment.value = comment
+  reviewCommentEditorTab.value = 'edit'
+}
+
+const clearReviewReplyTarget = (): void => {
+  reviewReplyTargetComment.value = null
+}
+
 const submitReviewComment = async (): Promise<void> => {
   if (!selectedReviewItem.value) return
   const body = reviewSubmitCommentBody.value
@@ -2912,6 +2965,7 @@ const submitReviewComment = async (): Promise<void> => {
     await scrollToReviewCommentById(created.id)
     reviewCommentMessage.value = ''
     reviewCommentEditorTab.value = 'edit'
+    clearReviewReplyTarget()
     openReviewCommentResultDialog('发送成功', '评论已发送并立即刷新评论列表。')
   } catch (error: unknown) {
     openReviewCommentResultDialog('发送失败', error instanceof Error ? error.message : '评论发送失败')
@@ -2932,6 +2986,7 @@ const closeReviewDetail = (): void => {
   reviewCommentId.value = ''
   reviewCommentMessage.value = ''
   reviewCommentEditorTab.value = 'edit'
+  clearReviewReplyTarget()
 }
 
 const loadOwnedList = async (): Promise<void> => {

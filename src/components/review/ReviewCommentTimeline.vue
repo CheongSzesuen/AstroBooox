@@ -29,17 +29,43 @@
             <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
             <span class="shrink-0">{{ formatCommentRelativeTime(comment.created_at || '') }}</span>
           </span>
-          <a
-            v-if="showOpenLink && comment.html_url"
-            :href="comment.html_url"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-primary hover:underline"
-          >
-            打开评论
-          </a>
+          <div class="inline-flex items-center gap-3">
+            <button
+              v-if="showReplyAction"
+              type="button"
+              class="text-primary hover:underline"
+              @click="emit('reply', comment)"
+            >
+              回复
+            </button>
+            <a
+              v-if="showOpenLink && comment.html_url"
+              :href="comment.html_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-primary hover:underline"
+            >
+              打开评论
+            </a>
+          </div>
         </div>
-        <div class="pt-1 whitespace-pre-wrap break-words text-foreground">{{ comment.body || '' }}</div>
+        <div
+          v-if="extractReplyMeta(comment.body || '').target"
+          class="mb-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground"
+        >
+          <div class="font-medium text-foreground">
+            回复 {{ extractReplyMeta(comment.body || '').target }}
+          </div>
+          <div
+            v-if="extractReplyMeta(comment.body || '').excerpt"
+            class="mt-1 whitespace-pre-wrap break-words"
+          >
+            {{ extractReplyMeta(comment.body || '').excerpt }}
+          </div>
+        </div>
+        <div class="pt-1 whitespace-pre-wrap break-words text-foreground">
+          {{ extractReplyMeta(comment.body || '').content }}
+        </div>
       </div>
     </div>
   </div>
@@ -54,7 +80,7 @@ interface ReviewCommentUser {
 }
 
 interface ReviewCommentItem {
-  id: number | string
+  id: number
   body?: string
   created_at?: string
   html_url?: string
@@ -65,6 +91,7 @@ const props = withDefaults(defineProps<{
   comments: ReviewCommentItem[]
   emptyText?: string
   showOpenLink?: boolean
+  showReplyAction?: boolean
   lineLeft?: number
   avatarRounded?: 'full' | 'md'
   avatarBorder?: boolean
@@ -73,10 +100,15 @@ const props = withDefaults(defineProps<{
 }>(), {
   emptyText: '当前 PR 暂无评论',
   showOpenLink: false,
+  showReplyAction: false,
   lineLeft: 54,
   avatarRounded: 'full',
   avatarBorder: false
 })
+
+const emit = defineEmits<{
+  reply: [comment: ReviewCommentItem]
+}>()
 
 const avatarClass = computed(() => [
   'relative z-10 h-8 w-8 shrink-0 bg-background object-cover',
@@ -110,5 +142,41 @@ const formatCommentRelativeTime = (value: string): string => {
   if (absMs < month) return `commented ${Math.max(1, Math.round(absMs / day))} day${Math.round(absMs / day) > 1 ? 's' : ''} ago`
   if (absMs < year) return `commented ${Math.max(1, Math.round(absMs / month))} month${Math.round(absMs / month) > 1 ? 's' : ''} ago`
   return `commented ${Math.max(1, Math.round(absMs / year))} year${Math.round(absMs / year) > 1 ? 's' : ''} ago`
+}
+
+const extractReplyMeta = (body: string): { target: string; excerpt: string; content: string } => {
+  const normalized = body || ''
+  const targetMatch = normalized.match(/^\s*>\s*Reply-To:\s*(.+)$/m)
+  if (!targetMatch) {
+    return {
+      target: '',
+      excerpt: '',
+      content: normalized
+    }
+  }
+  const target = targetMatch[1].trim()
+  const lines = normalized.split('\n')
+  const filtered: string[] = []
+  let excerpt = ''
+  let skipNextQuote = false
+
+  for (const line of lines) {
+    if (/^\s*>\s*Reply-To:\s*/.test(line)) {
+      skipNextQuote = true
+      continue
+    }
+    if (skipNextQuote && /^\s*>\s*/.test(line)) {
+      excerpt = line.replace(/^\s*>\s*/, '').trim()
+      skipNextQuote = false
+      continue
+    }
+    filtered.push(line)
+  }
+
+  return {
+    target,
+    excerpt,
+    content: filtered.join('\n').trim()
+  }
 }
 </script>

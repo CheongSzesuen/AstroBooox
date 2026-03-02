@@ -166,15 +166,28 @@
                   @submit="submitPresetComment"
                   @cursor-event="syncCommentCursor"
                 />
+                <div
+                  v-if="replyTargetComment"
+                  class="flex items-center justify-between rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground"
+                >
+                  <span class="truncate">
+                    正在回复 #{{ replyTargetComment.id }} · @{{ replyTargetComment.user?.login || 'unknown' }}
+                  </span>
+                  <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" @click="clearReplyTarget">
+                    取消回复
+                  </Button>
+                </div>
 
                 <div class="pt-1 text-xs font-medium text-muted-foreground">最近评论</div>
                 <ReviewCommentTimeline
                   :comments="prComments"
                   :line-left="54"
                   show-open-link
+                  show-reply-action
                   avatar-rounded="full"
                   :get-avatar-url="getOptimizedAvatarUrl"
                   :on-avatar-load="cacheAvatar"
+                  @reply="onReplyComment"
                 />
               </div>
             </CardContent>
@@ -696,10 +709,10 @@ interface PullListItem {
 
 interface IssueCommentItem {
   id: number
-  body: string
+  body?: string
   user?: { login?: string; avatar_url?: string; html_url?: string }
-  created_at: string
-  html_url: string
+  created_at?: string
+  html_url?: string
 }
 
 interface PullFileItem {
@@ -821,6 +834,7 @@ const commentResultDialogOpen = ref(false)
 const commentResultDialogTitle = ref('')
 const commentResultDialogMessage = ref('')
 const pendingCreatedComments = new Map<number, IssueCommentItem>()
+const replyTargetComment = ref<IssueCommentItem | null>(null)
 
 const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && resolvedToken.value))
 const sidebarClass = computed(() => [
@@ -866,14 +880,32 @@ const isImageFile = (filename: string): boolean => /\.(png|jpg|jpeg|gif|webp|svg
 const canPickLine = computed(() => Boolean(selectedPickerPath.value && !isImageFile(selectedPickerPath.value)))
 const normalizeCommentId = (value: string): string => value.trim().replace(/\s+/g, '_').replace(/\]/g, '')
 const normalizedCommentId = computed(() => normalizeCommentId(commentId.value))
+const buildReplyContextBlock = (comment: IssueCommentItem | null): string => {
+  if (!comment) return ''
+  const login = comment.user?.login || 'unknown'
+  const excerpt = (comment.body || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160)
+  return [
+    `> Reply-To: #${comment.id} @${login}`,
+    excerpt ? `> ${excerpt}` : ''
+  ].filter(Boolean).join('\n')
+}
 const commentBodyPreview = computed(() => {
-  const bodyParts = [commentMessage.value.trim()].filter(Boolean)
+  const bodyParts = [
+    commentMessage.value.trim(),
+    buildReplyContextBlock(replyTargetComment.value)
+  ].filter(Boolean)
   const prefixId = normalizedCommentId.value || '<填写ID>'
   return `[ABCC_NEEDFIX_${prefixId}] ${bodyParts.join('\n')}`.trim()
 })
 const submitCommentBody = computed(() => {
   if (!normalizedCommentId.value) return ''
-  const bodyParts = [commentMessage.value.trim()].filter(Boolean)
+  const bodyParts = [
+    commentMessage.value.trim(),
+    buildReplyContextBlock(replyTargetComment.value)
+  ].filter(Boolean)
   return `[ABCC_NEEDFIX_${normalizedCommentId.value}] ${bodyParts.join('\n')}`.trim()
 })
 const renderedCommentPreviewHtml = computed(() => {
@@ -2396,6 +2428,15 @@ const insertSelectedLineReference = (): void => {
   filePickerOpen.value = false
 }
 
+const onReplyComment = (comment: IssueCommentItem): void => {
+  replyTargetComment.value = comment
+  commentEditorTab.value = 'edit'
+}
+
+const clearReplyTarget = (): void => {
+  replyTargetComment.value = null
+}
+
 const scrollToCommentById = async (commentId: number): Promise<void> => {
   const selector = `[data-review-comment-id="${commentId}"]`
   for (let i = 0; i < 8; i += 1) {
@@ -2425,6 +2466,7 @@ const submitPresetComment = async (): Promise<void> => {
     pendingCreatedComments.set(created.id, created)
     commentMessage.value = ''
     commentEditorTab.value = 'edit'
+    clearReplyTarget()
     upsertCommentInList(created)
     for (let attempt = 0; attempt < 3; attempt += 1) {
       await refreshPrCommentsAndStatus(selectedPr.value)
