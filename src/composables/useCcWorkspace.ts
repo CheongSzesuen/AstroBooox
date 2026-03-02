@@ -1,22 +1,29 @@
 import { computed, ref } from 'vue'
 
+export interface WorkspaceTreeItem {
+  type: 'folder' | 'file'
+  path: string
+  label: string
+  depth: number
+}
+
 const workspacePath = ref('')
-const workspaceFiles = ref<string[]>([])
+const workspaceTree = ref<WorkspaceTreeItem[]>([])
 
 export const useCcWorkspace = () => {
-  const setWorkspace = (path: string, files: string[]): void => {
+  const setWorkspace = (path: string, tree: WorkspaceTreeItem[]): void => {
     workspacePath.value = path.trim()
-    workspaceFiles.value = [...files]
+    workspaceTree.value = [...tree]
   }
 
   const clearWorkspace = (): void => {
     workspacePath.value = ''
-    workspaceFiles.value = []
+    workspaceTree.value = []
   }
 
   return {
     workspacePath: computed(() => workspacePath.value),
-    workspaceFiles: computed(() => workspaceFiles.value),
+    workspaceTree: computed(() => workspaceTree.value),
     setWorkspace,
     clearWorkspace
   }

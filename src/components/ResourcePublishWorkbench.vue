@@ -84,17 +84,6 @@
                   </div>
                 </div>
 
-                <div class="grid gap-2 md:grid-cols-3">
-                  <div class="rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                    manifest_v2.json: {{ manifestFound ? '已找到' : '未找到' }}
-                  </div>
-                  <div class="rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                    media 文件: {{ mediaFiles.length }}
-                  </div>
-                  <div class="rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                    downloads 文件: {{ downloadFiles.length }}
-                  </div>
-                </div>
               </div>
 
               <div class="flex justify-end">
@@ -442,7 +431,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useCcSession } from '@/composables/useCcSession'
-import { useCcWorkspace } from '@/composables/useCcWorkspace'
+import { type WorkspaceTreeItem, useCcWorkspace } from '@/composables/useCcWorkspace'
 import {
   type CatalogEntry,
   type PublishingResource,
@@ -762,6 +751,52 @@ const collectFilesRecursively = async (
   return result
 }
 
+const collectWorkspaceTree = async (
+  dir: WorkspaceDirectoryHandle,
+  depth = 0,
+  prefix = ''
+): Promise<WorkspaceTreeItem[]> => {
+  const folders: Array<{ name: string; handle: WorkspaceDirectoryHandle }> = []
+  const files: string[] = []
+
+  for await (const [name, handle] of dir) {
+    if (handle.kind === 'directory') {
+      folders.push({ name, handle: handle as WorkspaceDirectoryHandle })
+    } else {
+      files.push(name)
+    }
+  }
+
+  folders.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  files.sort((a, b) => a.localeCompare(b, 'zh-CN'))
+
+  const items: WorkspaceTreeItem[] = []
+
+  for (const folder of folders) {
+    const folderPath = prefix ? `${prefix}/${folder.name}` : folder.name
+    items.push({
+      type: 'folder',
+      label: folder.name,
+      path: folderPath,
+      depth
+    })
+    const children = await collectWorkspaceTree(folder.handle, depth + 1, folderPath)
+    items.push(...children)
+  }
+
+  for (const fileName of files) {
+    const filePath = prefix ? `${prefix}/${fileName}` : fileName
+    items.push({
+      type: 'file',
+      label: fileName,
+      path: filePath,
+      depth
+    })
+  }
+
+  return items
+}
+
 const scanWorkspace = async (): Promise<void> => {
   if (!workspaceHandle.value) return
 
@@ -778,11 +813,7 @@ const scanWorkspace = async (): Promise<void> => {
       ? await collectFilesRecursively(downloadsDir, 'downloads/')
       : []
 
-    const tree = [
-      ...(manifest ? [MANIFEST_FILE] : []),
-      ...mediaFiles.value.map(item => item.path),
-      ...downloadFiles.value.map(item => item.path)
-    ].sort((a, b) => a.localeCompare(b, 'zh-CN'))
+    const tree = await collectWorkspaceTree(workspaceHandle.value)
     setWorkspace(workspaceDisplayPath.value || workspaceName.value, tree)
 
     if (manifest) {

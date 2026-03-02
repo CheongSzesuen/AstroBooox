@@ -91,29 +91,40 @@
             </div>
           </aside>
 
-          <aside v-if="workspacePath || workspaceFiles.length" class="rounded-xl border border-border bg-card p-3">
+          <aside v-if="workspacePath || workspaceTree.length" class="rounded-xl border border-border bg-card p-3">
             <div class="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">File Tree</div>
-            <div class="rounded-lg border border-border bg-background p-2">
-              <p class="truncate text-[11px] text-muted-foreground">{{ workspacePath || '未选择文件夹' }}</p>
-              <div class="mt-2 max-h-56 overflow-y-auto">
-                <div
-                  v-if="workspaceFiles.length === 0"
-                  class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
-                >
-                  当前文件夹暂无可识别文件
-                </div>
-                <ul v-else class="space-y-1">
-                  <li
-                    v-for="file in workspaceFiles"
-                    :key="file"
-                    class="truncate rounded px-2 py-1 text-xs text-foreground hover:bg-muted/40"
-                    :title="file"
-                  >
-                    {{ file }}
-                  </li>
-                </ul>
+            <p class="truncate px-1 text-[11px] text-muted-foreground">{{ workspacePath || '未选择文件夹' }}</p>
+            <nav class="mt-2 max-h-56 overflow-y-auto" aria-label="Workspace File Tree">
+              <div
+                v-if="workspaceTree.length === 0"
+                class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
+              >
+                当前文件夹暂无可识别文件
               </div>
-            </div>
+              <ul v-else class="space-y-1" role="tree" aria-label="Workspace Tree">
+                <li v-for="item in workspaceTree" :key="item.path" role="treeitem" :aria-level="item.depth + 1">
+                  <div
+                    class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                    :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                    :title="item.path"
+                  >
+                    <FolderIcon
+                      v-if="item.type === 'folder'"
+                      :size="14"
+                      weight="fill"
+                      class="shrink-0 text-muted-foreground"
+                    />
+                    <FileIcon
+                      v-else
+                      :size="14"
+                      weight="duotone"
+                      class="shrink-0 text-muted-foreground"
+                    />
+                    <span class="truncate">{{ item.label }}</span>
+                  </div>
+                </li>
+              </ul>
+            </nav>
           </aside>
         </div>
 
@@ -130,6 +141,8 @@ import { ref } from 'vue'
 import {
   PhArchiveBox as ArchiveBox,
   PhClockCounterClockwise as ClockCounterClockwise,
+  PhFile as FileIcon,
+  PhFolder as FolderIcon,
   PhMoon as Moon,
   PhSignOut as SignOut,
   PhSun as Sun,
@@ -145,7 +158,7 @@ import { useTheme } from '@/composables/useTheme'
 
 const tab = ref<'publish' | 'review' | 'published'>('publish')
 const { currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
-const { workspacePath, workspaceFiles } = useCcWorkspace()
+const { workspacePath, workspaceTree } = useCcWorkspace()
 const { theme, toggleTheme } = useTheme()
 
 const handleAuthenticated = (): void => {
