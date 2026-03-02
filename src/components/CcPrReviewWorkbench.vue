@@ -358,16 +358,35 @@
                     </div>
                     </div>
                   </div>
-                  <div class="shrink-0 flex items-center justify-between gap-2 border-b border-border bg-background/80 px-4 py-2 backdrop-blur">
-                    <Input v-model="pickerLineSearch" placeholder="搜索当前文件内容..." class="h-8 max-w-sm text-xs" />
-                    <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div class="shrink-0 space-y-2 border-b border-border bg-background/80 px-4 py-2 backdrop-blur">
+                    <div class="flex items-center gap-2">
+                      <Button size="sm" variant="outline" class="h-8 w-8 p-0" @click="runPickerLineSearch">
+                        <MagnifyingGlass :size="14" weight="bold" />
+                      </Button>
+                      <Input v-model="pickerLineSearch" placeholder="搜索当前文件内容..." class="h-8 min-w-0 flex-1 text-xs" />
+                    </div>
+                    <div class="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                       <span>{{ pickerMatchedLineNumbers.length }} 个匹配</span>
-                      <Button size="sm" variant="outline" :disabled="pickerMatchedLineNumbers.length === 0" @click="gotoPrevPickerMatch">
-                        上一条
-                      </Button>
-                      <Button size="sm" variant="outline" :disabled="pickerMatchedLineNumbers.length === 0" @click="gotoNextPickerMatch">
-                        下一条
-                      </Button>
+                      <div class="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          class="h-8 w-8 p-0"
+                          :disabled="pickerMatchedLineNumbers.length === 0"
+                          @click="gotoPrevPickerMatch"
+                        >
+                          <ArrowUp :size="14" weight="bold" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          class="h-8 w-8 p-0"
+                          :disabled="pickerMatchedLineNumbers.length === 0"
+                          @click="gotoNextPickerMatch"
+                        >
+                          <ArrowDown :size="14" weight="bold" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   <div class="min-h-0 flex-1 overflow-auto overscroll-contain bg-muted/20 p-4">
@@ -474,6 +493,8 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import {
   PhArrowLeft as ArrowLeft,
+  PhArrowDown as ArrowDown,
+  PhArrowUp as ArrowUp,
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
   PhCaretDoubleRight as CaretDoubleRight,
@@ -482,7 +503,8 @@ import {
   PhFolder as FolderIcon,
   PhGithubLogo as GithubLogo,
   PhGitPullRequest as GitPullRequest,
-  PhLinkSimple as LinkSimple
+  PhLinkSimple as LinkSimple,
+  PhMagnifyingGlass as MagnifyingGlass
 } from '@phosphor-icons/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -809,6 +831,16 @@ const gotoPrevPickerMatch = async (): Promise<void> => {
   if (total === 0) return
   pickerMatchCursor.value = (pickerMatchCursor.value - 1 + total) % total
   await focusPickerMatchByCursor()
+}
+
+const runPickerLineSearch = async (): Promise<void> => {
+  if (pickerMatchedLineNumbers.value.length === 0) return
+  if (pickerMatchCursor.value < 0) {
+    pickerMatchCursor.value = 0
+    await focusPickerMatchByCursor()
+    return
+  }
+  await gotoNextPickerMatch()
 }
 
 const selectPickerLine = (lineNumber: number): void => {
@@ -1215,6 +1247,7 @@ const insertSelectedFileReference = (): void => {
 const insertSelectedLineReference = (): void => {
   if (!selectedPickerPath.value || !selectedPickerLine.value) return
   addCommentReference(selectedPickerPath.value, selectedPickerLine.value)
+  filePickerOpen.value = false
 }
 
 const submitPresetComment = async (): Promise<void> => {
