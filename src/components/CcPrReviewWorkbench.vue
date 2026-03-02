@@ -196,7 +196,7 @@
                               ref="commentMessageTextareaRef"
                               v-model="commentMessage"
                               placeholder="评论说明（文件引用请用上方按钮插入）"
-                              class="min-h-[108px]"
+                              class="min-h-[180px]"
                               @click="syncCommentCursor"
                               @keyup="syncCommentCursor"
                               @select="syncCommentCursor"
