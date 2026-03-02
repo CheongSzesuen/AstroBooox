@@ -156,6 +156,7 @@
             </CardHeader>
             <CardContent class="space-y-3 pt-0">
               <div v-if="detailsError" class="text-xs text-destructive">{{ detailsError }}</div>
+              <div v-if="detailsSuccess" class="text-xs text-emerald-600">{{ detailsSuccess }}</div>
               <div v-if="repoFilesError" class="text-xs text-destructive">{{ repoFilesError }}</div>
 
               <div class="space-y-2">
@@ -856,6 +857,7 @@ const selectedPr = ref<PullListItem | null>(null)
 const isSidebarCollapsed = ref(false)
 const detailsLoading = ref(false)
 const detailsError = ref('')
+const detailsSuccess = ref('')
 const prComments = ref<IssueCommentItem[]>([])
 const prFiles = ref<PullFileItem[]>([])
 const csvRowFromRepoDiff = ref<CsvV2Row | null>(null)
@@ -2135,6 +2137,7 @@ const loadPullRequests = async (): Promise<void> => {
 const loadPrDetails = async (pr: PullListItem): Promise<void> => {
   detailsLoading.value = true
   detailsError.value = ''
+  detailsSuccess.value = ''
   repoFilesError.value = ''
   filePickerSearch.value = ''
   selectedPickerPath.value = ''
@@ -2231,13 +2234,33 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
 }
 
 const selectPr = async (pr: PullListItem): Promise<void> => {
+  detailsSuccess.value = ''
   selectedPr.value = pr
   await loadPrDetails(pr)
 }
 
 const refreshSelectedPrDetails = async (): Promise<void> => {
   if (!selectedPr.value) return
+  detailsSuccess.value = ''
   await loadPrDetails(selectedPr.value)
+}
+
+const refreshPrCommentsAndStatus = async (pr: PullListItem, createdCommentId?: number): Promise<void> => {
+  const comments = await githubGet<IssueCommentItem[]>(
+    `/repos/${props.owner}/${props.repo}/issues/${pr.number}/comments?per_page=100`
+  )
+  if (createdCommentId && !comments.some(comment => comment.id === createdCommentId)) {
+    throw new Error('评论提交后校验失败：未在最新评论列表中找到该评论')
+  }
+  prComments.value = comments
+  const review = deriveReviewStatus(comments)
+  pr.review = review
+  pr.status = review.state
+  const idx = pullRequests.value.findIndex(item => item.number === pr.number)
+  if (idx >= 0) {
+    pullRequests.value[idx].review = review
+    pullRequests.value[idx].status = review.state
+  }
 }
 
 const getTopLevelFolders = (paths: string[]): string[] =>
@@ -2350,15 +2373,16 @@ const submitPresetComment = async (): Promise<void> => {
   }
   commentSubmitting.value = true
   detailsError.value = ''
+  detailsSuccess.value = ''
   try {
-    await githubPost(
+    const created = await githubPost<{ id: number }>(
       `/repos/${props.owner}/${props.repo}/issues/${selectedPr.value.number}/comments`,
       { body }
     )
     commentMessage.value = ''
     commentEditorTab.value = 'edit'
-    await loadPrDetails(selectedPr.value)
-    await loadPullRequests()
+    await refreshPrCommentsAndStatus(selectedPr.value, created.id)
+    detailsSuccess.value = '评论发送成功，已立即刷新评论列表'
   } catch (error: unknown) {
     detailsError.value = error instanceof Error ? error.message : '评论发送失败'
   } finally {
