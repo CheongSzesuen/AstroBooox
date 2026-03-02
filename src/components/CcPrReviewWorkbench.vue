@@ -1595,6 +1595,53 @@ const pickPreferredCsvRow = (rows: CsvV2Row[]): CsvV2Row | null => {
   return withRepo || rows[rows.length - 1]
 }
 
+const getCsvAssetRepoPath = (value: string): string => {
+  const raw = value.trim()
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) {
+    const parsed = parseRawGithubUrl(raw)
+    return parsed?.path || ''
+  }
+  return raw
+}
+
+const buildManifestCandidatesByCsvRow = (repoPaths: string[], csvRow: CsvV2Row | null): string[] => {
+  const manifestPaths = repoPaths.filter(path => /(^|\/)manifest_v2\.json$/i.test(path) || /(^|\/)manifest\.json$/i.test(path))
+  if (manifestPaths.length === 0) return []
+
+  const priorityDirs: string[] = []
+  const pushDirWithParents = (fullPath: string): void => {
+    let dir = fullPath.includes('/') ? fullPath.slice(0, fullPath.lastIndexOf('/')) : ''
+    while (true) {
+      if (!priorityDirs.includes(dir)) priorityDirs.push(dir)
+      if (!dir.includes('/')) break
+      dir = dir.slice(0, dir.lastIndexOf('/'))
+    }
+    if (!priorityDirs.includes('')) priorityDirs.push('')
+  }
+
+  if (csvRow) {
+    const iconPath = getCsvAssetRepoPath(csvRow.icon)
+    const coverPath = getCsvAssetRepoPath(csvRow.cover)
+    if (iconPath) pushDirWithParents(iconPath)
+    if (coverPath) pushDirWithParents(coverPath)
+  }
+  if (!priorityDirs.includes('')) priorityDirs.push('')
+
+  const ranked: string[] = []
+  for (const dir of priorityDirs) {
+    const manifestV2 = dir ? `${dir}/manifest_v2.json` : 'manifest_v2.json'
+    const manifestV1 = dir ? `${dir}/manifest.json` : 'manifest.json'
+    if (manifestPaths.includes(manifestV2)) ranked.push(manifestV2)
+    if (manifestPaths.includes(manifestV1)) ranked.push(manifestV1)
+  }
+
+  for (const path of manifestPaths) {
+    if (!ranked.includes(path)) ranked.push(path)
+  }
+  return ranked
+}
+
 const serializeCsvRow = (row: CsvV2Row): string => [
   row.id,
   row.name,
@@ -2076,15 +2123,13 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
       .map(item => item.path as string)
       .slice(0, 3000)
 
-    const manifestCandidates = [
-      ...repoFiles.value.filter(path => /(^|\/)manifest_v2\.json$/i.test(path)),
-      ...repoFiles.value.filter(path => /(^|\/)manifest\.json$/i.test(path)),
-      'manifest_v2.json',
-      'manifest.json'
-    ]
-    const dedupedManifestCandidates = Array.from(new Set(manifestCandidates))
+    const manifestCandidates = buildManifestCandidatesByCsvRow(repoFiles.value, csvRowFromRepoDiff.value)
+    if (manifestCandidates.length === 0) {
+      manifestLoadError.value = '仓库内未找到 manifest_v2.json 或 manifest.json'
+      return
+    }
 
-    for (const path of dedupedManifestCandidates) {
+    for (const path of manifestCandidates) {
       manifestV2Data.value = await fetchRepoJsonFile(
         pr.resourceRepoOwner,
         pr.resourceRepoName,
