@@ -131,7 +131,7 @@
     <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
       <section class="min-w-0 flex justify-center">
         <ResourcePublishWorkbench v-if="tab !== 'settings' && tab !== 'audit'" :mode="workbenchMode" />
-        <CcPrAuditPanel
+        <CcPrReviewWorkbench
           v-else-if="tab === 'audit'"
           :owner="defaultTargetOwner"
           :repo="defaultTargetRepo"
@@ -181,7 +181,7 @@ import {
   PhUserCircle as UserCircle
 } from '@phosphor-icons/vue'
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
-import CcPrAuditPanel from '@/components/CcPrAuditPanel.vue'
+import CcPrReviewWorkbench from '@/components/CcPrReviewWorkbench.vue'
 import { Button } from '@/components/ui/button'
 import {
   Card,
