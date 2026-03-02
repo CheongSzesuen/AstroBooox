@@ -201,12 +201,12 @@
                         @load="cacheAvatar(selectedPr.author, selectedPr.authorAvatar)"
                       />
                       <div class="min-w-0 flex-1 rounded-md border border-border px-3 py-2 text-sm">
-                        <div class="mb-2 flex items-center gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
+                        <div class="mb-3 flex items-center gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
                           <span class="truncate font-medium text-foreground">{{ selectedPr?.author || '当前用户' }}</span>
                           <span class="shrink-0">{{ previewCommentTime }}</span>
                         </div>
                         <div
-                          class="whitespace-pre-wrap break-words text-foreground"
+                          class="pt-1 whitespace-pre-wrap break-words text-foreground"
                           v-html="renderedCommentPreviewHtml"
                         />
                       </div>
@@ -251,16 +251,16 @@
                     @load="cacheAvatar(comment.user.login, comment.user.avatar_url)"
                   />
                   <div class="min-w-0 flex-1 rounded-md border border-border px-3 py-2 text-sm">
-                    <div class="mb-2 flex items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
+                    <div class="mb-3 flex items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
                       <span class="inline-flex min-w-0 items-center gap-2">
                         <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
-                        <span class="shrink-0">{{ formatDate(comment.created_at) }}</span>
+                        <span class="shrink-0">{{ formatCommentRelativeTime(comment.created_at) }}</span>
                       </span>
                       <a :href="comment.html_url" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">
                         打开评论
                       </a>
                     </div>
-                    <div class="whitespace-pre-wrap break-words text-foreground">{{ comment.body }}</div>
+                    <div class="pt-1 whitespace-pre-wrap break-words text-foreground">{{ comment.body }}</div>
                   </div>
                 </div>
               </div>
@@ -665,6 +665,25 @@ const formatDate = (value: string): string => {
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
+const formatCommentRelativeTime = (value: string): string => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'commented just now'
+  const diffMs = Date.now() - date.getTime()
+  const absMs = Math.abs(diffMs)
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+  const month = 30 * day
+  const year = 365 * day
+
+  if (absMs < minute) return 'commented just now'
+  if (absMs < hour) return `commented ${Math.max(1, Math.round(absMs / minute))} minute${Math.round(absMs / minute) > 1 ? 's' : ''} ago`
+  if (absMs < day) return `commented ${Math.max(1, Math.round(absMs / hour))} hour${Math.round(absMs / hour) > 1 ? 's' : ''} ago`
+  if (absMs < month) return `commented ${Math.max(1, Math.round(absMs / day))} day${Math.round(absMs / day) > 1 ? 's' : ''} ago`
+  if (absMs < year) return `commented ${Math.max(1, Math.round(absMs / month))} month${Math.round(absMs / month) > 1 ? 's' : ''} ago`
+  return `commented ${Math.max(1, Math.round(absMs / year))} year${Math.round(absMs / year) > 1 ? 's' : ''} ago`
+}
+
 const getOptimizedAvatarUrl = (login: string, avatarUrl: string): string => {
   if (avatarCache.has(login)) {
     return avatarCache.get(login)!
@@ -705,7 +724,7 @@ const renderedCommentPreviewHtml = computed(() => {
   if (!commentBodyPreview.value) return '<span class="text-muted-foreground">（这里显示评论内容）</span>'
   return renderMarkdownPreview(commentBodyPreview.value)
 })
-const previewCommentTime = computed(() => formatDate(new Date().toISOString()))
+const previewCommentTime = computed(() => 'commented just now')
 const canSubmitComment = computed(() => Boolean(normalizedCommentId.value))
 const submitButtonTitle = computed(() => (canSubmitComment.value ? '' : '请填写id'))
 const pickerPaths = computed(() => {
