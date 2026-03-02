@@ -163,47 +163,36 @@
                     插入文件定位
                   </Button>
                 </div>
-                <div class="grid gap-2">
-                  <div class="flex items-center rounded-md border border-input bg-background">
-                    <span class="shrink-0 border-r border-border px-3 text-xs text-muted-foreground">[ABCC_NEEDFIX_</span>
-                    <Input
-                      v-model="commentId"
-                      class="border-0 shadow-none focus-visible:ring-0"
-                      placeholder="自定义 ID，例如 icon_png_check"
+                <Tabs v-model="commentEditorTab" class="w-full">
+                  <TabsList class="grid w-[220px] grid-cols-2">
+                    <TabsTrigger value="edit">评论说明</TabsTrigger>
+                    <TabsTrigger value="preview">消息预览</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="edit" class="mt-3">
+                    <div class="grid gap-2">
+                      <div class="flex items-center rounded-md border border-input bg-background">
+                        <span class="shrink-0 border-r border-border px-3 text-xs text-muted-foreground">[ABCC_NEEDFIX_</span>
+                        <Input
+                          v-model="commentId"
+                          class="border-0 shadow-none focus-visible:ring-0"
+                          placeholder="自定义 ID，例如 icon_png_check"
+                        />
+                        <span class="shrink-0 px-3 text-xs text-muted-foreground">]</span>
+                      </div>
+                      <Textarea
+                        v-model="commentMessage"
+                        placeholder="评论说明（文件引用请用上方按钮插入）"
+                        class="min-h-[88px]"
+                      />
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="preview" class="mt-3">
+                    <div
+                      class="rounded-md bg-muted px-3 py-2 text-sm text-foreground break-words"
+                      v-html="renderedCommentPreviewHtml"
                     />
-                    <span class="shrink-0 px-3 text-xs text-muted-foreground">]</span>
-                  </div>
-                  <Textarea
-                    v-model="commentMessage"
-                    placeholder="评论说明（文件引用请用上方按钮插入）"
-                    class="min-h-[88px]"
-                  />
-                </div>
-
-                <div v-if="commentReferences.length > 0" class="space-y-2 rounded-md border border-dashed border-border p-2.5">
-                  <div class="text-xs text-muted-foreground">已添加引用</div>
-                  <div class="flex flex-wrap gap-1.5">
-                    <button
-                      v-for="item in commentReferences"
-                      :key="item.key"
-                      type="button"
-                      class="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-xs text-foreground"
-                      @click="removeCommentReference(item.key)"
-                      :title="`移除 ${item.label}`"
-                    >
-                      <span>{{ item.label }}</span>
-                      <span class="text-muted-foreground">×</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="space-y-2 rounded-md border border-dashed border-border p-3">
-                <div class="text-xs font-medium text-muted-foreground">消息预览（不可编辑）</div>
-                <div
-                  class="rounded-md bg-muted px-3 py-2 text-sm text-foreground break-words"
-                  v-html="renderedCommentPreviewHtml"
-                />
+                  </TabsContent>
+                </Tabs>
               </div>
 
               <div class="flex items-center gap-2">
@@ -516,7 +505,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Card,
@@ -576,14 +565,6 @@ interface PullFileItem {
   patch?: string
 }
 
-interface CommentReferenceItem {
-  key: string
-  label: string
-  path: string
-  url: string
-  line: number | null
-}
-
 interface PickerTreeItem {
   type: 'folder' | 'file'
   path: string
@@ -627,7 +608,7 @@ const pickerLoading = ref(false)
 const pickerError = ref('')
 const commentId = ref('')
 const commentMessage = ref('')
-const commentReferences = ref<CommentReferenceItem[]>([])
+const commentEditorTab = ref<'edit' | 'preview'>('edit')
 const commentSubmitting = ref(false)
 
 const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && props.token.trim()))
@@ -673,23 +654,14 @@ const isImageFile = (filename: string): boolean => /\.(png|jpg|jpeg|gif|webp|svg
 const canPickLine = computed(() => Boolean(selectedPickerPath.value && !isImageFile(selectedPickerPath.value)))
 const normalizeCommentId = (value: string): string => value.trim().replace(/\s+/g, '_').replace(/\]/g, '')
 const normalizedCommentId = computed(() => normalizeCommentId(commentId.value))
-const commentReferenceMarkdownLines = computed(() =>
-  commentReferences.value.map(item => `[\`${item.label}\`](${item.url})`)
-)
 const commentBodyPreview = computed(() => {
-  const bodyParts = [
-    commentMessage.value.trim(),
-    ...commentReferenceMarkdownLines.value
-  ].filter(Boolean)
+  const bodyParts = [commentMessage.value.trim()].filter(Boolean)
   const prefixId = normalizedCommentId.value || '<填写ID>'
   return `[ABCC_NEEDFIX_${prefixId}] ${bodyParts.join('\n')}`.trim()
 })
 const submitCommentBody = computed(() => {
   if (!normalizedCommentId.value) return ''
-  const bodyParts = [
-    commentMessage.value.trim(),
-    ...commentReferenceMarkdownLines.value
-  ].filter(Boolean)
+  const bodyParts = [commentMessage.value.trim()].filter(Boolean)
   return `[ABCC_NEEDFIX_${normalizedCommentId.value}] ${bodyParts.join('\n')}`.trim()
 })
 const renderedCommentPreviewHtml = computed(() => {
@@ -876,13 +848,12 @@ const addCommentReference = (path: string, line: number | null): void => {
   const label = line ? `${path}#L${line}` : path
   const url = buildReferenceUrl(path, line)
   if (!url) return
-  const key = `${path}:${line || 0}`
-  if (commentReferences.value.some(item => item.key === key)) return
-  commentReferences.value.push({ key, label, path, url, line })
-}
-
-const removeCommentReference = (key: string): void => {
-  commentReferences.value = commentReferences.value.filter(item => item.key !== key)
+  const markdown = `[\`${label}\`](${url})`
+  if (commentMessage.value.includes(markdown)) return
+  commentMessage.value = commentMessage.value.trim()
+    ? `${commentMessage.value.trim()}\n${markdown}`
+    : markdown
+  commentEditorTab.value = 'edit'
 }
 
 const escapeHtml = (value: string): string => value
@@ -1265,7 +1236,7 @@ const submitPresetComment = async (): Promise<void> => {
       { body }
     )
     commentMessage.value = ''
-    commentReferences.value = []
+    commentEditorTab.value = 'edit'
     await loadPrDetails(selectedPr.value)
     await loadPullRequests()
   } catch (error: unknown) {
