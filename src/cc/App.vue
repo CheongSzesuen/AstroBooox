@@ -99,7 +99,7 @@
               <button
                 type="button"
                 class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                @click="openSettingsDialog"
+                @click="openSettingsPage"
               >
                 <GearSix :size="16" weight="duotone" />
                 设置
@@ -119,36 +119,32 @@
       </div>
     </header>
 
-    <Dialog :open="showSettingsDialog" @update:open="showSettingsDialog = $event">
-      <DialogContent class="sm:max-w-[520px]">
-        <DialogHeader>
-          <DialogTitle>设置</DialogTitle>
-          <DialogDescription>配置默认目标仓库，用于“等待审核 / 已发布资源”调试。</DialogDescription>
-        </DialogHeader>
-        <div class="grid gap-3 py-2">
-          <div class="space-y-1.5">
-            <Label for="cc-setting-owner">默认目标仓库 Owner</Label>
-            <Input id="cc-setting-owner" v-model="settingsForm.defaultTargetOwner" placeholder="AstralSightStudios" />
-          </div>
-          <div class="space-y-1.5">
-            <Label for="cc-setting-repo">默认目标仓库 Repo</Label>
-            <Input id="cc-setting-repo" v-model="settingsForm.defaultTargetRepo" placeholder="AstroBox-Repo" />
-          </div>
-          <div class="space-y-1.5">
-            <Label for="cc-setting-catalog">默认目录文件路径</Label>
-            <Input id="cc-setting-catalog" v-model="settingsForm.defaultCatalogPath" placeholder="index_v2.csv" />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="showSettingsDialog = false">取消</Button>
-          <Button @click="saveSettings">保存</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
     <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
       <section class="min-w-0 flex justify-center">
-        <ResourcePublishWorkbench :mode="tab" />
+        <ResourcePublishWorkbench v-if="tab !== 'settings'" :mode="workbenchMode" />
+        <Card v-else class="w-full max-w-[920px]">
+          <CardHeader>
+            <CardTitle>设置</CardTitle>
+            <CardDescription>配置默认目标仓库，用于“等待审核 / 已发布资源”调试。</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-3">
+            <div class="space-y-1.5">
+              <Label for="cc-setting-owner">默认目标仓库 Owner</Label>
+              <Input id="cc-setting-owner" v-model="settingsForm.defaultTargetOwner" placeholder="AstralSightStudios" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="cc-setting-repo">默认目标仓库 Repo</Label>
+              <Input id="cc-setting-repo" v-model="settingsForm.defaultTargetRepo" placeholder="AstroBox-Repo" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="cc-setting-catalog">默认目录文件路径</Label>
+              <Input id="cc-setting-catalog" v-model="settingsForm.defaultCatalogPath" placeholder="index_v2.csv" />
+            </div>
+            <div class="flex justify-end">
+              <Button @click="saveSettings">保存设置</Button>
+            </div>
+          </CardContent>
+        </Card>
       </section>
     </main>
   </div>
@@ -171,13 +167,12 @@ import {
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import CcTokenGate from '@/cc/CcTokenGate.vue'
@@ -186,19 +181,21 @@ import { useCcSession } from '@/composables/useCcSession'
 import { useCcWorkspace } from '@/composables/useCcWorkspace'
 import { useTheme } from '@/composables/useTheme'
 
-const tab = ref<'publish' | 'review' | 'published'>('publish')
+const tab = ref<'publish' | 'review' | 'published' | 'settings'>('publish')
 const { currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
 const { clearWorkspace, clearRemoteWorkspace } = useCcWorkspace()
 const { theme, toggleTheme } = useTheme()
 const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath, saveDefaults } = useCcSettings()
 const showUserMenu = ref(false)
 const userMenuRoot = ref<HTMLElement | null>(null)
-const showSettingsDialog = ref(false)
 const settingsForm = ref({
   defaultTargetOwner: defaultTargetOwner.value,
   defaultTargetRepo: defaultTargetRepo.value,
   defaultCatalogPath: defaultCatalogPath.value
 })
+const workbenchMode = computed<'publish' | 'review' | 'published'>(() =>
+  tab.value === 'settings' ? 'publish' : tab.value
+)
 
 const profileUrl = computed(() =>
   currentUser.value ? `https://github.com/${currentUser.value}` : 'https://github.com'
@@ -218,19 +215,18 @@ const toggleUserMenu = (): void => {
   showUserMenu.value = !showUserMenu.value
 }
 
-const openSettingsDialog = (): void => {
+const openSettingsPage = (): void => {
   settingsForm.value = {
     defaultTargetOwner: defaultTargetOwner.value,
     defaultTargetRepo: defaultTargetRepo.value,
     defaultCatalogPath: defaultCatalogPath.value
   }
   closeUserMenu()
-  showSettingsDialog.value = true
+  tab.value = 'settings'
 }
 
 const saveSettings = (): void => {
   saveDefaults(settingsForm.value)
-  showSettingsDialog.value = false
 }
 
 const handleGlobalPointerDown = (event: MouseEvent): void => {
