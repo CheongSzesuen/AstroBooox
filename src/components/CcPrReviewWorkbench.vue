@@ -163,10 +163,10 @@
                     插入文件定位
                   </Button>
                 </div>
-                <Tabs v-model="commentEditorTab" class="w-full">
-                  <TabsList class="grid w-[220px] grid-cols-2">
+                <Tabs v-model="commentEditorTab">
+                  <TabsList class="inline-flex h-8 w-auto">
                     <TabsTrigger value="edit">评论说明</TabsTrigger>
-                    <TabsTrigger value="preview">消息预览</TabsTrigger>
+                    <TabsTrigger value="preview">评论预览</TabsTrigger>
                   </TabsList>
                   <TabsContent value="edit" class="mt-3">
                     <div class="grid gap-2">
@@ -180,9 +180,14 @@
                         <span class="shrink-0 px-3 text-xs text-muted-foreground">]</span>
                       </div>
                       <Textarea
+                        id="review-comment-message"
+                        ref="commentMessageTextareaRef"
                         v-model="commentMessage"
                         placeholder="评论说明（文件引用请用上方按钮插入）"
                         class="min-h-[88px]"
+                        @click="syncCommentCursor"
+                        @keyup="syncCommentCursor"
+                        @select="syncCommentCursor"
                       />
                     </div>
                   </TabsContent>
@@ -609,6 +614,9 @@ const pickerError = ref('')
 const commentId = ref('')
 const commentMessage = ref('')
 const commentEditorTab = ref<'edit' | 'preview'>('edit')
+const commentMessageTextareaRef = ref<unknown>(null)
+const commentCursorStart = ref<number | null>(null)
+const commentCursorEnd = ref<number | null>(null)
 const commentSubmitting = ref(false)
 
 const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && props.token.trim()))
@@ -843,17 +851,55 @@ const buildReferenceUrl = (path: string, line: number | null): string => {
   return `${base}#L${line}`
 }
 
+const getCommentTextareaElement = (): HTMLTextAreaElement | null => {
+  const refValue = commentMessageTextareaRef.value as
+    | HTMLTextAreaElement
+    | { $el?: Element | null }
+    | null
+  if (refValue instanceof HTMLTextAreaElement) return refValue
+  if (refValue?.$el instanceof HTMLTextAreaElement) return refValue.$el
+  const element = document.getElementById('review-comment-message')
+  return element instanceof HTMLTextAreaElement ? element : null
+}
+
+const syncCommentCursor = (event?: Event): void => {
+  if (event?.target instanceof HTMLTextAreaElement) {
+    commentCursorStart.value = event.target.selectionStart
+    commentCursorEnd.value = event.target.selectionEnd
+    return
+  }
+  const textarea = getCommentTextareaElement()
+  if (!textarea) return
+  commentCursorStart.value = textarea.selectionStart
+  commentCursorEnd.value = textarea.selectionEnd
+}
+
 const addCommentReference = (path: string, line: number | null): void => {
   if (!path) return
   const label = line ? `${path}#L${line}` : path
   const url = buildReferenceUrl(path, line)
   if (!url) return
   const markdown = `[\`${label}\`](${url})`
-  if (commentMessage.value.includes(markdown)) return
-  commentMessage.value = commentMessage.value.trim()
-    ? `${commentMessage.value.trim()}\n${markdown}`
-    : markdown
+
+  const source = commentMessage.value
+  const start = commentCursorStart.value ?? source.length
+  const end = commentCursorEnd.value ?? start
+  const prefix = source.slice(0, start)
+  const suffix = source.slice(end)
+  const needLeadingBreak = prefix.length > 0 && !prefix.endsWith('\n')
+  const needTrailingBreak = suffix.length > 0 && !suffix.startsWith('\n')
+  const inserted = `${needLeadingBreak ? '\n' : ''}${markdown}${needTrailingBreak ? '\n' : ''}`
+  const nextCursor = start + inserted.length
+  commentMessage.value = `${prefix}${inserted}${suffix}`
+  commentCursorStart.value = nextCursor
+  commentCursorEnd.value = nextCursor
   commentEditorTab.value = 'edit'
+  void nextTick(() => {
+    const textarea = getCommentTextareaElement()
+    if (!textarea) return
+    textarea.focus()
+    textarea.setSelectionRange(nextCursor, nextCursor)
+  })
 }
 
 const escapeHtml = (value: string): string => value
@@ -1139,6 +1185,7 @@ const togglePickerFolder = (path: string): void => {
 }
 
 const openFilePicker = (): void => {
+  syncCommentCursor()
   filePickerOpen.value = true
   filePickerStep.value = 'file'
   filePickerTab.value = 'pr'
