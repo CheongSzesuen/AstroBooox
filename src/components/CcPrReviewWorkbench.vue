@@ -481,10 +481,9 @@
 
                   <div class="rounded-md border border-border p-3">
                     <div class="mb-2 text-xs font-semibold text-muted-foreground">仓库信息</div>
-                    <div class="space-y-2 text-sm">
-                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
-                        <div class="text-xs text-muted-foreground">资源仓库</div>
-                        <span v-if="submissionOverview.repoUrl" class="inline-flex items-center gap-1.5">
+                    <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+                      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <span v-if="submissionOverview.repoUrl" class="inline-flex min-w-0 items-center gap-1.5">
                           <GithubLogo :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
                           <a
                             :href="submissionOverview.repoUrl"
@@ -496,10 +495,7 @@
                           </a>
                         </span>
                         <span v-else class="text-foreground">-</span>
-                      </div>
-                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
-                        <div class="text-xs text-muted-foreground">提交短哈希</div>
-                        <code class="text-foreground">{{ submissionOverview.shortHash || '-' }}</code>
+                        <code class="shrink-0 text-foreground">{{ submissionOverview.shortHash || '-' }}</code>
                       </div>
                     </div>
                   </div>
@@ -589,13 +585,6 @@
                   </div>
                 </div>
 
-                <div v-if="submissionOverview.footerNote" class="rounded-md border border-border p-3">
-                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <NoteIcon :size="14" weight="duotone" />
-                    生成信息
-                  </div>
-                  <div class="text-sm text-foreground whitespace-pre-wrap" v-html="renderTextWithLinks(submissionOverview.footerNote)" />
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -618,10 +607,10 @@ import {
   PhFile as FileIcon,
   PhFolder as FolderIcon,
   PhGithubLogo as GithubLogo,
+  PhAddressBook as AddressBookIcon,
   PhGlobeHemisphereWest as GlobeIcon,
   PhImageSquare as ImageIcon,
   PhDownloadSimple as DownloadIcon,
-  PhNote as NoteIcon,
   PhGitPullRequest as GitPullRequest,
   PhLinkSimple as LinkSimple,
   PhMagnifyingGlass as MagnifyingGlass
@@ -721,7 +710,6 @@ interface SubmissionOverview {
   }
   downloads: DownloadItem[]
   links: LinkItem[]
-  footerNote: string
 }
 
 interface PickerTreeItem {
@@ -1138,9 +1126,11 @@ const renderTextWithLinks = (value: string): string => {
 
 const getUrlIcon = (url: string, type = '') => {
   const normalized = `${type} ${url}`.toLowerCase()
-  if (normalized.includes('github.com')) return GithubLogo
-  if (normalized.includes('raw.githubusercontent.com') || /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)(\?|$)/i.test(url)) return ImageIcon
+  if (normalized.includes('address-book')) return AddressBookIcon
+  if (normalized.includes('github')) return GithubLogo
   if (normalized.includes('download') || /\.(rpk|zip|apk|bin)(\?|$)/i.test(url)) return DownloadIcon
+  if (normalized.includes('image') || /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)(\?|$)/i.test(url)) return ImageIcon
+  if (normalized.includes('github.com')) return GithubLogo
   return GlobeIcon
 }
 
@@ -1156,8 +1146,7 @@ const parseSubmissionOverview = (body: string): SubmissionOverview => {
       previews: []
     },
     downloads: [],
-    links: [],
-    footerNote: ''
+    links: []
   }
   if (!body) return overview
 
@@ -1166,8 +1155,6 @@ const parseSubmissionOverview = (body: string): SubmissionOverview => {
   let currentDownload: DownloadItem | null = null
   let waitingImageLabel: 'icon' | 'cover' | 'preview' | null = null
   let waitingImageFile = ''
-  let inFooter = false
-  const footerLines: string[] = []
 
   for (const rawLine of lines) {
     const line = rawLine.trim()
@@ -1183,12 +1170,6 @@ const parseSubmissionOverview = (body: string): SubmissionOverview => {
     }
 
     if (line.startsWith('---')) {
-      inFooter = true
-      continue
-    }
-
-    if (inFooter) {
-      footerLines.push(line)
       continue
     }
 
@@ -1286,7 +1267,6 @@ const parseSubmissionOverview = (body: string): SubmissionOverview => {
     }
   }
 
-  overview.footerNote = footerLines.join('\n').trim()
   return overview
 }
 
@@ -1300,7 +1280,6 @@ const hasSubmissionOverview = computed(() =>
   || Boolean(submissionOverview.value.images.icon)
   || Boolean(submissionOverview.value.images.cover)
   || submissionOverview.value.images.previews.length > 0
-  || Boolean(submissionOverview.value.footerNote)
 )
 
 async function githubGet<T>(path: string): Promise<T> {
