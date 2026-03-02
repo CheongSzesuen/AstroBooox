@@ -1430,8 +1430,13 @@ const parseSubmissionOverview = (body: string): SubmissionOverview => {
         if (waitingImageLabel === 'icon') overview.images.icon = item
         if (waitingImageLabel === 'cover') overview.images.cover = item
         if (waitingImageLabel === 'preview') overview.images.previews.push(item)
-        waitingImageLabel = null
-        waitingImageFile = ''
+        // Preview 可能有多条「文件 + URL」连续项，需保持在 preview 上下文中继续解析。
+        if (waitingImageLabel === 'preview') {
+          waitingImageFile = ''
+        } else {
+          waitingImageLabel = null
+          waitingImageFile = ''
+        }
       }
       continue
     }
