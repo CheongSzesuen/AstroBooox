@@ -152,70 +152,140 @@
 
           <Card>
             <CardHeader class="pb-3">
-              <CardTitle class="text-base">审核标记</CardTitle>
-              <CardDescription>解析评论中的 ABCC_NEEDFIX / ABCC_FIXED</CardDescription>
+              <CardTitle class="text-base">审核评论</CardTitle>
+              <CardDescription>支持预设格式：ABCC_NEEDFIX / ABCC_FIXED</CardDescription>
             </CardHeader>
-            <CardContent class="space-y-2 pt-0">
-              <div
-                v-if="selectedPr.review.items.length === 0"
-                class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
-              >
-                暂无 NEEDFIX 标记
+            <CardContent class="space-y-3 pt-0">
+              <div class="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  :variant="commentType === 'NEEDFIX' ? 'default' : 'outline'"
+                  @click="commentType = 'NEEDFIX'"
+                >
+                  ABCC_NEEDFIX
+                </Button>
+                <Button
+                  size="sm"
+                  :variant="commentType === 'FIXED' ? 'default' : 'outline'"
+                  @click="commentType = 'FIXED'"
+                >
+                  ABCC_FIXED
+                </Button>
               </div>
-              <div
-                v-for="item in selectedPr.review.items"
-                :key="item.id"
-                class="rounded-md border border-border px-3 py-2 text-sm"
-              >
-                <div class="flex items-center justify-between gap-2">
-                  <div class="font-medium text-foreground">{{ item.id }}</div>
-                  <Badge :variant="item.fixed ? 'default' : 'outline'">{{ item.fixed ? '已修复' : '未修复' }}</Badge>
+
+              <div class="grid gap-2 md:grid-cols-2">
+                <Input v-model="commentId" placeholder="评论 ID，例如 icon_png_check" />
+                <Input v-model="commentMessage" placeholder="评论说明，例如图片比例不合规" />
+              </div>
+
+              <Textarea
+                :model-value="commentBodyPreview"
+                readonly
+                class="min-h-[88px] font-mono text-xs"
+              />
+
+              <div class="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  :disabled="commentSubmitting || !commentBodyPreview"
+                  @click="submitPresetComment"
+                >
+                  {{ commentSubmitting ? '发送中...' : '发送评论' }}
+                </Button>
+              </div>
+
+              <div v-if="detailsError" class="text-xs text-destructive">{{ detailsError }}</div>
+
+              <div class="space-y-2">
+                <div class="text-xs font-medium text-muted-foreground">最近评论</div>
+                <div
+                  v-if="prComments.length === 0"
+                  class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
+                >
+                  当前 PR 暂无评论
                 </div>
-                <div class="mt-1 text-muted-foreground">{{ item.message || '无说明' }}</div>
+                <div
+                  v-for="comment in prComments"
+                  :key="comment.id"
+                  class="rounded-md border border-border px-3 py-2 text-sm"
+                >
+                  <div class="mb-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>{{ comment.user?.login || 'unknown' }} · {{ formatDate(comment.created_at) }}</span>
+                    <a :href="comment.html_url" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">
+                      打开评论
+                    </a>
+                  </div>
+                  <div class="whitespace-pre-wrap break-words text-foreground">{{ comment.body }}</div>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader class="pb-3">
-              <CardTitle class="text-base">资源整合视图（v1 + v2）</CardTitle>
-              <CardDescription>基于 PR head 分支中的 manifest.json 与 manifest_v2.json</CardDescription>
+              <CardTitle class="text-base">变更文件</CardTitle>
+              <CardDescription>快速打开 GitHub / Raw 链接检查图片和资源文件</CardDescription>
             </CardHeader>
             <CardContent class="space-y-3 pt-0 text-sm">
-              <div class="grid gap-3 md:grid-cols-2">
-                <div class="rounded-md border border-border p-3">
-                  <div class="mb-2 font-semibold text-foreground">v2（manifest_v2.json）</div>
-                  <div class="space-y-1 text-muted-foreground">
-                    <div>id：{{ merged.v2.id || '--' }}</div>
-                    <div>name：{{ merged.v2.name || '--' }}</div>
-                    <div>restype：{{ merged.v2.restype || '--' }}</div>
-                    <div>author 数量：{{ merged.v2.authorCount }}</div>
-                    <div>downloads 数量：{{ merged.v2.downloadCount }}</div>
+              <div v-if="detailsLoading" class="text-xs text-muted-foreground">正在加载文件变更...</div>
+              <div
+                v-else-if="prFiles.length === 0"
+                class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
+              >
+                当前 PR 没有可展示的文件变更
+              </div>
+              <div v-else class="space-y-2">
+                <div
+                  v-for="file in prFiles"
+                  :key="file.sha"
+                  class="rounded-md border border-border px-3 py-3"
+                >
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="min-w-0">
+                      <div class="truncate font-medium text-foreground">{{ file.filename }}</div>
+                      <div class="text-xs text-muted-foreground">
+                        {{ file.status }} · +{{ file.additions }} / -{{ file.deletions }} · {{ file.changes }} changes
+                      </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <Button size="sm" variant="outline" @click="applyFileNeedFixTemplate(file.filename)">
+                        设为 NEEDFIX
+                      </Button>
+                      <a
+                        v-if="file.blob_url"
+                        :href="file.blob_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-xs text-primary hover:underline"
+                      >
+                        GitHub
+                      </a>
+                      <a
+                        v-if="file.raw_url && isImageFile(file.filename)"
+                        :href="file.raw_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-xs text-primary hover:underline"
+                      >
+                        预览图
+                      </a>
+                      <a
+                        v-if="file.raw_url && !isImageFile(file.filename)"
+                        :href="file.raw_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-xs text-primary hover:underline"
+                      >
+                        Raw
+                      </a>
+                    </div>
                   </div>
-                </div>
-                <div class="rounded-md border border-border p-3">
-                  <div class="mb-2 font-semibold text-foreground">v1（manifest.json）</div>
-                  <div class="space-y-1 text-muted-foreground">
-                    <div>name：{{ merged.v1.name || '--' }}</div>
-                    <div>source_url：{{ merged.v1.sourceUrl || '--' }}</div>
-                    <div>author 数量：{{ merged.v1.authorCount }}</div>
-                    <div>downloads 数量：{{ merged.v1.downloadCount }}</div>
-                  </div>
+                  <pre
+                    v-if="file.patch"
+                    class="mt-2 max-h-44 overflow-auto rounded-md bg-muted p-2 text-xs text-muted-foreground"
+                  >{{ file.patch }}</pre>
                 </div>
               </div>
-
-              <div class="rounded-md border border-border p-3">
-                <div class="mb-2 font-semibold text-foreground">一致性检查</div>
-                <div class="space-y-1 text-muted-foreground">
-                  <div>名称一致：{{ merged.nameAligned ? '是' : '否' }}</div>
-                  <div>描述一致：{{ merged.descriptionAligned ? '是' : '否' }}</div>
-                  <div>icon 一致：{{ merged.iconAligned ? '是' : '否' }}</div>
-                  <div>cover 一致：{{ merged.coverAligned ? '是' : '否' }}</div>
-                </div>
-              </div>
-
-              <div v-if="detailsLoading" class="text-xs text-muted-foreground">正在加载 manifest 信息...</div>
-              <div v-if="detailsError" class="text-xs text-destructive">{{ detailsError }}</div>
             </CardContent>
           </Card>
         </template>
@@ -234,6 +304,8 @@ import {
 } from '@phosphor-icons/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Card,
   CardContent,
@@ -269,29 +341,24 @@ interface PullListItem {
   review: ReviewStatusResult
 }
 
-interface ManifestV2 {
-  item?: {
-    id?: string
-    name?: string
-    restype?: string
-    description?: string
-    icon?: string
-    cover?: string
-    author?: Array<unknown>
-  }
-  downloads?: Record<string, unknown>
+interface IssueCommentItem {
+  id: number
+  body: string
+  user?: { login?: string; avatar_url?: string; html_url?: string }
+  created_at: string
+  html_url: string
 }
 
-interface ManifestV1 {
-  item?: {
-    name?: string
-    description?: string
-    icon?: string
-    cover?: string
-    source_url?: string
-    author?: Array<unknown>
-  }
-  downloads?: Record<string, unknown>
+interface PullFileItem {
+  sha: string
+  filename: string
+  status: string
+  additions: number
+  deletions: number
+  changes: number
+  blob_url?: string
+  raw_url?: string
+  patch?: string
 }
 
 const props = withDefaults(defineProps<{
@@ -311,8 +378,12 @@ const selectedPr = ref<PullListItem | null>(null)
 const isSidebarCollapsed = ref(false)
 const detailsLoading = ref(false)
 const detailsError = ref('')
-const manifestV2 = ref<ManifestV2 | null>(null)
-const manifestV1 = ref<ManifestV1 | null>(null)
+const prComments = ref<IssueCommentItem[]>([])
+const prFiles = ref<PullFileItem[]>([])
+const commentType = ref<'NEEDFIX' | 'FIXED'>('NEEDFIX')
+const commentId = ref('')
+const commentMessage = ref('')
+const commentSubmitting = ref(false)
 
 const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && props.token.trim()))
 const sidebarClass = computed(() => [
@@ -324,12 +395,6 @@ const sidebarClass = computed(() => [
 const avatarCache = new Map<string, string>()
 
 const COMMENT_PATTERN = /^\s*\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]\s*(.*)$/i
-
-const reviewStateText = (state: ReviewState): string => {
-  if (state === 'changes_requested') return '需要修改'
-  if (state === 'fixed_waiting') return '已修复待审'
-  return '等待审核'
-}
 
 const formatDate = (value: string): string => {
   const date = new Date(value)
@@ -359,6 +424,15 @@ const cacheAvatar = (login: string, avatarUrl: string): void => {
   localStorage.setItem(`avatar_${login}`, url)
 }
 
+const isImageFile = (filename: string): boolean => /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)$/i.test(filename)
+const normalizeCommentId = (value: string): string => value.trim().replace(/\s+/g, '_').replace(/\]/g, '')
+const commentBodyPreview = computed(() => {
+  const id = normalizeCommentId(commentId.value)
+  const msg = commentMessage.value.trim()
+  if (!id) return ''
+  return `[ABCC_${commentType.value}_${id}] ${msg}`.trim()
+})
+
 async function githubGet<T>(path: string): Promise<T> {
   const response = await fetch(`https://api.github.com${path}`, {
     headers: {
@@ -366,6 +440,24 @@ async function githubGet<T>(path: string): Promise<T> {
       'X-GitHub-Api-Version': '2022-11-28',
       Authorization: `Bearer ${props.token.trim()}`
     }
+  })
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(text || `GitHub API ${response.status}`)
+  }
+  return response.json() as Promise<T>
+}
+
+async function githubPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const response = await fetch(`https://api.github.com${path}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      Authorization: `Bearer ${props.token.trim()}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
   })
   if (!response.ok) {
     const text = await response.text()
@@ -460,8 +552,8 @@ const loadPullRequests = async (): Promise<void> => {
       await selectPr(pullRequests.value[0])
     } else {
       selectedPr.value = null
-      manifestV2.value = null
-      manifestV1.value = null
+      prComments.value = []
+      prFiles.value = []
     }
   } catch (error: unknown) {
     errorMessage.value = error instanceof Error ? error.message : '加载 PR 失败'
@@ -472,36 +564,24 @@ const loadPullRequests = async (): Promise<void> => {
   }
 }
 
-const readRepoJsonOrNull = async (owner: string, repo: string, ref: string, path: string): Promise<any | null> => {
-  try {
-    const file = await githubGet<{ content?: string }>(
-      `/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`
-    )
-    if (!file.content) return null
-    const text = atob(file.content.replace(/\n/g, ''))
-    return JSON.parse(text)
-  } catch {
-    return null
-  }
-}
-
 const loadPrDetails = async (pr: PullListItem): Promise<void> => {
   detailsLoading.value = true
   detailsError.value = ''
   try {
-    if (!pr.headOwner || !pr.headRepo) {
-      throw new Error('PR head 仓库信息不完整')
-    }
-    const [v2, v1] = await Promise.all([
-      readRepoJsonOrNull(pr.headOwner, pr.headRepo, pr.headRef, 'manifest_v2.json'),
-      readRepoJsonOrNull(pr.headOwner, pr.headRepo, pr.headRef, 'manifest.json')
+    const [comments, files] = await Promise.all([
+      githubGet<IssueCommentItem[]>(
+        `/repos/${props.owner}/${props.repo}/issues/${pr.number}/comments?per_page=100`
+      ),
+      githubGet<PullFileItem[]>(
+        `/repos/${props.owner}/${props.repo}/pulls/${pr.number}/files?per_page=100`
+      )
     ])
-    manifestV2.value = v2
-    manifestV1.value = v1
+    prComments.value = comments
+    prFiles.value = files
   } catch (error: unknown) {
     detailsError.value = error instanceof Error ? error.message : '加载 PR 详情失败'
-    manifestV2.value = null
-    manifestV1.value = null
+    prComments.value = []
+    prFiles.value = []
   } finally {
     detailsLoading.value = false
   }
@@ -517,39 +597,35 @@ const refreshSelectedPrDetails = async (): Promise<void> => {
   await loadPrDetails(selectedPr.value)
 }
 
-const merged = computed(() => {
-  const v2Item = manifestV2.value?.item || {}
-  const v1Item = manifestV1.value?.item || {}
+const applyFileNeedFixTemplate = (filename: string): void => {
+  commentType.value = 'NEEDFIX'
+  commentId.value = normalizeCommentId(filename)
+  commentMessage.value = `请检查文件 ${filename} 的改动`
+}
 
-  const v2Name = (v2Item.name || '').trim()
-  const v1Name = (v1Item.name || '').trim()
-  const v2Desc = (v2Item.description || '').trim()
-  const v1Desc = (v1Item.description || '').trim()
-  const v2Icon = (v2Item.icon || '').trim()
-  const v1Icon = (v1Item.icon || '').trim()
-  const v2Cover = (v2Item.cover || '').trim()
-  const v1Cover = (v1Item.cover || '').trim()
-
-  return {
-    v2: {
-      id: (v2Item.id || '').trim(),
-      name: v2Name,
-      restype: (v2Item.restype || '').trim(),
-      authorCount: Array.isArray(v2Item.author) ? v2Item.author.length : 0,
-      downloadCount: manifestV2.value?.downloads ? Object.keys(manifestV2.value.downloads).length : 0
-    },
-    v1: {
-      name: v1Name,
-      sourceUrl: (v1Item.source_url || '').trim(),
-      authorCount: Array.isArray(v1Item.author) ? v1Item.author.length : 0,
-      downloadCount: manifestV1.value?.downloads ? Object.keys(manifestV1.value.downloads).length : 0
-    },
-    nameAligned: Boolean(v2Name && v1Name && v2Name === v1Name),
-    descriptionAligned: Boolean(v2Desc && v1Desc && v2Desc === v1Desc),
-    iconAligned: Boolean(v2Icon && v1Icon && v2Icon === v1Icon),
-    coverAligned: Boolean(v2Cover && v1Cover && v2Cover === v1Cover)
+const submitPresetComment = async (): Promise<void> => {
+  if (!selectedPr.value) return
+  const body = commentBodyPreview.value
+  if (!body) {
+    detailsError.value = '评论 ID 不能为空'
+    return
   }
-})
+  commentSubmitting.value = true
+  detailsError.value = ''
+  try {
+    await githubPost(
+      `/repos/${props.owner}/${props.repo}/issues/${selectedPr.value.number}/comments`,
+      { body }
+    )
+    commentMessage.value = ''
+    await loadPrDetails(selectedPr.value)
+    await loadPullRequests()
+  } catch (error: unknown) {
+    detailsError.value = error instanceof Error ? error.message : '评论发送失败'
+  } finally {
+    commentSubmitting.value = false
+  }
+}
 
 watch(
   () => [props.owner, props.repo, props.token] as const,
