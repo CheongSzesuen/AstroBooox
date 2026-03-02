@@ -97,63 +97,71 @@
               <CardTitle class="text-base">步骤 2：资源信息</CardTitle>
             </CardHeader>
             <CardContent class="space-y-4 pt-0">
-              <div class="grid gap-3 md:grid-cols-2">
-                <div class="space-y-1.5">
-                  <Label for="item-id">资源 ID</Label>
-                  <Input id="item-id" v-model="itemId" placeholder="your-resource-id" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="item-name">资源名称</Label>
-                  <Input id="item-name" v-model="itemName" placeholder="My Resource" />
-                </div>
-              </div>
+              <div class="space-y-4">
+                <Card class="border-border/70 shadow-none">
+                  <CardHeader class="pb-3">
+                    <CardTitle class="text-base">应用信息</CardTitle>
+                    <CardDescription>对齐主站 manifest 编辑模式的基础字段。</CardDescription>
+                  </CardHeader>
+                  <CardContent class="space-y-4 pt-0">
+                    <div class="grid gap-3 md:grid-cols-2">
+                      <div class="space-y-1.5">
+                        <Label for="item-id">资源 ID</Label>
+                        <Input id="item-id" v-model="itemId" placeholder="your-resource-id" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="item-name">资源名称</Label>
+                        <Input id="item-name" v-model="itemName" placeholder="My Resource" />
+                      </div>
+                    </div>
 
-              <div class="grid gap-3 md:grid-cols-2">
-                <div class="space-y-1.5">
-                  <Label for="restype">资源类型</Label>
-                  <Input id="restype" v-model="restype" placeholder="quick_app / watchface" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="paid-type">付费类型</Label>
-                  <Input id="paid-type" v-model="paidType" placeholder="paid / force_paid / 空" />
-                </div>
-              </div>
+                    <div class="grid gap-3 md:grid-cols-2">
+                      <div class="space-y-1.5">
+                        <Label for="restype">资源类型</Label>
+                        <Input id="restype" v-model="restype" placeholder="quick_app / watchface" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="paid-type">付费类型</Label>
+                        <Input id="paid-type" v-model="paidType" placeholder="paid / force_paid / 空" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <div class="grid gap-3 md:grid-cols-2">
-                <div class="space-y-1.5">
-                  <Label for="tags">标签（;分隔）</Label>
-                  <Input id="tags" v-model="tagsText" placeholder="tool;watchface" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="devices">设备 ID（;分隔）</Label>
-                  <Input id="devices" v-model="devicesText" placeholder="o66;o66nfc" />
-                </div>
-              </div>
+                <Card class="border-border/70 shadow-none">
+                  <CardHeader class="pb-3">
+                    <CardTitle class="text-base">资源属性</CardTitle>
+                  </CardHeader>
+                  <CardContent class="space-y-4 pt-0">
+                    <div class="grid gap-3 md:grid-cols-2">
+                      <div class="space-y-1.5">
+                        <Label for="tags">标签（;分隔）</Label>
+                        <Input id="tags" v-model="tagsText" placeholder="tool;watchface" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="devices">设备 ID（;分隔）</Label>
+                        <Input id="devices" v-model="devicesText" placeholder="o66;o66nfc / xmb10 / M2457B1" />
+                        <p class="text-xs text-muted-foreground">
+                          支持输入 `v2 codename`、`v1 id`、`机型码`，提交时会自动映射到 v2 codename。
+                        </p>
+                        <p v-if="normalizedDevicesText" class="text-xs text-muted-foreground">
+                          规范化结果: {{ normalizedDevicesText }}
+                        </p>
+                      </div>
+                    </div>
 
-              <div class="grid gap-3 md:grid-cols-2">
-                <div class="space-y-1.5">
-                  <Label for="icon-path">icon 路径</Label>
-                  <Input id="icon-path" v-model="iconPath" placeholder="media/icon.png" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="cover-path">cover 路径</Label>
-                  <Input id="cover-path" v-model="coverPath" placeholder="media/cover.png" />
-                </div>
-              </div>
-
-              <div class="grid gap-3 md:grid-cols-2">
-                <div class="space-y-1.5">
-                  <Label for="repo-name">资源仓库名（可选）</Label>
-                  <Input id="repo-name" v-model="repoName" placeholder="留空时按 ID 自动生成" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="repo-desc">仓库描述（可选）</Label>
-                  <Input id="repo-desc" v-model="repoDescription" placeholder="resource repository" />
-                </div>
-              </div>
-
-              <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-xs text-muted-foreground">
-                上传目标仓库: {{ currentUser || '--' }}/{{ resolvedRepoName || '--' }}
+                    <div class="grid gap-3 md:grid-cols-2">
+                      <div class="space-y-1.5">
+                        <Label for="icon-path">icon 路径</Label>
+                        <Input id="icon-path" v-model="iconPath" placeholder="media/icon.png" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="cover-path">cover 路径</Label>
+                        <Input id="cover-path" v-model="coverPath" placeholder="media/cover.png" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
               <div class="flex justify-between gap-2">
@@ -169,6 +177,21 @@
               <CardDescription>创建或复用仓库，并上传 manifest、media、downloads。</CardDescription>
             </CardHeader>
             <CardContent class="space-y-4 pt-0">
+              <div class="grid gap-3 md:grid-cols-2">
+                <div class="space-y-1.5">
+                  <Label for="repo-name">资源仓库名（可选）</Label>
+                  <Input id="repo-name" v-model="repoName" placeholder="留空时按 ID 自动生成" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="repo-desc">仓库描述（可选）</Label>
+                  <Input id="repo-desc" v-model="repoDescription" placeholder="resource repository" />
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
+                上传目标仓库: {{ currentUser || '--' }}/{{ resolvedRepoName || '--' }}
+              </div>
+
               <div class="grid gap-2 md:grid-cols-3">
                 <div class="rounded-lg border border-border bg-muted/25 px-3 py-2 text-sm">
                   仓库: {{ currentUser || '--' }}/{{ resolvedRepoName || '--' }}
@@ -429,6 +452,100 @@ interface WorkspaceDirectoryHandle {
 
 const MAIN_BRANCH = 'main'
 const MANIFEST_FILE = 'manifest_v2.json'
+
+const MODEL_TO_V2_CODENAME: Record<string, string> = {
+  M2345B1: 'n66',
+  M2523W1: 'p65',
+  M2346B1: 'n66',
+  M2401B1: 'n67',
+  M2402B1: 'n67',
+  M2457B1: 'o66',
+  M2456B1: 'o66nfc',
+  M2313W1: 'n62',
+  M2311W1: 'n62',
+  M2323W1: 'n62',
+  M2425W1: 'o62',
+  M2424W1: 'o62',
+  M2426W1: 'o62m',
+  M2312W1: 'o62',
+  M2502W1: 'o62',
+  M2427W1: 'o65',
+  M2428W1: 'o65m'
+}
+
+const MODEL_TO_V1_ID: Record<string, string> = {
+  M2345B1: 'xmb9',
+  M2346B1: 'xmb9',
+  M2401B1: 'xmb9p',
+  M2402B1: 'xmb9p',
+  M2457B1: 'xmb10',
+  M2456B1: 'xmb10nfc',
+  M2313W1: 'xmws3',
+  M2311W1: 'xmws3',
+  M2323W1: 'xmws3',
+  M2425W1: 'xmws4',
+  M2424W1: 'xmws4',
+  M2426W1: 'xmws4xring',
+  M2312W1: 'xmws4',
+  M2502W1: 'xmws4',
+  M2427W1: 'xmrw5',
+  M2428W1: 'xmrw5xring',
+  M2523W1: 'xmrw6',
+  WA2536B: 'vivowgt2'
+}
+
+const V1_ID_TO_V2_CODENAMES = Object.entries(MODEL_TO_V1_ID).reduce<Record<string, string[]>>(
+  (acc, [model, id]) => {
+    const codename = MODEL_TO_V2_CODENAME[model]
+    if (!codename) return acc
+
+    const key = id.toLowerCase()
+    const list = acc[key] ?? []
+    if (!list.includes(codename)) list.push(codename)
+    acc[key] = list
+    return acc
+  },
+  {}
+)
+
+const KNOWN_V2_CODENAMES = new Set(
+  Object.values(MODEL_TO_V2_CODENAME).map(codename => codename.toLowerCase())
+)
+
+const normalizeDeviceCodes = (raw: string): string[] => {
+  const result: string[] = []
+  const tokens = raw
+    .split(/[;,\n]+/)
+    .map(token => token.trim())
+    .filter(Boolean)
+
+  for (const token of tokens) {
+    const upper = token.toUpperCase()
+    const lower = token.toLowerCase()
+
+    const mappedFromModel = MODEL_TO_V2_CODENAME[upper]
+    if (mappedFromModel) {
+      result.push(mappedFromModel)
+      continue
+    }
+
+    const mappedFromV1 = V1_ID_TO_V2_CODENAMES[lower]
+    if (mappedFromV1?.length) {
+      result.push(...mappedFromV1)
+      continue
+    }
+
+    if (KNOWN_V2_CODENAMES.has(lower)) {
+      result.push(lower)
+      continue
+    }
+
+    result.push(token)
+  }
+
+  return [...new Set(result)]
+}
+
 type WorkbenchMode = 'publish' | 'review' | 'published'
 const props = withDefaults(defineProps<{ mode?: WorkbenchMode }>(), {
   mode: 'publish'
@@ -536,6 +653,9 @@ const canSubmitPr = computed(
     )
 )
 
+const normalizedDevices = computed(() => normalizeDeviceCodes(devicesText.value))
+const normalizedDevicesText = computed(() => normalizedDevices.value.join(';'))
+
 const stepList = computed(() => [
   {
     label: '创建文件夹',
@@ -543,7 +663,7 @@ const stepList = computed(() => [
   },
   {
     label: '资源信息',
-    done: Boolean(itemId.value.trim() && itemName.value.trim() && resolvedRepoName.value)
+    done: Boolean(itemId.value.trim() && itemName.value.trim())
   },
   {
     label: '上传仓库',
@@ -946,7 +1066,7 @@ const handleCreateCatalogPr = async (): Promise<void> => {
         cover: coverPath.value.trim(),
         tags: tagsText.value.trim(),
         device_vendors: '',
-        devices: devicesText.value.trim(),
+        devices: normalizedDevicesText.value,
         paid_type: paidType.value.trim()
       }
     })
