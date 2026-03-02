@@ -71,7 +71,7 @@
           >
             <img
               :src="getOptimizedAvatarUrl(item.author, item.authorAvatar)"
-              :class="isSidebarCollapsed ? 'h-10 w-10 rounded-full' : 'h-8 w-8 rounded-md'"
+              :class="isSidebarCollapsed ? 'h-10 w-10 rounded-md' : 'h-8 w-8 rounded-md'"
               class="shrink-0 object-cover object-center"
               loading="lazy"
               @load="cacheAvatar(item.author, item.authorAvatar)"
@@ -193,7 +193,7 @@
                   </TabsContent>
                   <TabsContent value="preview" class="mt-3">
                     <div
-                      class="rounded-md bg-muted px-3 py-2 text-sm text-foreground break-words"
+                      class="rounded-md border border-border px-3 py-2 text-sm text-foreground break-words"
                       v-html="renderedCommentPreviewHtml"
                     />
                   </TabsContent>
@@ -201,13 +201,15 @@
               </div>
 
               <div class="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  :disabled="commentSubmitting || !commentBodyPreview"
-                  @click="submitPresetComment"
-                >
-                  {{ commentSubmitting ? '发送中...' : '发送评论' }}
-                </Button>
+                <span :title="submitButtonTitle" class="inline-flex">
+                  <Button
+                    size="sm"
+                    :disabled="!canSubmitComment || commentSubmitting"
+                    @click="submitPresetComment"
+                  >
+                    {{ commentSubmitting ? '发送中...' : '发送评论' }}
+                  </Button>
+                </span>
               </div>
 
               <div v-if="detailsError" class="text-xs text-destructive">{{ detailsError }}</div>
@@ -676,6 +678,8 @@ const renderedCommentPreviewHtml = computed(() => {
   if (!commentBodyPreview.value) return '<span class="text-muted-foreground">（这里显示评论内容）</span>'
   return renderMarkdownPreview(commentBodyPreview.value)
 })
+const canSubmitComment = computed(() => Boolean(normalizedCommentId.value))
+const submitButtonTitle = computed(() => (canSubmitComment.value ? '' : '请填写id'))
 const pickerPaths = computed(() => {
   const source = filePickerTab.value === 'pr'
     ? prFiles.value.map(file => file.filename)
