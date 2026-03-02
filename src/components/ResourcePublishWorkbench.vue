@@ -183,7 +183,7 @@
                         placeholder="输入标签后回车或点击添加"
                         @keydown.enter.prevent="addTag"
                       />
-                      <Button variant="outline" @click="addTag">添加标签</Button>
+                      <Button variant="default" class="font-semibold" @click="addTag">添加标签</Button>
                     </div>
                   </div>
 
@@ -229,7 +229,7 @@
                         </div>
                       </template>
                     </draggable>
-                    <Button variant="outline" @click="selectMultiplePreviewFiles">+ 添加预览图</Button>
+                    <Button variant="default" class="font-semibold" @click="selectMultiplePreviewFiles">+ 添加预览图</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -268,7 +268,7 @@
                       </Button>
                     </div>
                   </div>
-                  <Button variant="outline" @click="addAuthor">+ 添加作者</Button>
+                  <Button variant="default" class="font-semibold" @click="addAuthor">+ 添加作者</Button>
                 </CardContent>
               </Card>
 
@@ -278,7 +278,7 @@
                 </CardHeader>
                 <CardContent class="space-y-3 pt-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" @click="showDeviceSelector = true">+ 选择支持设备</Button>
+                    <Button variant="default" class="font-semibold" @click="showDeviceSelector = true">+ 选择支持设备</Button>
                     <span v-if="selectedDeviceIds.length === 0" class="text-xs text-muted-foreground">尚未选择设备</span>
                   </div>
 
@@ -449,12 +449,13 @@
       </div>
 
       <Dialog :open="showDeviceSelector" @update:open="showDeviceSelector = $event">
-        <DialogContent class="max-w-[820px]">
+        <DialogContent class="w-[min(96vw,1080px)] max-w-none">
           <DialogHeader>
             <DialogTitle>选择支持设备</DialogTitle>
             <DialogDescription>设备会自动映射为 v2 设备 ID，并同步到 downloads。</DialogDescription>
           </DialogHeader>
-          <div class="my-2 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 max-[640px]:grid-cols-1">
+          <div class="my-2 max-h-[68vh] overflow-y-auto pr-1">
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3 max-[640px]:grid-cols-1">
             <div
               v-for="entry in deviceSelectorEntries"
               :key="`device-option-${entry.key}`"
@@ -470,6 +471,7 @@
               <div class="text-xs text-muted-foreground">
                 {{ entry.model }} · {{ entry.id }} / {{ entry.codename }}
               </div>
+            </div>
             </div>
           </div>
           <DialogFooter>

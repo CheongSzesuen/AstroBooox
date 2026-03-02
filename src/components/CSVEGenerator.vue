@@ -64,7 +64,7 @@
                     <Minus :size="16" weight="bold" />
                   </Button>
                 </div>
-                <Button class="w-fit" @click="addTag">+ 添加标签</Button>
+                <Button variant="default" class="w-fit font-semibold" @click="addTag">+ 添加标签</Button>
               </div>
             </div>
             <div>
@@ -81,7 +81,7 @@
                     <Minus :size="16" weight="bold" />
                   </Button>
                 </div>
-                <Button class="w-fit" @click="openDeviceSelector">+ 添加设备</Button>
+                <Button variant="default" class="w-fit font-semibold" @click="openDeviceSelector">+ 添加设备</Button>
               </div>
             </div>
           </div>
@@ -117,23 +117,25 @@
       </div>
 
       <Dialog :open="showDeviceSelector" @update:open="showDeviceSelector = $event">
-        <DialogContent class="max-w-[820px]">
+        <DialogContent class="w-[min(96vw,1080px)] max-w-none">
           <DialogHeader>
             <DialogTitle>选择设备</DialogTitle>
             <DialogDescription>可多选，按真实支持设备勾选。</DialogDescription>
           </DialogHeader>
-          <div class="my-2 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 max-[768px]:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] max-[480px]:grid-cols-1">
-            <div
-              v-for="device in supportedDevices"
-              :key="device.codename + device.name"
-              :class="[
-                'cursor-pointer rounded-lg border p-4 transition-colors',
-                isDeviceSelected(device) ? 'border-ring bg-muted' : 'border-border bg-background hover:bg-accent'
-              ]"
-              @click="toggleDeviceSelection(device)"
-            >
-              <div class="mb-1 font-semibold text-foreground">{{ device.name }}</div>
-              <div class="text-xs text-muted-foreground">{{ device.codename }}</div>
+          <div class="my-2 max-h-[68vh] overflow-y-auto pr-1">
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-4 max-[768px]:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] max-[480px]:grid-cols-1">
+              <div
+                v-for="device in supportedDevices"
+                :key="device.codename + device.name"
+                :class="[
+                  'cursor-pointer rounded-lg border p-4 transition-colors',
+                  isDeviceSelected(device) ? 'border-ring bg-muted' : 'border-border bg-background hover:bg-accent'
+                ]"
+                @click="toggleDeviceSelection(device)"
+              >
+                <div class="mb-1 font-semibold text-foreground">{{ device.name }}</div>
+                <div class="text-xs text-muted-foreground">{{ device.codename }}</div>
+              </div>
             </div>
           </div>
           <DialogFooter>
