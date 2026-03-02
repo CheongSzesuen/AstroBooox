@@ -484,102 +484,77 @@
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  <div class="rounded-md border border-border p-3">
-                    <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                      <GithubLogo :size="14" weight="duotone" />
-                      仓库信息
-                    </div>
-                    <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
-                      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <span v-if="submissionOverview.repoUrl" class="inline-flex min-w-0 items-center gap-1.5">
-                          <a
-                            :href="submissionOverview.repoUrl"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="break-all text-primary hover:underline"
-                          >
-                            {{ submissionOverview.repoUrl }}
-                          </a>
-                        </span>
-                        <span v-else class="text-foreground">-</span>
-                        <code class="shrink-0 text-foreground">{{ submissionOverview.shortHash || '-' }}</code>
-                      </div>
+                <div class="rounded-md border border-border p-3">
+                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <GithubLogo :size="14" weight="duotone" />
+                    仓库信息
+                  </div>
+                  <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <span v-if="submissionOverview.repoUrl" class="inline-flex min-w-0 items-center gap-1.5">
+                        <a
+                          :href="submissionOverview.repoUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="break-all text-primary hover:underline"
+                        >
+                          {{ submissionOverview.repoUrl }}
+                        </a>
+                      </span>
+                      <span v-else class="text-foreground">-</span>
+                      <code class="shrink-0 text-foreground">{{ submissionOverview.shortHash || '-' }}</code>
                     </div>
                   </div>
+                </div>
 
-                  <div class="rounded-md border border-border p-3">
-                    <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <div class="rounded-md border border-border p-3">
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                       <ImageIcon :size="14" weight="duotone" />
                       图片资源（Raw）
                     </div>
-                    <div class="space-y-2 text-sm">
-                      <div v-if="submissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
-                        <div class="text-xs text-muted-foreground">Icon · {{ submissionOverview.images.icon.file }}</div>
-                        <a
-                          :href="submissionOverview.images.icon.url"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
-                        >
-                          <img
-                            :src="getDisplayImageUrl(submissionOverview.images.icon.url)"
-                            alt="Icon 预览"
-                            class="max-h-44 w-full object-contain"
-                            loading="lazy"
-                          />
-                        </a>
-                        <span class="inline-flex items-center gap-1.5">
-                          <a :href="submissionOverview.images.icon.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
-                            {{ submissionOverview.images.icon.url }}
-                          </a>
-                        </span>
-                      </div>
-                      <div v-if="submissionOverview.images.cover" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
-                        <div class="text-xs text-muted-foreground">Cover · {{ submissionOverview.images.cover.file }}</div>
-                        <a
-                          :href="submissionOverview.images.cover.url"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
-                        >
-                          <img
-                            :src="getDisplayImageUrl(submissionOverview.images.cover.url)"
-                            alt="Cover 预览"
-                            class="max-h-52 w-full object-contain"
-                            loading="lazy"
-                          />
-                        </a>
-                        <span class="inline-flex items-center gap-1.5">
-                          <a :href="submissionOverview.images.cover.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
-                            {{ submissionOverview.images.cover.url }}
-                          </a>
-                        </span>
-                      </div>
+                    <div v-if="imageSlides.length > 1" class="inline-flex items-center gap-1">
+                      <Button size="icon" variant="outline" class="h-7 w-7" :disabled="!canImagePrev" @click="scrollImagePrev">
+                        <CaretLeft :size="14" weight="bold" />
+                      </Button>
+                      <Button size="icon" variant="outline" class="h-7 w-7" :disabled="!canImageNext" @click="scrollImageNext">
+                        <CaretRight :size="14" weight="bold" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div v-if="imageSlides.length === 0" class="rounded-md border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
+                    未检测到图片资源
+                  </div>
+                  <div v-else class="overflow-hidden" ref="imageCarouselRef">
+                    <div class="flex">
                       <div
-                        v-for="preview in submissionOverview.images.previews"
-                        :key="`${preview.file}-${preview.url}`"
-                        class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
+                        v-for="slide in imageSlides"
+                        :key="slide.key"
+                        class="min-w-0 shrink-0 grow-0 basis-full pr-2"
                       >
-                        <div class="text-xs text-muted-foreground">Preview · {{ preview.file }}</div>
-                        <a
-                          :href="preview.url"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
-                        >
-                          <img
-                            :src="getDisplayImageUrl(preview.url)"
-                            :alt="`${preview.file} 预览`"
-                            class="max-h-56 w-full object-contain"
-                            loading="lazy"
-                          />
-                        </a>
-                        <span class="inline-flex items-center gap-1.5">
-                          <a :href="preview.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
-                            {{ preview.url }}
+                        <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+                          <div class="text-xs text-muted-foreground">{{ slide.label }} · {{ slide.file }}</div>
+                          <a
+                            :href="slide.url"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
+                          >
+                            <img
+                              :src="getDisplayImageUrl(slide.url)"
+                              :alt="`${slide.file} 预览`"
+                              class="max-h-64 w-full object-contain"
+                              loading="lazy"
+                            />
                           </a>
-                        </span>
+                          <span class="mt-2 inline-flex items-center gap-1.5">
+                            <a :href="slide.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
+                              {{ slide.url }}
+                            </a>
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -682,6 +657,7 @@ import {
   PhArrowDown as ArrowDown,
   PhArrowUp as ArrowUp,
   PhArrowsClockwise as ArrowsClockwise,
+  PhCaretLeft as CaretLeft,
   PhCaretDown as CaretDown,
   PhCaretDoubleRight as CaretDoubleRight,
   PhCaretRight as CaretRight,
@@ -696,6 +672,7 @@ import {
   PhLinkSimple as LinkSimple,
   PhMagnifyingGlass as MagnifyingGlass
 } from '@phosphor-icons/vue'
+import emblaCarouselVue from 'embla-carousel-vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -1050,6 +1027,28 @@ const pickerMatchCursor = ref(-1)
 const pickerLineRowRefs = new Map<number, HTMLElement>()
 const imageBlobUrlMap = ref<Record<string, string>>({})
 const loadingImageSet = new Set<string>()
+const [imageCarouselRef, imageCarouselApi] = emblaCarouselVue({ loop: false, align: 'start' })
+const canImagePrev = ref(false)
+const canImageNext = ref(false)
+
+const updateImageCarouselState = (): void => {
+  const api = imageCarouselApi.value
+  if (!api) {
+    canImagePrev.value = false
+    canImageNext.value = false
+    return
+  }
+  canImagePrev.value = api.canScrollPrev()
+  canImageNext.value = api.canScrollNext()
+}
+
+const scrollImagePrev = (): void => {
+  imageCarouselApi.value?.scrollPrev()
+}
+
+const scrollImageNext = (): void => {
+  imageCarouselApi.value?.scrollNext()
+}
 
 const setPickerLineRowRef = (lineNumber: number, element: Element | null): void => {
   if (!(element instanceof HTMLElement)) {
@@ -1442,6 +1441,34 @@ const hasSubmissionOverview = computed(() =>
   || Boolean(submissionOverview.value.images.cover)
   || submissionOverview.value.images.previews.length > 0
 )
+const imageSlides = computed<Array<{ key: string; label: string; file: string; url: string }>>(() => {
+  const slides: Array<{ key: string; label: string; file: string; url: string }> = []
+  if (submissionOverview.value.images.icon) {
+    slides.push({
+      key: `icon-${submissionOverview.value.images.icon.file}`,
+      label: 'Icon',
+      file: submissionOverview.value.images.icon.file,
+      url: submissionOverview.value.images.icon.url
+    })
+  }
+  if (submissionOverview.value.images.cover) {
+    slides.push({
+      key: `cover-${submissionOverview.value.images.cover.file}`,
+      label: 'Cover',
+      file: submissionOverview.value.images.cover.file,
+      url: submissionOverview.value.images.cover.url
+    })
+  }
+  for (const preview of submissionOverview.value.images.previews) {
+    slides.push({
+      key: `preview-${preview.file}-${preview.url}`,
+      label: 'Preview',
+      file: preview.file,
+      url: preview.url
+    })
+  }
+  return slides
+})
 
 watch(
   () => [
@@ -1457,6 +1484,26 @@ watch(
       })
   },
   { immediate: true }
+)
+
+watch(imageCarouselApi, (api) => {
+  if (!api) {
+    canImagePrev.value = false
+    canImageNext.value = false
+    return
+  }
+  api.on('select', updateImageCarouselState)
+  api.on('reInit', updateImageCarouselState)
+  updateImageCarouselState()
+})
+
+watch(
+  () => imageSlides.value.length,
+  async () => {
+    await nextTick()
+    imageCarouselApi.value?.reInit()
+    updateImageCarouselState()
+  }
 )
 
 const knownDeviceIds = new Set([
