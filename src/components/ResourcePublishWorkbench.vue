@@ -6,35 +6,46 @@
           <CardTitle class="text-base">步骤导航</CardTitle>
         </CardHeader>
         <CardContent class="pt-0">
-          <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            <button
+          <ol class="space-y-2">
+            <li
               v-for="(step, index) in stepList"
               :key="step.label"
-              type="button"
-              class="flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition"
-              :class="[
-                activeStep === index
-                  ? 'border-primary/50 bg-primary/10 text-foreground'
-                  : 'border-border bg-background text-muted-foreground hover:bg-muted/30',
-                step.done ? '!text-foreground' : ''
-              ]"
-              @click="goToStep(index)"
+              class="relative pl-10"
             >
+              <div
+                v-if="index < stepList.length - 1"
+                class="absolute left-4 top-8 h-[calc(100%-4px)] w-px bg-border"
+              />
               <span
-                class="inline-flex h-5 w-5 items-center justify-center rounded-full border text-[11px] font-semibold"
+                class="absolute left-0 top-1 inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold"
                 :class="
                   step.done
                     ? 'border-emerald-500/70 bg-emerald-500/10 text-emerald-600'
                     : activeStep === index
                       ? 'border-primary/60 bg-primary/10 text-foreground'
-                      : 'border-border text-muted-foreground'
+                      : 'border-border bg-background text-muted-foreground'
                 "
               >
-                <span>{{ index + 1 }}</span>
+                {{ index + 1 }}
               </span>
-              <span>{{ step.label }}</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                class="w-full rounded-xl border px-3 py-2 text-left text-sm transition"
+                :class="[
+                  activeStep === index
+                    ? 'border-primary/50 bg-primary/10 text-foreground'
+                    : 'border-border bg-background text-muted-foreground hover:bg-muted/30',
+                  step.done ? '!text-foreground' : ''
+                ]"
+                @click="goToStep(index)"
+              >
+                <p class="font-medium">{{ step.label }}</p>
+                <p class="text-xs text-muted-foreground">
+                  {{ step.done ? '已完成' : activeStep === index ? '进行中' : '待完成' }}
+                </p>
+              </button>
+            </li>
+          </ol>
         </CardContent>
       </Card>
 
