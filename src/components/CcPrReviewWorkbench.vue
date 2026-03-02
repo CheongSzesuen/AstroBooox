@@ -482,14 +482,6 @@
                       <ImageIcon :size="14" weight="duotone" />
                       图片资源（Raw）
                     </div>
-                    <div v-if="imageSlides.length > 1" class="inline-flex items-center gap-1">
-                      <Button size="icon" variant="outline" class="h-7 w-7" :disabled="!canImagePrev" @click="scrollImagePrev">
-                        <CaretLeft :size="14" weight="bold" />
-                      </Button>
-                      <Button size="icon" variant="outline" class="h-7 w-7" :disabled="!canImageNext" @click="scrollImageNext">
-                        <CaretRight :size="14" weight="bold" />
-                      </Button>
-                    </div>
                   </div>
                   <div v-if="imageSlides.length === 0" class="rounded-md border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
                     未检测到图片资源
@@ -543,35 +535,42 @@
                         </a>
                       </div>
                     </div>
-                    <div v-if="imageSlides.length > 0" class="overflow-hidden" ref="imageCarouselRef">
-                      <div class="flex">
-                        <div
-                          v-for="slide in imageSlides"
-                          :key="slide.key"
-                          class="min-w-0 shrink-0 grow-0 basis-full pr-2"
-                        >
-                          <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
-                            <div class="text-xs text-muted-foreground">Preview · {{ slide.file }}</div>
-                            <a
-                              :href="slide.url"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
-                            >
-                              <img
-                                :src="getDisplayImageUrl(slide.url)"
-                                :alt="`${slide.file} 预览`"
-                                class="max-h-64 w-full object-contain"
-                                loading="lazy"
-                              />
-                            </a>
-                            <span class="mt-2 inline-flex items-center gap-1.5">
-                              <a :href="slide.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
-                                {{ slide.url }}
-                              </a>
+                    <div v-if="currentImageSlide" class="pr-2">
+                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+                        <div class="flex items-center justify-between gap-2">
+                          <div class="text-xs text-muted-foreground">
+                            Preview · {{ currentImageSlide.file }}
+                          </div>
+                          <div v-if="imageSlides.length > 1" class="inline-flex items-center gap-1">
+                            <span class="mr-1 text-xs text-muted-foreground">
+                              {{ currentImageSlideIndex + 1 }}/{{ imageSlides.length }}
                             </span>
+                            <Button size="icon" variant="outline" class="h-7 w-7" :disabled="!canImagePrev" @click="scrollImagePrev">
+                              <CaretLeft :size="14" weight="bold" />
+                            </Button>
+                            <Button size="icon" variant="outline" class="h-7 w-7" :disabled="!canImageNext" @click="scrollImageNext">
+                              <CaretRight :size="14" weight="bold" />
+                            </Button>
                           </div>
                         </div>
+                        <a
+                          :href="currentImageSlide.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
+                        >
+                          <img
+                            :src="getDisplayImageUrl(currentImageSlide.url)"
+                            :alt="`${currentImageSlide.file} 预览`"
+                            class="max-h-64 w-full object-contain"
+                            loading="lazy"
+                          />
+                        </a>
+                        <span class="mt-2 inline-flex items-center gap-1.5">
+                          <a :href="currentImageSlide.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
+                            {{ currentImageSlide.url }}
+                          </a>
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -640,7 +639,6 @@ import {
   PhMagnifyingGlass as MagnifyingGlass,
   PhTelegramLogo as TelegramLogo
 } from '@phosphor-icons/vue'
-import emblaCarouselVue from 'embla-carousel-vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -983,27 +981,28 @@ const pickerLineRowRefs = new Map<number, HTMLElement>()
 const imageBlobUrlMap = ref<Record<string, string>>({})
 const imageMetaMap = ref<Record<string, { width?: number; height?: number }>>({})
 const loadingImageSet = new Set<string>()
-const [imageCarouselRef, imageCarouselApi] = emblaCarouselVue({ loop: false, align: 'start' })
-const canImagePrev = ref(false)
-const canImageNext = ref(false)
+const currentImageSlideIndex = ref(0)
+const canImagePrev = computed(() => currentImageSlideIndex.value > 0)
+const canImageNext = computed(() => currentImageSlideIndex.value < imageSlides.value.length - 1)
+const ccDebugEnabled = true
 
-const updateImageCarouselState = (): void => {
-  const api = imageCarouselApi.value
-  if (!api) {
-    canImagePrev.value = false
-    canImageNext.value = false
+const ccDebugLog = (label: string, payload?: unknown): void => {
+  if (!ccDebugEnabled) return
+  if (payload === undefined) {
+    console.log(`[CC-DEBUG] ${label}`)
     return
   }
-  canImagePrev.value = api.canScrollPrev()
-  canImageNext.value = api.canScrollNext()
+  console.log(`[CC-DEBUG] ${label}`, payload)
 }
 
 const scrollImagePrev = (): void => {
-  imageCarouselApi.value?.scrollPrev()
+  if (!canImagePrev.value) return
+  currentImageSlideIndex.value -= 1
 }
 
 const scrollImageNext = (): void => {
-  imageCarouselApi.value?.scrollNext()
+  if (!canImageNext.value) return
+  currentImageSlideIndex.value += 1
 }
 
 const setPickerLineRowRef = (lineNumber: number, element: Element | null): void => {
@@ -1378,6 +1377,15 @@ const submissionOverview = computed<SubmissionOverview>(() => {
     .map(path => toImageAsset(path))
     .filter((asset): asset is { file: string; url: string } => Boolean(asset))
 
+  ccDebugLog('submissionOverview:manifest基础信息', {
+    manifestPath: manifestFilePath.value,
+    itemId: toNonEmptyString(item.id),
+    itemName: toNonEmptyString(item.name),
+    previewInputCount: toStringArray(item.preview).length,
+    previewResolvedCount: previewAssets.length,
+    previewResolvedSample: previewAssets.slice(0, 4).map(asset => asset.url)
+  })
+
   const overview: SubmissionOverview = {
     resourceInfo: [],
     supportedDevices: [],
@@ -1466,8 +1474,13 @@ const imageSlides = computed<Array<{ key: string; label: string; file: string; u
       url: preview.url
     })
   }
+  ccDebugLog('imageSlides:结果', {
+    count: slides.length,
+    sample: slides.slice(0, 5).map(item => ({ file: item.file, url: item.url }))
+  })
   return slides
 })
+const currentImageSlide = computed(() => imageSlides.value[currentImageSlideIndex.value] || null)
 
 watch(
   () => [
@@ -1485,23 +1498,16 @@ watch(
   { immediate: true }
 )
 
-watch(imageCarouselApi, (api) => {
-  if (!api) {
-    canImagePrev.value = false
-    canImageNext.value = false
-    return
-  }
-  api.on('select', updateImageCarouselState)
-  api.on('reInit', updateImageCarouselState)
-  updateImageCarouselState()
-})
-
 watch(
   () => imageSlides.value.length,
-  async () => {
-    await nextTick()
-    imageCarouselApi.value?.reInit()
-    updateImageCarouselState()
+  () => {
+    if (imageSlides.value.length === 0) {
+      currentImageSlideIndex.value = 0
+      return
+    }
+    if (currentImageSlideIndex.value >= imageSlides.value.length) {
+      currentImageSlideIndex.value = imageSlides.value.length - 1
+    }
   }
 )
 
@@ -2159,6 +2165,11 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
       .slice(0, 3000)
 
     const manifestCandidates = buildManifestCandidatesByCsvRow(repoFiles.value, csvRowFromRepoDiff.value)
+    ccDebugLog('loadRepoFiles:候选manifest', {
+      pr: pr.number,
+      repo: `${pr.resourceRepoOwner}/${pr.resourceRepoName}@${repoBranch}`,
+      candidates: manifestCandidates
+    })
     if (manifestCandidates.length === 0) {
       manifestLoadError.value = '仓库内未找到 manifest_v2.json 或 manifest.json'
       return
@@ -2179,12 +2190,20 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
       const item = (parsed.item && typeof parsed.item === 'object') ? parsed.item as Record<string, unknown> : {}
       const itemId = toNonEmptyString(item.id)
       const itemName = toNonEmptyString(item.name)
+      const previewCount = toStringArray(item.preview).length
       let score = 0
       if (csvRow) {
         if (csvRow.id && itemId && csvRow.id === itemId) score += 2
         if (csvRow.name && itemName && csvRow.name === itemName) score += 2
         if (csvRow.id && !itemId && csvRow.name && itemName && csvRow.name === itemName) score += 1
       }
+      ccDebugLog('loadRepoFiles:候选manifest评分', {
+        path,
+        itemId,
+        itemName,
+        previewCount,
+        score
+      })
       if (score > bestScore) {
         bestScore = score
         bestManifest = parsed
@@ -2195,6 +2214,13 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
     if (bestManifest) {
       manifestV2Data.value = bestManifest
       manifestFilePath.value = bestManifestPath
+      const bestItem = (bestManifest.item && typeof bestManifest.item === 'object') ? bestManifest.item as Record<string, unknown> : {}
+      ccDebugLog('loadRepoFiles:最终选中manifest', {
+        path: bestManifestPath,
+        itemId: toNonEmptyString(bestItem.id),
+        itemName: toNonEmptyString(bestItem.name),
+        previewCount: toStringArray(bestItem.preview).length
+      })
     }
     if (!manifestV2Data.value) {
       manifestLoadError.value = 'manifest 文件不存在或不是有效 JSON'
