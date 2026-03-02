@@ -192,10 +192,25 @@
                     </div>
                   </TabsContent>
                   <TabsContent value="preview" class="mt-3">
-                    <div
-                      class="rounded-md border border-border px-3 py-2 text-sm text-foreground break-words"
-                      v-html="renderedCommentPreviewHtml"
-                    />
+                    <div class="rounded-md border border-border px-3 py-2 text-sm">
+                      <div class="mb-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <span class="inline-flex min-w-0 items-center gap-2">
+                          <img
+                            v-if="selectedPr?.authorAvatar"
+                            :src="getOptimizedAvatarUrl(selectedPr.author, selectedPr.authorAvatar)"
+                            class="h-5 w-5 shrink-0 rounded-full object-cover"
+                            loading="lazy"
+                            @load="cacheAvatar(selectedPr.author, selectedPr.authorAvatar)"
+                          />
+                          <span class="truncate">{{ selectedPr?.author || '当前用户' }}</span>
+                          <span class="shrink-0">评论预览</span>
+                        </span>
+                      </div>
+                      <div
+                        class="whitespace-pre-wrap break-words text-foreground"
+                        v-html="renderedCommentPreviewHtml"
+                      />
+                    </div>
                   </TabsContent>
                 </Tabs>
               </div>
@@ -229,7 +244,17 @@
                   class="rounded-md border border-border px-3 py-2 text-sm"
                 >
                   <div class="mb-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                    <span>{{ comment.user?.login || 'unknown' }} · {{ formatDate(comment.created_at) }}</span>
+                    <span class="inline-flex min-w-0 items-center gap-2">
+                      <img
+                        v-if="comment.user?.avatar_url && comment.user?.login"
+                        :src="getOptimizedAvatarUrl(comment.user.login, comment.user.avatar_url)"
+                        class="h-5 w-5 shrink-0 rounded-full object-cover"
+                        loading="lazy"
+                        @load="cacheAvatar(comment.user.login, comment.user.avatar_url)"
+                      />
+                      <span class="truncate">{{ comment.user?.login || 'unknown' }}</span>
+                      <span class="shrink-0">· {{ formatDate(comment.created_at) }}</span>
+                    </span>
                     <a :href="comment.html_url" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">
                       打开评论
                     </a>
@@ -890,9 +915,7 @@ const addCommentReference = (path: string, line: number | null): void => {
   const end = commentCursorEnd.value ?? start
   const prefix = source.slice(0, start)
   const suffix = source.slice(end)
-  const needLeadingBreak = prefix.length > 0 && !prefix.endsWith('\n')
-  const needTrailingBreak = suffix.length > 0 && !suffix.startsWith('\n')
-  const inserted = `${needLeadingBreak ? '\n' : ''}${markdown}${needTrailingBreak ? '\n' : ''}`
+  const inserted = markdown
   const nextCursor = start + inserted.length
   commentMessage.value = `${prefix}${inserted}${suffix}`
   commentCursorStart.value = nextCursor
