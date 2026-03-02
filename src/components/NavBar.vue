@@ -29,6 +29,17 @@
       <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
         <Button
           as="a"
+          href="/cc/"
+          variant="outline"
+          size="sm"
+          class="hidden h-8 gap-1.5 md:inline-flex"
+        >
+          <Compass :size="15" weight="duotone" />
+          CC
+        </Button>
+
+        <Button
+          as="a"
           :href="repoUrl"
           target="_blank"
           rel="noopener noreferrer"
@@ -74,6 +85,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import {
+  PhCompass as Compass,
   PhCode as Code,
   PhGithubLogo as GithubLogo,
   PhMoon as Moon,

@@ -920,9 +920,9 @@ const coverPath = ref('')
 const previewItems = ref<Array<{ id: string; path: string }>>([])
 
 const upstreamOwner = ref('AstralSightStudios')
-const upstreamRepo = ref('ABRepo-TestEnv')
+const upstreamRepo = ref('AstroBox-Repo')
 const targetOwner = ref('AstralSightStudios')
-const targetRepo = ref('ABRepo-TestEnv')
+const targetRepo = ref('AstroBox-Repo')
 const catalogPath = ref('index_v2.csv')
 
 const prTitle = ref('')
