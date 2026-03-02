@@ -798,6 +798,7 @@ const repoFiles = ref<string[]>([])
 const repoFilesLoading = ref(false)
 const repoFilesError = ref('')
 const manifestV2Data = ref<Record<string, any> | null>(null)
+const manifestFilePath = ref('')
 const manifestLoadError = ref('')
 const filePickerOpen = ref(false)
 const filePickerStep = ref<'file' | 'line'>('file')
@@ -1351,6 +1352,8 @@ const submissionOverview = computed<SubmissionOverview>(() => {
   const owner = selectedPr.value?.resourceRepoOwner || selectedPr.value?.headOwner || ''
   const repo = selectedPr.value?.resourceRepoName || selectedPr.value?.headRepo || ''
   const ref = selectedPr.value?.resourceRepoRef || selectedPr.value?.headRef || 'main'
+  const baseDir = getPathDirname(manifestFilePath.value)
+  const existingRepoPaths = new Set(repoFiles.value)
 
   const toImageAsset = (pathValue: unknown): { file: string; url: string } | null => {
     const raw = toNonEmptyString(pathValue)
@@ -1360,9 +1363,14 @@ const submissionOverview = computed<SubmissionOverview>(() => {
       return { file, url: raw }
     }
     if (!owner || !repo || !ref) return null
+    const normalizedRaw = raw.replace(/^\/+/, '')
+    const normalizedByBase = joinRepoPath(baseDir, normalizedRaw)
+    const resolvedPath = existingRepoPaths.has(normalizedRaw)
+      ? normalizedRaw
+      : (existingRepoPaths.has(normalizedByBase) ? normalizedByBase : normalizedRaw)
     return {
       file,
-      url: buildRawGithubUrl(owner, repo, ref, raw)
+      url: buildRawGithubUrl(owner, repo, ref, resolvedPath)
     }
   }
 
@@ -1652,6 +1660,20 @@ const buildManifestCandidatesByCsvRow = (repoPaths: string[], csvRow: CsvV2Row |
     if (!ranked.includes(path)) ranked.push(path)
   }
   return ranked
+}
+
+const getPathDirname = (path: string): string => {
+  const normalized = path.trim().replace(/^\/+/, '')
+  const index = normalized.lastIndexOf('/')
+  return index >= 0 ? normalized.slice(0, index) : ''
+}
+
+const joinRepoPath = (baseDir: string, relativePath: string): string => {
+  const left = baseDir.replace(/^\/+|\/+$/g, '')
+  const right = relativePath.replace(/^\/+/, '')
+  if (!left) return right
+  if (!right) return left
+  return `${left}/${right}`
 }
 
 const serializeCsvRow = (row: CsvV2Row): string => [
@@ -2111,6 +2133,7 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
   repoFilesLoading.value = true
   repoFilesError.value = ''
   manifestV2Data.value = null
+  manifestFilePath.value = ''
   manifestLoadError.value = ''
   try {
     if (!pr.resourceRepoOwner || !pr.resourceRepoName) {
@@ -2141,14 +2164,37 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
       return
     }
 
+    let bestManifest: Record<string, any> | null = null
+    let bestManifestPath = ''
+    let bestScore = -1
+    const csvRow = csvRowFromRepoDiff.value
     for (const path of manifestCandidates) {
-      manifestV2Data.value = await fetchRepoJsonFile(
+      const parsed = await fetchRepoJsonFile(
         pr.resourceRepoOwner,
         pr.resourceRepoName,
         repoBranch,
         path
       )
-      if (manifestV2Data.value) break
+      if (!parsed) continue
+      const item = (parsed.item && typeof parsed.item === 'object') ? parsed.item as Record<string, unknown> : {}
+      const itemId = toNonEmptyString(item.id)
+      const itemName = toNonEmptyString(item.name)
+      let score = 0
+      if (csvRow) {
+        if (csvRow.id && itemId && csvRow.id === itemId) score += 2
+        if (csvRow.name && itemName && csvRow.name === itemName) score += 2
+        if (csvRow.id && !itemId && csvRow.name && itemName && csvRow.name === itemName) score += 1
+      }
+      if (score > bestScore) {
+        bestScore = score
+        bestManifest = parsed
+        bestManifestPath = path
+      }
+      if (score >= 4) break
+    }
+    if (bestManifest) {
+      manifestV2Data.value = bestManifest
+      manifestFilePath.value = bestManifestPath
     }
     if (!manifestV2Data.value) {
       manifestLoadError.value = 'manifest 文件不存在或不是有效 JSON'
@@ -2157,6 +2203,7 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
     repoFilesError.value = error instanceof Error ? error.message : '仓库文件加载失败'
     repoFiles.value = []
     manifestV2Data.value = null
+    manifestFilePath.value = ''
     manifestLoadError.value = ''
   } finally {
     repoFilesLoading.value = false
