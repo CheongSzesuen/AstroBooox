@@ -245,7 +245,7 @@
           </Card>
 
           <Dialog :open="filePickerOpen" @update:open="filePickerOpen = $event">
-            <DialogContent class="h-[88vh] w-[92vw] max-w-[1120px] overflow-hidden p-0">
+            <DialogContent class="h-[88vh] w-[96vw] max-w-[1360px] overflow-hidden p-0">
               <div class="flex h-full flex-col overflow-hidden">
                 <DialogHeader class="shrink-0 border-b border-border px-5 py-4">
                   <DialogTitle>插入文件定位</DialogTitle>
