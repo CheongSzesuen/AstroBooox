@@ -578,7 +578,7 @@
                     :src="getPhosphorIconSvgUrl(name)"
                     :alt="name"
                     class="h-6 w-6 shrink-0"
-                    loading="lazy"
+                    decoding="async"
                   />
                   <span class="line-clamp-2 break-all text-[11px] leading-4">{{ name }}</span>
                 </button>
@@ -1031,7 +1031,7 @@ const filteredPhosphorIconNames = computed(() => {
 })
 
 const getPhosphorIconSvgUrl = (name: string): string =>
-  `https://cdn.jsdelivr.net/npm/@phosphor-icons/core@2.1.1/assets/${name}.svg`
+  `https://unpkg.com/@phosphor-icons/core@2.1.1/assets/regular/${name}.svg`
 
 const stepList = computed(() => [
   {
