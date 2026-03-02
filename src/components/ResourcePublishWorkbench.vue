@@ -145,7 +145,14 @@
 
                   <div class="space-y-1.5">
                     <Label for="item-description">资源描述</Label>
-                    <Textarea id="item-description" v-model="itemDescription" class="min-h-[90px]" placeholder="填写资源描述（manifest_v2.item.description）" />
+                    <Textarea
+                      id="item-description"
+                      ref="descriptionTextareaRef"
+                      v-model="itemDescription"
+                      class="min-h-[90px] resize-none overflow-hidden"
+                      placeholder="填写资源描述（manifest_v2.item.description）"
+                      @input="autoResizeDescription"
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -541,7 +548,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
   PhFolderOpen as FolderOpen,
@@ -705,6 +712,7 @@ const itemName = ref('')
 const restype = ref('quickapp')
 const paidType = ref('')
 const itemDescription = ref('')
+const descriptionTextareaRef = ref<HTMLTextAreaElement | null>(null)
 const tags = ref<string[]>([])
 const tagInput = ref('')
 const selectedDeviceIds = ref<string[]>([])
@@ -907,6 +915,13 @@ const removeTag = (index: number): void => {
   tags.value.splice(index, 1)
 }
 
+const autoResizeDescription = (): void => {
+  const el = descriptionTextareaRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${Math.max(el.scrollHeight, 90)}px`
+}
+
 const pickFilePathFromWorkspace = async (): Promise<string | null> => {
   if (!workspaceHandle.value) {
     appendLog('请先选择工作区文件夹')
@@ -969,6 +984,14 @@ watch(
     }
   },
   { immediate: true, deep: true }
+)
+
+watch(
+  itemDescription,
+  () => {
+    void nextTick(() => autoResizeDescription())
+  },
+  { immediate: true }
 )
 
 const toReleaseFolderName = (raw: string): string => {
