@@ -153,18 +153,17 @@
           <Card>
             <CardHeader class="pb-3">
               <CardTitle class="text-base">审核评论</CardTitle>
-              <CardDescription>预设格式：ABCC_NEEDFIX</CardDescription>
             </CardHeader>
             <CardContent class="space-y-3 pt-0">
               <div class="space-y-2 rounded-md border border-border p-3">
-                <div class="text-xs font-medium text-muted-foreground">快速选择文件（自动填充 ID）</div>
+                <div class="text-xs font-medium text-muted-foreground">快速插入文件链接（Markdown）</div>
                 <div class="grid gap-2 md:grid-cols-2">
                   <div class="space-y-1">
                     <div class="text-xs text-muted-foreground">从当前 PR 变更文件选择</div>
                     <select
                       v-model="quickPrFile"
                       class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                      @change="fillCommentIdByPath(quickPrFile)"
+                      @change="insertPrFileLink(quickPrFile)"
                     >
                       <option value="">请选择 PR 文件</option>
                       <option v-for="file in prFiles" :key="`pr-${file.sha}`" :value="file.filename">
@@ -180,7 +179,7 @@
                     <select
                       v-model="quickRepoFile"
                       class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                      @change="fillCommentIdByPath(quickRepoFile)"
+                      @change="insertRepoFileLink(quickRepoFile)"
                     >
                       <option value="">请选择仓库文件</option>
                       <option v-for="path in repoFiles" :key="`repo-${path}`" :value="path">
@@ -195,10 +194,10 @@
               <div class="space-y-2 rounded-md border border-border p-3">
                 <div class="text-xs font-medium text-muted-foreground">评论内容</div>
                 <div class="grid gap-2">
-                  <Input v-model="commentId" placeholder="ID，例如 icon_png_check" />
+                  <Input v-model="commentId" placeholder="ID（自定义），例如 icon_png_check" />
                   <Textarea
                     v-model="commentMessage"
-                    placeholder="评论说明，例如图片比例不合规"
+                    placeholder="评论说明（可包含快速插入的 Markdown 链接）"
                     class="min-h-[88px]"
                   />
                 </div>
@@ -469,6 +468,23 @@ const commentBodyPreview = computed(() => {
   return `[ABCC_NEEDFIX_${id}] ${msg}`.trim()
 })
 
+const buildRepoBlobUrl = (path: string): string => {
+  if (!selectedPr.value) return ''
+  const owner = selectedPr.value.headOwner
+  const repo = selectedPr.value.headRepo
+  const ref = encodeURIComponent(selectedPr.value.headRef)
+  const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/')
+  return `https://github.com/${owner}/${repo}/blob/${ref}/${encodedPath}`
+}
+
+const appendMarkdownLinkToComment = (label: string, url: string): void => {
+  if (!url) return
+  const snippet = `[\`${label}\`](${url})`
+  commentMessage.value = commentMessage.value.trim()
+    ? `${commentMessage.value}\n${snippet}`
+    : snippet
+}
+
 async function githubGet<T>(path: string): Promise<T> {
   const response = await fetch(`https://api.github.com${path}`, {
     headers: {
@@ -674,12 +690,18 @@ const applyFileNeedFixTemplate = (filename: string): void => {
   commentMessage.value = `请检查文件 ${filename} 的改动`
 }
 
-const fillCommentIdByPath = (path: string): void => {
+const insertPrFileLink = (filename: string): void => {
+  if (!filename) return
+  const match = prFiles.value.find(file => file.filename === filename)
+  if (!match?.blob_url) return
+  appendMarkdownLinkToComment(filename, match.blob_url)
+  quickPrFile.value = ''
+}
+
+const insertRepoFileLink = (path: string): void => {
   if (!path) return
-  commentId.value = normalizeCommentId(path)
-  if (!commentMessage.value.trim()) {
-    commentMessage.value = `请检查文件 ${path} 的改动`
-  }
+  appendMarkdownLinkToComment(path, buildRepoBlobUrl(path))
+  quickRepoFile.value = ''
 }
 
 const submitPresetComment = async (): Promise<void> => {
