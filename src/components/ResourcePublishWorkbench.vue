@@ -2288,7 +2288,7 @@ const buildManifestV2Text = (): string => {
   const manifestObject = {
     item: {
       id: itemId.value.trim(),
-      restype: restype.value.trim(),
+      restype: formatResourceTypeForCatalog(restype.value),
       name: itemName.value.trim(),
       description: itemDescription.value.trim(),
       preview,
