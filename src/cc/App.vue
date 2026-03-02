@@ -126,6 +126,20 @@
               </ul>
             </nav>
           </aside>
+
+          <Card v-if="tab === 'publish'" class="border-border bg-card">
+            <CardHeader class="pb-2">
+              <div class="flex items-center justify-between gap-2">
+                <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">发布日志</CardTitle>
+                <Button variant="ghost" size="sm" class="h-7 px-2 text-xs" @click="clearPublishLogs">清空</Button>
+              </div>
+            </CardHeader>
+            <CardContent class="pt-0">
+              <div class="scrollbar-none max-h-56 overflow-y-auto rounded-md border border-border bg-muted/25 p-2.5">
+                <pre class="m-0 whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-foreground">{{ publishLogsText }}</pre>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <section class="min-w-0">
@@ -151,14 +165,17 @@ import {
 } from '@phosphor-icons/vue'
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import CcTokenGate from '@/cc/CcTokenGate.vue'
+import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
 import { useCcSession } from '@/composables/useCcSession'
 import { useCcWorkspace } from '@/composables/useCcWorkspace'
 import { useTheme } from '@/composables/useTheme'
 
 const tab = ref<'publish' | 'review' | 'published'>('publish')
 const { currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
-const { workspacePath, workspaceTree } = useCcWorkspace()
+const { workspacePath, workspaceTree, clearWorkspace } = useCcWorkspace()
+const { publishLogsText, clearPublishLogs } = useCcPublishLogs()
 const { theme, toggleTheme } = useTheme()
 
 const handleAuthenticated = (): void => {
@@ -166,6 +183,8 @@ const handleAuthenticated = (): void => {
 }
 
 const handleSignOut = (): void => {
+  clearPublishLogs()
+  clearWorkspace()
   clearSession()
 }
 </script>

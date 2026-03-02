@@ -52,8 +52,7 @@
         </CardContent>
       </Card>
 
-      <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div class="space-y-4">
+      <div class="space-y-4">
           <Card v-if="activeStep === 0">
             <CardHeader class="pb-3">
               <CardTitle class="text-base">步骤 1：创建文件夹</CardTitle>
@@ -97,72 +96,213 @@
               <CardTitle class="text-base">步骤 2：资源信息</CardTitle>
             </CardHeader>
             <CardContent class="space-y-4 pt-0">
-              <div class="space-y-4">
-                <Card class="border-border/70 shadow-none">
-                  <CardHeader class="pb-3">
-                    <CardTitle class="text-base">应用信息</CardTitle>
-                    <CardDescription>对齐主站 manifest 编辑模式的基础字段。</CardDescription>
-                  </CardHeader>
-                  <CardContent class="space-y-4 pt-0">
-                    <div class="grid gap-3 md:grid-cols-2">
-                      <div class="space-y-1.5">
-                        <Label for="item-id">资源 ID</Label>
-                        <Input id="item-id" v-model="itemId" placeholder="your-resource-id" />
-                      </div>
-                      <div class="space-y-1.5">
-                        <Label for="item-name">资源名称</Label>
-                        <Input id="item-name" v-model="itemName" placeholder="My Resource" />
-                      </div>
+              <Card class="border-border/70 shadow-none">
+                <CardHeader class="pb-3">
+                  <CardTitle class="text-base">应用信息</CardTitle>
+                </CardHeader>
+                <CardContent class="space-y-4 pt-0">
+                  <div class="grid gap-3 md:grid-cols-2">
+                    <div class="space-y-1.5">
+                      <Label for="item-id">资源 ID</Label>
+                      <Input id="item-id" v-model="itemId" placeholder="com.example.app / 9798xxxxxx" />
                     </div>
+                    <div class="space-y-1.5">
+                      <Label for="item-name">资源名称</Label>
+                      <Input id="item-name" v-model="itemName" placeholder="My Resource" />
+                    </div>
+                  </div>
 
-                    <div class="grid gap-3 md:grid-cols-2">
-                      <div class="space-y-1.5">
-                        <Label for="restype">资源类型</Label>
-                        <Input id="restype" v-model="restype" placeholder="quick_app / watchface" />
-                      </div>
-                      <div class="space-y-1.5">
-                        <Label for="paid-type">付费类型</Label>
-                        <Input id="paid-type" v-model="paidType" placeholder="paid / force_paid / 空" />
-                      </div>
+                  <div class="grid gap-3 md:grid-cols-2">
+                    <div class="space-y-1.5">
+                      <Label for="restype">资源类型</Label>
+                      <Select v-model="restype">
+                        <SelectTrigger id="restype">
+                          <SelectValue placeholder="请选择资源类型" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="quick_app">quick_app</SelectItem>
+                          <SelectItem value="watchface">watchface</SelectItem>
+                          <SelectItem value="firmware">firmware</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div class="space-y-1.5">
+                      <Label for="paid-type">付费类型</Label>
+                      <Select v-model="paidTypeSelectValue">
+                        <SelectTrigger id="paid-type">
+                          <SelectValue placeholder="免费（留空）" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="free">免费（留空）</SelectItem>
+                          <SelectItem value="paid">paid</SelectItem>
+                          <SelectItem value="force_paid">force_paid</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-                <Card class="border-border/70 shadow-none">
-                  <CardHeader class="pb-3">
-                    <CardTitle class="text-base">资源属性</CardTitle>
-                  </CardHeader>
-                  <CardContent class="space-y-4 pt-0">
-                    <div class="grid gap-3 md:grid-cols-2">
-                      <div class="space-y-1.5">
-                        <Label for="tags">标签（;分隔）</Label>
-                        <Input id="tags" v-model="tagsText" placeholder="tool;watchface" />
-                      </div>
-                      <div class="space-y-1.5">
-                        <Label for="devices">设备 ID（;分隔）</Label>
-                        <Input id="devices" v-model="devicesText" placeholder="o66;o66nfc / xmb10 / M2457B1" />
-                        <p class="text-xs text-muted-foreground">
-                          支持输入 `v2 codename`、`v1 id`、`机型码`，提交时会自动映射到 v2 codename。
-                        </p>
-                        <p v-if="normalizedDevicesText" class="text-xs text-muted-foreground">
-                          规范化结果: {{ normalizedDevicesText }}
-                        </p>
-                      </div>
-                    </div>
+                  <div class="space-y-1.5">
+                    <Label for="item-description">资源描述</Label>
+                    <Textarea id="item-description" v-model="itemDescription" class="min-h-[90px]" placeholder="填写资源描述（manifest_v2.item.description）" />
+                  </div>
+                </CardContent>
+              </Card>
 
+              <Card class="border-border/70 shadow-none">
+                <CardHeader class="pb-3">
+                  <CardTitle class="text-base">资源属性</CardTitle>
+                </CardHeader>
+                <CardContent class="space-y-4 pt-0">
+                  <div class="space-y-2">
+                    <Label>标签</Label>
+                    <div class="flex flex-wrap gap-2">
+                      <Badge v-for="(tag, index) in tags" :key="`${tag}-${index}`" variant="outline" class="gap-1">
+                        {{ tag }}
+                        <button
+                          type="button"
+                          class="text-muted-foreground hover:text-foreground"
+                          @click="removeTag(index)"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                      <span v-if="tags.length === 0" class="text-xs text-muted-foreground">暂无标签</span>
+                    </div>
+                    <div class="flex gap-2 max-sm:flex-col">
+                      <Input
+                        v-model="tagInput"
+                        placeholder="输入标签后回车或点击添加"
+                        @keydown.enter.prevent="addTag"
+                      />
+                      <Button variant="outline" @click="addTag">添加标签</Button>
+                    </div>
+                  </div>
+
+                  <div class="grid gap-3 md:grid-cols-2">
+                    <div class="space-y-1.5">
+                      <Label for="icon-path">icon 文件</Label>
+                      <Select v-model="iconPath">
+                        <SelectTrigger id="icon-path">
+                          <SelectValue placeholder="从工作区选择 icon 文件" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            v-for="path in workspaceFileOptions"
+                            :key="`icon-${path}`"
+                            :value="path"
+                          >
+                            {{ path }}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="cover-path">cover 文件</Label>
+                      <Select v-model="coverPath">
+                        <SelectTrigger id="cover-path">
+                          <SelectValue placeholder="从工作区选择 cover 文件" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            v-for="path in workspaceFileOptions"
+                            :key="`cover-${path}`"
+                            :value="path"
+                          >
+                            {{ path }}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card class="border-border/70 shadow-none">
+                <CardHeader class="pb-3">
+                  <CardTitle class="text-base">作者信息</CardTitle>
+                </CardHeader>
+                <CardContent class="space-y-3 pt-0">
+                  <div
+                    v-for="(author, index) in authors"
+                    :key="`author-${index}`"
+                    class="space-y-2 rounded-lg border border-border bg-muted/20 p-3"
+                  >
+                    <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                      <div class="space-y-1.5">
+                        <Label :for="`author-name-${index}`">作者名称</Label>
+                        <Input :id="`author-name-${index}`" v-model="author.name" placeholder="作者名" />
+                      </div>
+                      <Button variant="outline" @click="removeAuthor(index)">删除作者</Button>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                      <Button
+                        :variant="author.bindABAccount ? 'default' : 'outline'"
+                        size="sm"
+                        @click="author.bindABAccount = true"
+                      >
+                        绑定 AB 账号
+                      </Button>
+                      <Button
+                        :variant="!author.bindABAccount ? 'default' : 'outline'"
+                        size="sm"
+                        @click="author.bindABAccount = false"
+                      >
+                        不绑定
+                      </Button>
+                    </div>
+                  </div>
+                  <Button variant="outline" @click="addAuthor">+ 添加作者</Button>
+                </CardContent>
+              </Card>
+
+              <Card class="border-border/70 shadow-none">
+                <CardHeader class="pb-3">
+                  <CardTitle class="text-base">下载资源</CardTitle>
+                </CardHeader>
+                <CardContent class="space-y-3 pt-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <Button variant="outline" @click="showDeviceSelector = true">+ 选择支持设备</Button>
+                    <Badge v-for="deviceId in selectedDeviceIds" :key="`selected-${deviceId}`" variant="outline">
+                      {{ getDeviceLabel(deviceId) }}
+                    </Badge>
+                    <span v-if="selectedDeviceIds.length === 0" class="text-xs text-muted-foreground">尚未选择设备</span>
+                  </div>
+
+                  <div
+                    v-for="deviceId in selectedDeviceIds"
+                    :key="`download-${deviceId}`"
+                    class="space-y-3 rounded-lg border border-border bg-muted/20 p-3"
+                  >
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <div class="text-sm font-semibold text-foreground">{{ getDeviceLabel(deviceId) }}</div>
+                      <Button variant="outline" size="sm" @click="removeDevice(deviceId)">移除设备</Button>
+                    </div>
                     <div class="grid gap-3 md:grid-cols-2">
                       <div class="space-y-1.5">
-                        <Label for="icon-path">icon 路径</Label>
-                        <Input id="icon-path" v-model="iconPath" placeholder="media/icon.png" />
+                        <Label :for="`download-version-${deviceId}`">版本号</Label>
+                        <Input :id="`download-version-${deviceId}`" v-model="downloads[deviceId].version" placeholder="1.0.0" />
                       </div>
                       <div class="space-y-1.5">
-                        <Label for="cover-path">cover 路径</Label>
-                        <Input id="cover-path" v-model="coverPath" placeholder="media/cover.png" />
+                        <Label :for="`download-file-${deviceId}`">文件路径</Label>
+                        <Select v-model="downloads[deviceId].file_name">
+                          <SelectTrigger :id="`download-file-${deviceId}`">
+                            <SelectValue placeholder="选择下载文件" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem
+                              v-for="path in workspaceFileOptions"
+                              :key="`download-file-${deviceId}-${path}`"
+                              :value="path"
+                            >
+                              {{ path }}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               <div class="flex justify-between gap-2">
                 <Button variant="outline" @click="activeStep = 0">上一步</Button>
@@ -297,24 +437,35 @@
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        <div class="space-y-4 xl:sticky xl:top-[84px] xl:self-start">
-          <Card>
-            <CardHeader class="pb-3">
-              <div class="flex items-center justify-between">
-                <CardTitle class="text-base">发布日志</CardTitle>
-                <Button variant="ghost" size="sm" @click="publishLogs = []">清空</Button>
-              </div>
-            </CardHeader>
-            <CardContent class="pt-0">
-              <div class="scrollbar-none max-h-[420px] overflow-y-auto rounded-lg border border-border bg-muted/25 p-3">
-                <pre class="m-0 whitespace-pre-wrap break-words font-mono text-xs leading-6 text-foreground">{{ publishLogsText }}</pre>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
+
+      <Dialog :open="showDeviceSelector" @update:open="showDeviceSelector = $event">
+        <DialogContent class="max-w-[820px]">
+          <DialogHeader>
+            <DialogTitle>选择支持设备</DialogTitle>
+            <DialogDescription>设备会自动映射为 v2 设备 ID，并同步到 downloads。</DialogDescription>
+          </DialogHeader>
+          <div class="my-2 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 max-[640px]:grid-cols-1">
+            <div
+              v-for="device in deviceOptions"
+              :key="`device-option-${device.id}`"
+              class="cursor-pointer rounded-lg border p-3 transition-colors"
+              :class="
+                isDeviceSelected(device.id)
+                  ? 'border-primary/50 bg-primary/10'
+                  : 'border-border bg-background hover:bg-accent'
+              "
+              @click="toggleDeviceSelection(device.id)"
+            >
+              <div class="text-sm font-semibold text-foreground">{{ device.name }}</div>
+              <div class="text-xs text-muted-foreground">{{ device.id }} · {{ device.vendor }}</div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="showDeviceSelector = false">完成</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </template>
 
     <template v-else-if="mode === 'review'">
@@ -413,9 +564,25 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
 import { useCcSession } from '@/composables/useCcSession'
 import { type WorkspaceTreeItem, useCcWorkspace } from '@/composables/useCcWorkspace'
 import {
@@ -453,97 +620,38 @@ interface WorkspaceDirectoryHandle {
 const MAIN_BRANCH = 'main'
 const MANIFEST_FILE = 'manifest_v2.json'
 
-const MODEL_TO_V2_CODENAME: Record<string, string> = {
-  M2345B1: 'n66',
-  M2523W1: 'p65',
-  M2346B1: 'n66',
-  M2401B1: 'n67',
-  M2402B1: 'n67',
-  M2457B1: 'o66',
-  M2456B1: 'o66nfc',
-  M2313W1: 'n62',
-  M2311W1: 'n62',
-  M2323W1: 'n62',
-  M2425W1: 'o62',
-  M2424W1: 'o62',
-  M2426W1: 'o62m',
-  M2312W1: 'o62',
-  M2502W1: 'o62',
-  M2427W1: 'o65',
-  M2428W1: 'o65m'
+interface DeviceOption {
+  id: string
+  name: string
+  vendor: string
+  aliases: string[]
 }
 
-const MODEL_TO_V1_ID: Record<string, string> = {
-  M2345B1: 'xmb9',
-  M2346B1: 'xmb9',
-  M2401B1: 'xmb9p',
-  M2402B1: 'xmb9p',
-  M2457B1: 'xmb10',
-  M2456B1: 'xmb10nfc',
-  M2313W1: 'xmws3',
-  M2311W1: 'xmws3',
-  M2323W1: 'xmws3',
-  M2425W1: 'xmws4',
-  M2424W1: 'xmws4',
-  M2426W1: 'xmws4xring',
-  M2312W1: 'xmws4',
-  M2502W1: 'xmws4',
-  M2427W1: 'xmrw5',
-  M2428W1: 'xmrw5xring',
-  M2523W1: 'xmrw6',
-  WA2536B: 'vivowgt2'
-}
+const deviceOptions: DeviceOption[] = [
+  { id: 'xmb9', name: 'Xiaomi Smart Band 9', vendor: 'xiaomi', aliases: ['n66', 'M2345B1', 'M2346B1'] },
+  { id: 'xmb9p', name: 'Xiaomi Smart Band 9 Pro', vendor: 'xiaomi', aliases: ['n67', 'M2401B1', 'M2402B1'] },
+  { id: 'xmb10', name: 'Xiaomi Smart Band 10', vendor: 'xiaomi', aliases: ['o66', 'M2457B1'] },
+  { id: 'xmb10nfc', name: 'Xiaomi Smart Band 10 NFC', vendor: 'xiaomi', aliases: ['o66nfc', 'M2456B1'] },
+  { id: 'xmws3', name: 'Xiaomi Watch S3 系列', vendor: 'xiaomi', aliases: ['n62', 'M2313W1', 'M2311W1', 'M2323W1'] },
+  { id: 'xmws4', name: 'Xiaomi Watch S4 系列', vendor: 'xiaomi', aliases: ['o62', 'M2425W1', 'M2424W1', 'M2312W1', 'M2502W1'] },
+  { id: 'xmws4xring', name: 'Xiaomi Watch S4 15周年纪念版', vendor: 'xiaomi', aliases: ['o62m', 'M2426W1'] },
+  { id: 'xmrw5', name: 'REDMI Watch 5', vendor: 'xiaomi', aliases: ['o65', 'M2427W1'] },
+  { id: 'xmrw5xring', name: 'REDMI Watch 5 eSIM', vendor: 'xiaomi', aliases: ['o65m', 'M2428W1'] },
+  { id: 'xmrw6', name: 'REDMI Watch 6', vendor: 'xiaomi', aliases: ['p65', 'M2523W1'] },
+  { id: 'vivowgt2', name: 'vivo WATCH GT 2', vendor: 'vivo', aliases: ['WA2536B'] }
+]
 
-const V1_ID_TO_V2_CODENAMES = Object.entries(MODEL_TO_V1_ID).reduce<Record<string, string[]>>(
-  (acc, [model, id]) => {
-    const codename = MODEL_TO_V2_CODENAME[model]
-    if (!codename) return acc
-
-    const key = id.toLowerCase()
-    const list = acc[key] ?? []
-    if (!list.includes(codename)) list.push(codename)
-    acc[key] = list
-    return acc
-  },
-  {}
-)
-
-const KNOWN_V2_CODENAMES = new Set(
-  Object.values(MODEL_TO_V2_CODENAME).map(codename => codename.toLowerCase())
-)
-
-const normalizeDeviceCodes = (raw: string): string[] => {
-  const result: string[] = []
-  const tokens = raw
-    .split(/[;,\n]+/)
-    .map(token => token.trim())
-    .filter(Boolean)
-
-  for (const token of tokens) {
-    const upper = token.toUpperCase()
-    const lower = token.toLowerCase()
-
-    const mappedFromModel = MODEL_TO_V2_CODENAME[upper]
-    if (mappedFromModel) {
-      result.push(mappedFromModel)
-      continue
-    }
-
-    const mappedFromV1 = V1_ID_TO_V2_CODENAMES[lower]
-    if (mappedFromV1?.length) {
-      result.push(...mappedFromV1)
-      continue
-    }
-
-    if (KNOWN_V2_CODENAMES.has(lower)) {
-      result.push(lower)
-      continue
-    }
-
-    result.push(token)
+const deviceTokenToId = deviceOptions.reduce<Record<string, string>>((acc, device) => {
+  acc[device.id.toLowerCase()] = device.id
+  for (const alias of device.aliases) {
+    acc[alias.toLowerCase()] = device.id
   }
+  return acc
+}, {})
 
-  return [...new Set(result)]
+const normalizeDeviceToken = (token: string): string => {
+  const key = token.trim().toLowerCase()
+  return deviceTokenToId[key] || token.trim()
 }
 
 type WorkbenchMode = 'publish' | 'review' | 'published'
@@ -553,7 +661,8 @@ const props = withDefaults(defineProps<{ mode?: WorkbenchMode }>(), {
 const mode = computed<WorkbenchMode>(() => props.mode)
 
 const { token, currentUser } = useCcSession()
-const { workspacePath, setWorkspace, clearWorkspace } = useCcWorkspace()
+const { workspacePath, workspaceTree, setWorkspace, clearWorkspace } = useCcWorkspace()
+const { appendPublishLog: appendLog } = useCcPublishLogs()
 const workspaceBusy = ref(false)
 const newWorkspaceName = ref('')
 const workspaceDisplayPath = ref('')
@@ -561,7 +670,6 @@ const activeStep = ref(0)
 
 const workspaceHandle = ref<WorkspaceDirectoryHandle | null>(null)
 const workspaceName = ref('')
-const manifestFound = ref(false)
 const manifestText = ref('')
 const mediaFiles = ref<Array<{ path: string; file: File }>>([])
 const downloadFiles = ref<Array<{ path: string; file: File }>>([])
@@ -572,8 +680,15 @@ const itemId = ref('')
 const itemName = ref('')
 const restype = ref('quick_app')
 const paidType = ref('')
-const tagsText = ref('')
-const devicesText = ref('')
+const itemDescription = ref('')
+const tags = ref<string[]>([])
+const tagInput = ref('')
+const selectedDeviceIds = ref<string[]>([])
+const downloads = ref<Record<string, { version: string; file_name: string }>>({})
+const authors = ref<Array<{ name: string; bindABAccount: boolean }>>([
+  { name: '', bindABAccount: true }
+])
+const showDeviceSelector = ref(false)
 const iconPath = ref('')
 const coverPath = ref('')
 
@@ -589,7 +704,6 @@ const latestPrUrl = ref('')
 
 const uploading = ref(false)
 const creatingPr = ref(false)
-const publishLogs = ref<string[]>([])
 
 const uploadedRepoOwner = ref('')
 const uploadedRepoName = ref('')
@@ -604,6 +718,12 @@ const ownedItems = ref<CatalogEntry[]>([])
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
+const paidTypeSelectValue = computed({
+  get: () => paidType.value || 'free',
+  set: value => {
+    paidType.value = value === 'free' ? '' : value
+  }
+})
 
 const resolvedRepoName = computed(() => {
   const manual = repoName.value.trim()
@@ -619,8 +739,51 @@ const resolvedRepoName = computed(() => {
   return slug ? `ab-resource-${slug}` : ''
 })
 
-const uploadQueueCount = computed(
-  () => (manifestText.value ? 1 : 0) + mediaFiles.value.length + downloadFiles.value.length
+const workspaceFileOptions = computed(() =>
+  workspaceTree.value
+    .filter(item => item.type === 'file')
+    .map(item => item.path)
+    .sort((a, b) => a.localeCompare(b, 'zh-CN'))
+)
+
+const uploadQueueCount = computed(() => 1 + mediaFiles.value.length + downloadFiles.value.length)
+
+const normalizedTagsText = computed(() =>
+  tags.value
+    .map(tag => tag.trim())
+    .filter(Boolean)
+    .join(';')
+)
+
+const normalizedDevicesText = computed(() => selectedDeviceIds.value.join(';'))
+
+const normalizedDeviceVendorsText = computed(() => {
+  const vendors = selectedDeviceIds.value
+    .map(id => deviceOptions.find(device => device.id === id)?.vendor || '')
+    .filter(Boolean)
+  return [...new Set(vendors)].join(';')
+})
+
+const areDownloadsComplete = computed(
+  () =>
+    selectedDeviceIds.value.length > 0 &&
+    selectedDeviceIds.value.every(deviceId => {
+      const entry = downloads.value[deviceId]
+      return Boolean(entry && entry.version.trim() && entry.file_name.trim())
+    })
+)
+
+const isResourceInfoValid = computed(
+  () =>
+    Boolean(
+      itemId.value.trim() &&
+        itemName.value.trim() &&
+        restype.value.trim() &&
+        iconPath.value.trim() &&
+        coverPath.value.trim() &&
+        normalizedTagsText.value &&
+        areDownloadsComplete.value
+    )
 )
 
 const canUpload = computed(
@@ -629,9 +792,7 @@ const canUpload = computed(
       token.value.trim() &&
         currentUser.value &&
         workspaceHandle.value &&
-        manifestFound.value &&
-        itemId.value.trim() &&
-        itemName.value.trim() &&
+        isResourceInfoValid.value &&
         resolvedRepoName.value
     )
 )
@@ -653,9 +814,6 @@ const canSubmitPr = computed(
     )
 )
 
-const normalizedDevices = computed(() => normalizeDeviceCodes(devicesText.value))
-const normalizedDevicesText = computed(() => normalizedDevices.value.join(';'))
-
 const stepList = computed(() => [
   {
     label: '创建文件夹',
@@ -663,7 +821,7 @@ const stepList = computed(() => [
   },
   {
     label: '资源信息',
-    done: Boolean(itemId.value.trim() && itemName.value.trim())
+    done: isResourceInfoValid.value
   },
   {
     label: '上传仓库',
@@ -675,14 +833,71 @@ const stepList = computed(() => [
   }
 ])
 
-const publishLogsText = computed(() =>
-  publishLogs.value.length ? publishLogs.value.join('\n') : '暂无日志'
-)
+const getDeviceById = (id: string): DeviceOption | undefined =>
+  deviceOptions.find(device => device.id === id)
 
-const appendLog = (message: string): void => {
-  const time = new Date().toLocaleTimeString('zh-CN', { hour12: false })
-  publishLogs.value = [`[${time}] ${message}`, ...publishLogs.value].slice(0, 200)
+const getDeviceLabel = (id: string): string => {
+  const device = getDeviceById(id)
+  if (!device) return id
+  return `${device.name} (${device.id})`
 }
+
+const ensureDownload = (deviceId: string): void => {
+  if (!downloads.value[deviceId]) {
+    downloads.value[deviceId] = {
+      version: '1.0.0',
+      file_name: ''
+    }
+  }
+}
+
+const isDeviceSelected = (deviceId: string): boolean => selectedDeviceIds.value.includes(deviceId)
+
+const toggleDeviceSelection = (deviceId: string): void => {
+  if (isDeviceSelected(deviceId)) {
+    selectedDeviceIds.value = selectedDeviceIds.value.filter(id => id !== deviceId)
+    delete downloads.value[deviceId]
+    return
+  }
+  selectedDeviceIds.value = [...selectedDeviceIds.value, deviceId]
+  ensureDownload(deviceId)
+}
+
+const removeDevice = (deviceId: string): void => {
+  selectedDeviceIds.value = selectedDeviceIds.value.filter(id => id !== deviceId)
+  delete downloads.value[deviceId]
+}
+
+const addAuthor = (): void => {
+  authors.value.push({ name: '', bindABAccount: true })
+}
+
+const removeAuthor = (index: number): void => {
+  authors.value.splice(index, 1)
+}
+
+const addTag = (): void => {
+  const value = tagInput.value.trim()
+  if (!value) return
+  if (!tags.value.includes(value)) {
+    tags.value.push(value)
+  }
+  tagInput.value = ''
+}
+
+const removeTag = (index: number): void => {
+  tags.value.splice(index, 1)
+}
+
+watch(
+  () => selectedDeviceIds.value,
+  ids => {
+    for (const id of ids) {
+      ensureDownload(id)
+    }
+  },
+  { immediate: true, deep: true }
+)
 
 const toReleaseFolderName = (raw: string): string => {
   const normalized = raw
@@ -887,7 +1102,6 @@ const scanWorkspace = async (): Promise<void> => {
 
   try {
     const manifest = await readFileTextByPath(workspaceHandle.value, MANIFEST_FILE)
-    manifestFound.value = Boolean(manifest)
     manifestText.value = manifest || ''
 
     const mediaDir = await getDirectoryByPath(workspaceHandle.value, 'media')
@@ -904,17 +1118,48 @@ const scanWorkspace = async (): Promise<void> => {
     if (manifest) {
       try {
         const parsed = JSON.parse(manifest) as {
-          item?: { id?: string; name?: string; restype?: string; icon?: string; cover?: string }
-          downloads?: Record<string, unknown>
+          item?: {
+            id?: string
+            name?: string
+            restype?: string
+            description?: string
+            icon?: string
+            cover?: string
+            author?: Array<{ name?: string; bindABAccount?: boolean }>
+          }
+          downloads?: Record<string, { version?: string; file_name?: string }>
         }
         itemId.value = itemId.value || parsed.item?.id || ''
         itemName.value = itemName.value || parsed.item?.name || ''
         restype.value = restype.value || parsed.item?.restype || 'quick_app'
+        itemDescription.value = itemDescription.value || parsed.item?.description || ''
         iconPath.value = iconPath.value || parsed.item?.icon || ''
         coverPath.value = coverPath.value || parsed.item?.cover || ''
 
-        if (!devicesText.value && parsed.downloads) {
-          devicesText.value = Object.keys(parsed.downloads).join(';')
+        if (!authors.value.some(author => author.name.trim()) && parsed.item?.author?.length) {
+          authors.value = parsed.item.author.map(author => ({
+            name: author.name || '',
+            bindABAccount: Boolean(author.bindABAccount)
+          }))
+        }
+
+        if (parsed.downloads && selectedDeviceIds.value.length === 0) {
+          const nextDownloads: Record<string, { version: string; file_name: string }> = {}
+          const nextDeviceIds: string[] = []
+
+          for (const [rawId, download] of Object.entries(parsed.downloads)) {
+            const normalizedId = normalizeDeviceToken(rawId)
+            if (!deviceOptions.some(device => device.id === normalizedId)) continue
+
+            nextDeviceIds.push(normalizedId)
+            nextDownloads[normalizedId] = {
+              version: download?.version || '1.0.0',
+              file_name: download?.file_name || ''
+            }
+          }
+
+          selectedDeviceIds.value = [...new Set(nextDeviceIds)]
+          downloads.value = nextDownloads
         }
       } catch {
         appendLog('manifest_v2.json 不是合法 JSON，将按原文上传')
@@ -940,6 +1185,49 @@ const refreshWorkspaceFileTree = async (): Promise<void> => {
     return
   }
   await scanWorkspace()
+}
+
+const buildManifestV2Text = (): string => {
+  const normalizedAuthors = authors.value
+    .map(author => ({
+      name: author.name.trim(),
+      bindABAccount: Boolean(author.bindABAccount)
+    }))
+    .filter(author => author.name)
+
+  const normalizedDownloads = selectedDeviceIds.value.reduce<Record<string, { version: string; file_name: string }>>(
+    (acc, deviceId) => {
+      const entry = downloads.value[deviceId]
+      if (!entry) return acc
+
+      acc[deviceId] = {
+        version: entry.version.trim(),
+        file_name: entry.file_name.trim()
+      }
+      return acc
+    },
+    {}
+  )
+
+  const preview = coverPath.value.trim() ? [coverPath.value.trim()] : []
+
+  const manifestObject = {
+    item: {
+      id: itemId.value.trim(),
+      restype: restype.value.trim(),
+      name: itemName.value.trim(),
+      description: itemDescription.value.trim(),
+      preview,
+      icon: iconPath.value.trim(),
+      cover: coverPath.value.trim(),
+      author: normalizedAuthors
+    },
+    links: [],
+    downloads: normalizedDownloads,
+    ext: {}
+  }
+
+  return JSON.stringify(manifestObject, null, 2)
 }
 
 const resolveRepoNameForSubmit = (): string => {
@@ -972,13 +1260,14 @@ const handleUploadResources = async (): Promise<void> => {
 
     appendLog(`资源仓库就绪: ${repo.owner}/${repo.name}`)
 
+    const generatedManifestText = buildManifestV2Text()
+    manifestText.value = generatedManifestText
+
     const uploadQueue: Array<{ path: string; file?: File; text?: string }> = []
-    if (manifestText.value) {
-      uploadQueue.push({
-        path: MANIFEST_FILE,
-        text: manifestText.value
-      })
-    }
+    uploadQueue.push({
+      path: MANIFEST_FILE,
+      text: generatedManifestText
+    })
     uploadQueue.push(...mediaFiles.value.map(item => ({ path: item.path, file: item.file })))
     uploadQueue.push(...downloadFiles.value.map(item => ({ path: item.path, file: item.file })))
 
@@ -1064,8 +1353,8 @@ const handleCreateCatalogPr = async (): Promise<void> => {
         repo_commit_hash: uploadedCommitSha.value,
         icon: iconPath.value.trim(),
         cover: coverPath.value.trim(),
-        tags: tagsText.value.trim(),
-        device_vendors: '',
+        tags: normalizedTagsText.value,
+        device_vendors: normalizedDeviceVendorsText.value,
         devices: normalizedDevicesText.value,
         paid_type: paidType.value.trim()
       }
