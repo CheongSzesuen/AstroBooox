@@ -10,8 +10,13 @@ const router = createRouter({
       },
       beforeEnter: () => {
         if (typeof window !== 'undefined') {
-          const { origin, search, hash } = window.location
-          window.location.replace(`${origin}/cc/${search}${hash}`)
+          const { origin, pathname, search, hash } = window.location
+
+          if (pathname.startsWith('/cc/help')) {
+            window.location.replace(`${origin}/cc/help/${search}${hash}`)
+          } else {
+            window.location.replace(`${origin}/cc/${search}${hash}`)
+          }
         }
         return false
       }

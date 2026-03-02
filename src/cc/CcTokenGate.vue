@@ -53,6 +53,34 @@
         <Card
           class="cc-login-card cc-login-light border-zinc-200 bg-white/95 text-zinc-900 shadow-xl backdrop-blur lg:border-zinc-700 lg:bg-zinc-900/90 lg:text-zinc-100"
         >
+          <CardContent class="flex items-start gap-3 p-4">
+            <div
+              class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50"
+            >
+              <GithubLogo :size="18" weight="duotone" />
+            </div>
+            <div class="space-y-1.5">
+              <p class="text-sm font-semibold leading-5">AstroBox 提交资源必须使用 GitHub 帐号</p>
+              <p class="text-xs leading-5 text-muted-foreground">
+                如果你还没有 GitHub 帐号，请先创建，再回到当前页面使用 Token 登录。
+              </p>
+              <Button
+                as="a"
+                href="https://github.com/signup"
+                target="_blank"
+                rel="noopener noreferrer"
+                size="sm"
+                class="h-8"
+              >
+                前往 GitHub 创建账号
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card
+          class="cc-login-card cc-login-light border-zinc-200 bg-white/95 text-zinc-900 shadow-xl backdrop-blur lg:border-zinc-700 lg:bg-zinc-900/90 lg:text-zinc-100"
+        >
           <CardHeader class="pb-3">
             <CardTitle class="text-base">认证凭据</CardTitle>
             <CardDescription>不会写入 localStorage，仅在当前页面会话中使用。</CardDescription>
@@ -84,6 +112,13 @@
             <p v-if="errorMessage" class="text-xs text-destructive">
               {{ errorMessage }}
             </p>
+
+            <p class="text-center text-xs text-muted-foreground">
+              不会创建 Token？
+              <a href="/cc/help/" class="text-primary underline underline-offset-4 hover:opacity-85">
+                查看帮助
+              </a>
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -93,7 +128,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { PhCode as Code, PhEye as Eye, PhSignIn as SignIn } from '@phosphor-icons/vue'
+import {
+  PhCode as Code,
+  PhEye as Eye,
+  PhGithubLogo as GithubLogo,
+  PhSignIn as SignIn
+} from '@phosphor-icons/vue'
 import {
   Card,
   CardContent,

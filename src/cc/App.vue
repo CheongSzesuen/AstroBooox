@@ -72,18 +72,51 @@
             <button
               type="button"
               class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
-              :class="tab === 'git' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
-              @click="tab = 'git'"
+              :class="tab === 'review' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
+              @click="tab = 'review'"
             >
-              <span>Git 提交</span>
-              <GitBranch :size="16" weight="duotone" />
+              <span>进行中审核</span>
+              <ClockCounterClockwise :size="16" weight="duotone" />
             </button>
+            <button
+              type="button"
+              class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
+              :class="tab === 'published' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
+              @click="tab = 'published'"
+            >
+              <span>已发布资源</span>
+              <ArchiveBox :size="16" weight="duotone" />
+            </button>
+          </div>
+
+          <div v-if="workspacePath || workspaceFiles.length" class="mt-4 space-y-2">
+            <div class="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">File Tree</div>
+            <div class="rounded-lg border border-border bg-background p-2">
+              <p class="truncate text-[11px] text-muted-foreground">{{ workspacePath || '未选择文件夹' }}</p>
+              <div class="mt-2 max-h-56 overflow-y-auto">
+                <div
+                  v-if="workspaceFiles.length === 0"
+                  class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
+                >
+                  当前文件夹暂无可识别文件
+                </div>
+                <ul v-else class="space-y-1">
+                  <li
+                    v-for="file in workspaceFiles"
+                    :key="file"
+                    class="truncate rounded px-2 py-1 text-xs text-foreground hover:bg-muted/40"
+                    :title="file"
+                  >
+                    {{ file }}
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </aside>
 
         <section class="min-w-0">
-          <ResourcePublishWorkbench v-if="tab === 'publish'" />
-          <GitBrowserOps v-else />
+          <ResourcePublishWorkbench :mode="tab" />
         </section>
       </div>
     </main>
@@ -93,22 +126,24 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import {
-  PhGitBranch as GitBranch,
+  PhArchiveBox as ArchiveBox,
+  PhClockCounterClockwise as ClockCounterClockwise,
   PhMoon as Moon,
   PhSignOut as SignOut,
   PhSun as Sun,
   PhUploadSimple as UploadSimple,
   PhUserCircle as UserCircle
 } from '@phosphor-icons/vue'
-import GitBrowserOps from '@/components/GitBrowserOps.vue'
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
 import { Button } from '@/components/ui/button'
 import CcTokenGate from '@/cc/CcTokenGate.vue'
 import { useCcSession } from '@/composables/useCcSession'
+import { useCcWorkspace } from '@/composables/useCcWorkspace'
 import { useTheme } from '@/composables/useTheme'
 
-const tab = ref<'publish' | 'git'>('publish')
+const tab = ref<'publish' | 'review' | 'published'>('publish')
 const { currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
+const { workspacePath, workspaceFiles } = useCcWorkspace()
 const { theme, toggleTheme } = useTheme()
 
 const handleAuthenticated = (): void => {
