@@ -1,6 +1,6 @@
 <template>
-  <div class="relative min-h-screen lg:grid lg:grid-cols-[1.18fr_0.82fr]">
-    <div class="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex">
+  <div class="relative min-h-screen overflow-hidden bg-background lg:grid lg:min-h-[100dvh] lg:grid-cols-[1.18fr_0.82fr]">
+    <div class="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex lg:min-h-[100dvh]">
       <div class="absolute inset-0 bg-zinc-900" />
       <div class="relative z-20 flex items-center text-lg font-medium">
         <Code :size="22" weight="duotone" class="mr-2" />
@@ -38,7 +38,7 @@
     </div>
 
     <div
-      class="cc-login-panel absolute inset-0 z-30 flex items-center justify-center bg-gradient-to-b from-black/15 via-black/30 to-black/45 p-4 backdrop-blur-[1px] sm:p-6 lg:static lg:z-auto lg:min-h-screen lg:bg-none lg:bg-background lg:p-8 lg:backdrop-blur-none"
+      class="cc-login-panel absolute inset-0 z-30 flex items-center justify-center bg-gradient-to-b from-black/15 via-black/30 to-black/45 p-4 backdrop-blur-[1px] sm:p-6 lg:static lg:z-auto lg:h-full lg:min-h-[100dvh] lg:bg-none lg:bg-background lg:p-8 lg:backdrop-blur-none"
     >
       <div class="w-full max-w-md space-y-6">
         <div class="space-y-2 text-center lg:text-left">
@@ -50,7 +50,9 @@
           </p>
         </div>
 
-        <Card class="cc-login-card cc-login-light border-zinc-200 bg-white/95 text-zinc-900 shadow-xl backdrop-blur">
+        <Card
+          class="cc-login-card cc-login-light border-zinc-200 bg-white/95 text-zinc-900 shadow-xl backdrop-blur lg:border-zinc-700 lg:bg-zinc-900/90 lg:text-zinc-100"
+        >
           <CardHeader class="pb-3">
             <CardTitle class="text-base">认证凭据</CardTitle>
             <CardDescription>不会写入 localStorage，仅在当前页面会话中使用。</CardDescription>
@@ -151,6 +153,30 @@ const handleSignIn = async (): Promise<void> => {
   --border: 0 0% 89.8%;
   --input: 0 0% 89.8%;
   --ring: 0 0% 3.9%;
+}
+
+@media (min-width: 1024px) {
+  .cc-login-light {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 24%;
+    --input: 0 0% 20%;
+    --ring: 0 0% 83.1%;
+  }
 }
 
 @media (min-width: 1024px) and (prefers-color-scheme: dark) {
