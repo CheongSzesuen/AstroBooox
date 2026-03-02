@@ -201,7 +201,7 @@
                         @load="cacheAvatar(selectedPr.author, selectedPr.authorAvatar)"
                       />
                       <div class="min-w-0 flex-1 rounded-md border border-border px-3 py-2 text-sm">
-                        <div class="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                        <div class="mb-2 flex items-center gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
                           <span class="truncate font-medium text-foreground">{{ selectedPr?.author || '当前用户' }}</span>
                           <span class="shrink-0">{{ previewCommentTime }}</span>
                         </div>
@@ -251,7 +251,7 @@
                     @load="cacheAvatar(comment.user.login, comment.user.avatar_url)"
                   />
                   <div class="min-w-0 flex-1 rounded-md border border-border px-3 py-2 text-sm">
-                    <div class="mb-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <div class="mb-2 flex items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
                       <span class="inline-flex min-w-0 items-center gap-2">
                         <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
                         <span class="shrink-0">{{ formatDate(comment.created_at) }}</span>
