@@ -20,10 +20,24 @@ export interface PublishingResource {
   name: string
   restype: string
   status: ReviewState
+  unresolvedTagCount: number
+  unresolvedTagIds: string[]
   createdAt: string
   prNumber: number
   prTitle: string
   prUrl: string
+}
+
+export interface PullRequestIssueComment {
+  id: number
+  body: string
+  html_url: string
+  created_at: string
+  user?: {
+    login?: string
+    avatar_url?: string
+    html_url?: string
+  }
 }
 
 export interface RepoFileData {
@@ -718,9 +732,52 @@ const isCatalogFile = (filename: string | undefined, catalogPath: string): boole
   return filename === catalogPath || filename.endsWith(`/${catalogPath}`)
 }
 
-const deriveReviewState = (comments: Array<{ body?: string }>): ReviewState => {
-  const content = comments.map(item => item.body || '').join('\n').toLowerCase()
+const ABCC_TAG_PATTERN = /\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]/ig
 
+const deriveAbccTagSummary = (comments: Array<{ body?: string }>): {
+  unresolvedTagIds: string[]
+  hasNeedFixTag: boolean
+  hasFixedTag: boolean
+} => {
+  const unresolved = new Set<string>()
+  let hasNeedFixTag = false
+  let hasFixedTag = false
+
+  for (const comment of comments) {
+    const body = comment.body || ''
+    let matched: RegExpExecArray | null
+    ABCC_TAG_PATTERN.lastIndex = 0
+    while ((matched = ABCC_TAG_PATTERN.exec(body)) !== null) {
+      const kind = matched[1]?.toUpperCase()
+      const id = (matched[2] || '').trim()
+      if (!id) continue
+      if (kind === 'NEEDFIX') {
+        hasNeedFixTag = true
+        unresolved.add(id)
+      } else if (kind === 'FIXED') {
+        hasFixedTag = true
+        unresolved.delete(id)
+      }
+    }
+  }
+
+  return {
+    unresolvedTagIds: Array.from(unresolved),
+    hasNeedFixTag,
+    hasFixedTag
+  }
+}
+
+const deriveReviewState = (comments: Array<{ body?: string }>): ReviewState => {
+  const abcc = deriveAbccTagSummary(comments)
+  if (abcc.unresolvedTagIds.length > 0) {
+    return 'changes_requested'
+  }
+  if (abcc.hasFixedTag) {
+    return 'fixed_waiting'
+  }
+
+  const content = comments.map(item => item.body || '').join('\n').toLowerCase()
   if (/(change request|changes requested|需要修改|请修改|不通过)/.test(content)) {
     return 'changes_requested'
   }
@@ -787,21 +844,24 @@ export const loadInProgressResources = async (params: {
       ])
 
       const review = deriveReviewState(comments)
+      const abccSummary = deriveAbccTagSummary(comments)
       const entries = files
         .filter(file => isCatalogFile(file.filename, catalogPath))
         .flatMap(file => extractCatalogEntriesFromPatch(file.patch))
 
       for (const entry of entries) {
-        resources.push({
-          id: entry.id,
-          name: entry.name,
-          restype: entry.restype,
-          status: review,
-          createdAt: pr.created_at,
-          prNumber: pr.number,
-          prTitle: pr.title,
-          prUrl: pr.html_url
-        })
+          resources.push({
+            id: entry.id,
+            name: entry.name,
+            restype: entry.restype,
+            status: review,
+            unresolvedTagCount: abccSummary.unresolvedTagIds.length,
+            unresolvedTagIds: abccSummary.unresolvedTagIds,
+            createdAt: pr.created_at,
+            prNumber: pr.number,
+            prTitle: pr.title,
+            prUrl: pr.html_url
+          })
       }
     } catch {
       continue
@@ -809,6 +869,19 @@ export const loadInProgressResources = async (params: {
   }
 
   return resources.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
+export const loadPullRequestIssueComments = async (params: {
+  token: string
+  owner: string
+  repo: string
+  prNumber: number
+}): Promise<PullRequestIssueComment[]> => {
+  const { token, owner, repo, prNumber } = params
+  return githubFetch<PullRequestIssueComment[]>(
+    `/repos/${owner}/${repo}/issues/${prNumber}/comments?per_page=100`,
+    token
+  )
 }
 
 export const loadOwnedResources = async (params: {

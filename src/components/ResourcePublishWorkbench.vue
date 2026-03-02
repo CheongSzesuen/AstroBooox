@@ -806,50 +806,117 @@
     </template>
 
     <template v-else-if="mode === 'review'">
-      <Card>
-        <CardHeader class="pb-3">
-          <div class="flex items-center justify-between gap-2">
-            <CardTitle class="text-base">进行中审核</CardTitle>
-            <Button :disabled="reviewLoading || !canLoadList" @click="loadReviewList">
-              <ArrowsClockwise :size="16" weight="duotone" />
-              {{ reviewLoading ? '加载中...' : '刷新' }}
-            </Button>
-          </div>
-          <CardDescription>查看你提交后处于审核中的资源。</CardDescription>
-          <p class="text-xs text-muted-foreground">
-            当前目标仓库：{{ upstreamOwner }}/{{ upstreamRepo }}（{{ catalogPath }}）
-          </p>
-        </CardHeader>
-        <CardContent class="space-y-2 pt-0">
-          <div
-            v-if="reviewItems.length === 0"
-            class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
-          >
-            暂无数据
-          </div>
-          <div
-            v-for="item in reviewItems"
-            :key="`${item.prNumber}-${item.id}`"
-            class="rounded-lg border border-border bg-card px-3 py-3"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div class="text-sm font-semibold text-foreground">{{ item.id }} · {{ item.name }}</div>
-              <Badge variant="outline">{{ reviewStateText(item.status) }}</Badge>
+      <div class="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <Card>
+          <CardHeader class="pb-3">
+            <div class="flex items-center justify-between gap-2">
+              <CardTitle class="text-base">进行中审核</CardTitle>
+              <Button :disabled="reviewLoading || !canLoadList" @click="loadReviewList">
+                <ArrowsClockwise :size="16" weight="duotone" />
+                {{ reviewLoading ? '加载中...' : '刷新' }}
+              </Button>
             </div>
-            <div class="mt-1 text-xs text-muted-foreground">
-              {{ item.restype }} · PR #{{ item.prNumber }} · {{ formatDate(item.createdAt) }}
-            </div>
-            <a
-              :href="item.prUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="mt-1 inline-flex text-xs text-primary hover:underline"
+            <CardDescription>查看你提交后处于审核中的资源。</CardDescription>
+            <p class="text-xs text-muted-foreground">
+              当前目标仓库：{{ upstreamOwner }}/{{ upstreamRepo }}（{{ catalogPath }}）
+            </p>
+          </CardHeader>
+          <CardContent class="space-y-2 pt-0">
+            <div
+              v-if="reviewItems.length === 0"
+              class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
             >
-              查看 PR
-            </a>
-          </div>
-        </CardContent>
-      </Card>
+              暂无数据
+            </div>
+            <button
+              v-for="item in reviewItems"
+              :key="`${item.prNumber}-${item.id}`"
+              type="button"
+              class="w-full rounded-lg border px-3 py-3 text-left transition-colors"
+              :class="[
+                selectedReviewItem && selectedReviewItem.prNumber === item.prNumber && selectedReviewItem.id === item.id
+                  ? 'border-primary/60 bg-accent/50'
+                  : 'border-border bg-card hover:bg-accent/30',
+                item.unresolvedTagCount > 0 ? 'ring-1 ring-red-500/60' : ''
+              ]"
+              @click="openReviewItem(item)"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="text-sm font-semibold text-foreground">{{ item.id }} · {{ item.name }}</div>
+                <div class="inline-flex items-center gap-1.5">
+                  <Badge variant="outline">{{ reviewStateText(item.status) }}</Badge>
+                  <Badge v-if="item.unresolvedTagCount > 0" variant="destructive">待修复 {{ item.unresolvedTagCount }}</Badge>
+                </div>
+              </div>
+              <div class="mt-1 text-xs text-muted-foreground">
+                {{ item.restype }} · PR #{{ item.prNumber }} · {{ formatDate(item.createdAt) }}
+              </div>
+            </button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader class="pb-3">
+            <div class="flex items-center justify-between gap-2">
+              <CardTitle class="text-base">
+                {{ selectedReviewItem ? `PR #${selectedReviewItem.prNumber} 内置详情` : 'PR 内置详情' }}
+              </CardTitle>
+              <Button
+                v-if="selectedReviewItem"
+                :disabled="reviewCommentsLoading"
+                variant="outline"
+                size="sm"
+                @click="loadReviewComments(selectedReviewItem.prNumber)"
+              >
+                <ArrowsClockwise :size="14" weight="duotone" />
+                刷新评论
+              </Button>
+            </div>
+            <CardDescription v-if="selectedReviewItem">{{ selectedReviewItem.prTitle }}</CardDescription>
+            <CardDescription v-else>点击左侧资源项进入内置 PR 页面。</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-3 pt-0">
+            <div
+              v-if="!selectedReviewItem"
+              class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
+            >
+              请先选择左侧 PR
+            </div>
+            <template v-else>
+              <div
+                v-if="selectedReviewItem.unresolvedTagCount > 0"
+                class="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-700"
+              >
+                检测到 NEEDFIX 标签且尚未出现对应 FIXED：{{ selectedReviewItem.unresolvedTagIds.join(' / ') }}
+              </div>
+              <div v-if="reviewCommentsError" class="text-xs text-destructive">{{ reviewCommentsError }}</div>
+              <div
+                v-if="selectedReviewComments.length === 0 && !reviewCommentsLoading"
+                class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
+              >
+                当前 PR 暂无评论
+              </div>
+              <div v-for="comment in selectedReviewComments" :key="comment.id" class="flex items-start gap-3">
+                <img
+                  v-if="comment.user?.avatar_url"
+                  :src="comment.user.avatar_url"
+                  class="h-8 w-8 shrink-0 rounded-full border border-border object-cover"
+                  loading="lazy"
+                />
+                <div class="min-w-0 flex-1 rounded-md border border-border px-3 py-2 text-sm">
+                  <div class="mb-3 flex items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
+                    <span class="inline-flex min-w-0 items-center gap-2">
+                      <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
+                      <span class="shrink-0">{{ formatCommentRelativeTime(comment.created_at) }}</span>
+                    </span>
+                  </div>
+                  <div class="pt-1 whitespace-pre-wrap break-words text-foreground">{{ comment.body }}</div>
+                </div>
+              </div>
+            </template>
+          </CardContent>
+        </Card>
+      </div>
     </template>
 
     <template v-else>
@@ -944,6 +1011,7 @@ import {
 import {
   type CatalogEntry,
   type LegacyCatalogEntry,
+  type PullRequestIssueComment,
   type PublishingResource,
   arrayBufferToBase64,
   base64ToText,
@@ -952,6 +1020,7 @@ import {
   fetchRepoFileOrNull,
   loadRepositoryTree,
   loadInProgressResources,
+  loadPullRequestIssueComments,
   loadOwnedResources,
   putRepoFile,
   textToBase64,
@@ -1090,6 +1159,10 @@ const uploadedCommitSha = ref('')
 
 const reviewLoading = ref(false)
 const reviewItems = ref<PublishingResource[]>([])
+const selectedReviewItem = ref<PublishingResource | null>(null)
+const reviewCommentsLoading = ref(false)
+const reviewCommentsError = ref('')
+const selectedReviewComments = ref<PullRequestIssueComment[]>([])
 
 const ownedLoading = ref(false)
 const ownedItems = ref<CatalogEntry[]>([])
@@ -2675,18 +2748,50 @@ const handleCreateCatalogPr = async (): Promise<void> => {
 const loadReviewList = async (): Promise<void> => {
   try {
     reviewLoading.value = true
-    reviewItems.value = await loadInProgressResources({
+    const items = await loadInProgressResources({
       token: requireToken(),
       username: currentUser.value,
       targetOwner: upstreamOwner.value.trim(),
       targetRepo: upstreamRepo.value.trim(),
       catalogPath: catalogPath.value.trim()
     })
+    reviewItems.value = items
+    if (selectedReviewItem.value) {
+      const matched = items.find(
+        item => item.prNumber === selectedReviewItem.value?.prNumber && item.id === selectedReviewItem.value?.id
+      )
+      if (matched) {
+        selectedReviewItem.value = matched
+      }
+    }
   } catch (error: unknown) {
     appendLog(`加载审核列表失败: ${error instanceof Error ? error.message : '未知错误'}`)
   } finally {
     reviewLoading.value = false
   }
+}
+
+const loadReviewComments = async (prNumber: number): Promise<void> => {
+  try {
+    reviewCommentsLoading.value = true
+    reviewCommentsError.value = ''
+    selectedReviewComments.value = await loadPullRequestIssueComments({
+      token: requireToken(),
+      owner: upstreamOwner.value.trim(),
+      repo: upstreamRepo.value.trim(),
+      prNumber
+    })
+  } catch (error: unknown) {
+    reviewCommentsError.value = `加载评论失败：${error instanceof Error ? error.message : '未知错误'}`
+    selectedReviewComments.value = []
+  } finally {
+    reviewCommentsLoading.value = false
+  }
+}
+
+const openReviewItem = (item: PublishingResource): void => {
+  selectedReviewItem.value = item
+  void loadReviewComments(item.prNumber)
 }
 
 const loadOwnedList = async (): Promise<void> => {
@@ -2732,5 +2837,27 @@ const formatDate = (value: string): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('zh-CN', { hour12: false })
+}
+
+const formatCommentRelativeTime = (value: string): string => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'commented just now'
+  const diffMs = Date.now() - date.getTime()
+  const absMs = Math.abs(diffMs)
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+
+  if (absMs < minute) return 'commented just now'
+  if (absMs < hour) {
+    const m = Math.max(1, Math.round(absMs / minute))
+    return `commented ${m} minute${m > 1 ? 's' : ''} ago`
+  }
+  if (absMs < day) {
+    const h = Math.max(1, Math.round(absMs / hour))
+    return `commented ${h} hour${h > 1 ? 's' : ''} ago`
+  }
+  const d = Math.max(1, Math.round(absMs / day))
+  return `commented ${d} day${d > 1 ? 's' : ''} ago`
 }
 </script>
