@@ -1434,9 +1434,8 @@ const scanWorkspace = async (): Promise<void> => {
 }
 
 const refreshWorkspaceFileTree = async (): Promise<void> => {
-  const handle = await ensureWorkspaceHandle()
-  if (!handle) {
-    appendLog('当前会话无法直接访问该目录，请重新授权后再刷新。')
+  if (!workspaceHandle.value) {
+    appendLog('当前会话没有目录访问权限，请点击“选择已有文件夹”重新授权后再刷新。')
     return
   }
   await scanWorkspace()
