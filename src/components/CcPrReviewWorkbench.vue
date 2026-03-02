@@ -493,8 +493,16 @@
                               target="_blank"
                               rel="noopener noreferrer"
                               class="break-all text-primary hover:underline"
-                            >
-                              {{ link.title || link.url }}<span v-if="link.type">（{{ link.type }}）</span>
+                          >
+                              <span class="inline-flex items-center gap-1.5">
+                                <component
+                                  :is="resolvePhosphorLinkIcon(link.type)"
+                                  :size="14"
+                                  weight="duotone"
+                                  class="shrink-0 text-muted-foreground"
+                                />
+                                <span>{{ link.title || link.url }}<span v-if="link.type">（{{ link.type }}）</span></span>
+                              </span>
                             </a>
                           </div>
                         </div>
@@ -560,7 +568,10 @@
                       <div v-if="submissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
                         <div class="text-xs text-muted-foreground">Icon · {{ submissionOverview.images.icon.file }}</div>
                         <div class="mt-1 text-xs text-muted-foreground">
-                          大小：{{ formatBytes(getImageMeta(submissionOverview.images.icon.url).byteSize) }}
+                          像素：{{ formatImageDimensions(submissionOverview.images.icon.url) }} ·
+                          <span :class="isIconRatioValid(submissionOverview.images.icon.url) ? '' : 'font-semibold text-red-600'">
+                            宽高比：{{ formatAspectRatio(submissionOverview.images.icon.url) }}
+                          </span>
                         </div>
                         <a
                           :href="submissionOverview.images.icon.url"
@@ -580,8 +591,10 @@
                       <div v-if="submissionOverview.images.cover" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
                         <div class="text-xs text-muted-foreground">Cover · {{ submissionOverview.images.cover.file }}</div>
                         <div class="mt-1 text-xs text-muted-foreground">
-                          大小：{{ formatBytes(getImageMeta(submissionOverview.images.cover.url).byteSize) }} ·
-                          宽高比：{{ formatAspectRatio(submissionOverview.images.cover.url) }}
+                          像素：{{ formatImageDimensions(submissionOverview.images.cover.url) }} ·
+                          <span :class="isCoverRatioValid(submissionOverview.images.cover.url) ? '' : 'font-semibold text-red-600'">
+                            宽高比：{{ formatAspectRatio(submissionOverview.images.cover.url) }}
+                          </span>
                         </div>
                         <a
                           :href="submissionOverview.images.cover.url"
@@ -644,8 +657,14 @@
                       :key="`${link.title}-${link.url}`"
                       class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
                     >
-                      <div class="text-foreground">
-                        {{ link.title }}<span v-if="link.type">（{{ link.type }}）</span>
+                      <div class="inline-flex items-center gap-1.5 text-foreground">
+                        <component
+                          :is="resolvePhosphorLinkIcon(link.type)"
+                          :size="14"
+                          weight="duotone"
+                          class="shrink-0 text-muted-foreground"
+                        />
+                        <span>{{ link.title }}<span v-if="link.type">（{{ link.type }}）</span></span>
                       </div>
                       <span class="inline-flex items-center gap-1.5">
                         <a :href="link.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
@@ -702,6 +721,7 @@ import {
   PhArrowDown as ArrowDown,
   PhArrowUp as ArrowUp,
   PhArrowsClockwise as ArrowsClockwise,
+  PhAddressBook as AddressBookIcon,
   PhCaretLeft as CaretLeft,
   PhCaretDown as CaretDown,
   PhCaretDoubleRight as CaretDoubleRight,
@@ -711,10 +731,12 @@ import {
   PhGithubLogo as GithubLogo,
   PhGlobeHemisphereWest as GlobeIcon,
   PhImageSquare as ImageIcon,
+  PhHouse as HouseIcon,
   PhNote as NoteIcon,
   PhGitPullRequest as GitPullRequest,
   PhLinkSimple as LinkSimple,
-  PhMagnifyingGlass as MagnifyingGlass
+  PhMagnifyingGlass as MagnifyingGlass,
+  PhTelegramLogo as TelegramLogo
 } from '@phosphor-icons/vue'
 import emblaCarouselVue from 'embla-carousel-vue'
 import { Badge } from '@/components/ui/badge'
@@ -1070,7 +1092,7 @@ const pickerMatchedLineNumbers = computed(() => {
 const pickerMatchCursor = ref(-1)
 const pickerLineRowRefs = new Map<number, HTMLElement>()
 const imageBlobUrlMap = ref<Record<string, string>>({})
-const imageMetaMap = ref<Record<string, { width?: number; height?: number; byteSize?: number }>>({})
+const imageMetaMap = ref<Record<string, { width?: number; height?: number }>>({})
 const loadingImageSet = new Set<string>()
 const [imageCarouselRef, imageCarouselApi] = emblaCarouselVue({ loop: false, align: 'start' })
 const canImagePrev = ref(false)
@@ -1280,9 +1302,9 @@ const parseRawGithubUrl = (rawUrl: string): { owner: string; repo: string; ref: 
 }
 
 const getDisplayImageUrl = (url: string): string => imageBlobUrlMap.value[url] || url
-const getImageMeta = (url: string): { width?: number; height?: number; byteSize?: number } => imageMetaMap.value[url] || {}
+const getImageMeta = (url: string): { width?: number; height?: number } => imageMetaMap.value[url] || {}
 
-const setImageMeta = (url: string, next: { width?: number; height?: number; byteSize?: number }): void => {
+const setImageMeta = (url: string, next: { width?: number; height?: number }): void => {
   if (!url) return
   imageMetaMap.value = {
     ...imageMetaMap.value,
@@ -1293,11 +1315,10 @@ const setImageMeta = (url: string, next: { width?: number; height?: number; byte
   }
 }
 
-const formatBytes = (bytes?: number): string => {
-  if (!bytes || bytes < 0) return '-'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+const formatImageDimensions = (url: string): string => {
+  const meta = getImageMeta(url)
+  if (!meta.width || !meta.height) return '-'
+  return `${meta.width} × ${meta.height}`
 }
 
 const gcd = (a: number, b: number): number => {
@@ -1316,6 +1337,39 @@ const formatAspectRatio = (url: string): string => {
   if (!meta.width || !meta.height) return '-'
   const divisor = gcd(meta.width, meta.height)
   return `${meta.width / divisor}:${meta.height / divisor}`
+}
+
+const getAspectRatioValue = (url: string): number | null => {
+  const meta = getImageMeta(url)
+  if (!meta.width || !meta.height) return null
+  return meta.width / meta.height
+}
+
+const isIconRatioValid = (url: string): boolean => {
+  const ratio = getAspectRatioValue(url)
+  if (ratio === null) return true
+  return Math.abs(ratio - 1) <= 0.01
+}
+
+const isCoverRatioValid = (url: string): boolean => {
+  const ratio = getAspectRatioValue(url)
+  if (ratio === null) return true
+  return Math.abs(ratio - 1.5) <= 0.01
+}
+
+const LINK_ICON_MAP: Record<string, unknown> = {
+  'address-book': AddressBookIcon,
+  'github-logo': GithubLogo,
+  'globe-hemisphere-west': GlobeIcon,
+  'house': HouseIcon,
+  'link': LinkSimple,
+  'telegram-logo': TelegramLogo
+}
+
+const resolvePhosphorLinkIcon = (iconName?: string) => {
+  if (!iconName) return LinkSimple
+  const normalized = iconName.trim().toLowerCase()
+  return LINK_ICON_MAP[normalized] || LinkSimple
 }
 
 const handleImageLoad = (url: string, event: Event): void => {
@@ -1339,7 +1393,6 @@ const ensureImageDisplayUrl = async (url: string): Promise<void> => {
     )
     if (!file.content || (file.encoding && file.encoding !== 'base64')) return
     const bytes = decodeBase64ToBytes(file.content.replace(/\n/g, ''))
-    setImageMeta(url, { byteSize: bytes.byteLength })
     const blob = new Blob([bytes], { type: inferImageMimeType(url) })
     const objectUrl = URL.createObjectURL(blob)
     imageBlobUrlMap.value = {
