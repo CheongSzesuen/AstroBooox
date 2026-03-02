@@ -97,7 +97,7 @@ import {
   PhGithubLogo as GithubLogo,
   PhInfo as Info
 } from '@phosphor-icons/vue'
-import axios, { type AxiosError } from 'axios'
+import axios, { type AxiosError, type AxiosResponse } from 'axios'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -136,10 +136,10 @@ const githubTokenSetupHint = '当前会话未检测到 GitHub Token，请先返�
 const GITHUB_API_BASE = 'https://api.github.com'
 const hasGithubToken = computed(() => Boolean(props.token.trim()))
 
-async function githubGet<T>(
+async function githubGet(
   pathOrUrl: string,
   options?: { params?: Record<string, unknown>; headers?: Record<string, string> }
-) {
+): Promise<AxiosResponse<any>> {
   const token = props.token.trim()
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
@@ -150,7 +150,7 @@ async function githubGet<T>(
     headers.Authorization = `Bearer ${token}`
   }
   const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${GITHUB_API_BASE}${pathOrUrl}`
-  return axios.get<T>(url, {
+  return axios.get(url, {
     params: options?.params,
     headers
   })
@@ -201,15 +201,12 @@ const fetchPullRequests = async () => {
   
   try {
     console.log('开始获取PR列表...')
-    const { data } = await githubGet<any[]>(
-      `/repos/${props.repoOwner}/${props.repoName}/pulls`,
-      {
-        params: {
-          state: 'open',
-          sort: 'created',
-          direction: 'desc',
-          per_page: 100
-        }
+    const { data } = await githubGet(`/repos/${props.repoOwner}/${props.repoName}/pulls`, {
+      params: {
+        state: 'open',
+        sort: 'created',
+        direction: 'desc',
+        per_page: 100
       }
     })
     
@@ -290,7 +287,7 @@ const fetchPRDetails = async () => {
   loadingDetails.value = true
   try {
     console.log(`获取PR #${selectedPR.value.number} 的详情...`)
-    const { data } = await githubGet<FileChange[]>(
+    const { data } = await githubGet(
       `/repos/${props.repoOwner}/${props.repoName}/pulls/${selectedPR.value.number}/files`
     )
     
@@ -325,7 +322,7 @@ const analyzeFile = async (file: FileChange) => {
   errorMessage.value = ''
   try {
     console.log(`分析文件: ${file.filename}`)
-    const { data } = await githubGet<any>(file.contents_url)
+    const { data } = await githubGet(file.contents_url)
     let content = ''
     if (data.content) {
       content = atob(data.content.replace(/\n/g, ''))
@@ -490,7 +487,7 @@ const fetchRepoManifest = async (repoUrl: string) => {
 
 const fetchViaGitHubAPI = async (owner: string, repo: string): Promise<ManifestData> => {
   try {
-    const { data } = await githubGet<any>(`/repos/${owner}/${repo}/contents/manifest.json`, {
+    const { data } = await githubGet(`/repos/${owner}/${repo}/contents/manifest.json`, {
       headers: {
         Accept: 'application/vnd.github.v3.raw'
       }
