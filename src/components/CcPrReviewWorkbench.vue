@@ -267,7 +267,7 @@
                         {{
                           filePickerTab === 'pr'
                             ? '来源：当前 PR 变更文件'
-                            : `来源：${selectedPr?.headOwner || '-'} / ${selectedPr?.headRepo || '-'}`
+                            : `来源：${selectedPr?.resourceRepoOwner || '-'} / ${selectedPr?.resourceRepoName || '-'}`
                         }}
                       </div>
                     </div>
@@ -515,6 +515,9 @@ interface PullListItem {
   headOwner: string
   headRepo: string
   headRef: string
+  resourceRepoOwner: string
+  resourceRepoName: string
+  resourceRepoRef: string
   status: ReviewState
   review: ReviewStatusResult
 }
@@ -801,9 +804,17 @@ const selectPickerLine = (lineNumber: number): void => {
 
 const buildRepoBlobUrl = (path: string): string => {
   if (!selectedPr.value) return ''
-  const owner = selectedPr.value.headOwner
-  const repo = selectedPr.value.headRepo
-  const ref = encodeURIComponent(selectedPr.value.headRef)
+  const owner = filePickerTab.value === 'repo'
+    ? selectedPr.value.resourceRepoOwner
+    : selectedPr.value.headOwner
+  const repo = filePickerTab.value === 'repo'
+    ? selectedPr.value.resourceRepoName
+    : selectedPr.value.headRepo
+  const refName = filePickerTab.value === 'repo'
+    ? selectedPr.value.resourceRepoRef
+    : selectedPr.value.headRef
+  const ref = encodeURIComponent(refName || 'main')
+  if (!owner || !repo) return ''
   const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/')
   return `https://github.com/${owner}/${repo}/blob/${ref}/${encodedPath}`
 }
@@ -854,6 +865,19 @@ const decodeBase64Utf8 = (base64: string): string => {
     bytes[i] = binary.charCodeAt(i)
   }
   return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+}
+
+const parseResourceRepoFromPrBody = (body: string): { owner: string; repo: string } | null => {
+  if (!body) return null
+  const labeled = body.match(/资源仓库\s*[:：]\s*https?:\/\/github\.com\/([^\/\s]+)\/([^\/\s#?]+)/i)
+  if (labeled?.[1] && labeled?.[2]) {
+    return { owner: labeled[1], repo: labeled[2] }
+  }
+  const generic = body.match(/https?:\/\/github\.com\/([^\/\s]+)\/([^\/\s#?]+)/i)
+  if (generic?.[1] && generic?.[2]) {
+    return { owner: generic[1], repo: generic[2] }
+  }
+  return null
 }
 
 async function githubGet<T>(path: string): Promise<T> {
@@ -943,6 +967,7 @@ const loadPullRequests = async (): Promise<void> => {
       title: string
       html_url: string
       created_at: string
+      body?: string
       user?: { login?: string; avatar_url?: string }
       head?: { ref?: string; repo?: { name?: string; owner?: { login?: string } } }
     }>>(`/repos/${props.owner}/${props.repo}/pulls?state=open&per_page=50`)
@@ -956,6 +981,7 @@ const loadPullRequests = async (): Promise<void> => {
       const headOwner = pr.head?.repo?.owner?.login || ''
       const headRepo = pr.head?.repo?.name || ''
       const headRef = pr.head?.ref || 'main'
+      const parsedResourceRepo = parseResourceRepoFromPrBody(pr.body || '')
       list.push({
         number: pr.number,
         title: pr.title,
@@ -966,6 +992,9 @@ const loadPullRequests = async (): Promise<void> => {
         headOwner,
         headRepo,
         headRef,
+        resourceRepoOwner: parsedResourceRepo?.owner || '',
+        resourceRepoName: parsedResourceRepo?.repo || '',
+        resourceRepoRef: 'main',
         status: review.state,
         review
       })
@@ -1026,12 +1055,18 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
   repoFilesLoading.value = true
   repoFilesError.value = ''
   try {
-    if (!pr.headOwner || !pr.headRepo || !pr.headRef) {
+    if (!pr.resourceRepoOwner || !pr.resourceRepoName) {
       repoFiles.value = []
+      repoFilesError.value = '未在 PR 描述中识别到资源仓库（资源仓库：https://github.com/{owner}/{repo}）'
       return
     }
+    const repoMeta = await githubGet<{ default_branch?: string }>(
+      `/repos/${pr.resourceRepoOwner}/${pr.resourceRepoName}`
+    )
+    const repoBranch = repoMeta.default_branch || 'main'
+    pr.resourceRepoRef = repoBranch
     const commit = await githubGet<{ commit?: { tree?: { sha?: string } } }>(
-      `/repos/${pr.headOwner}/${pr.headRepo}/commits/${encodeURIComponent(pr.headRef)}`
+      `/repos/${pr.resourceRepoOwner}/${pr.resourceRepoName}/commits/${encodeURIComponent(repoBranch)}`
     )
     const treeSha = commit.commit?.tree?.sha
     if (!treeSha) {
@@ -1039,7 +1074,7 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
       return
     }
     const tree = await githubGet<{ tree?: Array<{ path?: string; type?: string }> }>(
-      `/repos/${pr.headOwner}/${pr.headRepo}/git/trees/${treeSha}?recursive=1`
+      `/repos/${pr.resourceRepoOwner}/${pr.resourceRepoName}/git/trees/${treeSha}?recursive=1`
     )
     repoFiles.value = (tree.tree || [])
       .filter(item => item.type === 'blob' && item.path)
@@ -1107,8 +1142,18 @@ const readRepoTextFileOrEmpty = async (path: string): Promise<string> => {
   if (!selectedPr.value) return ''
   try {
     const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/')
+    const owner = filePickerTab.value === 'repo'
+      ? selectedPr.value.resourceRepoOwner
+      : selectedPr.value.headOwner
+    const repo = filePickerTab.value === 'repo'
+      ? selectedPr.value.resourceRepoName
+      : selectedPr.value.headRepo
+    const ref = filePickerTab.value === 'repo'
+      ? selectedPr.value.resourceRepoRef
+      : selectedPr.value.headRef
+    if (!owner || !repo || !ref) return ''
     const file = await githubGet<{ content?: string; encoding?: string }>(
-      `/repos/${selectedPr.value.headOwner}/${selectedPr.value.headRepo}/contents/${encodedPath}?ref=${encodeURIComponent(selectedPr.value.headRef)}`
+      `/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(ref)}`
     )
     if (!file.content) return ''
     if (file.encoding && file.encoding !== 'base64') return ''
