@@ -1662,13 +1662,13 @@ const buildManifestCandidatesByCsvRow = (repoPaths: string[], csvRow: CsvV2Row |
   return ranked
 }
 
-const getPathDirname = (path: string): string => {
+function getPathDirname(path: string): string {
   const normalized = path.trim().replace(/^\/+/, '')
   const index = normalized.lastIndexOf('/')
   return index >= 0 ? normalized.slice(0, index) : ''
 }
 
-const joinRepoPath = (baseDir: string, relativePath: string): string => {
+function joinRepoPath(baseDir: string, relativePath: string): string {
   const left = baseDir.replace(/^\/+|\/+$/g, '')
   const right = relativePath.replace(/^\/+/, '')
   if (!left) return right
