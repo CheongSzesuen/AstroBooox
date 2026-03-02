@@ -203,6 +203,34 @@
                       </div>
                     </div>
                   </div>
+
+                  <div class="space-y-1.5">
+                    <Label>预览图（支持多选）</Label>
+                    <draggable
+                      v-model="previewItems"
+                      item-key="id"
+                      handle=".preview-drag-handle"
+                      class="space-y-2"
+                    >
+                      <template #item="{ element, index }">
+                        <div class="flex min-h-10 items-center gap-2 rounded-lg border border-border bg-background p-2">
+                          <div class="preview-drag-handle flex h-8 w-6 cursor-move items-center justify-center rounded-md bg-muted text-muted-foreground">
+                            <DragDots :size="16" weight="bold" />
+                          </div>
+                          <Input :model-value="element.path" readonly class="min-w-0 flex-1" />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            class="h-8 w-8 rounded-full"
+                            @click="removePreview(index)"
+                          >
+                            <MinusIcon :size="16" weight="bold" />
+                          </Button>
+                        </div>
+                      </template>
+                    </draggable>
+                    <Button variant="outline" @click="selectMultiplePreviewFiles">+ 添加预览图</Button>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -568,10 +596,13 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
+  PhDotsSixVertical as DragDots,
   PhFolderOpen as FolderOpen,
   PhGitPullRequest as GitPullRequest,
+  PhMinus as MinusIcon,
   PhUploadSimple as UploadSimple
 } from '@phosphor-icons/vue'
+import draggable from 'vuedraggable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -743,6 +774,7 @@ const showOutOfWorkspaceFileDialog = ref(false)
 const outOfWorkspaceFileName = ref('')
 const iconPath = ref('')
 const coverPath = ref('')
+const previewItems = ref<Array<{ id: string; path: string }>>([])
 
 const upstreamOwner = ref('AstralSightStudios')
 const upstreamRepo = ref('ABRepo-TestEnv')
@@ -990,6 +1022,61 @@ const selectIconFile = async (): Promise<void> => {
 const selectCoverFile = async (): Promise<void> => {
   const path = await pickFilePathFromWorkspace()
   if (path) coverPath.value = path
+}
+
+const selectMultiplePreviewFiles = async (): Promise<void> => {
+  if (!workspaceHandle.value) {
+    appendLog('请先选择工作区文件夹')
+    return
+  }
+
+  const picker = (window as unknown as { showOpenFilePicker?: Function }).showOpenFilePicker
+  if (typeof picker !== 'function') {
+    appendLog('当前浏览器不支持文件选择器 API')
+    return
+  }
+
+  try {
+    const handles = (await picker({
+      multiple: true,
+      startIn: workspaceHandle.value
+    })) as WorkspaceFileHandle[]
+
+    if (!handles?.length) return
+
+    const pickedPaths: string[] = []
+
+    for (const handle of handles) {
+      if (typeof workspaceHandle.value.resolve === 'function') {
+        const relativeParts = await workspaceHandle.value.resolve(handle)
+        if (!relativeParts || relativeParts.length === 0) {
+          outOfWorkspaceFileName.value = handle.name || ''
+          showOutOfWorkspaceFileDialog.value = true
+          return
+        }
+        pickedPaths.push(relativeParts.join('/'))
+      } else {
+        pickedPaths.push(handle.name)
+      }
+    }
+
+    const existing = new Set(previewItems.value.map(item => item.path))
+    const uniqueNewPaths = pickedPaths.filter(path => !existing.has(path))
+    previewItems.value = [
+      ...previewItems.value,
+      ...uniqueNewPaths.map(path => ({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        path
+      }))
+    ]
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') return
+    appendLog(`选择预览图失败: ${error instanceof Error ? error.message : '未知错误'}`)
+  }
+}
+
+const removePreview = (index: number): void => {
+  previewItems.value.splice(index, 1)
 }
 
 const selectDownloadFile = async (deviceId: string): Promise<void> => {
@@ -1242,6 +1329,7 @@ const scanWorkspace = async (): Promise<void> => {
             name?: string
             restype?: string
             description?: string
+            preview?: string[]
             icon?: string
             cover?: string
             author?: Array<{ name?: string; bindABAccount?: boolean }>
@@ -1255,6 +1343,14 @@ const scanWorkspace = async (): Promise<void> => {
         itemDescription.value = itemDescription.value || parsed.item?.description || ''
         iconPath.value = iconPath.value || parsed.item?.icon || ''
         coverPath.value = coverPath.value || parsed.item?.cover || ''
+        if (previewItems.value.length === 0 && Array.isArray(parsed.item?.preview)) {
+          previewItems.value = parsed.item.preview
+            .filter(Boolean)
+            .map(path => ({
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+              path
+            }))
+        }
 
         if (!authors.value.some(author => author.name.trim()) && parsed.item?.author?.length) {
           authors.value = parsed.item.author.map(author => ({
@@ -1329,7 +1425,9 @@ const buildManifestV2Text = (): string => {
     {}
   )
 
-  const preview = coverPath.value.trim() ? [coverPath.value.trim()] : []
+  const preview = previewItems.value
+    .map(item => item.path.trim())
+    .filter(Boolean)
 
   const manifestObject = {
     item: {
