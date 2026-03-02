@@ -155,14 +155,14 @@
           </aside>
 
           <aside v-if="remoteWorkspacePath || remoteWorkspaceTree.length" class="rounded-xl border border-border bg-card p-3">
-            <div class="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Remote</div>
+            <div class="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">GitHub仓库文件</div>
             <p class="truncate px-1 text-[11px] text-muted-foreground">{{ remoteWorkspacePath || '未同步远程仓库' }}</p>
             <nav class="mt-2 max-h-56 overflow-y-auto" aria-label="Remote File Tree">
               <div
                 v-if="remoteWorkspaceTree.length === 0"
                 class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
               >
-                当前远程仓库暂无可识别文件
+                当前 GitHub 仓库暂无可识别文件
               </div>
               <ul v-else class="space-y-1" role="tree" aria-label="Remote Tree">
                 <li
