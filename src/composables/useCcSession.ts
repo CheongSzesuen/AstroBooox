@@ -15,11 +15,18 @@ export const useCcSession = () => {
     avatarUrl.value = ''
   }
 
+  const clearSession = (): void => {
+    token.value = ''
+    clearSessionUser()
+  }
+
   return {
     token,
     currentUser: computed(() => currentUser.value),
     avatarUrl: computed(() => avatarUrl.value),
+    isAuthenticated: computed(() => Boolean(token.value.trim() && currentUser.value)),
     setSessionUser,
-    clearSessionUser
+    clearSessionUser,
+    clearSession
   }
 }

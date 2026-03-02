@@ -1,5 +1,7 @@
 <template>
-  <div class="min-h-screen bg-background">
+  <CcTokenGate v-if="!isAuthenticated" @authenticated="handleAuthenticated" />
+
+  <div v-else class="min-h-screen bg-background">
     <header
       class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
     >
@@ -43,6 +45,11 @@
           >
             <Moon v-if="theme === 'light'" :size="16" weight="duotone" />
             <Sun v-else :size="16" weight="duotone" />
+          </Button>
+
+          <Button variant="outline" size="sm" class="h-8 px-2" @click="handleSignOut">
+            <SignOut :size="15" weight="duotone" />
+            <span class="hidden sm:inline">退出</span>
           </Button>
         </div>
       </div>
@@ -88,6 +95,7 @@ import { ref } from 'vue'
 import {
   PhGitBranch as GitBranch,
   PhMoon as Moon,
+  PhSignOut as SignOut,
   PhSun as Sun,
   PhUploadSimple as UploadSimple,
   PhUserCircle as UserCircle
@@ -95,10 +103,19 @@ import {
 import GitBrowserOps from '@/components/GitBrowserOps.vue'
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
 import { Button } from '@/components/ui/button'
+import CcTokenGate from '@/cc/CcTokenGate.vue'
 import { useCcSession } from '@/composables/useCcSession'
 import { useTheme } from '@/composables/useTheme'
 
 const tab = ref<'publish' | 'git'>('publish')
-const { currentUser, avatarUrl } = useCcSession()
+const { currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
 const { theme, toggleTheme } = useTheme()
+
+const handleAuthenticated = (): void => {
+  tab.value = 'publish'
+}
+
+const handleSignOut = (): void => {
+  clearSession()
+}
 </script>
