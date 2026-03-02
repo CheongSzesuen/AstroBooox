@@ -1,69 +1,72 @@
 <template>
   <div class="mx-auto w-full max-w-[1320px] space-y-4">
     <template v-if="mode === 'publish'">
-      <Card>
-        <CardHeader class="pb-3">
-          <CardTitle class="text-base">步骤导航</CardTitle>
-        </CardHeader>
-        <CardContent class="pt-0">
-          <ol class="space-y-2">
-            <li
-              v-for="(step, index) in stepList"
-              :key="step.label"
-              class="relative pl-10"
-            >
-              <div
-                v-if="index < stepList.length - 1"
-                class="absolute left-4 top-8 h-[calc(100%-4px)] w-px bg-border"
-              />
-              <span
-                class="absolute left-0 top-1 inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold"
-                :class="
-                  step.done
-                    ? 'border-emerald-500/70 bg-emerald-500/10 text-emerald-600'
-                    : activeStep === index
-                      ? 'border-primary/60 bg-primary/10 text-foreground'
-                      : 'border-border bg-background text-muted-foreground'
-                "
-              >
-                {{ index + 1 }}
-              </span>
-              <button
-                type="button"
-                class="w-full rounded-xl border px-3 py-2 text-left text-sm transition"
-                :class="[
-                  activeStep === index
-                    ? 'border-primary/50 bg-primary/10 text-foreground'
-                    : 'border-border bg-background text-muted-foreground hover:bg-muted/30',
-                  step.done ? '!text-foreground' : ''
-                ]"
-                @click="goToStep(index)"
-              >
-                <p class="font-medium">{{ step.label }}</p>
-                <p class="text-xs text-muted-foreground">
-                  {{ step.done ? '已完成' : activeStep === index ? '进行中' : '待完成' }}
-                </p>
-              </button>
-            </li>
-          </ol>
-        </CardContent>
-      </Card>
+      <div class="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div class="space-y-4 xl:sticky xl:top-[72px] xl:self-start">
+          <Card>
+            <CardHeader class="pb-3">
+              <CardTitle class="text-base">步骤导航</CardTitle>
+            </CardHeader>
+            <CardContent class="pt-0">
+              <ol class="space-y-2">
+                <li
+                  v-for="(step, index) in stepList"
+                  :key="step.label"
+                  class="relative pl-10"
+                >
+                  <div
+                    v-if="index < stepList.length - 1"
+                    class="absolute left-4 top-8 h-[calc(100%-4px)] w-px bg-border"
+                  />
+                  <span
+                    class="absolute left-0 top-1 inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold"
+                    :class="
+                      step.done
+                        ? 'border-emerald-500/70 bg-emerald-500/10 text-emerald-600'
+                        : activeStep === index
+                          ? 'border-primary/60 bg-primary/10 text-foreground'
+                          : 'border-border bg-background text-muted-foreground'
+                    "
+                  >
+                    {{ index + 1 }}
+                  </span>
+                  <button
+                    type="button"
+                    class="w-full rounded-xl border px-3 py-2 text-left text-sm transition"
+                    :class="[
+                      activeStep === index
+                        ? 'border-primary/50 bg-primary/10 text-foreground'
+                        : 'border-border bg-background text-muted-foreground hover:bg-muted/30',
+                      step.done ? '!text-foreground' : ''
+                    ]"
+                    @click="goToStep(index)"
+                  >
+                    <p class="font-medium">{{ step.label }}</p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ step.done ? '已完成' : activeStep === index ? '进行中' : '待完成' }}
+                    </p>
+                  </button>
+                </li>
+              </ol>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader class="pb-3">
-          <CardTitle class="text-base">当前文件夹路径</CardTitle>
-        </CardHeader>
-        <CardContent class="pt-0">
-          <div class="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-foreground">
-            {{ workspacePath || '未选择文件夹' }}
-          </div>
-          <p class="mt-2 text-xs text-muted-foreground">
-            浏览器环境受安全限制，显示的是可用路径标识，不是系统绝对路径。
-          </p>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader class="pb-3">
+              <CardTitle class="text-base">当前文件夹路径</CardTitle>
+            </CardHeader>
+            <CardContent class="pt-0">
+              <div class="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-foreground">
+                {{ workspacePath || '未选择文件夹' }}
+              </div>
+              <p class="mt-2 text-xs text-muted-foreground">
+                浏览器环境受安全限制，显示的是可用路径标识，不是系统绝对路径。
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-      <div class="space-y-4">
+        <div class="space-y-4">
           <Card v-if="activeStep === 0">
             <CardHeader class="pb-3">
               <CardTitle class="text-base">步骤 1：创建文件夹</CardTitle>
@@ -491,6 +494,7 @@
               </div>
             </CardContent>
           </Card>
+        </div>
       </div>
 
       <Dialog :open="showUploadCompleteDialog" @update:open="showUploadCompleteDialog = $event">
