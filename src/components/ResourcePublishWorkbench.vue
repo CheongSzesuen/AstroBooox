@@ -496,16 +496,13 @@
       </Dialog>
 
       <Dialog :open="showOutOfWorkspaceFileDialog" @update:open="showOutOfWorkspaceFileDialog = $event">
-        <DialogContent class="max-w-[520px]">
+        <DialogContent class="max-w-[420px]">
           <DialogHeader>
             <DialogTitle>文件不在当前工作区</DialogTitle>
             <DialogDescription>
-              请选择当前工作区文件夹内的文件（icon、cover、下载文件均要求在工作区内）。
+              请先将需要的文件放入当前工作区，再重新选择。
             </DialogDescription>
           </DialogHeader>
-          <div class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            {{ outOfWorkspaceFileName ? `你选择的文件：${outOfWorkspaceFileName}` : '你选择的文件无法映射到当前工作区。' }}
-          </div>
           <DialogFooter>
             <Button variant="outline" @click="showOutOfWorkspaceFileDialog = false">我知道了</Button>
           </DialogFooter>
@@ -771,7 +768,6 @@ const authors = ref<Array<{ name: string; bindABAccount: boolean }>>([
 const showDeviceSelector = ref(false)
 const showResourceIdGuide = ref(false)
 const showOutOfWorkspaceFileDialog = ref(false)
-const outOfWorkspaceFileName = ref('')
 const iconPath = ref('')
 const coverPath = ref('')
 const previewItems = ref<Array<{ id: string; path: string }>>([])
@@ -1001,7 +997,6 @@ const pickFilePathFromWorkspace = async (): Promise<string | null> => {
         return relativeParts.join('/')
       }
 
-      outOfWorkspaceFileName.value = fileHandle.name || ''
       showOutOfWorkspaceFileDialog.value = true
       return null
     }
@@ -1050,7 +1045,6 @@ const selectMultiplePreviewFiles = async (): Promise<void> => {
       if (typeof workspaceHandle.value.resolve === 'function') {
         const relativeParts = await workspaceHandle.value.resolve(handle)
         if (!relativeParts || relativeParts.length === 0) {
-          outOfWorkspaceFileName.value = handle.name || ''
           showOutOfWorkspaceFileDialog.value = true
           return
         }
