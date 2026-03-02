@@ -456,7 +456,12 @@
                         class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between"
                       >
                         <span class="text-xs text-muted-foreground">{{ item.key }}</span>
-                        <span class="text-sm font-medium text-foreground">{{ item.value || '-' }}</span>
+                        <span
+                          v-if="hasUrl(item.value)"
+                          class="min-w-0 text-sm font-medium text-foreground"
+                          v-html="renderTextWithLinks(item.value || '-')"
+                        />
+                        <span v-else class="text-sm font-medium text-foreground">{{ item.value || '-' }}</span>
                       </div>
                     </div>
                   </div>
@@ -479,15 +484,17 @@
                     <div class="space-y-2 text-sm">
                       <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
                         <div class="text-xs text-muted-foreground">资源仓库</div>
-                        <a
-                          v-if="submissionOverview.repoUrl"
-                          :href="submissionOverview.repoUrl"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="break-all text-primary hover:underline"
-                        >
-                          {{ submissionOverview.repoUrl }}
-                        </a>
+                        <span v-if="submissionOverview.repoUrl" class="inline-flex items-center gap-1.5">
+                          <GithubLogo :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                          <a
+                            :href="submissionOverview.repoUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="break-all text-primary hover:underline"
+                          >
+                            {{ submissionOverview.repoUrl }}
+                          </a>
+                        </span>
                         <span v-else class="text-foreground">-</span>
                       </div>
                       <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
@@ -502,15 +509,21 @@
                     <div class="space-y-2 text-sm">
                       <div v-if="submissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
                         <div class="text-xs text-muted-foreground">Icon · {{ submissionOverview.images.icon.file }}</div>
-                        <a :href="submissionOverview.images.icon.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
-                          {{ submissionOverview.images.icon.url }}
-                        </a>
+                        <span class="inline-flex items-center gap-1.5">
+                          <ImageIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                          <a :href="submissionOverview.images.icon.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
+                            {{ submissionOverview.images.icon.url }}
+                          </a>
+                        </span>
                       </div>
                       <div v-if="submissionOverview.images.cover" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
                         <div class="text-xs text-muted-foreground">Cover · {{ submissionOverview.images.cover.file }}</div>
-                        <a :href="submissionOverview.images.cover.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
-                          {{ submissionOverview.images.cover.url }}
-                        </a>
+                        <span class="inline-flex items-center gap-1.5">
+                          <ImageIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                          <a :href="submissionOverview.images.cover.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
+                            {{ submissionOverview.images.cover.url }}
+                          </a>
+                        </span>
                       </div>
                       <div
                         v-for="preview in submissionOverview.images.previews"
@@ -518,9 +531,12 @@
                         class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
                       >
                         <div class="text-xs text-muted-foreground">Preview · {{ preview.file }}</div>
-                        <a :href="preview.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
-                          {{ preview.url }}
-                        </a>
+                        <span class="inline-flex items-center gap-1.5">
+                          <ImageIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                          <a :href="preview.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
+                            {{ preview.url }}
+                          </a>
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -537,15 +553,17 @@
                       <div class="font-medium text-foreground">{{ item.device }}</div>
                       <div class="mt-1 text-xs text-muted-foreground">version: {{ item.version || '-' }}</div>
                       <div class="mt-1 text-xs text-muted-foreground">file: {{ item.file || '-' }}</div>
-                      <a
-                        v-if="item.raw"
-                        :href="item.raw"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="mt-1 block break-all text-xs text-primary hover:underline"
-                      >
-                        {{ item.raw }}
-                      </a>
+                      <span v-if="item.raw" class="mt-1 inline-flex items-center gap-1.5">
+                        <DownloadIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                        <a
+                          :href="item.raw"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="block break-all text-xs text-primary hover:underline"
+                        >
+                          {{ item.raw }}
+                        </a>
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -561,11 +579,22 @@
                       <div class="text-foreground">
                         {{ link.title }}<span v-if="link.type">（{{ link.type }}）</span>
                       </div>
-                      <a :href="link.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
-                        {{ link.url }}
-                      </a>
+                      <span class="inline-flex items-center gap-1.5">
+                        <component :is="getUrlIcon(link.url, link.type)" :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                        <a :href="link.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
+                          {{ link.url }}
+                        </a>
+                      </span>
                     </div>
                   </div>
+                </div>
+
+                <div v-if="submissionOverview.footerNote" class="rounded-md border border-border p-3">
+                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <NoteIcon :size="14" weight="duotone" />
+                    生成信息
+                  </div>
+                  <div class="text-sm text-foreground whitespace-pre-wrap" v-html="renderTextWithLinks(submissionOverview.footerNote)" />
                 </div>
               </div>
             </CardContent>
@@ -589,6 +618,10 @@ import {
   PhFile as FileIcon,
   PhFolder as FolderIcon,
   PhGithubLogo as GithubLogo,
+  PhGlobeHemisphereWest as GlobeIcon,
+  PhImageSquare as ImageIcon,
+  PhDownloadSimple as DownloadIcon,
+  PhNote as NoteIcon,
   PhGitPullRequest as GitPullRequest,
   PhLinkSimple as LinkSimple,
   PhMagnifyingGlass as MagnifyingGlass
@@ -688,6 +721,7 @@ interface SubmissionOverview {
   }
   downloads: DownloadItem[]
   links: LinkItem[]
+  footerNote: string
 }
 
 interface PickerTreeItem {
@@ -1093,6 +1127,23 @@ const stripMarkdown = (value: string): string => value
   .replace(/\s+/g, ' ')
   .trim()
 
+const hasUrl = (value: string): boolean => /https?:\/\/[^\s)]+/.test(value)
+
+const renderTextWithLinks = (value: string): string => {
+  const escaped = escapeHtml(value)
+  return escaped.replace(/https?:\/\/[^\s<]+/g, (url) =>
+    `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline break-all">${url}</a>`
+  )
+}
+
+const getUrlIcon = (url: string, type = '') => {
+  const normalized = `${type} ${url}`.toLowerCase()
+  if (normalized.includes('github.com')) return GithubLogo
+  if (normalized.includes('raw.githubusercontent.com') || /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)(\?|$)/i.test(url)) return ImageIcon
+  if (normalized.includes('download') || /\.(rpk|zip|apk|bin)(\?|$)/i.test(url)) return DownloadIcon
+  return GlobeIcon
+}
+
 const parseSubmissionOverview = (body: string): SubmissionOverview => {
   const overview: SubmissionOverview = {
     resourceInfo: [],
@@ -1105,7 +1156,8 @@ const parseSubmissionOverview = (body: string): SubmissionOverview => {
       previews: []
     },
     downloads: [],
-    links: []
+    links: [],
+    footerNote: ''
   }
   if (!body) return overview
 
@@ -1114,6 +1166,8 @@ const parseSubmissionOverview = (body: string): SubmissionOverview => {
   let currentDownload: DownloadItem | null = null
   let waitingImageLabel: 'icon' | 'cover' | 'preview' | null = null
   let waitingImageFile = ''
+  let inFooter = false
+  const footerLines: string[] = []
 
   for (const rawLine of lines) {
     const line = rawLine.trim()
@@ -1128,7 +1182,15 @@ const parseSubmissionOverview = (body: string): SubmissionOverview => {
       continue
     }
 
-    if (line.startsWith('---')) continue
+    if (line.startsWith('---')) {
+      inFooter = true
+      continue
+    }
+
+    if (inFooter) {
+      footerLines.push(line)
+      continue
+    }
 
     if (currentSection.includes('资源信息')) {
       const m = line.match(/^-\s*([^：:]+)[：:]\s*(.+)$/)
@@ -1224,6 +1286,7 @@ const parseSubmissionOverview = (body: string): SubmissionOverview => {
     }
   }
 
+  overview.footerNote = footerLines.join('\n').trim()
   return overview
 }
 
@@ -1237,6 +1300,7 @@ const hasSubmissionOverview = computed(() =>
   || Boolean(submissionOverview.value.images.icon)
   || Boolean(submissionOverview.value.images.cover)
   || submissionOverview.value.images.previews.length > 0
+  || Boolean(submissionOverview.value.footerNote)
 )
 
 async function githubGet<T>(path: string): Promise<T> {
