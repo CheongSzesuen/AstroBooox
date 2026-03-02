@@ -318,7 +318,12 @@
                       <Button size="sm" variant="outline" :disabled="!selectedPickerPath" @click="insertSelectedFileReference">
                         直接插入文件
                       </Button>
-                      <Button size="sm" :disabled="!selectedPickerPath" @click="enterPickerLineStep">
+                      <Button
+                        v-if="canPickLine"
+                        size="sm"
+                        :disabled="!selectedPickerPath"
+                        @click="enterPickerLineStep"
+                      >
                         下一步：选择具体行
                       </Button>
                     </div>
@@ -341,7 +346,12 @@
                       <Button size="sm" variant="outline" :disabled="!selectedPickerPath" @click="insertSelectedFileReference">
                         不选行，插入文件
                       </Button>
-                      <Button size="sm" :disabled="!selectedPickerPath || !selectedPickerLine" @click="insertSelectedLineReference">
+                      <Button
+                        v-if="canPickLine"
+                        size="sm"
+                        :disabled="!selectedPickerPath || !selectedPickerLine"
+                        @click="insertSelectedLineReference"
+                      >
                         插入行定位
                       </Button>
                     </div>
@@ -636,6 +646,7 @@ const cacheAvatar = (login: string, avatarUrl: string): void => {
 }
 
 const isImageFile = (filename: string): boolean => /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)$/i.test(filename)
+const canPickLine = computed(() => Boolean(selectedPickerPath.value && !isImageFile(selectedPickerPath.value)))
 const normalizeCommentId = (value: string): string => value.trim().replace(/\s+/g, '_').replace(/\]/g, '')
 const normalizedCommentId = computed(() => normalizeCommentId(commentId.value))
 const commentReferenceMarkdownLines = computed(() =>
@@ -1172,7 +1183,7 @@ const selectPickerPath = (path: string): void => {
 }
 
 const enterPickerLineStep = async (): Promise<void> => {
-  if (!selectedPickerPath.value) return
+  if (!selectedPickerPath.value || !canPickLine.value) return
   filePickerStep.value = 'line'
   pickerLineSearch.value = ''
   pickerMatchCursor.value = -1
