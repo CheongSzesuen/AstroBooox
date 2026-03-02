@@ -148,6 +148,7 @@
               <div class="space-y-2">
                 <ReviewCommentComposer
                   :avatar-url="selectedPr?.authorAvatar ? getOptimizedAvatarUrl(selectedPr.author, selectedPr.authorAvatar) : ''"
+                  :tag-enabled="commentTagEnabled"
                   :comment-id="commentId"
                   :comment-message="commentMessage"
                   :editor-tab="commentEditorTab"
@@ -162,6 +163,7 @@
                   textarea-class="min-h-[140px]"
                   @update:comment-id="commentId = $event"
                   @update:comment-message="commentMessage = $event"
+                  @update:tag-enabled="commentTagEnabled = $event"
                   @update:editor-tab="commentEditorTab = $event"
                   @open-file-picker="openFilePicker"
                   @submit="submitPresetComment"
@@ -398,8 +400,11 @@
               <DialogHeader>
                 <DialogTitle>确认删除评论</DialogTitle>
                 <DialogDescription>
-                  确认删除评论 #{{ deleteCommentTarget?.id || '-' }}？删除后不可恢复。
+                  删除后不可恢复，请确认是否继续。
                 </DialogDescription>
+                <div class="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  {{ deleteCommentPreviewText }}
+                </div>
               </DialogHeader>
               <DialogFooter>
                 <Button variant="outline" @click="deleteCommentDialogOpen = false">取消</Button>
@@ -857,6 +862,7 @@ const pickerLoading = ref(false)
 const pickerError = ref('')
 const commentId = ref('')
 const commentMessage = ref('')
+const commentTagEnabled = ref(true)
 const commentEditorTab = ref<'edit' | 'preview'>('edit')
 const commentMessageTextareaRef = ref<unknown>(null)
 const commentCursorStart = ref<number | null>(null)
@@ -870,6 +876,12 @@ const replyTargetComment = ref<IssueCommentItem | null>(null)
 const editingCommentTarget = ref<IssueCommentItem | null>(null)
 const deleteCommentDialogOpen = ref(false)
 const deleteCommentTarget = ref<IssueCommentItem | null>(null)
+const deleteCommentPreviewText = computed(() => {
+  const raw = deleteCommentTarget.value?.body || ''
+  const parsed = parseReviewCommentBody(raw)
+  const text = (parsed.content || raw).replace(/\s+/g, ' ').trim()
+  return text || '（空内容）'
+})
 
 const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && resolvedToken.value))
 const sidebarClass = computed(() => [
@@ -936,24 +948,31 @@ const commentBodyPreview = computed(() => {
     commentMessage.value.trim(),
     buildReplyContextBlock(replyTargetComment.value)
   ].filter(Boolean)
+  const plainBody = bodyParts.join('\n').trim()
+  if (!commentTagEnabled.value) return plainBody
   const prefixId = normalizedCommentId.value || '<填写ID>'
-  return `[ABCC_NEEDFIX_${prefixId}] ${bodyParts.join('\n')}`.trim()
+  return `[ABCC_NEEDFIX_${prefixId}] ${plainBody}`.trim()
 })
 const submitCommentBody = computed(() => {
-  if (!normalizedCommentId.value) return ''
   const bodyParts = [
     commentMessage.value.trim(),
     buildReplyContextBlock(replyTargetComment.value)
   ].filter(Boolean)
-  return `[ABCC_NEEDFIX_${normalizedCommentId.value}] ${bodyParts.join('\n')}`.trim()
+  const plainBody = bodyParts.join('\n').trim()
+  if (!commentTagEnabled.value) return plainBody
+  if (!normalizedCommentId.value) return ''
+  return `[ABCC_NEEDFIX_${normalizedCommentId.value}] ${plainBody}`.trim()
 })
 const renderedCommentPreviewHtml = computed(() => {
   if (!commentBodyPreview.value) return '<span class="text-muted-foreground">（这里显示评论内容）</span>'
   return buildCommentPreviewCardHtml(commentBodyPreview.value)
 })
-const canSubmitComment = computed(() => Boolean(normalizedCommentId.value))
+const canSubmitComment = computed(() => {
+  if (commentTagEnabled.value) return Boolean(normalizedCommentId.value)
+  return Boolean(submitCommentBody.value)
+})
 const submitButtonTitle = computed(() => {
-  if (!canSubmitComment.value) return '请填写id'
+  if (!canSubmitComment.value) return commentTagEnabled.value ? '请填写id' : '请输入评论内容'
   return editingCommentTarget.value ? '更新现有评论' : ''
 })
 const pickerPaths = computed(() => {
@@ -2501,6 +2520,7 @@ const clearEditingComment = (): void => {
 
 const onEditComment = (comment: IssueCommentItem): void => {
   const parsed = parseReviewCommentBody(comment.body || '')
+  commentTagEnabled.value = Boolean(parsed.tagId)
   commentId.value = parsed.tagId || `comment_${comment.id}`
   commentMessage.value = parsed.content
   editingCommentTarget.value = comment
@@ -2547,7 +2567,7 @@ const submitPresetComment = async (): Promise<void> => {
   if (!selectedPr.value) return
   const body = submitCommentBody.value
   if (!body) {
-    openCommentResultDialog('发送失败', '评论 ID 不能为空')
+    openCommentResultDialog('发送失败', commentTagEnabled.value ? '评论 ID 不能为空' : '评论内容不能为空')
     return
   }
   commentSubmitting.value = true

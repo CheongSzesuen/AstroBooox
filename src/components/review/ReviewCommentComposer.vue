@@ -57,15 +57,28 @@
         <div class="px-3 py-3">
           <TabsContent value="edit" class="mt-0">
             <div class="grid gap-2">
-              <div class="flex items-center rounded-md border border-input bg-background">
-                <span class="shrink-0 border-r border-border px-3 text-xs text-muted-foreground">{{ idPrefix }}</span>
-                <Input
-                  :model-value="commentId"
-                  class="border-0 shadow-none focus-visible:ring-0"
-                  :placeholder="idPlaceholder"
-                  @update:model-value="(value) => emit('update:commentId', String(value))"
-                />
-                <span class="shrink-0 px-3 text-xs text-muted-foreground">]</span>
+              <div class="flex items-center gap-2">
+                <div class="flex min-w-0 flex-1 items-center rounded-md border border-input bg-background" :class="!tagEnabled ? 'opacity-70' : ''">
+                  <span class="shrink-0 border-r border-border px-3 text-xs text-muted-foreground">{{ idPrefix }}</span>
+                  <Input
+                    :model-value="commentId"
+                    class="border-0 shadow-none focus-visible:ring-0"
+                    :placeholder="idPlaceholder"
+                    :disabled="!tagEnabled"
+                    @update:model-value="(value) => emit('update:commentId', String(value))"
+                  />
+                  <span class="shrink-0 px-3 text-xs text-muted-foreground">]</span>
+                </div>
+                <div v-if="showTagToggle" class="inline-flex shrink-0 items-center gap-2 rounded-md border border-border bg-muted/20 px-2.5 py-1.5">
+                  <span class="text-xs text-muted-foreground">带标签</span>
+                  <Switch
+                    :checked="Boolean(tagEnabled)"
+                    @update:checked="(value: boolean) => emit('update:tagEnabled', Boolean(value))"
+                  />
+                </div>
+              </div>
+              <div v-if="!tagEnabled" class="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                当前不附带 ABCC 标签，将仅发送正文内容。
               </div>
               <Textarea
                 :id="textareaId"
@@ -115,6 +128,7 @@ import {
 } from '@phosphor-icons/vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -128,6 +142,8 @@ const props = withDefaults(defineProps<{
   submitting: boolean
   submitButtonTitle: string
   submitText?: string
+  tagEnabled?: boolean
+  showTagToggle?: boolean
   showFilePickerButton?: boolean
   idPrefix?: string
   idPlaceholder?: string
@@ -137,6 +153,8 @@ const props = withDefaults(defineProps<{
 }>(), {
   avatarUrl: '',
   submitText: '发送评论',
+  tagEnabled: true,
+  showTagToggle: true,
   showFilePickerButton: false,
   idPrefix: '[ABCC_NEEDFIX_',
   idPlaceholder: '自定义 ID',
@@ -148,6 +166,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   'update:commentId': [value: string]
   'update:commentMessage': [value: string]
+  'update:tagEnabled': [value: boolean]
   'update:editorTab': [value: 'edit' | 'preview']
   submit: []
   openFilePicker: []

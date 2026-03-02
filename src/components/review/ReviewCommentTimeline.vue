@@ -90,8 +90,19 @@
           v-if="parsedOf(comment).replyTarget"
           class="mb-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground"
         >
-          <div class="font-medium text-foreground">
-            回复 {{ parsedOf(comment).replyTarget }}
+          <div class="flex items-center justify-between gap-2">
+            <div class="font-medium text-foreground">
+              回复 {{ parsedOf(comment).replyTarget }}
+            </div>
+            <button
+              v-if="getReplyTargetId(parsedOf(comment).replyTarget)"
+              type="button"
+              class="inline-flex items-center gap-1 text-primary hover:underline"
+              @click="scrollToReplyTarget(parsedOf(comment).replyTarget)"
+            >
+              <OpenIcon :size="12" />
+              定位
+            </button>
           </div>
           <div
             v-if="parsedOf(comment).replyExcerpt"
@@ -252,6 +263,26 @@ const parsedOf = (comment: ReviewCommentItem): ParsedReviewComment =>
 
 const renderCommentHtml = (content: string): string => renderCommentMarkdownHtml(content)
 const renderCommentInlineHtml = (content: string): string => renderCommentMarkdownInlineHtml(content)
+const getReplyTargetId = (replyTarget: string): number | null => {
+  const match = replyTarget.match(/#(\d+)/)
+  if (!match) return null
+  const id = Number(match[1])
+  return Number.isFinite(id) ? id : null
+}
+
+const scrollToReplyTarget = async (replyTarget: string): Promise<void> => {
+  const id = getReplyTargetId(replyTarget)
+  if (!id) return
+  const selector = `[data-review-comment-id="${id}"]`
+  for (let i = 0; i < 8; i += 1) {
+    const element = document.querySelector(selector)
+    if (element instanceof HTMLElement) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    await new Promise(resolve => setTimeout(resolve, 80))
+  }
+}
 
 const collapsedState = ref<Record<string, boolean>>({})
 const isLongText = (text: string): boolean => (text || '').length > 360 || (text || '').split('\n').length > 8

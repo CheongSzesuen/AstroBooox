@@ -914,6 +914,7 @@
             <div v-if="reviewCommentsError" class="text-xs text-destructive">{{ reviewCommentsError }}</div>
             <ReviewCommentComposer
               :avatar-url="selectedReviewItem?.prAuthorAvatar || ''"
+              :tag-enabled="reviewCommentTagEnabled"
               :comment-id="reviewCommentId"
               :comment-message="reviewCommentMessage"
               :editor-tab="reviewCommentEditorTab"
@@ -927,6 +928,7 @@
               textarea-class="min-h-[140px]"
               @update:comment-id="reviewCommentId = $event"
               @update:comment-message="reviewCommentMessage = $event"
+              @update:tag-enabled="reviewCommentTagEnabled = $event"
               @update:editor-tab="reviewCommentEditorTab = $event"
               @submit="submitReviewComment"
             />
@@ -1021,8 +1023,11 @@
         <DialogHeader>
           <DialogTitle>确认删除评论</DialogTitle>
           <DialogDescription>
-            确认删除评论 #{{ reviewDeleteCommentTarget?.id || '-' }}？删除后不可恢复。
+            删除后不可恢复，请确认是否继续。
           </DialogDescription>
+          <div class="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            {{ reviewDeleteCommentPreviewText }}
+          </div>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" @click="reviewDeleteCommentDialogOpen = false">取消</Button>
@@ -1251,6 +1256,7 @@ const reviewCommentsError = ref('')
 const selectedReviewComments = ref<PullRequestIssueComment[]>([])
 const reviewCommentId = ref('')
 const reviewCommentMessage = ref('')
+const reviewCommentTagEnabled = ref(true)
 const reviewCommentEditorTab = ref<'edit' | 'preview'>('edit')
 const reviewCommentSubmitting = ref(false)
 const reviewCommentResultDialogOpen = ref(false)
@@ -1262,6 +1268,12 @@ const reviewDeleteCommentTarget = ref<{
   body?: string
   user?: { login?: string }
 } | null>(null)
+const reviewDeleteCommentPreviewText = computed(() => {
+  const raw = reviewDeleteCommentTarget.value?.body || ''
+  const parsed = parseReviewCommentBody(raw)
+  const text = (parsed.content || raw).replace(/\s+/g, ' ').trim()
+  return text || '（空内容）'
+})
 const reviewEditingCommentTarget = ref<{
   id: number
   body?: string
@@ -1305,24 +1317,32 @@ const reviewCommentBodyPreview = computed(() => {
     reviewCommentMessage.value.trim(),
     buildReviewReplyContextBlock(reviewReplyTargetComment.value)
   ].filter(Boolean)
+  const plainBody = bodyParts.join('\n').trim()
+  if (!reviewCommentTagEnabled.value) return plainBody
   const prefixId = normalizedReviewCommentId.value || '<填写ID>'
-  return `[ABCC_NEEDFIX_${prefixId}] ${bodyParts.join('\n')}`.trim()
+  return `[ABCC_NEEDFIX_${prefixId}] ${plainBody}`.trim()
 })
 const reviewSubmitCommentBody = computed(() => {
-  if (!normalizedReviewCommentId.value) return ''
   const bodyParts = [
     reviewCommentMessage.value.trim(),
     buildReviewReplyContextBlock(reviewReplyTargetComment.value)
   ].filter(Boolean)
-  return `[ABCC_NEEDFIX_${normalizedReviewCommentId.value}] ${bodyParts.join('\n')}`.trim()
+  const plainBody = bodyParts.join('\n').trim()
+  if (!reviewCommentTagEnabled.value) return plainBody
+  if (!normalizedReviewCommentId.value) return ''
+  return `[ABCC_NEEDFIX_${normalizedReviewCommentId.value}] ${plainBody}`.trim()
 })
 const reviewRenderedCommentPreviewHtml = computed(() => {
   if (!reviewCommentBodyPreview.value) return '<span class="text-muted-foreground">（这里显示评论内容）</span>'
   return buildReviewCommentPreviewCardHtml(reviewCommentBodyPreview.value)
 })
-const canSubmitReviewComment = computed(() => Boolean(normalizedReviewCommentId.value && selectedReviewItem.value))
+const canSubmitReviewComment = computed(() => {
+  if (!selectedReviewItem.value) return false
+  if (reviewCommentTagEnabled.value) return Boolean(normalizedReviewCommentId.value)
+  return Boolean(reviewSubmitCommentBody.value)
+})
 const reviewSubmitButtonTitle = computed(() => {
-  if (!canSubmitReviewComment.value) return '请填写id'
+  if (!canSubmitReviewComment.value) return reviewCommentTagEnabled.value ? '请填写id' : '请输入评论内容'
   return reviewEditingCommentTarget.value ? '更新现有评论' : ''
 })
 const paidTypeSelectValue = computed({
@@ -2996,6 +3016,7 @@ const onReviewEditComment = (comment: {
   user?: { login?: string }
 }): void => {
   const parsed = parseReviewCommentBody(comment.body || '')
+  reviewCommentTagEnabled.value = Boolean(parsed.tagId)
   reviewCommentId.value = parsed.tagId || `comment_${comment.id}`
   reviewCommentMessage.value = parsed.content
   reviewEditingCommentTarget.value = comment
@@ -3042,7 +3063,7 @@ const submitReviewComment = async (): Promise<void> => {
   if (!selectedReviewItem.value) return
   const body = reviewSubmitCommentBody.value
   if (!body) {
-    openReviewCommentResultDialog('发送失败', '评论 ID 不能为空')
+    openReviewCommentResultDialog('发送失败', reviewCommentTagEnabled.value ? '评论 ID 不能为空' : '评论内容不能为空')
     return
   }
 
