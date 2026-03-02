@@ -103,7 +103,10 @@
                 <CardContent class="space-y-4 pt-0">
                   <div class="grid gap-3 md:grid-cols-2">
                     <div class="space-y-1.5">
-                      <Label for="item-id">资源 ID</Label>
+                      <div class="flex items-center gap-2">
+                        <Label for="item-id">资源 ID</Label>
+                        <Button variant="outline" size="sm" class="h-7 px-2 text-xs" @click="showResourceIdGuide = true">这是什么？</Button>
+                      </div>
                       <Input id="item-id" v-model="itemId" placeholder="com.example.app / 9798xxxxxx" />
                     </div>
                     <div class="space-y-1.5">
@@ -120,9 +123,8 @@
                           <SelectValue placeholder="请选择资源类型" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="quick_app">quick_app</SelectItem>
-                          <SelectItem value="watchface">watchface</SelectItem>
-                          <SelectItem value="firmware">firmware</SelectItem>
+                          <SelectItem value="quickapp">快应用 (quickapp)</SelectItem>
+                          <SelectItem value="watchface">表盘 (watchface)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -133,9 +135,9 @@
                           <SelectValue placeholder="免费（留空）" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="free">免费（留空）</SelectItem>
-                          <SelectItem value="paid">paid</SelectItem>
-                          <SelectItem value="force_paid">force_paid</SelectItem>
+                          <SelectItem value="free">免费(感谢你作出的贡献)</SelectItem>
+                          <SelectItem value="paid">应用内付费(paid，体验版请选择此项)</SelectItem>
+                          <SelectItem value="force_paid">强制付费(force_paid)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -447,22 +449,41 @@
           </DialogHeader>
           <div class="my-2 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 max-[640px]:grid-cols-1">
             <div
-              v-for="device in deviceOptions"
-              :key="`device-option-${device.id}`"
+              v-for="entry in deviceSelectorEntries"
+              :key="`device-option-${entry.key}`"
               class="cursor-pointer rounded-lg border p-3 transition-colors"
               :class="
-                isDeviceSelected(device.id)
+                isDeviceSelected(entry.id)
                   ? 'border-primary/50 bg-primary/10'
                   : 'border-border bg-background hover:bg-accent'
               "
-              @click="toggleDeviceSelection(device.id)"
+              @click="toggleDeviceSelection(entry.id)"
             >
-              <div class="text-sm font-semibold text-foreground">{{ device.name }}</div>
-              <div class="text-xs text-muted-foreground">{{ device.id }} · {{ device.vendor }}</div>
+              <div class="text-sm font-semibold text-foreground">{{ entry.name }}</div>
+              <div class="text-xs text-muted-foreground">
+                {{ entry.model }} · {{ entry.id }} / {{ entry.codename }}
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" @click="showDeviceSelector = false">完成</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog :open="showResourceIdGuide" @update:open="showResourceIdGuide = $event">
+        <DialogContent class="max-w-[720px]">
+          <DialogHeader>
+            <DialogTitle>资源 ID 说明</DialogTitle>
+            <DialogDescription>用于 `index_v2.csv` 的唯一标识，快应用和表盘规则不同。</DialogDescription>
+          </DialogHeader>
+          <div class="space-y-3 text-sm leading-6 text-foreground">
+            <p>1. 快应用：填写应用包名，如 `com.searchstars.hyperbilibili`。</p>
+            <p>2. 表盘：使用 `9798` 开头的占位 ID（12 位），例如 `979808741600`。</p>
+            <p>3. 资源名、资源类型必须与 `manifest_v2.json` 中保持一致。</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="showResourceIdGuide = false">我知道了</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -627,6 +648,14 @@ interface DeviceOption {
   aliases: string[]
 }
 
+interface DeviceSelectorEntry {
+  key: string
+  model: string
+  codename: string
+  id: string
+  name: string
+}
+
 const deviceOptions: DeviceOption[] = [
   { id: 'xmb9', name: 'Xiaomi Smart Band 9', vendor: 'xiaomi', aliases: ['n66', 'M2345B1', 'M2346B1'] },
   { id: 'xmb9p', name: 'Xiaomi Smart Band 9 Pro', vendor: 'xiaomi', aliases: ['n67', 'M2401B1', 'M2402B1'] },
@@ -639,6 +668,27 @@ const deviceOptions: DeviceOption[] = [
   { id: 'xmrw5xring', name: 'REDMI Watch 5 eSIM', vendor: 'xiaomi', aliases: ['o65m', 'M2428W1'] },
   { id: 'xmrw6', name: 'REDMI Watch 6', vendor: 'xiaomi', aliases: ['p65', 'M2523W1'] },
   { id: 'vivowgt2', name: 'vivo WATCH GT 2', vendor: 'vivo', aliases: ['WA2536B'] }
+]
+
+const deviceSelectorEntries: DeviceSelectorEntry[] = [
+  { key: 'M2345B1', model: 'M2345B1', codename: 'n66', id: 'xmb9', name: 'Xiaomi Smart Band 9' },
+  { key: 'M2346B1', model: 'M2346B1', codename: 'n66', id: 'xmb9', name: 'Xiaomi Smart Band 9' },
+  { key: 'M2401B1', model: 'M2401B1', codename: 'n67', id: 'xmb9p', name: 'Xiaomi Smart Band 9 Pro' },
+  { key: 'M2402B1', model: 'M2402B1', codename: 'n67', id: 'xmb9p', name: 'Xiaomi Smart Band 9 Pro 国际版' },
+  { key: 'M2457B1', model: 'M2457B1', codename: 'o66', id: 'xmb10', name: 'Xiaomi Smart Band 10' },
+  { key: 'M2456B1', model: 'M2456B1', codename: 'o66nfc', id: 'xmb10nfc', name: 'Xiaomi Smart Band 10 NFC' },
+  { key: 'M2313W1', model: 'M2313W1', codename: 'n62', id: 'xmws3', name: 'Xiaomi Watch S3 系列' },
+  { key: 'M2311W1', model: 'M2311W1', codename: 'n62', id: 'xmws3', name: 'Xiaomi Watch S3 系列 eSIM' },
+  { key: 'M2323W1', model: 'M2323W1', codename: 'n62', id: 'xmws3', name: 'Xiaomi Watch S3 系列 国际版' },
+  { key: 'M2425W1', model: 'M2425W1', codename: 'o62', id: 'xmws4', name: 'Xiaomi Watch S4 系列' },
+  { key: 'M2424W1', model: 'M2424W1', codename: 'o62', id: 'xmws4', name: 'Xiaomi Watch S4 系列 eSIM' },
+  { key: 'M2426W1', model: 'M2426W1', codename: 'o62m', id: 'xmws4xring', name: 'Xiaomi Watch S4 15周年纪念版' },
+  { key: 'M2312W1', model: 'M2312W1', codename: 'o62', id: 'xmws4', name: 'Xiaomi Watch S4 Sport' },
+  { key: 'M2502W1', model: 'M2502W1', codename: 'o62', id: 'xmws4', name: 'Xiaomi Watch S4 41mm' },
+  { key: 'M2427W1', model: 'M2427W1', codename: 'o65', id: 'xmrw5', name: 'REDMI Watch 5' },
+  { key: 'M2428W1', model: 'M2428W1', codename: 'o65m', id: 'xmrw5xring', name: 'REDMI Watch 5 eSIM' },
+  { key: 'M2523W1', model: 'M2523W1', codename: 'p65', id: 'xmrw6', name: 'REDMI Watch 6' },
+  { key: 'WA2536B', model: 'WA2536B', codename: 'vivowgt2', id: 'vivowgt2', name: 'vivo WATCH GT 2' }
 ]
 
 const deviceTokenToId = deviceOptions.reduce<Record<string, string>>((acc, device) => {
@@ -678,7 +728,7 @@ const repoName = ref('')
 const repoDescription = ref('')
 const itemId = ref('')
 const itemName = ref('')
-const restype = ref('quick_app')
+const restype = ref('quickapp')
 const paidType = ref('')
 const itemDescription = ref('')
 const tags = ref<string[]>([])
@@ -689,6 +739,7 @@ const authors = ref<Array<{ name: string; bindABAccount: boolean }>>([
   { name: '', bindABAccount: true }
 ])
 const showDeviceSelector = ref(false)
+const showResourceIdGuide = ref(false)
 const iconPath = ref('')
 const coverPath = ref('')
 
@@ -1131,7 +1182,8 @@ const scanWorkspace = async (): Promise<void> => {
         }
         itemId.value = itemId.value || parsed.item?.id || ''
         itemName.value = itemName.value || parsed.item?.name || ''
-        restype.value = restype.value || parsed.item?.restype || 'quick_app'
+        const parsedRestype = parsed.item?.restype === 'quick_app' ? 'quickapp' : parsed.item?.restype
+        restype.value = restype.value || parsedRestype || 'quickapp'
         itemDescription.value = itemDescription.value || parsed.item?.description || ''
         iconPath.value = iconPath.value || parsed.item?.icon || ''
         coverPath.value = coverPath.value || parsed.item?.cover || ''

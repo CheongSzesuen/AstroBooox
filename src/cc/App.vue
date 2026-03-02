@@ -102,20 +102,47 @@
                 当前文件夹暂无可识别文件
               </div>
               <ul v-else class="space-y-1" role="tree" aria-label="Workspace Tree">
-                <li v-for="item in workspaceTree" :key="item.path" role="treeitem" :aria-level="item.depth + 1">
-                  <div
-                    class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                <li
+                  v-for="item in visibleWorkspaceItems"
+                  :key="item.path"
+                  role="treeitem"
+                  :aria-level="item.depth + 1"
+                >
+                  <button
+                    v-if="item.type === 'folder'"
+                    type="button"
+                    class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
                     :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
                     :title="item.path"
+                    @click="toggleFolder(item.path)"
                   >
+                    <CaretRight
+                      v-if="item.collapsed"
+                      :size="12"
+                      weight="bold"
+                      class="shrink-0 text-muted-foreground"
+                    />
+                    <CaretDown
+                      v-else
+                      :size="12"
+                      weight="bold"
+                      class="shrink-0 text-muted-foreground"
+                    />
                     <FolderIcon
-                      v-if="item.type === 'folder'"
                       :size="14"
                       weight="fill"
                       class="shrink-0 text-muted-foreground"
                     />
+                    <span class="truncate">{{ item.label }}</span>
+                  </button>
+                  <div
+                    v-else
+                    class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                    :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                    :title="item.path"
+                  >
+                    <span class="w-3 shrink-0" />
                     <FileIcon
-                      v-else
                       :size="14"
                       weight="duotone"
                       class="shrink-0 text-muted-foreground"
@@ -151,9 +178,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   PhArchiveBox as ArchiveBox,
+  PhCaretDown as CaretDown,
+  PhCaretRight as CaretRight,
   PhClockCounterClockwise as ClockCounterClockwise,
   PhFile as FileIcon,
   PhFolder as FolderIcon,
@@ -177,6 +206,46 @@ const { currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
 const { workspacePath, workspaceTree, clearWorkspace } = useCcWorkspace()
 const { publishLogsText, clearPublishLogs } = useCcPublishLogs()
 const { theme, toggleTheme } = useTheme()
+const collapsedFolders = ref<string[]>([])
+
+const visibleWorkspaceItems = computed(() => {
+  const collapsedSet = new Set(collapsedFolders.value)
+  const stack: string[] = []
+  const items: Array<(typeof workspaceTree.value)[number] & { hidden: boolean; collapsed: boolean }> = []
+
+  for (const item of workspaceTree.value) {
+    while (stack.length > item.depth) {
+      stack.pop()
+    }
+
+    const hidden = stack.some(path => collapsedSet.has(path))
+    const collapsed = item.type === 'folder' && collapsedSet.has(item.path)
+    items.push({ ...item, hidden, collapsed })
+
+    if (item.type === 'folder') {
+      stack.push(item.path)
+    }
+  }
+
+  return items.filter(item => !item.hidden)
+})
+
+const toggleFolder = (path: string): void => {
+  if (collapsedFolders.value.includes(path)) {
+    collapsedFolders.value = collapsedFolders.value.filter(item => item !== path)
+    return
+  }
+  collapsedFolders.value = [...collapsedFolders.value, path]
+}
+
+watch(
+  () => workspaceTree.value,
+  tree => {
+    const validFolderPaths = new Set(tree.filter(item => item.type === 'folder').map(item => item.path))
+    collapsedFolders.value = collapsedFolders.value.filter(path => validFolderPaths.has(path))
+  },
+  { deep: true }
+)
 
 const handleAuthenticated = (): void => {
   tab.value = 'publish'
