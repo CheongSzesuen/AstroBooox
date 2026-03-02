@@ -492,17 +492,17 @@
                               :href="link.url"
                               target="_blank"
                               rel="noopener noreferrer"
-                              class="break-all text-primary hover:underline"
+                              class="inline-flex w-full min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap text-primary hover:underline"
                           >
-                              <span class="inline-flex items-center gap-1.5">
-                                <component
-                                  :is="resolvePhosphorLinkIcon(link.type)"
-                                  :size="14"
-                                  weight="duotone"
-                                  class="shrink-0 text-muted-foreground"
-                                />
-                                <span>{{ link.title || link.url }}<span v-if="link.type">（{{ link.type }}）</span></span>
-                              </span>
+                              <component
+                                :is="resolvePhosphorLinkIcon(link.type)"
+                                :size="14"
+                                weight="duotone"
+                                class="shrink-0 text-muted-foreground"
+                              />
+                              <span class="shrink-0 text-foreground">{{ link.title || '-' }}</span>
+                              <span v-if="link.type" class="shrink-0 text-muted-foreground">{{ link.type }}</span>
+                              <span class="truncate">{{ link.url }}</span>
                             </a>
                           </div>
                         </div>
@@ -642,35 +642,6 @@
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="rounded-md border border-border p-3">
-                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <LinkSimple :size="14" weight="duotone" />
-                    链接（manifest_v2.links）
-                  </div>
-                  <div class="space-y-2 text-sm">
-                    <div
-                      v-for="link in submissionOverview.links"
-                      :key="`${link.title}-${link.url}`"
-                      class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
-                    >
-                      <div class="inline-flex items-center gap-1.5 text-foreground">
-                        <component
-                          :is="resolvePhosphorLinkIcon(link.type)"
-                          :size="14"
-                          weight="duotone"
-                          class="shrink-0 text-muted-foreground"
-                        />
-                        <span>{{ link.title }}<span v-if="link.type">（{{ link.type }}）</span></span>
-                      </div>
-                      <span class="inline-flex items-center gap-1.5">
-                        <a :href="link.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
-                          {{ link.url }}
-                        </a>
-                      </span>
                     </div>
                   </div>
                 </div>
