@@ -93,7 +93,13 @@
 
           <Card v-if="activeStep === 1">
             <CardHeader class="pb-3">
-              <CardTitle class="text-base">步骤 2：资源信息</CardTitle>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle class="text-base">步骤 2：资源信息</CardTitle>
+                <Button variant="outline" size="sm" @click="reloadResourceInfoFromWorkspace">
+                  <ArrowsClockwise :size="14" weight="duotone" />
+                  从工作区重新加载
+                </Button>
+              </div>
             </CardHeader>
             <CardContent class="space-y-4 pt-0">
               <Card class="border-border/70 shadow-none">
@@ -1197,7 +1203,7 @@ const ensureWorkspaceHandle = async (): Promise<WorkspaceDirectoryHandle | null>
     }
 
     appendLog(`已重新授权工作区: ${handle.name}`)
-    await scanWorkspace()
+    await scanWorkspace({ forceSync: true })
     return handle
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') return null
@@ -1221,7 +1227,7 @@ const selectWorkspace = async (): Promise<void> => {
     newWorkspaceName.value = handle.name
     workspaceDisplayPath.value = handle.name
     appendLog(`已选择工作区: ${handle.name}`)
-    await scanWorkspace()
+    await scanWorkspace({ forceSync: true })
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') return
     appendLog(`选择工作区失败: ${error instanceof Error ? error.message : '未知错误'}`)
@@ -1253,7 +1259,7 @@ const createWorkspaceFolder = async (): Promise<void> => {
     workspaceDisplayPath.value = `${parent.name}/${folderName}`
     newWorkspaceName.value = folderName
     appendLog(`已创建并切换目录: ${folderName}`)
-    await scanWorkspace()
+    await scanWorkspace({ forceSync: true })
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') return
     appendLog(`创建文件夹失败: ${error instanceof Error ? error.message : '未知错误'}`)
@@ -1359,8 +1365,25 @@ const collectWorkspaceTree = async (
   return items
 }
 
-const scanWorkspace = async (): Promise<void> => {
+const resetResourceInfoFields = (): void => {
+  itemId.value = ''
+  itemName.value = ''
+  restype.value = 'quickapp'
+  paidType.value = ''
+  itemDescription.value = ''
+  tags.value = []
+  tagInput.value = ''
+  iconPath.value = ''
+  coverPath.value = ''
+  previewItems.value = []
+  selectedDeviceIds.value = []
+  downloads.value = {}
+  authors.value = [{ name: '', bindABAccount: true }]
+}
+
+const scanWorkspace = async (options: { forceSync?: boolean } = {}): Promise<void> => {
   if (!workspaceHandle.value) return
+  const { forceSync = false } = options
 
   try {
     const manifest = await readFileTextByPath(workspaceHandle.value, MANIFEST_FILE)
@@ -1384,14 +1407,20 @@ const scanWorkspace = async (): Promise<void> => {
           }
           downloads?: Record<string, { version?: string; file_name?: string }>
         }
-        itemId.value = itemId.value || parsed.item?.id || ''
-        itemName.value = itemName.value || parsed.item?.name || ''
+        if (forceSync) {
+          resetResourceInfoFields()
+        }
+
+        itemId.value = forceSync ? parsed.item?.id || '' : itemId.value || parsed.item?.id || ''
+        itemName.value = forceSync ? parsed.item?.name || '' : itemName.value || parsed.item?.name || ''
         const parsedRestype = parsed.item?.restype === 'quick_app' ? 'quickapp' : parsed.item?.restype
-        restype.value = restype.value || parsedRestype || 'quickapp'
-        itemDescription.value = itemDescription.value || parsed.item?.description || ''
-        iconPath.value = iconPath.value || parsed.item?.icon || ''
-        coverPath.value = coverPath.value || parsed.item?.cover || ''
-        if (previewItems.value.length === 0 && Array.isArray(parsed.item?.preview)) {
+        restype.value = forceSync ? parsedRestype || 'quickapp' : restype.value || parsedRestype || 'quickapp'
+        itemDescription.value = forceSync
+          ? parsed.item?.description || ''
+          : itemDescription.value || parsed.item?.description || ''
+        iconPath.value = forceSync ? parsed.item?.icon || '' : iconPath.value || parsed.item?.icon || ''
+        coverPath.value = forceSync ? parsed.item?.cover || '' : coverPath.value || parsed.item?.cover || ''
+        if ((forceSync || previewItems.value.length === 0) && Array.isArray(parsed.item?.preview)) {
           previewItems.value = parsed.item.preview
             .filter(Boolean)
             .map(path => ({
@@ -1400,14 +1429,14 @@ const scanWorkspace = async (): Promise<void> => {
             }))
         }
 
-        if (!authors.value.some(author => author.name.trim()) && parsed.item?.author?.length) {
+        if ((forceSync || !authors.value.some(author => author.name.trim())) && parsed.item?.author?.length) {
           authors.value = parsed.item.author.map(author => ({
             name: author.name || '',
             bindABAccount: Boolean(author.bindABAccount)
           }))
         }
 
-        if (parsed.downloads && selectedDeviceIds.value.length === 0) {
+        if (parsed.downloads && (forceSync || selectedDeviceIds.value.length === 0)) {
           const nextDownloads: Record<string, { version: string; file_name: string }> = {}
           const nextDeviceIds: string[] = []
 
@@ -1424,10 +1453,15 @@ const scanWorkspace = async (): Promise<void> => {
 
           selectedDeviceIds.value = [...new Set(nextDeviceIds)]
           downloads.value = nextDownloads
+        } else if (forceSync && !parsed.downloads) {
+          selectedDeviceIds.value = []
+          downloads.value = {}
         }
       } catch {
         appendLog('manifest_v2.json 不是合法 JSON，将按原文上传')
       }
+    } else if (forceSync) {
+      resetResourceInfoFields()
     }
 
     uploadedRepoOwner.value = ''
@@ -1441,6 +1475,15 @@ const scanWorkspace = async (): Promise<void> => {
     clearWorkspace()
     appendLog(`扫描目录失败: ${error instanceof Error ? error.message : '未知错误'}`)
   }
+}
+
+const reloadResourceInfoFromWorkspace = async (): Promise<void> => {
+  if (!workspaceHandle.value) {
+    appendLog('当前会话没有目录访问权限，请先重新授权工作区。')
+    return
+  }
+  await scanWorkspace({ forceSync: true })
+  appendLog('已从当前工作区重新加载资源信息')
 }
 
 const refreshWorkspaceFileTree = async (): Promise<void> => {
