@@ -12,7 +12,7 @@
       :y="cell.y"
       :width="cellWidth"
       :height="cellHeight"
-      class="stroke-white/20 transition-all duration-200"
+      class="stroke-white/25 transition-all duration-150 [&:not(:hover)]:duration-1000"
       :class="hoveredIndex === cell.index ? 'fill-white/20' : 'fill-transparent'"
       @mouseenter="hoveredIndex = cell.index"
       @mouseleave="hoveredIndex = -1"
@@ -23,10 +23,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-const cellWidth = 44
-const cellHeight = 44
-const columns = 24
-const rows = 24
+const cellWidth = 64
+const cellHeight = 64
+const columns = 16
+const rows = 16
 const hoveredIndex = ref(-1)
 
 const cells = computed(() => {

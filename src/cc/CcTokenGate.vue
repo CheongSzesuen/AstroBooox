@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-h-screen lg:grid lg:grid-cols-2">
+  <div class="relative min-h-screen lg:grid lg:grid-cols-[1.18fr_0.82fr]">
     <div class="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex">
       <div class="absolute inset-0 bg-zinc-900" />
       <div class="relative z-20 flex items-center text-lg font-medium">
@@ -7,7 +7,9 @@
         AstroBooox Creator Console
       </div>
 
-      <CcInteractiveGrid class="absolute inset-0 h-full w-full [mask-image:radial-gradient(460px_circle_at_center,white,transparent)]" />
+      <CcInteractiveGrid
+        class="absolute inset-x-0 inset-y-0 h-full w-full skew-y-12 [mask-image:radial-gradient(460px_circle_at_center,white,transparent)]"
+      />
 
       <div class="relative z-20 mt-auto space-y-4">
         <blockquote class="space-y-2">
