@@ -913,6 +913,7 @@ import {
   type LegacyCatalogEntry,
   type PublishingResource,
   arrayBufferToBase64,
+  base64ToText,
   createPullRequestWithHead,
   ensureUserRepository,
   fetchRepoFileOrNull,
@@ -920,7 +921,6 @@ import {
   loadInProgressResources,
   loadOwnedResources,
   putRepoFile,
-  repoPathExists,
   textToBase64,
   updateCatalogInForkBranch,
   updateLegacyCatalogAndResourceJsonInForkBranch
@@ -2254,28 +2254,78 @@ const buildLegacyResourceJsonFileName = (): string => {
   return `${base || 'resource'}.json`
 }
 
+const splitCsvLine = (line: string): string[] => {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i++
+        continue
+      }
+      inQuotes = !inQuotes
+      continue
+    }
+    if (char === ',' && !inQuotes) {
+      result.push(current)
+      current = ''
+      continue
+    }
+    current += char
+  }
+  result.push(current)
+  return result.map(item => item.trim())
+}
+
 const resolveLegacyAuthorFolder = async (accessToken: string): Promise<string> => {
   const fallback = uploadedRepoOwner.value
-  const candidates = [...new Set(authors.value.map(author => author.name.trim()).filter(Boolean))]
-  if (!candidates.length) return fallback
+  const usernameCandidates = [uploadedRepoOwner.value.trim(), currentUser.value.trim()]
+    .map(item => item.toLowerCase())
+    .filter(Boolean)
 
-  for (const candidate of candidates) {
-    try {
-      const exists = await repoPathExists({
-        token: accessToken,
-        owner: upstreamOwner.value.trim(),
-        repo: upstreamRepo.value.trim(),
-        path: `${LEGACY_RESOURCES_DIR}/${candidate}`,
-        ref: MAIN_BRANCH
-      })
-      if (exists) {
-        appendLog(`已复用 v1 作者目录: ${candidate}`)
-        return candidate
+  if (!usernameCandidates.length) return fallback
+
+  try {
+    const legacyCsvFile = await fetchRepoFileOrNull(
+      accessToken,
+      upstreamOwner.value.trim(),
+      upstreamRepo.value.trim(),
+      LEGACY_CATALOG_PATH,
+      MAIN_BRANCH
+    )
+    if (!legacyCsvFile?.content) return fallback
+
+    const csvText = base64ToText(legacyCsvFile.content || '')
+    const rows = csvText
+      .split(/\r?\n/)
+      .map(row => row.trim())
+      .filter(Boolean)
+
+    for (let i = rows.length - 1; i >= 1; i--) {
+      const cols = splitCsvLine(rows[i])
+      if (cols.length < 7) continue
+
+      const icon = (cols[1] || '').toLowerCase()
+      const cover = (cols[2] || '').toLowerCase()
+      const matched = usernameCandidates.some(username => icon.includes(username) || cover.includes(username))
+      if (!matched) continue
+
+      const resourcePath = (cols[6] || '').replace(/^"+|"+$/g, '').trim()
+      const pathSegments = resourcePath.split('/').filter(Boolean)
+      if (pathSegments.length < 2) continue
+
+      const folder = pathSegments[pathSegments.length - 2]
+      if (folder) {
+        appendLog(`已按 index.csv 历史记录复用 v1 作者目录: ${folder}`)
+        return folder
       }
-    } catch (error: unknown) {
-      appendLog(`检查 v1 作者目录失败: ${error instanceof Error ? error.message : '未知错误'}`)
-      break
     }
+  } catch (error: unknown) {
+    appendLog(`读取 index.csv 复用目录失败: ${error instanceof Error ? error.message : '未知错误'}`)
   }
 
   return fallback
