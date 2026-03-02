@@ -564,28 +564,34 @@
           <div class="max-h-[64vh] overflow-y-auto rounded-lg border border-border bg-muted/20">
             <div class="sticky top-0 z-10 border-b border-border bg-card/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-card/85">
               <Input v-model="linkIconQuery" placeholder="输入关键词，例如 github / house / chat / code" />
+              <div class="mt-2 text-xs text-muted-foreground">
+                共 {{ filteredPhosphorIconOptions.length }} 个候选图标
+                <template v-if="filteredPhosphorIconOptions.length > displayedPhosphorIconOptions.length">
+                  ，当前仅展示前 {{ displayedPhosphorIconOptions.length }} 个，请继续输入关键词缩小范围
+                </template>
+              </div>
             </div>
             <div class="p-3">
               <div class="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5">
                 <button
-                  v-for="name in filteredPhosphorIconNames"
-                  :key="`icon-${name}`"
+                  v-for="option in displayedPhosphorIconOptions"
+                  :key="option.key"
                   type="button"
                   class="flex min-h-[92px] flex-col items-center justify-center gap-2 rounded-md border border-border bg-background px-2 py-2 text-center text-xs text-foreground transition hover:bg-accent"
-                  @click="selectLinkIcon(name)"
+                  @click="selectLinkIcon(option.name)"
                 >
-                  <img
-                    :src="getPhosphorIconSvgUrl(name)"
-                    :alt="name"
-                    class="h-6 w-6 shrink-0"
-                    :class="theme === 'dark' ? 'invert' : 'invert-0'"
-                    decoding="async"
+                  <component
+                    :is="getLinkIconComponent(option.pascalName)"
+                    :size="24"
+                    :weight="option.weight"
+                    class="h-6 w-6 shrink-0 text-foreground"
                   />
-                  <span class="line-clamp-2 break-all text-[11px] leading-4">{{ name }}</span>
+                  <span class="line-clamp-2 break-all text-[11px] leading-4">{{ option.name }}</span>
+                  <span class="text-[10px] uppercase tracking-wide text-muted-foreground">{{ option.weight }}</span>
                 </button>
               </div>
               <div
-                v-if="filteredPhosphorIconNames.length === 0"
+                v-if="filteredPhosphorIconOptions.length === 0"
                 class="rounded-md border border-dashed border-border px-3 py-8 text-center text-xs text-muted-foreground"
               >
                 没有匹配结果
@@ -679,7 +685,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, watch, type Component } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
   PhDotsSixVertical as DragDots,
@@ -688,6 +694,7 @@ import {
   PhMinus as MinusIcon,
   PhUploadSimple as UploadSimple
 } from '@phosphor-icons/vue'
+import { icons as phosphorCoreIcons, IconStyle } from '@phosphor-icons/core'
 import draggable from 'vuedraggable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -719,8 +726,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
 import { useCcSession } from '@/composables/useCcSession'
 import { type WorkspaceTreeItem, useCcWorkspace } from '@/composables/useCcWorkspace'
-import { useTheme } from '@/composables/useTheme'
-import phosphorIconNames from '@/data/phosphor-icon-names'
 import {
   type CatalogEntry,
   type PublishingResource,
@@ -772,6 +777,26 @@ interface DeviceSelectorEntry {
   id: string
   name: string
 }
+
+interface LinkIconOption {
+  key: string
+  name: string
+  pascalName: string
+  weight: IconStyle
+  keywords: string
+}
+
+const LINK_ICON_WEIGHTS: IconStyle[] = [
+  IconStyle.REGULAR,
+  IconStyle.BOLD,
+  IconStyle.FILL,
+  IconStyle.DUOTONE,
+  IconStyle.LIGHT,
+  IconStyle.THIN
+]
+const LINK_ICON_MAX_RENDER = 720
+const phosphorIconModules = import.meta.glob('/node_modules/@phosphor-icons/vue/dist/icons/*.vue.mjs')
+const linkIconComponentCache = new Map<string, Component | null>()
 
 const deviceOptions: DeviceOption[] = [
   { id: 'xmb9', name: 'Xiaomi Smart Band 9', vendor: 'xiaomi', aliases: ['n66', 'M2345B1', 'M2346B1'] },
@@ -828,7 +853,6 @@ const props = withDefaults(defineProps<{ mode?: WorkbenchMode }>(), {
 const mode = computed<WorkbenchMode>(() => props.mode)
 
 const { token, currentUser } = useCcSession()
-const { theme } = useTheme()
 const {
   workspacePath,
   workspaceHandle: persistedWorkspaceHandle,
@@ -1010,14 +1034,47 @@ const canSubmitPr = computed(
     )
 )
 
-const filteredPhosphorIconNames = computed(() => {
-  const keyword = linkIconQuery.value.trim().toLowerCase()
-  if (!keyword) return [...phosphorIconNames]
-  return phosphorIconNames.filter(name => name.includes(keyword))
+const phosphorIconOptions = computed<LinkIconOption[]>(() =>
+  phosphorCoreIcons.flatMap(icon =>
+    LINK_ICON_WEIGHTS.map(weight => ({
+      key: `${icon.name}:${weight}`,
+      name: icon.name,
+      pascalName: icon.pascal_name,
+      weight,
+      keywords: `${icon.name} ${icon.pascal_name} ${icon.tags.join(' ')} ${icon.categories.join(' ')}`.toLowerCase()
+    }))
+  )
+)
+
+const filteredPhosphorIconOptions = computed(() => {
+  const raw = linkIconQuery.value.trim().toLowerCase()
+  if (!raw) return phosphorIconOptions.value
+  const tokens = raw.split(/\s+/).filter(Boolean)
+  if (tokens.length === 0) return phosphorIconOptions.value
+  return phosphorIconOptions.value.filter(option => tokens.every(token => option.keywords.includes(token)))
 })
 
-const getPhosphorIconSvgUrl = (name: string): string =>
-  `https://unpkg.com/@phosphor-icons/core@2.1.1/assets/regular/${name}.svg`
+const displayedPhosphorIconOptions = computed(() =>
+  filteredPhosphorIconOptions.value.slice(0, LINK_ICON_MAX_RENDER)
+)
+
+const getLinkIconComponent = (pascalName: string): Component | null => {
+  if (linkIconComponentCache.has(pascalName)) {
+    return linkIconComponentCache.get(pascalName) || null
+  }
+  const modulePath = `/node_modules/@phosphor-icons/vue/dist/icons/Ph${pascalName}.vue.mjs`
+  const loader = phosphorIconModules[modulePath] as (() => Promise<unknown>) | undefined
+  if (!loader) {
+    linkIconComponentCache.set(pascalName, null)
+    return null
+  }
+  const iconComponent = defineAsyncComponent(async () => {
+    const module = (await loader()) as { default?: Component } | Component
+    return (module as { default?: Component }).default || (module as Component)
+  })
+  linkIconComponentCache.set(pascalName, iconComponent)
+  return iconComponent
+}
 
 const stepList = computed(() => [
   {
