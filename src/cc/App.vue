@@ -9,6 +9,37 @@
         <a href="/" class="text-sm text-muted-foreground hover:text-foreground">返回主站</a>
         <div class="h-4 w-px bg-border" />
         <h1 class="text-sm font-semibold text-foreground md:text-base">Creator Console</h1>
+        <div class="ml-2 min-w-0 flex-1 overflow-x-auto">
+          <div class="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
+            <Button
+              size="sm"
+              class="h-8 shrink-0"
+              :variant="tab === 'publish' ? 'default' : 'ghost'"
+              @click="tab = 'publish'"
+            >
+              <UploadSimple :size="15" weight="duotone" />
+              资源发布
+            </Button>
+            <Button
+              size="sm"
+              class="h-8 shrink-0"
+              :variant="tab === 'review' ? 'default' : 'ghost'"
+              @click="tab = 'review'"
+            >
+              <ClockCounterClockwise :size="15" weight="duotone" />
+              进行中审核
+            </Button>
+            <Button
+              size="sm"
+              class="h-8 shrink-0"
+              :variant="tab === 'published' ? 'default' : 'ghost'"
+              @click="tab = 'published'"
+            >
+              <ArchiveBox :size="15" weight="duotone" />
+              已发布资源
+            </Button>
+          </div>
+        </div>
 
         <div class="ml-auto flex items-center gap-2">
           <a
@@ -58,39 +89,6 @@
     <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
       <div class="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
         <div class="space-y-4 lg:sticky lg:top-[84px] lg:self-start">
-          <aside class="rounded-xl border border-border bg-card p-3">
-            <div class="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">功能导航</div>
-            <div class="space-y-1.5">
-              <button
-                type="button"
-                class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
-                :class="tab === 'publish' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
-                @click="tab = 'publish'"
-              >
-                <span>资源发布</span>
-                <UploadSimple :size="16" weight="duotone" />
-              </button>
-              <button
-                type="button"
-                class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
-                :class="tab === 'review' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
-                @click="tab = 'review'"
-              >
-                <span>进行中审核</span>
-                <ClockCounterClockwise :size="16" weight="duotone" />
-              </button>
-              <button
-                type="button"
-                class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
-                :class="tab === 'published' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
-                @click="tab = 'published'"
-              >
-                <span>已发布资源</span>
-                <ArchiveBox :size="16" weight="duotone" />
-              </button>
-            </div>
-          </aside>
-
           <aside v-if="workspacePath || workspaceTree.length" class="rounded-xl border border-border bg-card p-3">
             <div class="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">File Tree</div>
             <p class="truncate px-1 text-[11px] text-muted-foreground">{{ workspacePath || '未选择文件夹' }}</p>
@@ -217,19 +215,6 @@
             </nav>
           </aside>
 
-          <Card v-if="tab === 'publish'" class="border-border bg-card">
-            <CardHeader class="pb-2">
-              <div class="flex items-center justify-between gap-2">
-                <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">发布日志</CardTitle>
-                <Button variant="ghost" size="sm" class="h-7 px-2 text-xs" @click="clearPublishLogs">清空</Button>
-              </div>
-            </CardHeader>
-            <CardContent class="pt-0">
-              <div class="scrollbar-none max-h-56 overflow-y-auto rounded-md border border-border bg-muted/25 p-2.5">
-                <pre class="m-0 whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-foreground">{{ publishLogsText }}</pre>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         <section class="min-w-0">
@@ -257,9 +242,7 @@ import {
 } from '@phosphor-icons/vue'
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import CcTokenGate from '@/cc/CcTokenGate.vue'
-import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
 import { useCcSession } from '@/composables/useCcSession'
 import { useCcWorkspace } from '@/composables/useCcWorkspace'
 import { useTheme } from '@/composables/useTheme'
@@ -274,7 +257,6 @@ const {
   clearWorkspace,
   clearRemoteWorkspace
 } = useCcWorkspace()
-const { publishLogsText, clearPublishLogs } = useCcPublishLogs()
 const { theme, toggleTheme } = useTheme()
 const collapsedFolders = ref<string[]>([])
 const collapsedRemoteFolders = ref<string[]>([])
@@ -362,7 +344,6 @@ const handleAuthenticated = (): void => {
 }
 
 const handleSignOut = (): void => {
-  clearPublishLogs()
   clearWorkspace()
   clearRemoteWorkspace()
   clearSession()

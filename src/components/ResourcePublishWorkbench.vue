@@ -51,6 +51,22 @@
             </CardContent>
           </Card>
 
+          <Card class="border-border bg-card">
+            <CardHeader class="pb-2">
+              <div class="flex items-center justify-between gap-2">
+                <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">发布日志</CardTitle>
+                <Button variant="ghost" size="sm" class="h-7 px-2 text-xs" @click="clearPublishLogs">清空</Button>
+              </div>
+            </CardHeader>
+            <CardContent class="pt-0">
+              <div class="scrollbar-none max-h-56 overflow-y-auto rounded-md border border-border bg-muted/25 p-2.5">
+                <pre class="m-0 whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-foreground">{{ publishLogsText }}</pre>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div class="space-y-4">
           <Card>
             <CardHeader class="pb-3">
               <CardTitle class="text-base">当前文件夹路径</CardTitle>
@@ -64,9 +80,7 @@
               </p>
             </CardContent>
           </Card>
-        </div>
 
-        <div class="space-y-4">
           <Card v-if="activeStep === 0">
             <CardHeader class="pb-3">
               <CardTitle class="text-base">步骤 1：创建文件夹</CardTitle>
@@ -893,7 +907,7 @@ const {
   clearWorkspace,
   clearRemoteWorkspace
 } = useCcWorkspace()
-const { appendPublishLog: appendLog } = useCcPublishLogs()
+const { appendPublishLog: appendLog, publishLogsText, clearPublishLogs } = useCcPublishLogs()
 const workspaceBusy = ref(false)
 const newWorkspaceName = ref('')
 const workspaceDisplayPath = ref('')
