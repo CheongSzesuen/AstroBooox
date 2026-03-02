@@ -1,3 +1,5 @@
+import MarkdownIt from 'markdown-it'
+
 export interface ParsedReviewComment {
   tagType: 'NEEDFIX' | 'FIXED' | ''
   tagId: string
@@ -7,6 +9,7 @@ export interface ParsedReviewComment {
 }
 
 const COMMENT_TAG_PATTERN = /^\s*\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]\s*([\s\S]*)$/i
+const LEADING_TAG_PATTERN = /^\s*\[ABCC_(?:NEEDFIX|FIXED)_[^\]]+\]\s*/i
 
 export const escapeHtml = (value: string): string =>
   value
@@ -16,15 +19,84 @@ export const escapeHtml = (value: string): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
 
+const markdown = new MarkdownIt({
+  html: false,
+  breaks: true,
+  linkify: true,
+  typographer: false
+})
+
+const defaultLinkOpen = markdown.renderer.rules.link_open
+markdown.renderer.rules.link_open = (tokens: any[], idx: number, options: any, env: any, self: any) => {
+  tokens[idx].attrSet('target', '_blank')
+  tokens[idx].attrSet('rel', 'noopener noreferrer nofollow')
+  tokens[idx].attrSet('class', 'text-primary underline underline-offset-2')
+  if (defaultLinkOpen) {
+    return defaultLinkOpen(tokens, idx, options, env, self)
+  }
+  return self.renderToken(tokens, idx, options)
+}
+
+const defaultParagraphOpen = markdown.renderer.rules.paragraph_open
+markdown.renderer.rules.paragraph_open = (tokens: any[], idx: number, options: any, env: any, self: any) => {
+  tokens[idx].attrJoin('class', 'my-1')
+  if (defaultParagraphOpen) {
+    return defaultParagraphOpen(tokens, idx, options, env, self)
+  }
+  return self.renderToken(tokens, idx, options)
+}
+
+markdown.renderer.rules.code_block = (tokens: any[], idx: number) => {
+  const token = tokens[idx]
+  const content = token.content || ''
+  return `<pre class="my-2 overflow-x-auto rounded-md border border-border bg-muted/40 p-2.5 text-xs"><code>${escapeHtml(content)}</code></pre>`
+}
+
+markdown.renderer.rules.fence = (tokens: any[], idx: number) => {
+  const token = tokens[idx]
+  const info = (token.info || '').trim().split(/\s+/)[0]
+  const langAttr = info ? ` data-lang="${escapeHtml(info)}"` : ''
+  return `<pre class="my-2 overflow-x-auto rounded-md border border-border bg-muted/40 p-2.5 text-xs"><code${langAttr}>${escapeHtml(token.content || '')}</code></pre>`
+}
+
+const defaultBulletListOpen = markdown.renderer.rules.bullet_list_open
+markdown.renderer.rules.bullet_list_open = (tokens: any[], idx: number, options: any, env: any, self: any) => {
+  tokens[idx].attrJoin('class', 'my-1 list-disc pl-5')
+  if (defaultBulletListOpen) {
+    return defaultBulletListOpen(tokens, idx, options, env, self)
+  }
+  return self.renderToken(tokens, idx, options)
+}
+
+const defaultOrderedListOpen = markdown.renderer.rules.ordered_list_open
+markdown.renderer.rules.ordered_list_open = (tokens: any[], idx: number, options: any, env: any, self: any) => {
+  tokens[idx].attrJoin('class', 'my-1 list-decimal pl-5')
+  if (defaultOrderedListOpen) {
+    return defaultOrderedListOpen(tokens, idx, options, env, self)
+  }
+  return self.renderToken(tokens, idx, options)
+}
+
+const defaultBlockquoteOpen = markdown.renderer.rules.blockquote_open
+markdown.renderer.rules.blockquote_open = (tokens: any[], idx: number, options: any, env: any, self: any) => {
+  tokens[idx].attrJoin('class', 'my-2 border-l-2 border-border pl-3 text-muted-foreground')
+  if (defaultBlockquoteOpen) {
+    return defaultBlockquoteOpen(tokens, idx, options, env, self)
+  }
+  return self.renderToken(tokens, idx, options)
+}
+
 export const renderCommentMarkdownHtml = (source: string): string => {
-  let html = escapeHtml(source || '')
-  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, url) => {
-    const normalizedLabel = label.replace(/^`(.+)`$/, '$1')
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2">${normalizedLabel}</a>`
-  })
-  html = html.replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">$1</code>')
-  html = html.replace(/\n/g, '<br>')
-  return html
+  const input = (source || '').replace(/\r\n/g, '\n')
+  if (!input.trim()) return ''
+  return markdown.render(input)
+}
+
+export const renderCommentMarkdownInlineHtml = (source: string): string => {
+  const html = renderCommentMarkdownHtml(source).trim()
+  if (!html) return ''
+  const singleParagraph = html.match(/^<p(?:\s+[^>]*)?>([\s\S]*)<\/p>$/)
+  return singleParagraph ? singleParagraph[1] : html
 }
 
 export const parseReviewCommentBody = (body: string): ParsedReviewComment => {
@@ -33,20 +105,21 @@ export const parseReviewCommentBody = (body: string): ParsedReviewComment => {
   const tagType = (tagMatch?.[1]?.toUpperCase() as 'NEEDFIX' | 'FIXED' | undefined) || ''
   const tagId = tagMatch?.[2]?.trim() || ''
   const rawContent = (tagMatch?.[3] || normalized).trim()
+  const normalizedContent = rawContent.replace(LEADING_TAG_PATTERN, '').trim()
 
-  const targetMatch = rawContent.match(/^\s*>\s*Reply-To:\s*(.+)$/m)
+  const targetMatch = normalizedContent.match(/^\s*>\s*Reply-To:\s*(.+)$/m)
   if (!targetMatch) {
     return {
       tagType,
       tagId,
       replyTarget: '',
       replyExcerpt: '',
-      content: rawContent
+      content: normalizedContent
     }
   }
 
   const replyTarget = targetMatch[1].trim()
-  const lines = rawContent.split('\n')
+  const lines = normalizedContent.split('\n')
   const filtered: string[] = []
   let replyExcerpt = ''
   let consumeNextQuote = false

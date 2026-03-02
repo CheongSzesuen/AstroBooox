@@ -700,7 +700,7 @@ import ReviewCommentComposer from '@/components/review/ReviewCommentComposer.vue
 import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue'
 import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
 import { createGitHubClient, normalizeGitHubError } from '@/utils/githubOctokitClient'
-import { parseReviewCommentBody, renderCommentMarkdownHtml } from '@/utils/reviewComment'
+import { parseReviewCommentBody, renderCommentMarkdownHtml, renderCommentMarkdownInlineHtml, escapeHtml } from '@/utils/reviewComment'
 import {
   Card,
   CardContent,
@@ -913,7 +913,11 @@ const cacheAvatar = (login: string, avatarUrl: string): void => {
 
 const isImageFile = (filename: string): boolean => /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)$/i.test(filename)
 const canPickLine = computed(() => Boolean(selectedPickerPath.value && !isImageFile(selectedPickerPath.value)))
-const normalizeCommentId = (value: string): string => value.trim().replace(/\s+/g, '_').replace(/\]/g, '')
+const normalizeCommentId = (value: string): string =>
+  value
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^A-Za-z0-9._-]/g, '')
 const normalizedCommentId = computed(() => normalizeCommentId(commentId.value))
 const buildReplyContextBlock = (comment: IssueCommentItem | null): string => {
   if (!comment) return ''
@@ -1202,13 +1206,6 @@ const addCommentReference = (path: string, line: number | null): void => {
   })
 }
 
-const escapeHtml = (value: string): string => value
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#39;')
-
 const buildCommentPreviewCardHtml = (body: string): string => {
   const parsed = parseReviewCommentBody(body)
   const tag = parsed.tagId
@@ -1217,7 +1214,7 @@ const buildCommentPreviewCardHtml = (body: string): string => {
   const reply = parsed.replyTarget
     ? `<div class="mb-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground"><div class="font-medium text-foreground">回复 ${escapeHtml(parsed.replyTarget)}</div>${parsed.replyExcerpt ? `<div class="mt-1">${renderCommentMarkdownHtml(parsed.replyExcerpt)}</div>` : ''}</div>`
     : ''
-  const content = `<div class="pt-1 break-words text-foreground">${tag}<span>${renderCommentMarkdownHtml(parsed.content)}</span></div>`
+  const content = `<div class="pt-1 break-words text-foreground">${tag}<span class="align-middle">${renderCommentMarkdownInlineHtml(parsed.content)}</span></div>`
   return `${reply}${content}`
 }
 

@@ -95,10 +95,9 @@
           </div>
           <div
             v-if="parsedOf(comment).replyExcerpt"
-            class="mt-1 whitespace-pre-wrap break-words"
-          >
-            {{ parsedOf(comment).replyExcerpt }}
-          </div>
+            class="mt-1 break-words"
+            v-html="renderCommentHtml(parsedOf(comment).replyExcerpt)"
+          />
         </div>
         <div
           class="pt-1 break-words text-foreground"
@@ -110,7 +109,7 @@
           >
             {{ parsedOf(comment).tagType || 'COMMENT' }} · {{ parsedOf(comment).tagId }}
           </span>
-          <span v-html="renderCommentHtml(parsedOf(comment).content)"></span>
+          <span class="align-middle" v-html="renderCommentInlineHtml(parsedOf(comment).content)" />
         </div>
         <button
           v-if="isLongContent(comment)"
@@ -146,7 +145,12 @@ import {
   PhTrash as DeleteIcon,
   PhArrowBendUpLeft as ReplyIcon
 } from '@phosphor-icons/vue'
-import { parseReviewCommentBody, renderCommentMarkdownHtml, type ParsedReviewComment } from '@/utils/reviewComment'
+import {
+  parseReviewCommentBody,
+  renderCommentMarkdownHtml,
+  renderCommentMarkdownInlineHtml,
+  type ParsedReviewComment
+} from '@/utils/reviewComment'
 
 interface ReviewCommentUser {
   login?: string
@@ -247,6 +251,7 @@ const parsedOf = (comment: ReviewCommentItem): ParsedReviewComment =>
   }
 
 const renderCommentHtml = (content: string): string => renderCommentMarkdownHtml(content)
+const renderCommentInlineHtml = (content: string): string => renderCommentMarkdownInlineHtml(content)
 
 const collapsedState = ref<Record<string, boolean>>({})
 const isLongText = (text: string): boolean => (text || '').length > 360 || (text || '').split('\n').length > 8

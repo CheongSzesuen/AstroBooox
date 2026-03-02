@@ -23,6 +23,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "embla-carousel-vue": "^8.6.0",
+    "markdown-it": "^14.1.1",
     "reka-ui": "^2.8.2",
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
@@ -31,6 +32,7 @@
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.0.14",
     "@types/web-app-manifest": "^1.0.9",
     "@vitejs/plugin-vue": "^6.0.0",

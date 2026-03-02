@@ -9,20 +9,10 @@
     <div class="min-w-0 flex-1 overflow-hidden rounded-md border border-border">
       <Tabs :model-value="editorTab" @update:model-value="(value) => emit('update:editorTab', value as 'edit' | 'preview')">
         <div class="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-2">
-          <TabsList class="inline-flex h-8 rounded-none border-0 bg-transparent p-0">
-            <TabsTrigger value="edit">Write</TabsTrigger>
-            <TabsTrigger value="preview">Preview</TabsTrigger>
+          <TabsList class="inline-flex h-8 rounded-md border border-border bg-background p-0.5">
+            <TabsTrigger value="edit" class="h-7 px-3 text-xs">Write</TabsTrigger>
+            <TabsTrigger value="preview" class="h-7 px-3 text-xs">Preview</TabsTrigger>
           </TabsList>
-          <Button
-            v-if="showFilePickerButton"
-            size="sm"
-            variant="outline"
-            class="h-8 gap-1.5 px-2.5 text-xs"
-            @click="emit('openFilePicker')"
-          >
-            <LinkSimple :size="14" weight="bold" />
-            插入文件定位
-          </Button>
         </div>
         <div v-if="editorTab === 'edit'" class="flex flex-wrap items-center gap-1 border-b border-border bg-background px-3 py-2">
           <Button size="sm" variant="ghost" class="h-7 px-2 text-xs" @click="insertBold">
@@ -52,6 +42,16 @@
           <Button size="sm" variant="ghost" class="h-7 px-2 text-xs" @click="insertLink">
             <LinkSimple :size="14" />
             链接
+          </Button>
+          <Button
+            v-if="showFilePickerButton"
+            size="sm"
+            variant="outline"
+            class="ml-auto h-7 gap-1.5 px-2 text-xs"
+            @click="emit('openFilePicker')"
+          >
+            <LinkSimple :size="14" weight="bold" />
+            插入文件定位
           </Button>
         </div>
         <div class="px-3 py-3">

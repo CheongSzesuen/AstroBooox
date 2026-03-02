@@ -1080,7 +1080,7 @@ import { Textarea } from '@/components/ui/textarea'
 import ReviewCommentComposer from '@/components/review/ReviewCommentComposer.vue'
 import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue'
 import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
-import { parseReviewCommentBody, renderCommentMarkdownHtml, escapeHtml } from '@/utils/reviewComment'
+import { parseReviewCommentBody, renderCommentMarkdownHtml, renderCommentMarkdownInlineHtml, escapeHtml } from '@/utils/reviewComment'
 import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
 import { useCcSettings } from '@/composables/useCcSettings'
 import { useCcSession } from '@/composables/useCcSession'
@@ -1279,7 +1279,10 @@ const ownedItems = ref<CatalogEntry[]>([])
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
 const normalizeReviewCommentId = (value: string): string =>
-  value.trim().replace(/\s+/g, '_').replace(/\]/g, '')
+  value
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^A-Za-z0-9._-]/g, '')
 const normalizedReviewCommentId = computed(() => normalizeReviewCommentId(reviewCommentId.value))
 const buildReviewReplyContextBlock = (comment: {
   id: number
@@ -1343,7 +1346,7 @@ const buildReviewCommentPreviewCardHtml = (body: string): string => {
   const reply = parsed.replyTarget
     ? `<div class="mb-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground"><div class="font-medium text-foreground">回复 ${escapeHtml(parsed.replyTarget)}</div>${parsed.replyExcerpt ? `<div class="mt-1">${renderCommentMarkdownHtml(parsed.replyExcerpt)}</div>` : ''}</div>`
     : ''
-  const content = `<div class="pt-1 break-words text-foreground">${tag}<span>${renderCommentMarkdownHtml(parsed.content)}</span></div>`
+  const content = `<div class="pt-1 break-words text-foreground">${tag}<span class="align-middle">${renderCommentMarkdownInlineHtml(parsed.content)}</span></div>`
   return `${reply}${content}`
 }
 
