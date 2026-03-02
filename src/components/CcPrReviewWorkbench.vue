@@ -881,12 +881,6 @@ const renderedCommentPreviewHtml = computed(() => {
 })
 const canSubmitComment = computed(() => Boolean(normalizedCommentId.value))
 const submitButtonTitle = computed(() => (canSubmitComment.value ? '' : '请填写id'))
-const submissionBodySource = computed(() => {
-  const prBody = selectedPr.value?.body || ''
-  if (prBody.includes('## 资源信息')) return prBody
-  const candidate = prComments.value.find(comment => comment.body?.includes('## 资源信息'))
-  return candidate?.body || prBody
-})
 const pickerPaths = computed(() => {
   const source = filePickerTab.value === 'pr'
     ? prFiles.value.map(file => file.filename)
@@ -1306,28 +1300,9 @@ const ensureImageDisplayUrl = async (url: string): Promise<void> => {
   }
 }
 
-const parseResourceRepoFromPrBody = (body: string): { owner: string; repo: string } | null => {
-  if (!body) return null
-  const labeled = body.match(/资源仓库\s*[:：]\s*https?:\/\/github\.com\/([^\/\s]+)\/([^\/\s#?]+)/i)
-  if (labeled?.[1] && labeled?.[2]) {
-    return { owner: labeled[1], repo: labeled[2] }
-  }
-  const generic = body.match(/https?:\/\/github\.com\/([^\/\s]+)\/([^\/\s#?]+)/i)
-  if (generic?.[1] && generic?.[2]) {
-    return { owner: generic[1], repo: generic[2] }
-  }
-  return null
-}
-
 onBeforeUnmount(() => {
   Object.values(imageBlobUrlMap.value).forEach((url) => URL.revokeObjectURL(url))
 })
-
-const stripMarkdown = (value: string): string => value
-  .replace(/`([^`]+)`/g, '$1')
-  .replace(/\*\*([^*]+)\*\*/g, '$1')
-  .replace(/\s+/g, ' ')
-  .trim()
 
 const hasUrl = (value: string): boolean => /https?:\/\/[^\s)]+/.test(value)
 
@@ -1338,148 +1313,100 @@ const renderTextWithLinks = (value: string): string => {
   )
 }
 
-const parseSubmissionOverview = (body: string): SubmissionOverview => {
+const buildRawGithubUrl = (owner: string, repo: string, ref: string, path: string): string => {
+  const encodedPath = path
+    .split('/')
+    .filter(Boolean)
+    .map(segment => encodeURIComponent(segment))
+    .join('/')
+  return `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(ref)}/${encodedPath}`
+}
+
+const toNonEmptyString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
+
+const toStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return []
+  return value
+    .map(item => toNonEmptyString(item))
+    .filter(Boolean)
+}
+
+const submissionOverview = computed<SubmissionOverview>(() => {
+  const manifest = manifestV2Data.value || {}
+  const item = (manifest.item && typeof manifest.item === 'object') ? manifest.item as Record<string, unknown> : {}
+  const downloads = (manifest.downloads && typeof manifest.downloads === 'object') ? manifest.downloads as Record<string, unknown> : {}
+  const links = Array.isArray(manifest.links) ? manifest.links as Array<Record<string, unknown>> : []
+  const owner = selectedPr.value?.headOwner || ''
+  const repo = selectedPr.value?.headRepo || ''
+  const ref = selectedPr.value?.headRef || 'main'
+
+  const toImageAsset = (pathValue: unknown): { file: string; url: string } | null => {
+    const raw = toNonEmptyString(pathValue)
+    if (!raw || raw === '--') return null
+    const file = raw.split('/').filter(Boolean).pop() || raw
+    if (/^https?:\/\//i.test(raw)) {
+      return { file, url: raw }
+    }
+    if (!owner || !repo || !ref) return null
+    return {
+      file,
+      url: buildRawGithubUrl(owner, repo, ref, raw)
+    }
+  }
+
+  const previewAssets = toStringArray(item.preview)
+    .map(path => toImageAsset(path))
+    .filter((asset): asset is { file: string; url: string } => Boolean(asset))
+
   const overview: SubmissionOverview = {
     resourceInfo: [],
     supportedDevices: [],
-    repoUrl: '',
-    shortHash: '',
+    repoUrl: owner && repo ? `https://github.com/${owner}/${repo}` : '',
+    shortHash: toNonEmptyString(selectedPr.value?.headRef),
     images: {
-      icon: null,
-      cover: null,
-      previews: []
+      icon: toImageAsset(item.icon),
+      cover: toImageAsset(item.cover),
+      previews: previewAssets
     },
     downloads: [],
-    links: []
+    links: links
+      .map((link) => ({
+        title: toNonEmptyString(link.title),
+        type: toNonEmptyString(link.icon),
+        url: toNonEmptyString(link.url)
+      }))
+      .filter(link => link.title || link.type || link.url)
   }
-  if (!body) return overview
 
-  const lines = body.split('\n')
-  let currentSection = ''
-  let currentDownload: DownloadItem | null = null
-  let waitingImageLabel: 'icon' | 'cover' | 'preview' | null = null
-  let waitingImageFile = ''
+  const pushResourceInfo = (key: string, value: unknown): void => {
+    const normalized = toNonEmptyString(value)
+    if (!normalized) return
+    overview.resourceInfo.push({ key, value: normalized })
+  }
 
-  for (const rawLine of lines) {
-    const line = rawLine.trim()
-    if (!line) continue
+  pushResourceInfo('资源名称', item.name)
+  pushResourceInfo('资源 ID', item.id)
+  pushResourceInfo('资源类型', item.restype)
+  pushResourceInfo('资源描述', item.description)
 
-    const heading = line.match(/^##\s+(.+)$/)
-    if (heading) {
-      currentSection = heading[1].trim()
-      currentDownload = null
-      waitingImageLabel = null
-      waitingImageFile = ''
-      continue
+  for (const [device, entry] of Object.entries(downloads)) {
+    const record = (entry && typeof entry === 'object') ? entry as Record<string, unknown> : {}
+    const file = toNonEmptyString(record.file_name)
+    const version = toNonEmptyString(record.version)
+    const raw = file && owner && repo && ref ? buildRawGithubUrl(owner, repo, ref, file) : ''
+    if (device) {
+      overview.supportedDevices.push(device)
     }
-
-    if (line.startsWith('---')) {
-      continue
-    }
-
-    if (currentSection.includes('资源信息')) {
-      const m = line.match(/^-\s*([^：:]+)[：:]\s*(.+)$/)
-      if (m) {
-        overview.resourceInfo.push({ key: stripMarkdown(m[1]), value: stripMarkdown(m[2]) })
-      }
-      continue
-    }
-
-    if (currentSection.includes('支持设备')) {
-      const m = line.match(/^-\s*(.+)$/)
-      if (m) overview.supportedDevices.push(stripMarkdown(m[1]))
-      continue
-    }
-
-    if (currentSection.includes('仓库信息')) {
-      const m = line.match(/^-\s*([^：:]+)[：:]\s*(.+)$/)
-      if (!m) continue
-      const key = stripMarkdown(m[1])
-      const value = stripMarkdown(m[2])
-      if (key.includes('资源仓库')) overview.repoUrl = value
-      if (key.includes('提交短哈希')) overview.shortHash = value
-      continue
-    }
-
-    if (currentSection.includes('图片资源')) {
-      const m = line.match(/^-\s*([^：:]+)[：:]\s*(.*)$/)
-      if (m) {
-        const label = stripMarkdown(m[1]).toLowerCase()
-        const rest = stripMarkdown(m[2])
-        const fileMatch = m[2].match(/`([^`]+)`/)
-        if (label.includes('icon')) {
-          waitingImageLabel = 'icon'
-          waitingImageFile = fileMatch?.[1] || rest
-        } else if (label.includes('cover')) {
-          waitingImageLabel = 'cover'
-          waitingImageFile = fileMatch?.[1] || rest
-        } else if (label.includes('preview')) {
-          waitingImageLabel = 'preview'
-          waitingImageFile = ''
-        }
-        continue
-      }
-      const previewFile = line.match(/^-\s*`([^`]+)`\s*$/)
-      if (previewFile && waitingImageLabel === 'preview') {
-        waitingImageFile = previewFile[1]
-        continue
-      }
-      const urlMatch = line.match(/https?:\/\/\S+/)
-      if (urlMatch && waitingImageLabel) {
-        const item = { file: waitingImageFile || urlMatch[0].split('/').pop() || '', url: urlMatch[0] }
-        if (waitingImageLabel === 'icon') overview.images.icon = item
-        if (waitingImageLabel === 'cover') overview.images.cover = item
-        if (waitingImageLabel === 'preview') overview.images.previews.push(item)
-        // Preview 可能有多条「文件 + URL」连续项，需保持在 preview 上下文中继续解析。
-        if (waitingImageLabel === 'preview') {
-          waitingImageFile = ''
-        } else {
-          waitingImageLabel = null
-          waitingImageFile = ''
-        }
-      }
-      continue
-    }
-
-    if (currentSection.includes('下载资源')) {
-      const deviceLine = line.match(/^-\s*`?([^`:]+)`?\s*$/)
-      if (deviceLine) {
-        currentDownload = {
-          device: stripMarkdown(deviceLine[1]),
-          version: '',
-          file: '',
-          raw: ''
-        }
-        overview.downloads.push(currentDownload)
-        continue
-      }
-      const m = line.match(/^-\s*([^：:]+)[：:]\s*(.+)$/)
-      if (m && currentDownload) {
-        const key = stripMarkdown(m[1]).toLowerCase()
-        const value = stripMarkdown(m[2])
-        if (key === 'version') currentDownload.version = value
-        if (key === 'file') currentDownload.file = value
-        if (key === 'raw') currentDownload.raw = value
-      }
-      continue
-    }
-
-    if (currentSection.includes('links')) {
-      const m = line.match(/^-\s*([^（(:：]+)(?:（([^）]+)）)?[：:]\s*(https?:\/\/\S+)/)
-      if (m) {
-        overview.links.push({
-          title: stripMarkdown(m[1]),
-          type: stripMarkdown(m[2] || ''),
-          url: stripMarkdown(m[3])
-        })
-      }
-    }
+    overview.downloads.push({
+      device,
+      version,
+      file,
+      raw
+    })
   }
 
   return overview
-}
-
-const submissionOverview = computed<SubmissionOverview>(() => parseSubmissionOverview(submissionBodySource.value))
+})
 const hasSubmissionOverview = computed(() =>
   submissionOverview.value.resourceInfo.length > 0
   || submissionOverview.value.supportedDevices.length > 0
@@ -2012,7 +1939,6 @@ const loadPullRequests = async (): Promise<void> => {
       const headOwner = pr.head?.repo?.owner?.login || ''
       const headRepo = pr.head?.repo?.name || ''
       const headRef = pr.head?.ref || 'main'
-      const parsedResourceRepo = parseResourceRepoFromPrBody(pr.body || '')
       list.push({
         number: pr.number,
         title: pr.title,
@@ -2024,9 +1950,9 @@ const loadPullRequests = async (): Promise<void> => {
         headOwner,
         headRepo,
         headRef,
-        resourceRepoOwner: parsedResourceRepo?.owner || '',
-        resourceRepoName: parsedResourceRepo?.repo || '',
-        resourceRepoRef: 'main',
+        resourceRepoOwner: headOwner,
+        resourceRepoName: headRepo,
+        resourceRepoRef: headRef,
         status: review.state,
         review
       })
@@ -2096,18 +2022,17 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
   manifestV2Data.value = null
   manifestLoadError.value = ''
   try {
-    if (!pr.resourceRepoOwner || !pr.resourceRepoName) {
+    if (!pr.headOwner || !pr.headRepo) {
       repoFiles.value = []
-      repoFilesError.value = '未在 PR 描述中识别到资源仓库（资源仓库：https://github.com/{owner}/{repo}）'
+      repoFilesError.value = 'PR 头分支仓库信息缺失，无法加载文件'
       return
     }
-    const repoMeta = await githubGet<{ default_branch?: string }>(
-      `/repos/${pr.resourceRepoOwner}/${pr.resourceRepoName}`
-    )
-    const repoBranch = repoMeta.default_branch || 'main'
+    const repoBranch = pr.headRef || 'main'
+    pr.resourceRepoOwner = pr.headOwner
+    pr.resourceRepoName = pr.headRepo
     pr.resourceRepoRef = repoBranch
     const commit = await githubGet<{ commit?: { tree?: { sha?: string } } }>(
-      `/repos/${pr.resourceRepoOwner}/${pr.resourceRepoName}/commits/${encodeURIComponent(repoBranch)}`
+      `/repos/${pr.headOwner}/${pr.headRepo}/commits/${encodeURIComponent(repoBranch)}`
     )
     const treeSha = commit.commit?.tree?.sha
     if (!treeSha) {
@@ -2115,26 +2040,33 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
       return
     }
     const tree = await githubGet<{ tree?: Array<{ path?: string; type?: string }> }>(
-      `/repos/${pr.resourceRepoOwner}/${pr.resourceRepoName}/git/trees/${treeSha}?recursive=1`
+      `/repos/${pr.headOwner}/${pr.headRepo}/git/trees/${treeSha}?recursive=1`
     )
     repoFiles.value = (tree.tree || [])
       .filter(item => item.type === 'blob' && item.path)
       .map(item => item.path as string)
       .slice(0, 3000)
 
-    manifestV2Data.value = await fetchRepoJsonFile(
-      pr.resourceRepoOwner,
-      pr.resourceRepoName,
-      repoBranch,
-      'manifest_v2.json'
-    )
-    if (!manifestV2Data.value) {
+    const manifestCandidates = [
+      ...prFiles.value
+        .map(file => file.filename)
+        .filter(path => /(^|\/)manifest_v2\.json$/i.test(path)),
+      ...prFiles.value
+        .map(file => file.filename)
+        .filter(path => /(^|\/)manifest\.json$/i.test(path)),
+      'manifest_v2.json',
+      'manifest.json'
+    ]
+    const dedupedManifestCandidates = Array.from(new Set(manifestCandidates))
+
+    for (const path of dedupedManifestCandidates) {
       manifestV2Data.value = await fetchRepoJsonFile(
-        pr.resourceRepoOwner,
-        pr.resourceRepoName,
+        pr.headOwner,
+        pr.headRepo,
         repoBranch,
-        'manifest.json'
+        path
       )
+      if (manifestV2Data.value) break
     }
     if (!manifestV2Data.value) {
       manifestLoadError.value = 'manifest 文件不存在或不是有效 JSON'
