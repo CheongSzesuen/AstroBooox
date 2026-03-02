@@ -158,15 +158,33 @@
               <div class="space-y-2 rounded-md border border-border p-3">
                 <div class="flex items-center justify-between gap-2">
                   <div class="text-xs font-medium text-muted-foreground">评论内容</div>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    class="h-8 w-8"
-                    title="插入文件链接"
-                    @click="linkPickerOpen = true"
-                  >
-                    <LinkSimple :size="16" weight="bold" />
-                  </Button>
+                  <div class="flex items-center gap-2">
+                    <Select v-model="linkPickerSource">
+                      <SelectTrigger class="h-8 w-[128px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pr">当前 PR 文件</SelectItem>
+                        <SelectItem value="repo">仓库文件</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select v-model="linkPickerValue" @update:model-value="insertFileLinkFromPicker">
+                      <SelectTrigger class="h-8 min-w-[168px] gap-1.5 text-xs">
+                        <LinkSimple :size="14" weight="bold" />
+                        <SelectValue :placeholder="linkPickerSource === 'pr' ? '插入 PR 文件链接' : '插入仓库文件链接'" />
+                      </SelectTrigger>
+                      <SelectContent class="max-h-[320px]">
+                        <SelectItem
+                          v-for="path in linkPickerOptions"
+                          :key="`picker-${linkPickerSource}-${path}`"
+                          :value="path"
+                        >
+                          {{ path }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div class="grid gap-2">
                   <div class="flex items-center rounded-md border border-input bg-background">
@@ -205,6 +223,7 @@
               </div>
 
               <div v-if="detailsError" class="text-xs text-destructive">{{ detailsError }}</div>
+              <div v-if="repoFilesError" class="text-xs text-destructive">{{ repoFilesError }}</div>
 
               <div class="space-y-2">
                 <div class="text-xs font-medium text-muted-foreground">最近评论</div>
@@ -230,64 +249,6 @@
               </div>
             </CardContent>
           </Card>
-
-          <Dialog :open="linkPickerOpen" @update:open="linkPickerOpen = $event">
-            <DialogContent class="sm:max-w-[640px]">
-              <DialogHeader>
-                <DialogTitle>插入文件链接</DialogTitle>
-                <DialogDescription>选择文件后会以 Markdown 链接插入到评论内容中。</DialogDescription>
-              </DialogHeader>
-
-              <div class="space-y-3">
-                <div class="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    :variant="linkPickerSource === 'pr' ? 'default' : 'outline'"
-                    @click="linkPickerSource = 'pr'"
-                  >
-                    当前 PR 文件
-                  </Button>
-                  <Button
-                    size="sm"
-                    :variant="linkPickerSource === 'repo' ? 'default' : 'outline'"
-                    @click="linkPickerSource = 'repo'"
-                  >
-                    仓库文件
-                  </Button>
-                </div>
-
-                <div v-if="linkPickerSource === 'pr'" class="space-y-2">
-                  <select v-model="quickPrFile" class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm">
-                    <option value="">请选择 PR 文件</option>
-                    <option v-for="file in prFiles" :key="`picker-pr-${file.sha}`" :value="file.filename">
-                      {{ file.filename }}
-                    </option>
-                  </select>
-                  <div class="flex justify-end">
-                    <Button size="sm" :disabled="!quickPrFile" @click="insertPrFileLinkFromDialog">插入链接</Button>
-                  </div>
-                </div>
-
-                <div v-else class="space-y-2">
-                  <div class="text-xs text-muted-foreground">
-                    <span v-if="repoFilesLoading">正在加载仓库文件...</span>
-                    <span v-else>选择仓库中的文件</span>
-                  </div>
-                  <select v-model="quickRepoFile" class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm">
-                    <option value="">请选择仓库文件</option>
-                    <option v-for="path in repoFiles" :key="`picker-repo-${path}`" :value="path">
-                      {{ path }}
-                    </option>
-                  </select>
-                  <div class="flex justify-end">
-                    <Button size="sm" :disabled="!quickRepoFile" @click="insertRepoFileLinkFromDialog">插入链接</Button>
-                  </div>
-                </div>
-
-                <div v-if="repoFilesError" class="text-xs text-destructive">{{ repoFilesError }}</div>
-              </div>
-            </DialogContent>
-          </Dialog>
 
           <Card>
             <CardHeader class="pb-3">
@@ -374,14 +335,14 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Card,
   CardContent,
@@ -459,10 +420,8 @@ const prFiles = ref<PullFileItem[]>([])
 const repoFiles = ref<string[]>([])
 const repoFilesLoading = ref(false)
 const repoFilesError = ref('')
-const quickPrFile = ref('')
-const quickRepoFile = ref('')
-const linkPickerOpen = ref(false)
 const linkPickerSource = ref<'pr' | 'repo'>('pr')
+const linkPickerValue = ref('')
 const commentId = ref('')
 const commentMessage = ref('')
 const commentSubmitting = ref(false)
@@ -518,6 +477,11 @@ const renderedCommentPreviewHtml = computed(() => {
   if (!commentBodyPreview.value) return '<span class="text-muted-foreground">（这里显示评论内容）</span>'
   return renderMarkdownPreview(commentBodyPreview.value)
 })
+const linkPickerOptions = computed(() => (
+  linkPickerSource.value === 'pr'
+    ? prFiles.value.map(file => file.filename)
+    : repoFiles.value
+))
 
 const buildRepoBlobUrl = (path: string): string => {
   if (!selectedPr.value) return ''
@@ -689,8 +653,7 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
   detailsLoading.value = true
   detailsError.value = ''
   repoFilesError.value = ''
-  quickPrFile.value = ''
-  quickRepoFile.value = ''
+  linkPickerValue.value = ''
   try {
     const [comments, files] = await Promise.all([
       githubGet<IssueCommentItem[]>(
@@ -764,25 +727,22 @@ const insertPrFileLink = (filename: string): void => {
   const match = prFiles.value.find(file => file.filename === filename)
   if (!match?.blob_url) return
   appendMarkdownLinkToComment(filename, match.blob_url)
-  quickPrFile.value = ''
 }
 
 const insertRepoFileLink = (path: string): void => {
   if (!path) return
   appendMarkdownLinkToComment(path, buildRepoBlobUrl(path))
-  quickRepoFile.value = ''
 }
 
-const insertPrFileLinkFromDialog = (): void => {
-  if (!quickPrFile.value) return
-  insertPrFileLink(quickPrFile.value)
-  linkPickerOpen.value = false
-}
-
-const insertRepoFileLinkFromDialog = (): void => {
-  if (!quickRepoFile.value) return
-  insertRepoFileLink(quickRepoFile.value)
-  linkPickerOpen.value = false
+const insertFileLinkFromPicker = (value: unknown): void => {
+  const path = typeof value === 'string' ? value : ''
+  if (!path) return
+  if (linkPickerSource.value === 'pr') {
+    insertPrFileLink(path)
+  } else {
+    insertRepoFileLink(path)
+  }
+  linkPickerValue.value = ''
 }
 
 const submitPresetComment = async (): Promise<void> => {
@@ -816,4 +776,8 @@ watch(
   },
   { immediate: true }
 )
+
+watch(linkPickerSource, () => {
+  linkPickerValue.value = ''
+})
 </script>
