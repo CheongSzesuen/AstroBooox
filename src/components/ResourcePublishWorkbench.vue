@@ -359,7 +359,7 @@
 
               <div class="flex justify-between gap-2">
                 <Button variant="outline" @click="goToStep(0)">上一步</Button>
-                <Button :disabled="!stepList[1].done" @click="goToStep(2)">下一步</Button>
+                <Button :disabled="!stepList[1].done" @click="openSubmitVersionDialog">下一步</Button>
               </div>
             </CardContent>
           </Card>
@@ -367,9 +367,13 @@
           <Card v-if="activeStep === 2">
             <CardHeader class="pb-3">
               <CardTitle class="text-base">步骤 3：上传资源仓库</CardTitle>
-              <CardDescription>创建或复用仓库，并上传 manifest 与已选择的资源文件。</CardDescription>
+              <CardDescription>创建或复用仓库，并上传所选版本需要的 manifest 与资源文件。</CardDescription>
             </CardHeader>
             <CardContent class="space-y-4 pt-0">
+              <div class="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
+                当前提交流程：
+                <span class="font-semibold">{{ submitModeLabel }}</span>
+              </div>
               <div class="grid gap-3 md:grid-cols-2">
                 <div class="space-y-1.5">
                   <Label for="repo-name">资源仓库名（可选）</Label>
@@ -436,8 +440,8 @@
 
               <div class="grid gap-3 md:grid-cols-2">
                 <div class="space-y-1.5">
-                  <Label for="catalog-path">Catalog 文件路径</Label>
-                  <Input id="catalog-path" v-model="catalogPath" placeholder="index_v2.csv" />
+                  <Label for="catalog-path">v2 Catalog 文件路径</Label>
+                  <Input id="catalog-path" v-model="catalogPath" placeholder="index_v2.csv（仅 v2 使用）" />
                 </div>
                 <div class="space-y-1.5">
                   <Label for="pr-title">PR 标题</Label>
@@ -481,6 +485,23 @@
           </DialogHeader>
           <DialogFooter>
             <Button @click="showUploadCompleteDialog = false">我知道了</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog :open="showSubmitVersionDialog" @update:open="showSubmitVersionDialog = $event">
+        <DialogContent class="max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>选择提交版本</DialogTitle>
+            <DialogDescription>请选择本次要提交到 v1、v2，或同时提交。</DialogDescription>
+          </DialogHeader>
+          <div class="grid gap-2">
+            <Button class="justify-start" @click="confirmSubmitMode('both')">同时提交 v1 + v2（推荐）</Button>
+            <Button variant="outline" class="justify-start" @click="confirmSubmitMode('v2')">仅提交 v2</Button>
+            <Button variant="outline" class="justify-start" @click="confirmSubmitMode('v1')">仅提交 v1</Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="showSubmitVersionDialog = false">取消</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -719,6 +740,7 @@ import { useCcSession } from '@/composables/useCcSession'
 import { type WorkspaceTreeItem, useCcWorkspace } from '@/composables/useCcWorkspace'
 import {
   type CatalogEntry,
+  type LegacyCatalogEntry,
   type PublishingResource,
   arrayBufferToBase64,
   createPullRequestWithHead,
@@ -729,7 +751,8 @@ import {
   loadOwnedResources,
   putRepoFile,
   textToBase64,
-  updateCatalogInForkBranch
+  updateCatalogInForkBranch,
+  updateLegacyCatalogAndResourceJsonInForkBranch
 } from '@/utils/resourcePublishApi'
 
 interface WorkspaceFileHandle {
@@ -754,6 +777,11 @@ interface WorkspaceDirectoryHandle {
 
 const MAIN_BRANCH = 'main'
 const MANIFEST_FILE = 'manifest_v2.json'
+const LEGACY_MANIFEST_FILE = 'manifest.json'
+const LEGACY_CATALOG_PATH = 'index.csv'
+const LEGACY_RESOURCES_DIR = 'resources'
+
+type SubmitMode = 'v2' | 'v1' | 'both'
 
 interface DeviceOption {
   id: string
@@ -850,6 +878,8 @@ const workspaceBusy = ref(false)
 const newWorkspaceName = ref('')
 const workspaceDisplayPath = ref('')
 const activeStep = ref(0)
+const submitMode = ref<SubmitMode>('v2')
+const showSubmitVersionDialog = ref(false)
 
 const workspaceHandle = computed<WorkspaceDirectoryHandle | null>(
   () => (persistedWorkspaceHandle.value as WorkspaceDirectoryHandle | null) ?? null
@@ -1026,13 +1056,22 @@ const canSubmitPr = computed(
         upstreamRepo.value.trim() &&
         targetOwner.value.trim() &&
         targetRepo.value.trim() &&
-        catalogPath.value.trim() &&
+        (submitMode.value === 'v1' || catalogPath.value.trim()) &&
         prTitle.value.trim()
     )
 )
 
+const submitModeLabel = computed(() => {
+  if (submitMode.value === 'both') return 'v1 + v2'
+  if (submitMode.value === 'v1') return '仅 v1'
+  return '仅 v2'
+})
+
 const formatResourceTypeForCatalog = (value: string): string =>
   value.trim() === 'quickapp' ? 'quick_app' : 'watchface'
+
+const formatResourceTypeForLegacy = (value: string): string =>
+  value.trim() === 'quickapp' ? 'quickapp' : 'watchface'
 
 const formatResourceTypeForTitle = (value: string): string =>
   value.trim() === 'quickapp' ? '快应用' : '表盘'
@@ -1058,6 +1097,20 @@ const getRawUrl = (path: string): string => {
   const encodedPath = encodeUrlPath(path)
   return `https://raw.githubusercontent.com/${owner}/${repo}/${MAIN_BRANCH}/${encodedPath}`
 }
+
+const getLegacyDeviceCode = (deviceId: string): string => {
+  const device = getDeviceById(deviceId)
+  if (!device) return deviceId
+  const preferred = device.aliases.find(alias => /^[a-z]\d+([a-z]+)?$/i.test(alias))
+  return preferred || device.id
+}
+
+const normalizedLegacyDevicesText = computed(() =>
+  selectedDeviceIds.value
+    .map(getLegacyDeviceCode)
+    .filter(Boolean)
+    .join(';')
+)
 
 const buildAutoPrTitle = (): string => {
   const name = itemName.value.trim() || '未命名资源'
@@ -1114,6 +1167,7 @@ const buildAutoPrBody = (): string => {
     `- 资源名称：${itemName.value.trim() || '--'}`,
     `- 资源 ID：${itemId.value.trim() || '--'}`,
     `- 资源类型：${formatResourceTypeForTitle(restype.value)}（${formatResourceTypeForCatalog(restype.value)}）`,
+    `- 提交版本：${submitModeLabel.value}`,
     `- 付费类型：${formatPaidTypeLabel(paidType.value)}`,
     `- 标签：${normalizedTagText}`,
     '',
@@ -1145,8 +1199,16 @@ const buildAutoPrBody = (): string => {
     '',
     '## 说明',
     '',
-    '- 已上传 `manifest_v2.json`、图片资源和下载资源。',
-    '- 本 PR 已同步更新 `index_v2.csv`。'
+    submitMode.value === 'both'
+      ? '- 已上传 `manifest_v2.json`、`manifest.json`、图片资源和下载资源。'
+      : submitMode.value === 'v1'
+        ? '- 已上传 `manifest.json`、图片资源和下载资源。'
+        : '- 已上传 `manifest_v2.json`、图片资源和下载资源。',
+    submitMode.value === 'both'
+      ? '- 本 PR 已同步更新 `index_v2.csv` 与 `index.csv`。'
+      : submitMode.value === 'v1'
+        ? '- 本 PR 已同步更新 `index.csv`。'
+        : '- 本 PR 已同步更新 `index_v2.csv`。'
   ].join('\n')
 }
 
@@ -1214,6 +1276,20 @@ const canAccessStep = (index: number): boolean => {
   if (index === 2) return stepList.value[1].done
   if (index === 3) return stepList.value[2].done
   return false
+}
+
+const openSubmitVersionDialog = (): void => {
+  if (!stepList.value[1].done) {
+    appendLog('请先完成资源信息后再继续')
+    return
+  }
+  showSubmitVersionDialog.value = true
+}
+
+const confirmSubmitMode = (mode: SubmitMode): void => {
+  submitMode.value = mode
+  showSubmitVersionDialog.value = false
+  goToStep(2)
 }
 
 const goToStep = (index: number): void => {
@@ -1885,6 +1961,53 @@ const buildManifestV2Text = (): string => {
   return JSON.stringify(manifestObject, null, 2)
 }
 
+const buildManifestV1Text = (repoUrl: string): string => {
+  const normalizedAuthors = authors.value
+    .map(author => ({
+      name: author.name.trim()
+    }))
+    .filter(author => author.name)
+
+  const normalizedDownloads = selectedDeviceIds.value.reduce<Record<string, { version: string; file_name: string }>>(
+    (acc, deviceId) => {
+      const entry = downloads.value[deviceId]
+      if (!entry) return acc
+      const legacyCode = getLegacyDeviceCode(deviceId)
+      acc[legacyCode] = {
+        version: entry.version.trim(),
+        file_name: entry.file_name.trim()
+      }
+      return acc
+    },
+    {}
+  )
+
+  const manifestObject = {
+    item: {
+      name: itemName.value.trim(),
+      description: itemDescription.value.trim(),
+      preview: previewItems.value.map(item => item.path.trim()).filter(Boolean),
+      icon: iconPath.value.trim(),
+      cover: coverPath.value.trim(),
+      source_url: repoUrl,
+      author: normalizedAuthors
+    },
+    downloads: normalizedDownloads
+  }
+
+  return JSON.stringify(manifestObject, null, 2)
+}
+
+const buildLegacyResourceJsonFileName = (): string => {
+  const rawBase = itemId.value.trim() || itemName.value.trim()
+  const base = rawBase
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return `${base || 'resource'}.json`
+}
+
 const resolveRepoNameForSubmit = (): string => {
   const name = resolvedRepoName.value.trim()
   if (!name) {
@@ -1919,14 +2042,23 @@ const handleUploadResources = async (): Promise<void> => {
 
     appendLog(`资源仓库就绪: ${repo.owner}/${repo.name}`)
 
-    const generatedManifestText = buildManifestV2Text()
-    manifestText.value = generatedManifestText
-
     const uploadQueue: Array<{ path: string; file?: File; text?: string }> = []
-    uploadQueue.push({
-      path: MANIFEST_FILE,
-      text: generatedManifestText
-    })
+    const repoUrl = repo.htmlUrl
+    if (submitMode.value === 'v2' || submitMode.value === 'both') {
+      const generatedManifestV2Text = buildManifestV2Text()
+      manifestText.value = generatedManifestV2Text
+      uploadQueue.push({
+        path: MANIFEST_FILE,
+        text: generatedManifestV2Text
+      })
+    }
+    if (submitMode.value === 'v1' || submitMode.value === 'both') {
+      const generatedManifestV1Text = buildManifestV1Text(repoUrl)
+      uploadQueue.push({
+        path: LEGACY_MANIFEST_FILE,
+        text: generatedManifestV1Text
+      })
+    }
 
     for (const path of selectedUploadPaths.value) {
       const file = await readFileByPath(workspace, path)
@@ -2014,31 +2146,74 @@ const handleCreateCatalogPr = async (): Promise<void> => {
     prBody.value = buildAutoPrBody()
 
     const branchName = `astrobooox-submit-${Date.now()}`
-    const forkResult = await updateCatalogInForkBranch({
-      token: accessToken,
-      upstreamOwner: upstreamOwner.value.trim(),
-      upstreamRepo: upstreamRepo.value.trim(),
-      upstreamBranch: MAIN_BRANCH,
-      catalogPath: catalogPath.value.trim(),
-      currentUser: username,
-      branchName,
-      entry: {
-        id: itemId.value.trim(),
+    let forkResult: { forkOwner: string; forkRepo: string; branch: string } | null = null
+
+    if (submitMode.value === 'v2' || submitMode.value === 'both') {
+      forkResult = await updateCatalogInForkBranch({
+        token: accessToken,
+        upstreamOwner: upstreamOwner.value.trim(),
+        upstreamRepo: upstreamRepo.value.trim(),
+        upstreamBranch: MAIN_BRANCH,
+        catalogPath: catalogPath.value.trim(),
+        currentUser: username,
+        branchName,
+        entry: {
+          id: itemId.value.trim(),
+          name: itemName.value.trim(),
+          restype: formatResourceTypeForCatalog(restype.value),
+          repo_owner: uploadedRepoOwner.value,
+          repo_name: uploadedRepoName.value,
+          repo_commit_hash: uploadedCommitSha.value.slice(0, 7),
+          icon: iconPath.value.trim(),
+          cover: coverPath.value.trim(),
+          tags: normalizedTagsText.value,
+          device_vendors: normalizedDeviceVendorsText.value,
+          devices: normalizedDevicesText.value,
+          paid_type: paidType.value.trim()
+        }
+      })
+      appendLog(`v2 Catalog 更新完成: ${forkResult.forkOwner}/${forkResult.forkRepo}@${forkResult.branch}`)
+    }
+
+    if (submitMode.value === 'v1' || submitMode.value === 'both') {
+      const legacyFileName = buildLegacyResourceJsonFileName()
+      const legacyEntry: LegacyCatalogEntry = {
         name: itemName.value.trim(),
-        restype: formatResourceTypeForCatalog(restype.value),
-        repo_owner: uploadedRepoOwner.value,
-        repo_name: uploadedRepoName.value,
-        repo_commit_hash: uploadedCommitSha.value.slice(0, 7),
-        icon: iconPath.value.trim(),
-        cover: coverPath.value.trim(),
+        icon: getRawUrl(iconPath.value.trim()),
+        cover: getRawUrl(coverPath.value.trim()),
+        restype: formatResourceTypeForLegacy(restype.value),
         tags: normalizedTagsText.value,
-        device_vendors: normalizedDeviceVendorsText.value,
-        devices: normalizedDevicesText.value,
+        devices: normalizedLegacyDevicesText.value,
+        path: `${uploadedRepoOwner.value}/${legacyFileName}`,
         paid_type: paidType.value.trim()
       }
-    })
+      const legacyManifestRef = JSON.stringify(
+        {
+          manifest_ver: 1,
+          repo_url: uploadedRepoUrl.value
+        },
+        null,
+        2
+      )
+      const v1Result = await updateLegacyCatalogAndResourceJsonInForkBranch({
+        token: accessToken,
+        upstreamOwner: upstreamOwner.value.trim(),
+        upstreamRepo: upstreamRepo.value.trim(),
+        upstreamBranch: MAIN_BRANCH,
+        currentUser: username,
+        branchName,
+        catalogPath: LEGACY_CATALOG_PATH,
+        resourceJsonPath: `${LEGACY_RESOURCES_DIR}/${uploadedRepoOwner.value}/${legacyFileName}`,
+        legacyEntry,
+        resourceManifestJson: legacyManifestRef
+      })
+      forkResult = v1Result
+      appendLog(`v1 Catalog 更新完成: ${v1Result.forkOwner}/${v1Result.forkRepo}@${v1Result.branch}`)
+    }
 
-    appendLog(`Catalog 更新完成: ${forkResult.forkOwner}/${forkResult.forkRepo}@${forkResult.branch}`)
+    if (!forkResult) {
+      throw new Error('未选择提交流程（v1/v2）')
+    }
 
     const pr = await createPullRequestWithHead({
       token: accessToken,

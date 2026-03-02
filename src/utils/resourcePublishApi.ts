@@ -31,6 +31,17 @@ export interface RepoFileData {
   content?: string
 }
 
+export interface LegacyCatalogEntry {
+  name: string
+  icon: string
+  cover: string
+  restype: string
+  tags: string
+  devices: string
+  path: string
+  paid_type: string
+}
+
 export interface RepoTreeItem {
   type: 'folder' | 'file'
   path: string
@@ -469,6 +480,21 @@ const appendOrReplaceCatalogRow = (existingCsv: string, entry: CatalogEntry): st
   return [header, ...filtered].join('\n')
 }
 
+const appendLegacyCatalogRow = (existingCsv: string, entry: LegacyCatalogEntry): string => {
+  const rows = existingCsv.split(/\r?\n/).filter(line => line.trim().length > 0)
+  const row = [
+    entry.name,
+    entry.icon,
+    entry.cover,
+    entry.restype,
+    entry.tags,
+    entry.devices,
+    entry.path,
+    entry.paid_type
+  ].join(',')
+  return [...rows, row].join('\n')
+}
+
 export const updateCatalogInForkBranch = async (params: {
   token: string
   upstreamOwner: string
@@ -532,6 +558,94 @@ export const updateCatalogInForkBranch = async (params: {
     message: `Update catalog for ${entry.id}`,
     contentBase64: textToBase64(updatedCsv),
     sha: fileData.sha
+  })
+
+  return {
+    forkOwner: fork.owner,
+    forkRepo: fork.repo,
+    branch: branchName
+  }
+}
+
+export const updateLegacyCatalogAndResourceJsonInForkBranch = async (params: {
+  token: string
+  upstreamOwner: string
+  upstreamRepo: string
+  upstreamBranch: string
+  currentUser: string
+  branchName: string
+  catalogPath: string
+  resourceJsonPath: string
+  legacyEntry: LegacyCatalogEntry
+  resourceManifestJson: string
+}): Promise<{ forkOwner: string; forkRepo: string; branch: string }> => {
+  const {
+    token,
+    upstreamOwner,
+    upstreamRepo,
+    upstreamBranch,
+    currentUser,
+    branchName,
+    catalogPath,
+    resourceJsonPath,
+    legacyEntry,
+    resourceManifestJson
+  } = params
+
+  const fork = await ensureFork({
+    token,
+    currentUser,
+    upstreamOwner,
+    upstreamRepo
+  })
+
+  const upstreamSha = await getRefSha(
+    token,
+    upstreamOwner,
+    upstreamRepo,
+    `heads/${upstreamBranch}`
+  )
+
+  await createBranchIfMissing({
+    token,
+    owner: fork.owner,
+    repo: fork.repo,
+    branch: branchName,
+    baseSha: upstreamSha
+  })
+
+  const legacyFile = await fetchRepoFile(token, fork.owner, fork.repo, catalogPath, branchName)
+  const legacyCsvContent = base64ToText(legacyFile.content || '')
+  const nextLegacyCsv = appendLegacyCatalogRow(legacyCsvContent, legacyEntry)
+
+  await putRepoFile({
+    token,
+    owner: fork.owner,
+    repo: fork.repo,
+    path: catalogPath,
+    branch: branchName,
+    message: `Append legacy catalog for ${legacyEntry.name}`,
+    contentBase64: textToBase64(nextLegacyCsv),
+    sha: legacyFile.sha
+  })
+
+  const oldResourceJson = await fetchRepoFileOrNull(
+    token,
+    fork.owner,
+    fork.repo,
+    resourceJsonPath,
+    branchName
+  )
+
+  await putRepoFile({
+    token,
+    owner: fork.owner,
+    repo: fork.repo,
+    path: resourceJsonPath,
+    branch: branchName,
+    message: `Add legacy resource manifest for ${legacyEntry.name}`,
+    contentBase64: textToBase64(resourceManifestJson),
+    sha: oldResourceJson?.sha
   })
 
   return {
