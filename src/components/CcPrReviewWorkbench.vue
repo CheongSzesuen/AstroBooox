@@ -249,7 +249,9 @@
               <div class="flex h-full flex-col">
                 <DialogHeader class="border-b border-border px-5 py-4">
                   <DialogTitle>插入文件定位</DialogTitle>
-                  <DialogDescription>左侧选择文件，右侧可查看内容并点选行号插入到评论。</DialogDescription>
+                  <DialogDescription>
+                    {{ filePickerStep === 'file' ? '第一步：先选择文件。' : '第二步：选择具体行并插入定位。' }}
+                  </DialogDescription>
                 </DialogHeader>
 
                 <div class="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1.7fr)]">
@@ -258,7 +260,7 @@
                       <Tabs :model-value="filePickerTab" @update:model-value="(v) => filePickerTab = v as 'pr' | 'repo'">
                         <TabsList class="grid w-full grid-cols-2">
                           <TabsTrigger value="pr">PR 文件</TabsTrigger>
-                          <TabsTrigger value="repo">仓库文件</TabsTrigger>
+                          <TabsTrigger value="repo">作者仓库文件</TabsTrigger>
                         </TabsList>
                       </Tabs>
                     </div>
@@ -272,13 +274,21 @@
                         class="mb-1"
                         :style="{ paddingLeft: `${0.5 + Math.min(item.depth, 6) * 0.6}rem` }"
                       >
-                        <div
+                        <button
                           v-if="item.type === 'folder'"
-                          class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground"
+                          type="button"
+                          class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted"
+                          @click="togglePickerFolder(item.path)"
                         >
+                          <component
+                            :is="isPickerFolderOpen(item.path) ? CaretDown : CaretRight"
+                            :size="13"
+                            weight="bold"
+                            class="shrink-0 text-muted-foreground"
+                          />
                           <FolderIcon :size="14" weight="fill" class="shrink-0 text-muted-foreground" />
                           <span class="truncate">{{ item.label }}</span>
-                        </div>
+                        </button>
                         <button
                           v-else
                           type="button"
@@ -295,25 +305,54 @@
 
                   <div class="flex min-h-0 flex-col">
                     <div class="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
-                      <div class="min-w-0 truncate text-xs text-muted-foreground">
+                      <div class="min-w-0 space-y-0.5 text-xs text-muted-foreground">
                         <span class="inline-flex items-center gap-1.5">
                           <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
                           <span class="truncate">{{ selectedPickerPath || '请选择文件' }}</span>
                         </span>
+                        <div class="truncate">
+                          来源：
+                          {{
+                            filePickerTab === 'pr'
+                              ? '当前 PR 变更文件'
+                              : `${selectedPr?.headOwner || '-'} / ${selectedPr?.headRepo || '-'}`
+                          }}
+                        </div>
                       </div>
                       <div class="flex items-center gap-2">
                         <Button size="sm" variant="outline" :disabled="!selectedPickerPath" @click="insertSelectedFileReference">
                           插入文件
                         </Button>
-                        <Button size="sm" :disabled="!selectedPickerPath || !selectedPickerLine" @click="insertSelectedLineReference">
+                        <Button
+                          v-if="filePickerStep === 'file'"
+                          size="sm"
+                          :disabled="!selectedPickerPath"
+                          @click="enterPickerLineStep"
+                        >
+                          下一步：选择具体行
+                        </Button>
+                        <Button v-else size="sm" variant="outline" @click="backToPickerFileStep">返回选文件</Button>
+                        <Button
+                          v-if="filePickerStep === 'line'"
+                          size="sm"
+                          :disabled="!selectedPickerPath || !selectedPickerLine"
+                          @click="insertSelectedLineReference"
+                        >
                           插入行定位
                         </Button>
                       </div>
                     </div>
                     <div class="min-h-0 flex-1 overflow-auto bg-muted/20 p-4">
-                      <div v-if="pickerLoading" class="text-xs text-muted-foreground">加载文件内容中...</div>
+                      <div v-if="filePickerStep === 'file'" class="space-y-3 text-xs text-muted-foreground">
+                        <div>先在左侧树中选择一个文件，再进入下一步选择行号。</div>
+                        <div v-if="!selectedPickerPath">当前未选择文件。</div>
+                        <div v-else class="text-foreground">
+                          已选择：<span class="font-mono">{{ selectedPickerPath }}</span>
+                        </div>
+                      </div>
+                      <div v-else-if="pickerLoading" class="text-xs text-muted-foreground">加载文件内容中...</div>
                       <div v-else-if="pickerError" class="text-xs text-destructive">{{ pickerError }}</div>
-                      <div v-else-if="!selectedPickerPath" class="text-xs text-muted-foreground">从左侧选择一个文件预览内容</div>
+                      <div v-else-if="!selectedPickerPath" class="text-xs text-muted-foreground">请先返回上一步选择文件</div>
                       <div v-else class="font-mono text-xs leading-5">
                         <button
                           v-for="(line, index) in pickerContentLines"
@@ -411,7 +450,9 @@
 import { computed, ref, watch } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
+  PhCaretDown as CaretDown,
   PhCaretDoubleRight as CaretDoubleRight,
+  PhCaretRight as CaretRight,
   PhFile as FileIcon,
   PhFolder as FolderIcon,
   PhGithubLogo as GithubLogo,
@@ -523,7 +564,10 @@ const repoFiles = ref<string[]>([])
 const repoFilesLoading = ref(false)
 const repoFilesError = ref('')
 const filePickerOpen = ref(false)
+const filePickerStep = ref<'file' | 'line'>('file')
 const filePickerTab = ref<'pr' | 'repo'>('pr')
+const prPickerOpenFolders = ref<string[]>([])
+const repoPickerOpenFolders = ref<string[]>([])
 const filePickerSearch = ref('')
 const selectedPickerPath = ref('')
 const selectedPickerContent = ref('')
@@ -608,6 +652,9 @@ const pickerPaths = computed(() => {
   if (!query) return source
   return source.filter(path => path.toLowerCase().includes(query))
 })
+const pickerOpenFolders = computed(() =>
+  filePickerTab.value === 'pr' ? prPickerOpenFolders.value : repoPickerOpenFolders.value
+)
 const pickerTreeItems = computed<PickerTreeItem[]>(() => {
   interface TreeNode {
     path: string
@@ -662,7 +709,9 @@ const pickerTreeItems = computed<PickerTreeItem[]>(() => {
         label: folder.label,
         depth: folder.depth
       })
-      walk(folder)
+      if (pickerOpenFolders.value.includes(folder.path)) {
+        walk(folder)
+      }
     }
     const sortedFiles = [...node.files].sort((a, b) => a.path.localeCompare(b.path))
     for (const file of sortedFiles) {
@@ -879,6 +928,8 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
     prComments.value = comments
     prFiles.value = files
     await loadRepoFiles(pr)
+    prPickerOpenFolders.value = getTopLevelFolders(prFiles.value.map(file => file.filename))
+    repoPickerOpenFolders.value = getTopLevelFolders(repoFiles.value)
   } catch (error: unknown) {
     detailsError.value = error instanceof Error ? error.message : '加载 PR 详情失败'
     prComments.value = []
@@ -937,8 +988,29 @@ const applyFileNeedFixTemplate = (filename: string): void => {
   }
 }
 
+const getTopLevelFolders = (paths: string[]): string[] =>
+  Array.from(new Set(paths.map(path => path.split('/').filter(Boolean)[0]).filter(Boolean)))
+
+const isPickerFolderOpen = (path: string): boolean => pickerOpenFolders.value.includes(path)
+
+const togglePickerFolder = (path: string): void => {
+  if (filePickerTab.value === 'pr') {
+    prPickerOpenFolders.value = prPickerOpenFolders.value.includes(path)
+      ? prPickerOpenFolders.value.filter(item => item !== path)
+      : [...prPickerOpenFolders.value, path]
+    return
+  }
+  repoPickerOpenFolders.value = repoPickerOpenFolders.value.includes(path)
+    ? repoPickerOpenFolders.value.filter(item => item !== path)
+    : [...repoPickerOpenFolders.value, path]
+}
+
 const openFilePicker = (): void => {
   filePickerOpen.value = true
+  filePickerStep.value = 'file'
+  filePickerTab.value = 'pr'
+  prPickerOpenFolders.value = getTopLevelFolders(prFiles.value.map(file => file.filename))
+  repoPickerOpenFolders.value = getTopLevelFolders(repoFiles.value)
   filePickerSearch.value = ''
   selectedPickerPath.value = ''
   selectedPickerContent.value = ''
@@ -961,13 +1033,18 @@ const readRepoTextFileOrEmpty = async (path: string): Promise<string> => {
   }
 }
 
-const selectPickerPath = async (path: string): Promise<void> => {
+const selectPickerPath = (path: string): void => {
   selectedPickerPath.value = path
   selectedPickerLine.value = null
+}
+
+const enterPickerLineStep = async (): Promise<void> => {
+  if (!selectedPickerPath.value) return
+  filePickerStep.value = 'line'
   pickerError.value = ''
   pickerLoading.value = true
   try {
-    const text = await readRepoTextFileOrEmpty(path)
+    const text = await readRepoTextFileOrEmpty(selectedPickerPath.value)
     selectedPickerContent.value = text || '无法预览该文件内容（可能是二进制文件）'
   } catch (error: unknown) {
     pickerError.value = error instanceof Error ? error.message : '读取文件失败'
@@ -975,6 +1052,10 @@ const selectPickerPath = async (path: string): Promise<void> => {
   } finally {
     pickerLoading.value = false
   }
+}
+
+const backToPickerFileStep = (): void => {
+  filePickerStep.value = 'file'
 }
 
 const insertSelectedFileReference = (): void => {
@@ -1018,5 +1099,17 @@ watch(
     void loadPullRequests()
   },
   { immediate: true }
+)
+
+watch(
+  () => filePickerTab.value,
+  () => {
+    selectedPickerPath.value = ''
+    selectedPickerLine.value = null
+    selectedPickerContent.value = ''
+    pickerError.value = ''
+    pickerLoading.value = false
+    filePickerStep.value = 'file'
+  }
 )
 </script>
