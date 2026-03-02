@@ -816,6 +816,9 @@
             </Button>
           </div>
           <CardDescription>查看你提交后处于审核中的资源。</CardDescription>
+          <p class="text-xs text-muted-foreground">
+            当前目标仓库：{{ upstreamOwner }}/{{ upstreamRepo }}（{{ catalogPath }}）
+          </p>
         </CardHeader>
         <CardContent class="space-y-2 pt-0">
           <div
@@ -929,6 +932,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
+import { useCcSettings } from '@/composables/useCcSettings'
 import { useCcSession } from '@/composables/useCcSession'
 import { type WorkspaceTreeItem, useCcWorkspace } from '@/composables/useCcWorkspace'
 import {
@@ -1020,6 +1024,7 @@ const {
   clearRemoteWorkspace
 } = useCcWorkspace()
 const { appendPublishLog: appendLog, publishLogsText, clearPublishLogs } = useCcPublishLogs()
+const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath } = useCcSettings()
 const workspaceBusy = ref(false)
 const newWorkspaceName = ref('')
 const RELEASE_FOLDER_SUFFIX = '_AstroBox_Release'
@@ -1067,9 +1072,9 @@ const iconPath = ref('')
 const coverPath = ref('')
 const previewItems = ref<Array<{ id: string; path: string }>>([])
 
-const upstreamOwner = ref('AstralSightStudios')
-const upstreamRepo = ref('AstroBox-Repo')
-const catalogPath = ref('index_v2.csv')
+const upstreamOwner = ref(defaultTargetOwner.value)
+const upstreamRepo = ref(defaultTargetRepo.value)
+const catalogPath = ref(defaultCatalogPath.value)
 
 const prTitle = ref('')
 const prBody = ref('')
@@ -1827,6 +1832,15 @@ watch(
     }
   },
   { immediate: true }
+)
+
+watch(
+  () => [defaultTargetOwner.value, defaultTargetRepo.value, defaultCatalogPath.value] as const,
+  ([owner, repo, catalog]) => {
+    upstreamOwner.value = owner
+    upstreamRepo.value = repo
+    catalogPath.value = catalog
+  }
 )
 
 watch(
