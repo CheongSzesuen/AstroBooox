@@ -888,6 +888,41 @@ export const createPullRequestIssueComment = async (params: {
   return { id: payload.id }
 }
 
+export const updatePullRequestIssueComment = async (params: {
+  token: string
+  owner: string
+  repo: string
+  commentId: number
+  body: string
+}): Promise<{ id: number }> => {
+  const { token, owner, repo, commentId, body } = params
+  const payload = await githubFetch<{ id: number }>(
+    `/repos/${owner}/${repo}/issues/comments/${commentId}`,
+    token,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ body })
+    }
+  )
+  return { id: payload.id }
+}
+
+export const deletePullRequestIssueComment = async (params: {
+  token: string
+  owner: string
+  repo: string
+  commentId: number
+}): Promise<void> => {
+  const { token, owner, repo, commentId } = params
+  await githubFetch<unknown>(
+    `/repos/${owner}/${repo}/issues/comments/${commentId}`,
+    token,
+    {
+      method: 'DELETE'
+    }
+  )
+}
+
 export const loadOwnedResources = async (params: {
   token: string
   username: string

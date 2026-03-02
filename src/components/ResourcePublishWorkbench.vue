@@ -921,6 +921,7 @@
               :can-submit="canSubmitReviewComment"
               :submitting="reviewCommentSubmitting"
               :submit-button-title="reviewSubmitButtonTitle"
+              :submit-text="reviewEditingCommentTarget ? '更新评论' : '发送评论'"
               id-placeholder="自定义 ID，例如 icon_png_check"
               message-placeholder="评论说明（文件引用请用上方按钮插入）"
               textarea-class="min-h-[140px]"
@@ -929,6 +930,17 @@
               @update:editor-tab="reviewCommentEditorTab = $event"
               @submit="submitReviewComment"
             />
+            <div
+              v-if="reviewEditingCommentTarget"
+              class="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-muted-foreground"
+            >
+              <span class="truncate">
+                正在编辑评论 #{{ reviewEditingCommentTarget.id }}
+              </span>
+              <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" @click="clearReviewEditingTarget">
+                取消编辑
+              </Button>
+            </div>
             <div
               v-if="reviewReplyTargetComment"
               class="flex items-center justify-between rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground"
@@ -944,10 +956,15 @@
               v-if="!reviewCommentsLoading"
               :comments="selectedReviewComments"
               :line-left="54"
+              show-open-link
               show-reply-action
+              show-edit-action
+              show-delete-action
               avatar-rounded="full"
               :avatar-border="true"
               @reply="onReviewReplyComment"
+              @edit="onReviewEditComment"
+              @delete="onReviewDeleteComment"
             />
           </CardContent>
         </Card>
@@ -1048,6 +1065,7 @@ import { Textarea } from '@/components/ui/textarea'
 import ReviewCommentComposer from '@/components/review/ReviewCommentComposer.vue'
 import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue'
 import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
+import { parseReviewCommentBody, renderCommentMarkdownHtml, escapeHtml } from '@/utils/reviewComment'
 import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
 import { useCcSettings } from '@/composables/useCcSettings'
 import { useCcSession } from '@/composables/useCcSession'
@@ -1067,6 +1085,7 @@ import {
   arrayBufferToBase64,
   base64ToText,
   createPullRequestWithHead,
+  deletePullRequestIssueComment,
   ensureUserRepository,
   fetchRepoFileOrNull,
   loadRepositoryTree,
@@ -1076,6 +1095,7 @@ import {
   putRepoFile,
   textToBase64,
   updateCatalogInForkBranch,
+  updatePullRequestIssueComment,
   updateLegacyCatalogAndResourceJsonInForkBranch
 } from '@/utils/resourcePublishApi'
 
@@ -1221,6 +1241,11 @@ const reviewCommentSubmitting = ref(false)
 const reviewCommentResultDialogOpen = ref(false)
 const reviewCommentResultDialogTitle = ref('')
 const reviewCommentResultDialogMessage = ref('')
+const reviewEditingCommentTarget = ref<{
+  id: number
+  body?: string
+  user?: { login?: string }
+} | null>(null)
 const reviewReplyTargetComment = ref<{
   id: number
   body?: string
@@ -1269,10 +1294,13 @@ const reviewSubmitCommentBody = computed(() => {
 })
 const reviewRenderedCommentPreviewHtml = computed(() => {
   if (!reviewCommentBodyPreview.value) return '<span class="text-muted-foreground">（这里显示评论内容）</span>'
-  return renderSimpleMarkdownPreview(reviewCommentBodyPreview.value)
+  return buildReviewCommentPreviewCardHtml(reviewCommentBodyPreview.value)
 })
 const canSubmitReviewComment = computed(() => Boolean(normalizedReviewCommentId.value && selectedReviewItem.value))
-const reviewSubmitButtonTitle = computed(() => (canSubmitReviewComment.value ? '' : '请填写id'))
+const reviewSubmitButtonTitle = computed(() => {
+  if (!canSubmitReviewComment.value) return '请填写id'
+  return reviewEditingCommentTarget.value ? '更新现有评论' : ''
+})
 const paidTypeSelectValue = computed({
   get: () => paidType.value || 'free',
   set: value => {
@@ -1286,23 +1314,16 @@ const stripReleaseFolderSuffix = (raw: string): string =>
     .replace(/_AstroBox_Release$/i, '')
     .replace(/_+$/g, '')
 
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-
-const renderSimpleMarkdownPreview = (source: string): string => {
-  let html = escapeHtml(source)
-  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, url) => {
-    const normalizedLabel = label.replace(/^`(.+)`$/, '$1')
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2">${normalizedLabel}</a>`
-  })
-  html = html.replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">$1</code>')
-  html = html.replace(/\n/g, '<br>')
-  return html
+const buildReviewCommentPreviewCardHtml = (body: string): string => {
+  const parsed = parseReviewCommentBody(body)
+  const tag = parsed.tagId
+    ? `<div class="mb-2 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">${escapeHtml(parsed.tagType || 'COMMENT')} · ${escapeHtml(parsed.tagId)}</div>`
+    : ''
+  const reply = parsed.replyTarget
+    ? `<div class="mb-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground"><div class="font-medium text-foreground">回复 ${escapeHtml(parsed.replyTarget)}</div>${parsed.replyExcerpt ? `<div class="mt-1">${renderCommentMarkdownHtml(parsed.replyExcerpt)}</div>` : ''}</div>`
+    : ''
+  const content = `<div class="pt-1 break-words text-foreground">${renderCommentMarkdownHtml(parsed.content)}</div>`
+  return `${tag}${reply}${content}`
 }
 
 const workspaceFolderPrefixInput = computed({
@@ -2937,11 +2958,53 @@ const onReviewReplyComment = (comment: {
   user?: { login?: string }
 }): void => {
   reviewReplyTargetComment.value = comment
+  reviewEditingCommentTarget.value = null
   reviewCommentEditorTab.value = 'edit'
 }
 
 const clearReviewReplyTarget = (): void => {
   reviewReplyTargetComment.value = null
+}
+
+const onReviewEditComment = (comment: {
+  id: number
+  body?: string
+  user?: { login?: string }
+}): void => {
+  const parsed = parseReviewCommentBody(comment.body || '')
+  reviewCommentId.value = parsed.tagId || `comment_${comment.id}`
+  reviewCommentMessage.value = parsed.content
+  reviewEditingCommentTarget.value = comment
+  clearReviewReplyTarget()
+  reviewCommentEditorTab.value = 'edit'
+}
+
+const clearReviewEditingTarget = (): void => {
+  reviewEditingCommentTarget.value = null
+}
+
+const onReviewDeleteComment = async (comment: {
+  id: number
+  body?: string
+  user?: { login?: string }
+}): Promise<void> => {
+  if (!selectedReviewItem.value) return
+  const confirmed = window.confirm(`确认删除评论 #${comment.id} 吗？`)
+  if (!confirmed) return
+  try {
+    await deletePullRequestIssueComment({
+      token: requireToken(),
+      owner: upstreamOwner.value.trim(),
+      repo: upstreamRepo.value.trim(),
+      commentId: comment.id
+    })
+    if (reviewEditingCommentTarget.value?.id === comment.id) clearReviewEditingTarget()
+    if (reviewReplyTargetComment.value?.id === comment.id) clearReviewReplyTarget()
+    await loadReviewComments(selectedReviewItem.value.prNumber)
+    openReviewCommentResultDialog('删除成功', `评论 #${comment.id} 已删除。`)
+  } catch (error: unknown) {
+    openReviewCommentResultDialog('删除失败', error instanceof Error ? error.message : '评论删除失败')
+  }
 }
 
 const submitReviewComment = async (): Promise<void> => {
@@ -2954,19 +3017,36 @@ const submitReviewComment = async (): Promise<void> => {
 
   reviewCommentSubmitting.value = true
   try {
-    const created = await createPullRequestIssueComment({
-      token: requireToken(),
-      owner: upstreamOwner.value.trim(),
-      repo: upstreamRepo.value.trim(),
-      prNumber: selectedReviewItem.value.prNumber,
-      body
-    })
-    await loadReviewComments(selectedReviewItem.value.prNumber)
-    await scrollToReviewCommentById(created.id)
-    reviewCommentMessage.value = ''
-    reviewCommentEditorTab.value = 'edit'
-    clearReviewReplyTarget()
-    openReviewCommentResultDialog('发送成功', '评论已发送并立即刷新评论列表。')
+    if (reviewEditingCommentTarget.value) {
+      const updated = await updatePullRequestIssueComment({
+        token: requireToken(),
+        owner: upstreamOwner.value.trim(),
+        repo: upstreamRepo.value.trim(),
+        commentId: reviewEditingCommentTarget.value.id,
+        body
+      })
+      await loadReviewComments(selectedReviewItem.value.prNumber)
+      await scrollToReviewCommentById(updated.id)
+      reviewCommentMessage.value = ''
+      reviewCommentEditorTab.value = 'edit'
+      clearReviewReplyTarget()
+      clearReviewEditingTarget()
+      openReviewCommentResultDialog('更新成功', '评论已更新。')
+    } else {
+      const created = await createPullRequestIssueComment({
+        token: requireToken(),
+        owner: upstreamOwner.value.trim(),
+        repo: upstreamRepo.value.trim(),
+        prNumber: selectedReviewItem.value.prNumber,
+        body
+      })
+      await loadReviewComments(selectedReviewItem.value.prNumber)
+      await scrollToReviewCommentById(created.id)
+      reviewCommentMessage.value = ''
+      reviewCommentEditorTab.value = 'edit'
+      clearReviewReplyTarget()
+      openReviewCommentResultDialog('发送成功', '评论已发送并立即刷新评论列表。')
+    }
   } catch (error: unknown) {
     openReviewCommentResultDialog('发送失败', error instanceof Error ? error.message : '评论发送失败')
   } finally {
@@ -2976,6 +3056,8 @@ const submitReviewComment = async (): Promise<void> => {
 
 const openReviewItem = (item: PublishingResource): void => {
   selectedReviewItem.value = item
+  clearReviewEditingTarget()
+  clearReviewReplyTarget()
   void loadReviewComments(item.prNumber)
 }
 
@@ -2986,6 +3068,7 @@ const closeReviewDetail = (): void => {
   reviewCommentId.value = ''
   reviewCommentMessage.value = ''
   reviewCommentEditorTab.value = 'edit'
+  clearReviewEditingTarget()
   clearReviewReplyTarget()
 }
 

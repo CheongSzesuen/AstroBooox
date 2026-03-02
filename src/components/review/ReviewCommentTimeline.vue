@@ -38,6 +38,22 @@
             >
               回复
             </button>
+            <button
+              v-if="showEditAction"
+              type="button"
+              class="text-primary hover:underline"
+              @click="emit('edit', comment)"
+            >
+              编辑
+            </button>
+            <button
+              v-if="showDeleteAction"
+              type="button"
+              class="text-destructive hover:underline"
+              @click="emit('delete', comment)"
+            >
+              删除
+            </button>
             <a
               v-if="showOpenLink && comment.html_url"
               :href="comment.html_url"
@@ -49,22 +65,39 @@
             </a>
           </div>
         </div>
+        <div v-if="parsedOf(comment).tagId" class="mb-2 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">
+          {{ parsedOf(comment).tagType || 'COMMENT' }} · {{ parsedOf(comment).tagId }}
+        </div>
         <div
-          v-if="extractReplyMeta(comment.body || '').target"
+          v-if="parsedOf(comment).replyTarget"
           class="mb-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground"
         >
           <div class="font-medium text-foreground">
-            回复 {{ extractReplyMeta(comment.body || '').target }}
+            回复 {{ parsedOf(comment).replyTarget }}
           </div>
           <div
-            v-if="extractReplyMeta(comment.body || '').excerpt"
+            v-if="parsedOf(comment).replyExcerpt"
             class="mt-1 whitespace-pre-wrap break-words"
           >
-            {{ extractReplyMeta(comment.body || '').excerpt }}
+            {{ parsedOf(comment).replyExcerpt }}
           </div>
         </div>
-        <div class="pt-1 whitespace-pre-wrap break-words text-foreground">
-          {{ extractReplyMeta(comment.body || '').content }}
+        <div
+          class="pt-1 break-words text-foreground"
+          :class="isCollapsed(comment) ? 'max-h-36 overflow-hidden' : ''"
+          v-html="renderCommentHtml(parsedOf(comment).content)"
+        ></div>
+        <button
+          v-if="isLongContent(comment)"
+          type="button"
+          class="mt-2 text-xs text-primary hover:underline"
+          @click="toggleCollapsed(comment)"
+        >
+          {{ isCollapsed(comment) ? '展开' : '收起' }}
+        </button>
+        <div
+          v-if="isCollapsed(comment) && isLongContent(comment)"
+          class="pointer-events-none absolute bottom-10 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent"
         </div>
       </div>
     </div>
@@ -72,7 +105,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { parseReviewCommentBody, renderCommentMarkdownHtml, type ParsedReviewComment } from '@/utils/reviewComment'
 
 interface ReviewCommentUser {
   login?: string
@@ -92,6 +126,8 @@ const props = withDefaults(defineProps<{
   emptyText?: string
   showOpenLink?: boolean
   showReplyAction?: boolean
+  showEditAction?: boolean
+  showDeleteAction?: boolean
   lineLeft?: number
   avatarRounded?: 'full' | 'md'
   avatarBorder?: boolean
@@ -101,6 +137,8 @@ const props = withDefaults(defineProps<{
   emptyText: '当前 PR 暂无评论',
   showOpenLink: false,
   showReplyAction: false,
+  showEditAction: false,
+  showDeleteAction: false,
   lineLeft: 54,
   avatarRounded: 'full',
   avatarBorder: false
@@ -108,6 +146,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   reply: [comment: ReviewCommentItem]
+  edit: [comment: ReviewCommentItem]
+  delete: [comment: ReviewCommentItem]
 }>()
 
 const avatarClass = computed(() => [
@@ -144,39 +184,50 @@ const formatCommentRelativeTime = (value: string): string => {
   return `commented ${Math.max(1, Math.round(absMs / year))} year${Math.round(absMs / year) > 1 ? 's' : ''} ago`
 }
 
-const extractReplyMeta = (body: string): { target: string; excerpt: string; content: string } => {
-  const normalized = body || ''
-  const targetMatch = normalized.match(/^\s*>\s*Reply-To:\s*(.+)$/m)
-  if (!targetMatch) {
-    return {
-      target: '',
-      excerpt: '',
-      content: normalized
-    }
+const parsedMap = computed(() => {
+  const next = new Map<string, ParsedReviewComment>()
+  for (const comment of props.comments) {
+    next.set(String(comment.id), parseReviewCommentBody(comment.body || ''))
   }
-  const target = targetMatch[1].trim()
-  const lines = normalized.split('\n')
-  const filtered: string[] = []
-  let excerpt = ''
-  let skipNextQuote = false
+  return next
+})
 
-  for (const line of lines) {
-    if (/^\s*>\s*Reply-To:\s*/.test(line)) {
-      skipNextQuote = true
-      continue
-    }
-    if (skipNextQuote && /^\s*>\s*/.test(line)) {
-      excerpt = line.replace(/^\s*>\s*/, '').trim()
-      skipNextQuote = false
-      continue
-    }
-    filtered.push(line)
+const parsedOf = (comment: ReviewCommentItem): ParsedReviewComment =>
+  parsedMap.value.get(String(comment.id)) || {
+    tagType: '',
+    tagId: '',
+    replyTarget: '',
+    replyExcerpt: '',
+    content: comment.body || ''
   }
 
-  return {
-    target,
-    excerpt,
-    content: filtered.join('\n').trim()
+const renderCommentHtml = (content: string): string => renderCommentMarkdownHtml(content)
+
+const collapsedState = ref<Record<string, boolean>>({})
+const isLongText = (text: string): boolean => (text || '').length > 360 || (text || '').split('\n').length > 8
+
+const isLongContent = (comment: ReviewCommentItem): boolean => isLongText(parsedOf(comment).content)
+const isCollapsed = (comment: ReviewCommentItem): boolean =>
+  collapsedState.value[String(comment.id)] ?? isLongContent(comment)
+
+const toggleCollapsed = (comment: ReviewCommentItem): void => {
+  const key = String(comment.id)
+  collapsedState.value = {
+    ...collapsedState.value,
+    [key]: !isCollapsed(comment)
   }
 }
+
+watch(
+  () => props.comments.map(item => `${item.id}:${item.body || ''}`),
+  () => {
+    const next: Record<string, boolean> = {}
+    for (const comment of props.comments) {
+      const key = String(comment.id)
+      next[key] = collapsedState.value[key] ?? isLongContent(comment)
+    }
+    collapsedState.value = next
+  },
+  { immediate: true }
+)
 </script>

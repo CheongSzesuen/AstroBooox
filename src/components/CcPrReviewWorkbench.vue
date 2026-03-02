@@ -155,6 +155,7 @@
                   :can-submit="canSubmitComment"
                   :submitting="commentSubmitting"
                   :submit-button-title="submitButtonTitle"
+                  :submit-text="editingCommentTarget ? '更新评论' : '发送评论'"
                   :show-file-picker-button="true"
                   id-placeholder="自定义 ID，例如 icon_png_check"
                   message-placeholder="评论说明（文件引用请用上方按钮插入）"
@@ -166,6 +167,17 @@
                   @submit="submitPresetComment"
                   @cursor-event="syncCommentCursor"
                 />
+                <div
+                  v-if="editingCommentTarget"
+                  class="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-muted-foreground"
+                >
+                  <span class="truncate">
+                    正在编辑评论 #{{ editingCommentTarget.id }}
+                  </span>
+                  <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" @click="clearEditingComment">
+                    取消编辑
+                  </Button>
+                </div>
                 <div
                   v-if="replyTargetComment"
                   class="flex items-center justify-between rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground"
@@ -184,10 +196,14 @@
                   :line-left="54"
                   show-open-link
                   show-reply-action
+                  show-edit-action
+                  show-delete-action
                   avatar-rounded="full"
                   :get-avatar-url="getOptimizedAvatarUrl"
                   :on-avatar-load="cacheAvatar"
                   @reply="onReplyComment"
+                  @edit="onEditComment"
+                  @delete="onDeleteComment"
                 />
               </div>
             </CardContent>
@@ -669,6 +685,7 @@ import ReviewCommentComposer from '@/components/review/ReviewCommentComposer.vue
 import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue'
 import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
 import { createGitHubClient, normalizeGitHubError } from '@/utils/githubOctokitClient'
+import { parseReviewCommentBody, renderCommentMarkdownHtml } from '@/utils/reviewComment'
 import {
   Card,
   CardContent,
@@ -835,6 +852,7 @@ const commentResultDialogTitle = ref('')
 const commentResultDialogMessage = ref('')
 const pendingCreatedComments = new Map<number, IssueCommentItem>()
 const replyTargetComment = ref<IssueCommentItem | null>(null)
+const editingCommentTarget = ref<IssueCommentItem | null>(null)
 
 const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && resolvedToken.value))
 const sidebarClass = computed(() => [
@@ -910,10 +928,13 @@ const submitCommentBody = computed(() => {
 })
 const renderedCommentPreviewHtml = computed(() => {
   if (!commentBodyPreview.value) return '<span class="text-muted-foreground">（这里显示评论内容）</span>'
-  return renderMarkdownPreview(commentBodyPreview.value)
+  return buildCommentPreviewCardHtml(commentBodyPreview.value)
 })
 const canSubmitComment = computed(() => Boolean(normalizedCommentId.value))
-const submitButtonTitle = computed(() => (canSubmitComment.value ? '' : '请填写id'))
+const submitButtonTitle = computed(() => {
+  if (!canSubmitComment.value) return '请填写id'
+  return editingCommentTarget.value ? '更新现有评论' : ''
+})
 const pickerPaths = computed(() => {
   const source = filePickerTab.value === 'pr'
     ? prFiles.value.map(file => file.filename)
@@ -1171,15 +1192,16 @@ const escapeHtml = (value: string): string => value
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;')
 
-const renderMarkdownPreview = (source: string): string => {
-  let html = escapeHtml(source)
-  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, url) => {
-    const normalizedLabel = label.replace(/^`(.+)`$/, '$1')
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2">${normalizedLabel}</a>`
-  })
-  html = html.replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">$1</code>')
-  html = html.replace(/\n/g, '<br>')
-  return html
+const buildCommentPreviewCardHtml = (body: string): string => {
+  const parsed = parseReviewCommentBody(body)
+  const tag = parsed.tagId
+    ? `<div class="mb-2 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">${escapeHtml(parsed.tagType || 'COMMENT')} · ${escapeHtml(parsed.tagId)}</div>`
+    : ''
+  const reply = parsed.replyTarget
+    ? `<div class="mb-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground"><div class="font-medium text-foreground">回复 ${escapeHtml(parsed.replyTarget)}</div>${parsed.replyExcerpt ? `<div class="mt-1">${renderCommentMarkdownHtml(parsed.replyExcerpt)}</div>` : ''}</div>`
+    : ''
+  const content = `<div class="pt-1 break-words text-foreground">${renderCommentMarkdownHtml(parsed.content)}</div>`
+  return `${tag}${reply}${content}`
 }
 
 const openCommentResultDialog = (title: string, message: string): void => {
@@ -1997,6 +2019,27 @@ async function githubPost<T>(path: string, body: Record<string, unknown>): Promi
   }
 }
 
+async function githubPatch<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  try {
+    const { rest } = createGitHubClient(resolvedToken.value)
+    const response = await rest.request(`PATCH ${path}`, { data: body })
+    return response.data as T
+  } catch (error: unknown) {
+    const normalized = normalizeGitHubError(error)
+    throw new Error(normalized.message)
+  }
+}
+
+async function githubDelete(path: string): Promise<void> {
+  try {
+    const { rest } = createGitHubClient(resolvedToken.value)
+    await rest.request(`DELETE ${path}`)
+  } catch (error: unknown) {
+    const normalized = normalizeGitHubError(error)
+    throw new Error(normalized.message)
+  }
+}
+
 const fetchRepoJsonFile = async (
   owner: string,
   repo: string,
@@ -2430,11 +2473,40 @@ const insertSelectedLineReference = (): void => {
 
 const onReplyComment = (comment: IssueCommentItem): void => {
   replyTargetComment.value = comment
+  editingCommentTarget.value = null
   commentEditorTab.value = 'edit'
 }
 
 const clearReplyTarget = (): void => {
   replyTargetComment.value = null
+}
+
+const clearEditingComment = (): void => {
+  editingCommentTarget.value = null
+}
+
+const onEditComment = (comment: IssueCommentItem): void => {
+  const parsed = parseReviewCommentBody(comment.body || '')
+  commentId.value = parsed.tagId || `comment_${comment.id}`
+  commentMessage.value = parsed.content
+  editingCommentTarget.value = comment
+  clearReplyTarget()
+  commentEditorTab.value = 'edit'
+}
+
+const onDeleteComment = async (comment: IssueCommentItem): Promise<void> => {
+  if (!selectedPr.value) return
+  const confirmed = window.confirm(`确认删除评论 #${comment.id} 吗？`)
+  if (!confirmed) return
+  try {
+    await githubDelete(`/repos/${props.owner}/${props.repo}/issues/comments/${comment.id}`)
+    if (editingCommentTarget.value?.id === comment.id) clearEditingComment()
+    if (replyTargetComment.value?.id === comment.id) clearReplyTarget()
+    await refreshPrCommentsAndStatus(selectedPr.value)
+    openCommentResultDialog('删除成功', `评论 #${comment.id} 已删除。`)
+  } catch (error: unknown) {
+    openCommentResultDialog('删除失败', error instanceof Error ? error.message : '评论删除失败')
+  }
 }
 
 const scrollToCommentById = async (commentId: number): Promise<void> => {
@@ -2459,24 +2531,39 @@ const submitPresetComment = async (): Promise<void> => {
   }
   commentSubmitting.value = true
   try {
-    const created = await githubPost<IssueCommentItem>(
-      `/repos/${props.owner}/${props.repo}/issues/${selectedPr.value.number}/comments`,
-      { body }
-    )
-    pendingCreatedComments.set(created.id, created)
-    commentMessage.value = ''
-    commentEditorTab.value = 'edit'
-    clearReplyTarget()
-    upsertCommentInList(created)
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (editingCommentTarget.value) {
+      const updated = await githubPatch<IssueCommentItem>(
+        `/repos/${props.owner}/${props.repo}/issues/comments/${editingCommentTarget.value.id}`,
+        { body }
+      )
+      commentMessage.value = ''
+      commentEditorTab.value = 'edit'
+      clearReplyTarget()
+      clearEditingComment()
+      upsertCommentInList(updated)
       await refreshPrCommentsAndStatus(selectedPr.value)
-      if (prComments.value.some(comment => comment.id === created.id)) {
-        break
+      await scrollToCommentById(updated.id)
+      openCommentResultDialog('更新成功', '评论已更新。')
+    } else {
+      const created = await githubPost<IssueCommentItem>(
+        `/repos/${props.owner}/${props.repo}/issues/${selectedPr.value.number}/comments`,
+        { body }
+      )
+      pendingCreatedComments.set(created.id, created)
+      commentMessage.value = ''
+      commentEditorTab.value = 'edit'
+      clearReplyTarget()
+      upsertCommentInList(created)
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        await refreshPrCommentsAndStatus(selectedPr.value)
+        if (prComments.value.some(comment => comment.id === created.id)) {
+          break
+        }
+        await sleep(600 * (attempt + 1))
       }
-      await sleep(600 * (attempt + 1))
+      await scrollToCommentById(created.id)
+      openCommentResultDialog('发送成功', '评论已发送并立即刷新评论列表。')
     }
-    await scrollToCommentById(created.id)
-    openCommentResultDialog('发送成功', '评论已发送并立即刷新评论列表。')
   } catch (error: unknown) {
     openCommentResultDialog('发送失败', error instanceof Error ? error.message : '评论发送失败')
   } finally {
