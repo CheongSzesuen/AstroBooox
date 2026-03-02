@@ -466,6 +466,34 @@
                         />
                         <span v-else class="text-sm font-medium text-foreground">{{ item.value || '-' }}</span>
                       </div>
+                      <div class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between">
+                        <span class="text-xs text-muted-foreground">仓库信息</span>
+                        <span v-if="submissionOverview.repoUrl" class="min-w-0 text-sm font-medium text-foreground">
+                          <a
+                            :href="submissionOverview.repoUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="break-all text-primary hover:underline"
+                          >
+                            {{ submissionOverview.repoUrl }}
+                          </a>
+                        </span>
+                        <span v-else class="text-sm font-medium text-foreground">-</span>
+                      </div>
+                      <div class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between">
+                        <span class="text-xs text-muted-foreground">manifest_v2 链接</span>
+                        <span v-if="manifestV2Link" class="min-w-0 text-sm font-medium text-foreground">
+                          <a
+                            :href="manifestV2Link"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="break-all text-primary hover:underline"
+                          >
+                            {{ manifestV2Link }}
+                          </a>
+                        </span>
+                        <span v-else class="text-sm font-medium text-foreground">-</span>
+                      </div>
                     </div>
                   </div>
 
@@ -482,29 +510,23 @@
                       >
                         {{ device }}
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="rounded-md border border-border p-3">
-                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <GithubLogo :size="14" weight="duotone" />
-                    仓库信息
-                  </div>
-                  <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <span v-if="submissionOverview.repoUrl" class="inline-flex min-w-0 items-center gap-1.5">
+                      <div
+                        v-for="item in submissionOverview.downloads"
+                        :key="`${item.device}-${item.file}`"
+                        class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
+                      >
+                        <div class="text-xs text-muted-foreground">{{ item.device }} · {{ item.version || '-' }}</div>
+                        <div class="mt-1 text-xs text-muted-foreground">{{ item.file || '-' }}</div>
                         <a
-                          :href="submissionOverview.repoUrl"
+                          v-if="item.raw"
+                          :href="item.raw"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="break-all text-primary hover:underline"
+                          class="mt-1 block break-all text-xs text-primary hover:underline"
                         >
-                          {{ submissionOverview.repoUrl }}
+                          {{ item.raw }}
                         </a>
-                      </span>
-                      <span v-else class="text-foreground">-</span>
-                      <code class="shrink-0 text-foreground">{{ submissionOverview.shortHash || '-' }}</code>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -527,63 +549,71 @@
                   <div v-if="imageSlides.length === 0" class="rounded-md border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
                     未检测到图片资源
                   </div>
-                  <div v-else class="overflow-hidden" ref="imageCarouselRef">
-                    <div class="flex">
-                      <div
-                        v-for="slide in imageSlides"
-                        :key="slide.key"
-                        class="min-w-0 shrink-0 grow-0 basis-full pr-2"
-                      >
-                        <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
-                          <div class="text-xs text-muted-foreground">{{ slide.label }} · {{ slide.file }}</div>
-                          <a
-                            :href="slide.url"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
-                          >
-                            <img
-                              :src="getDisplayImageUrl(slide.url)"
-                              :alt="`${slide.file} 预览`"
-                              class="max-h-64 w-full object-contain"
-                              loading="lazy"
-                            />
-                          </a>
-                          <span class="mt-2 inline-flex items-center gap-1.5">
-                            <a :href="slide.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
-                              {{ slide.url }}
-                            </a>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="rounded-md border border-border p-3">
-                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <DownloadIcon :size="14" weight="duotone" />
-                    下载资源（downloads）
-                  </div>
-                  <div class="space-y-2 text-sm">
-                    <div
-                      v-for="item in submissionOverview.downloads"
-                      :key="`${item.device}-${item.file}`"
-                      class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
-                    >
-                      <div class="font-medium text-foreground">{{ item.device }}</div>
-                      <div class="mt-1 text-xs text-muted-foreground">version: {{ item.version || '-' }}</div>
-                      <div class="mt-1 text-xs text-muted-foreground">file: {{ item.file || '-' }}</div>
-                      <span v-if="item.raw" class="mt-1 inline-flex items-center gap-1.5">
+                  <div v-else class="space-y-3">
+                    <div class="grid gap-3 md:grid-cols-2">
+                      <div v-if="submissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+                        <div class="text-xs text-muted-foreground">Icon · {{ submissionOverview.images.icon.file }}</div>
                         <a
-                          :href="item.raw"
+                          :href="submissionOverview.images.icon.url"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="block break-all text-xs text-primary hover:underline"
+                          class="mt-2 block overflow-hidden rounded-full border border-border/60 bg-background/70"
                         >
-                          {{ item.raw }}
+                          <img
+                            :src="getDisplayImageUrl(submissionOverview.images.icon.url)"
+                            alt="Icon 预览"
+                            class="mx-auto aspect-square h-36 w-36 object-cover"
+                            loading="lazy"
+                          />
                         </a>
-                      </span>
+                      </div>
+                      <div v-if="submissionOverview.images.cover" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+                        <div class="text-xs text-muted-foreground">Cover · {{ submissionOverview.images.cover.file }}</div>
+                        <a
+                          :href="submissionOverview.images.cover.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
+                        >
+                          <img
+                            :src="getDisplayImageUrl(submissionOverview.images.cover.url)"
+                            alt="Cover 预览"
+                            class="max-h-56 w-full object-contain"
+                            loading="lazy"
+                          />
+                        </a>
+                      </div>
+                    </div>
+                    <div v-if="imageSlides.length > 0" class="overflow-hidden" ref="imageCarouselRef">
+                      <div class="flex">
+                        <div
+                          v-for="slide in imageSlides"
+                          :key="slide.key"
+                          class="min-w-0 shrink-0 grow-0 basis-full pr-2"
+                        >
+                          <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+                            <div class="text-xs text-muted-foreground">Preview · {{ slide.file }}</div>
+                            <a
+                              :href="slide.url"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
+                            >
+                              <img
+                                :src="getDisplayImageUrl(slide.url)"
+                                :alt="`${slide.file} 预览`"
+                                class="max-h-64 w-full object-contain"
+                                loading="lazy"
+                              />
+                            </a>
+                            <span class="mt-2 inline-flex items-center gap-1.5">
+                              <a :href="slide.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
+                                {{ slide.url }}
+                              </a>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -666,7 +696,6 @@ import {
   PhGithubLogo as GithubLogo,
   PhGlobeHemisphereWest as GlobeIcon,
   PhImageSquare as ImageIcon,
-  PhDownloadSimple as DownloadIcon,
   PhNote as NoteIcon,
   PhGitPullRequest as GitPullRequest,
   PhLinkSimple as LinkSimple,
@@ -1441,24 +1470,18 @@ const hasSubmissionOverview = computed(() =>
   || Boolean(submissionOverview.value.images.cover)
   || submissionOverview.value.images.previews.length > 0
 )
+const manifestV2Link = computed(() => {
+  const pr = selectedPr.value
+  if (!pr?.resourceRepoOwner || !pr?.resourceRepoName) return ''
+  const ref = encodeURIComponent(pr.resourceRepoRef || 'main')
+  const hasManifestV2 = repoFiles.value.includes('manifest_v2.json')
+  const hasManifestV1 = repoFiles.value.includes('manifest.json')
+  const fileName = hasManifestV2 ? 'manifest_v2.json' : (hasManifestV1 ? 'manifest.json' : '')
+  if (!fileName) return ''
+  return `https://github.com/${pr.resourceRepoOwner}/${pr.resourceRepoName}/blob/${ref}/${fileName}`
+})
 const imageSlides = computed<Array<{ key: string; label: string; file: string; url: string }>>(() => {
   const slides: Array<{ key: string; label: string; file: string; url: string }> = []
-  if (submissionOverview.value.images.icon) {
-    slides.push({
-      key: `icon-${submissionOverview.value.images.icon.file}`,
-      label: 'Icon',
-      file: submissionOverview.value.images.icon.file,
-      url: submissionOverview.value.images.icon.url
-    })
-  }
-  if (submissionOverview.value.images.cover) {
-    slides.push({
-      key: `cover-${submissionOverview.value.images.cover.file}`,
-      label: 'Cover',
-      file: submissionOverview.value.images.cover.file,
-      url: submissionOverview.value.images.cover.url
-    })
-  }
   for (const preview of submissionOverview.value.images.previews) {
     slides.push({
       key: `preview-${preview.file}-${preview.url}`,
