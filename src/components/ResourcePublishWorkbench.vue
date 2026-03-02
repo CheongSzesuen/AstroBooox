@@ -561,18 +561,26 @@
             <DialogTitle>搜索 phosphor 图标</DialogTitle>
             <DialogDescription>选择后会自动填入 links.icon 的图标名。</DialogDescription>
           </DialogHeader>
-          <div class="space-y-3">
-            <Input v-model="linkIconQuery" placeholder="输入关键词，例如 github / house / chat / code" />
-            <div class="max-h-[60vh] overflow-y-auto rounded-lg border border-border bg-muted/20 p-3">
-              <div class="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-2">
+          <div class="max-h-[64vh] overflow-y-auto rounded-lg border border-border bg-muted/20">
+            <div class="sticky top-0 z-10 border-b border-border bg-card/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-card/85">
+              <Input v-model="linkIconQuery" placeholder="输入关键词，例如 github / house / chat / code" />
+            </div>
+            <div class="p-3">
+              <div class="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5">
                 <button
                   v-for="name in filteredPhosphorIconNames"
                   :key="`icon-${name}`"
                   type="button"
-                  class="rounded-md border border-border bg-background px-2.5 py-2 text-left text-xs text-foreground transition hover:bg-accent"
+                  class="flex min-h-[92px] flex-col items-center justify-center gap-2 rounded-md border border-border bg-background px-2 py-2 text-center text-xs text-foreground transition hover:bg-accent"
                   @click="selectLinkIcon(name)"
                 >
-                  {{ name }}
+                  <img
+                    :src="getPhosphorIconSvgUrl(name)"
+                    :alt="name"
+                    class="h-6 w-6 shrink-0"
+                    loading="lazy"
+                  />
+                  <span class="line-clamp-2 break-all text-[11px] leading-4">{{ name }}</span>
                 </button>
               </div>
               <div
@@ -1021,6 +1029,9 @@ const filteredPhosphorIconNames = computed(() => {
   if (!keyword) return [...phosphorIconNames]
   return phosphorIconNames.filter(name => name.includes(keyword))
 })
+
+const getPhosphorIconSvgUrl = (name: string): string =>
+  `https://cdn.jsdelivr.net/npm/@phosphor-icons/core@2.1.1/assets/${name}.svg`
 
 const stepList = computed(() => [
   {
