@@ -724,6 +724,20 @@
         </DialogContent>
       </Dialog>
 
+      <Dialog :open="showImageValidationDialog" @update:open="showImageValidationDialog = $event">
+        <DialogContent class="max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>图片规格不符合要求</DialogTitle>
+            <DialogDescription>
+              {{ imageValidationMessage }}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" @click="showImageValidationDialog = false">我知道了</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog :open="showLinkIconPicker" @update:open="showLinkIconPicker = $event">
         <DialogContent class="w-[95vw] !max-w-[900px]">
           <DialogHeader>
@@ -936,6 +950,11 @@ interface WorkspaceDirectoryHandle {
   [Symbol.asyncIterator](): AsyncIterableIterator<[string, WorkspaceFileHandle | WorkspaceDirectoryHandle]>
 }
 
+interface PickedWorkspaceFile {
+  path: string
+  file: File
+}
+
 const MAIN_BRANCH = 'main'
 const MANIFEST_FILE = 'manifest_v2.json'
 const LEGACY_MANIFEST_FILE = 'manifest.json'
@@ -1073,6 +1092,8 @@ const links = ref<Array<{ icon: string; title: string; url: string }>>([])
 const showDeviceSelector = ref(false)
 const showResourceIdGuide = ref(false)
 const showOutOfWorkspaceFileDialog = ref(false)
+const showImageValidationDialog = ref(false)
+const imageValidationMessage = ref('')
 const showUploadCompleteDialog = ref(false)
 const showLinkIconPicker = ref(false)
 const linkIconPickerIndex = ref<number | null>(null)
@@ -1601,7 +1622,7 @@ const autoResizeDescription = (): void => {
   el.style.height = `${nextHeight}px`
 }
 
-const pickFilePathFromWorkspace = async (): Promise<string | null> => {
+const pickFileFromWorkspace = async (): Promise<PickedWorkspaceFile | null> => {
   const handle = await ensureWorkspaceHandle()
   if (!handle) {
     return null
@@ -1625,14 +1646,22 @@ const pickFilePathFromWorkspace = async (): Promise<string | null> => {
     if (typeof handle.resolve === 'function') {
       const relativeParts = await handle.resolve(fileHandle)
       if (relativeParts && relativeParts.length > 0) {
-        return relativeParts.join('/')
+        const file = await fileHandle.getFile()
+        return {
+          path: relativeParts.join('/'),
+          file
+        }
       }
 
       showOutOfWorkspaceFileDialog.value = true
       return null
     }
 
-    return fileHandle.name || null
+    const file = await fileHandle.getFile()
+    return {
+      path: fileHandle.name || file.name,
+      file
+    }
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') return null
     appendLog(`选择文件失败: ${error instanceof Error ? error.message : '未知错误'}`)
@@ -1640,14 +1669,63 @@ const pickFilePathFromWorkspace = async (): Promise<string | null> => {
   }
 }
 
+const getImageSize = async (file: File): Promise<{ width: number; height: number }> => {
+  const bitmap = await createImageBitmap(file)
+  const size = { width: bitmap.width, height: bitmap.height }
+  bitmap.close()
+  return size
+}
+
+const showInvalidImageDialog = (message: string): void => {
+  imageValidationMessage.value = message
+  showImageValidationDialog.value = true
+}
+
+const validateIconImage = async (file: File): Promise<boolean> => {
+  try {
+    const { width, height } = await getImageSize(file)
+    if (width !== height) {
+      showInvalidImageDialog(`icon 必须为 1:1 比例。当前为 ${width}×${height}。`)
+      return false
+    }
+    if (width > 500 || height > 500) {
+      showInvalidImageDialog(`icon 尺寸必须小于等于 500×500。当前为 ${width}×${height}。`)
+      return false
+    }
+    return true
+  } catch {
+    showInvalidImageDialog('icon 文件无法解析为图片，请重新选择。')
+    return false
+  }
+}
+
+const validateCoverImage = async (file: File): Promise<boolean> => {
+  try {
+    const { width, height } = await getImageSize(file)
+    const ratio = width / height
+    if (Math.abs(ratio - 1.5) > 0.02) {
+      showInvalidImageDialog(`cover 宽高比必须为 1.5。当前为 ${width}×${height}（${ratio.toFixed(3)}）。`)
+      return false
+    }
+    return true
+  } catch {
+    showInvalidImageDialog('cover 文件无法解析为图片，请重新选择。')
+    return false
+  }
+}
+
 const selectIconFile = async (): Promise<void> => {
-  const path = await pickFilePathFromWorkspace()
-  if (path) iconPath.value = path
+  const picked = await pickFileFromWorkspace()
+  if (!picked) return
+  if (!(await validateIconImage(picked.file))) return
+  iconPath.value = picked.path
 }
 
 const selectCoverFile = async (): Promise<void> => {
-  const path = await pickFilePathFromWorkspace()
-  if (path) coverPath.value = path
+  const picked = await pickFileFromWorkspace()
+  if (!picked) return
+  if (!(await validateCoverImage(picked.file))) return
+  coverPath.value = picked.path
 }
 
 const selectMultiplePreviewFiles = async (): Promise<void> => {
@@ -1712,10 +1790,10 @@ const getWorkspaceFolderNameFromPath = (path: string): string => {
 }
 
 const selectDownloadFile = async (deviceId: string): Promise<void> => {
-  const path = await pickFilePathFromWorkspace()
-  if (path) {
+  const picked = await pickFileFromWorkspace()
+  if (picked) {
     ensureDownload(deviceId)
-    downloads.value[deviceId].file_name = path
+    downloads.value[deviceId].file_name = picked.path
   }
 }
 
