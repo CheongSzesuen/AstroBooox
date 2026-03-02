@@ -176,7 +176,7 @@
           <Card class="hidden border-border bg-card xl:block">
             <CardHeader class="pb-2">
               <div class="flex items-center justify-between gap-2">
-                <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">发布日志</CardTitle>
+                <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">日志</CardTitle>
                 <Button variant="ghost" size="sm" class="h-7 px-2 text-xs" @click="clearPublishLogs">清空</Button>
               </div>
             </CardHeader>
@@ -350,6 +350,7 @@
                         <Input id="icon-path" v-model="iconPath" readonly placeholder="点击右侧按钮从工作区选择文件" />
                         <Button variant="outline" @click="selectIconFile">选择文件</Button>
                       </div>
+                      <p class="text-xs text-muted-foreground">宽高比 1:1，大小不超过 200px × 200px</p>
                     </div>
                     <div class="space-y-1.5">
                       <Label for="cover-path">封面</Label>
@@ -357,6 +358,7 @@
                         <Input id="cover-path" v-model="coverPath" readonly placeholder="点击右侧按钮从工作区选择文件" />
                         <Button variant="outline" @click="selectCoverFile">选择文件</Button>
                       </div>
+                      <p class="text-xs text-muted-foreground">宽高比 1.5，宽度不宜超过 2000px</p>
                     </div>
                   </div>
 
@@ -619,7 +621,7 @@
           <Card class="border-border bg-card xl:hidden">
             <CardHeader class="pb-2">
               <div class="flex items-center justify-between gap-2">
-                <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">发布日志</CardTitle>
+                <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">日志</CardTitle>
                 <Button variant="ghost" size="sm" class="h-7 px-2 text-xs" @click="clearPublishLogs">清空</Button>
               </div>
             </CardHeader>
