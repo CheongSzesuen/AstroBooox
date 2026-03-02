@@ -194,7 +194,15 @@
               <div class="space-y-2 rounded-md border border-border p-3">
                 <div class="text-xs font-medium text-muted-foreground">评论内容</div>
                 <div class="grid gap-2">
-                  <Input v-model="commentId" placeholder="ID（自定义），例如 icon_png_check" />
+                  <div class="flex items-center rounded-md border border-input bg-background">
+                    <span class="shrink-0 border-r border-border px-3 text-xs text-muted-foreground">[ABCC_NEEDFIX_</span>
+                    <Input
+                      v-model="commentId"
+                      class="border-0 shadow-none focus-visible:ring-0"
+                      placeholder="自定义 ID，例如 icon_png_check"
+                    />
+                    <span class="shrink-0 px-3 text-xs text-muted-foreground">]</span>
+                  </div>
                   <Textarea
                     v-model="commentMessage"
                     placeholder="评论说明（可包含快速插入的 Markdown 链接）"
@@ -205,11 +213,11 @@
 
               <div class="space-y-2 rounded-md border border-dashed border-border p-3">
                 <div class="text-xs font-medium text-muted-foreground">消息预览（不可编辑）</div>
-                <div class="rounded-md bg-muted px-3 py-2 font-mono text-xs text-foreground">{{ commentPrefix }}</div>
-                <div class="rounded-md bg-muted px-3 py-2 text-sm text-foreground whitespace-pre-wrap break-words">
-                  {{ commentMessage || '（这里显示评论内容）' }}
+                <div
+                  class="rounded-md bg-muted px-3 py-2 text-sm text-foreground break-words"
+                  v-html="renderedCommentPreviewHtml"
+                />
                 </div>
-              </div>
 
               <div class="flex items-center gap-2">
                 <Button
@@ -457,15 +465,15 @@ const cacheAvatar = (login: string, avatarUrl: string): void => {
 
 const isImageFile = (filename: string): boolean => /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)$/i.test(filename)
 const normalizeCommentId = (value: string): string => value.trim().replace(/\s+/g, '_').replace(/\]/g, '')
-const commentPrefix = computed(() => {
-  const id = normalizeCommentId(commentId.value)
-  return id ? `[ABCC_NEEDFIX_${id}]` : '[ABCC_NEEDFIX_<id>]'
-})
 const commentBodyPreview = computed(() => {
   const id = normalizeCommentId(commentId.value)
   const msg = commentMessage.value.trim()
   if (!id) return ''
   return `[ABCC_NEEDFIX_${id}] ${msg}`.trim()
+})
+const renderedCommentPreviewHtml = computed(() => {
+  if (!commentBodyPreview.value) return '<span class="text-muted-foreground">（这里显示评论内容）</span>'
+  return renderMarkdownPreview(commentBodyPreview.value)
 })
 
 const buildRepoBlobUrl = (path: string): string => {
@@ -483,6 +491,24 @@ const appendMarkdownLinkToComment = (label: string, url: string): void => {
   commentMessage.value = commentMessage.value.trim()
     ? `${commentMessage.value}\n${snippet}`
     : snippet
+}
+
+const escapeHtml = (value: string): string => value
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;')
+
+const renderMarkdownPreview = (source: string): string => {
+  let html = escapeHtml(source)
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, url) => {
+    const normalizedLabel = label.replace(/^`(.+)`$/, '$1')
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2">${normalizedLabel}</a>`
+  })
+  html = html.replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">$1</code>')
+  html = html.replace(/\n/g, '<br>')
+  return html
 }
 
 async function githubGet<T>(path: string): Promise<T> {
