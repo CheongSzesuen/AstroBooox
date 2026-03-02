@@ -204,16 +204,10 @@
                           </div>
                         </TabsContent>
                         <TabsContent value="preview" class="mt-0">
-                          <div class="rounded-md border border-border text-sm">
-                            <div class="flex items-center gap-2 border-b border-border px-3 py-2 text-xs text-muted-foreground">
-                              <span class="truncate font-medium text-foreground">{{ selectedPr?.author || '当前用户' }}</span>
-                              <span class="shrink-0">{{ previewCommentTime }}</span>
-                            </div>
-                            <div
-                              class="px-3 py-3 whitespace-pre-wrap break-words text-foreground"
-                              v-html="renderedCommentPreviewHtml"
-                            />
-                          </div>
+                          <div
+                            class="whitespace-pre-wrap break-words text-sm leading-6 text-foreground"
+                            v-html="renderedCommentPreviewHtml"
+                          />
                         </TabsContent>
                       </div>
                     </Tabs>
@@ -724,7 +718,6 @@ const renderedCommentPreviewHtml = computed(() => {
   if (!commentBodyPreview.value) return '<span class="text-muted-foreground">（这里显示评论内容）</span>'
   return renderMarkdownPreview(commentBodyPreview.value)
 })
-const previewCommentTime = computed(() => 'commented just now')
 const canSubmitComment = computed(() => Boolean(normalizedCommentId.value))
 const submitButtonTitle = computed(() => (canSubmitComment.value ? '' : '请填写id'))
 const pickerPaths = computed(() => {
