@@ -1073,6 +1073,13 @@ const removePreview = (index: number): void => {
   previewItems.value.splice(index, 1)
 }
 
+const getWorkspaceFolderNameFromPath = (path: string): string => {
+  const normalized = path.trim().replace(/\\/g, '/').replace(/\/+$/g, '')
+  if (!normalized) return ''
+  const segments = normalized.split('/').filter(Boolean)
+  return segments[segments.length - 1] || ''
+}
+
 const selectDownloadFile = async (deviceId: string): Promise<void> => {
   const path = await pickFilePathFromWorkspace()
   if (path) {
@@ -1095,6 +1102,18 @@ watch(
   itemDescription,
   () => {
     void nextTick(() => autoResizeDescription())
+  },
+  { immediate: true }
+)
+
+watch(
+  workspacePath,
+  path => {
+    if (newWorkspaceName.value.trim()) return
+    const fallbackName = getWorkspaceFolderNameFromPath(path || '')
+    if (fallbackName) {
+      newWorkspaceName.value = fallbackName
+    }
   },
   { immediate: true }
 )
