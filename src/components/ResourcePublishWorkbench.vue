@@ -737,14 +737,22 @@ const props = withDefaults(defineProps<{ mode?: WorkbenchMode }>(), {
 const mode = computed<WorkbenchMode>(() => props.mode)
 
 const { token, currentUser } = useCcSession()
-const { workspacePath, setWorkspace, clearWorkspace } = useCcWorkspace()
+const {
+  workspacePath,
+  workspaceHandle: persistedWorkspaceHandle,
+  setWorkspace,
+  setWorkspaceHandle,
+  clearWorkspace
+} = useCcWorkspace()
 const { appendPublishLog: appendLog } = useCcPublishLogs()
 const workspaceBusy = ref(false)
 const newWorkspaceName = ref('')
 const workspaceDisplayPath = ref('')
 const activeStep = ref(0)
 
-const workspaceHandle = ref<WorkspaceDirectoryHandle | null>(null)
+const workspaceHandle = computed<WorkspaceDirectoryHandle | null>(
+  () => (persistedWorkspaceHandle.value as WorkspaceDirectoryHandle | null) ?? null
+)
 const workspaceName = ref('')
 const manifestText = ref('')
 
@@ -1179,7 +1187,7 @@ const ensureWorkspaceHandle = async (): Promise<WorkspaceDirectoryHandle | null>
       mode: 'readwrite'
     })) as unknown as WorkspaceDirectoryHandle
 
-    workspaceHandle.value = handle
+    setWorkspaceHandle(handle)
     workspaceName.value = handle.name
     workspaceDisplayPath.value = handle.name
     if (!newWorkspaceName.value.trim()) {
@@ -1206,7 +1214,7 @@ const selectWorkspace = async (): Promise<void> => {
       id: 'resource-workspace',
       mode: 'readwrite'
     })) as unknown as WorkspaceDirectoryHandle
-    workspaceHandle.value = handle
+    setWorkspaceHandle(handle)
     workspaceName.value = handle.name
     newWorkspaceName.value = handle.name
     workspaceDisplayPath.value = handle.name
@@ -1238,7 +1246,7 @@ const createWorkspaceFolder = async (): Promise<void> => {
       throw new Error(`文件夹名不符合 GitHub 仓库命名要求：${validationError}`)
     }
     const handle = await parent.getDirectoryHandle(folderName, { create: true })
-    workspaceHandle.value = handle
+    setWorkspaceHandle(handle)
     workspaceName.value = handle.name
     workspaceDisplayPath.value = `${parent.name}/${folderName}`
     newWorkspaceName.value = folderName
@@ -1357,7 +1365,7 @@ const scanWorkspace = async (): Promise<void> => {
     manifestText.value = manifest || ''
 
     const tree = await collectWorkspaceTree(workspaceHandle.value)
-    setWorkspace(workspaceDisplayPath.value || workspaceName.value, tree)
+    setWorkspace(workspaceDisplayPath.value || workspaceName.value, tree, workspaceHandle.value)
 
     if (manifest) {
       try {
@@ -1435,7 +1443,11 @@ const scanWorkspace = async (): Promise<void> => {
 
 const refreshWorkspaceFileTree = async (): Promise<void> => {
   if (!workspaceHandle.value) {
-    appendLog('当前会话没有目录访问权限，请点击“选择已有文件夹”重新授权后再刷新。')
+    clearWorkspace()
+    workspaceName.value = ''
+    workspaceDisplayPath.value = ''
+    newWorkspaceName.value = ''
+    appendLog('目录访问权限已失效，已清空当前路径。请点击“选择已有文件夹”重新授权。')
     return
   }
   await scanWorkspace()
