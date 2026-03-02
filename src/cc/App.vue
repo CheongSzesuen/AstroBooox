@@ -57,40 +57,42 @@
 
     <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
       <div class="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <aside class="rounded-xl border border-border bg-card p-3 lg:sticky lg:top-[84px] lg:self-start">
-          <div class="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">功能导航</div>
-          <div class="space-y-1.5">
-            <button
-              type="button"
-              class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
-              :class="tab === 'publish' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
-              @click="tab = 'publish'"
-            >
-              <span>资源发布</span>
-              <UploadSimple :size="16" weight="duotone" />
-            </button>
-            <button
-              type="button"
-              class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
-              :class="tab === 'review' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
-              @click="tab = 'review'"
-            >
-              <span>进行中审核</span>
-              <ClockCounterClockwise :size="16" weight="duotone" />
-            </button>
-            <button
-              type="button"
-              class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
-              :class="tab === 'published' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
-              @click="tab = 'published'"
-            >
-              <span>已发布资源</span>
-              <ArchiveBox :size="16" weight="duotone" />
-            </button>
-          </div>
+        <div class="space-y-4 lg:sticky lg:top-[84px] lg:self-start">
+          <aside class="rounded-xl border border-border bg-card p-3">
+            <div class="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">功能导航</div>
+            <div class="space-y-1.5">
+              <button
+                type="button"
+                class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
+                :class="tab === 'publish' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
+                @click="tab = 'publish'"
+              >
+                <span>资源发布</span>
+                <UploadSimple :size="16" weight="duotone" />
+              </button>
+              <button
+                type="button"
+                class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
+                :class="tab === 'review' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
+                @click="tab = 'review'"
+              >
+                <span>进行中审核</span>
+                <ClockCounterClockwise :size="16" weight="duotone" />
+              </button>
+              <button
+                type="button"
+                class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
+                :class="tab === 'published' ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-background text-foreground hover:bg-muted/30'"
+                @click="tab = 'published'"
+              >
+                <span>已发布资源</span>
+                <ArchiveBox :size="16" weight="duotone" />
+              </button>
+            </div>
+          </aside>
 
-          <div v-if="workspacePath || workspaceFiles.length" class="mt-4 space-y-2">
-            <div class="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">File Tree</div>
+          <aside v-if="workspacePath || workspaceFiles.length" class="rounded-xl border border-border bg-card p-3">
+            <div class="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">File Tree</div>
             <div class="rounded-lg border border-border bg-background p-2">
               <p class="truncate text-[11px] text-muted-foreground">{{ workspacePath || '未选择文件夹' }}</p>
               <div class="mt-2 max-h-56 overflow-y-auto">
@@ -112,8 +114,8 @@
                 </ul>
               </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        </div>
 
         <section class="min-w-0">
           <ResourcePublishWorkbench :mode="tab" />

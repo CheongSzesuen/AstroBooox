@@ -30,8 +30,7 @@
                       : 'border-border text-muted-foreground'
                 "
               >
-                <CheckCircle v-if="step.done" :size="12" weight="fill" />
-                <span v-else>{{ index + 1 }}</span>
+                <span>{{ index + 1 }}</span>
               </span>
               <span>{{ step.label }}</span>
             </button>
@@ -79,7 +78,7 @@
                       <FolderOpen :size="16" weight="duotone" />
                       选择已有文件夹
                     </Button>
-                    <Button variant="outline" :disabled="isBusy || !workspaceHandle" @click="refreshWorkspaceFileTree">
+                    <Button variant="outline" :disabled="isBusy" @click="refreshWorkspaceFileTree">
                       刷新文件树
                     </Button>
                   </div>
@@ -426,7 +425,6 @@
 import { computed, ref, watch } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
-  PhCheckCircle as CheckCircle,
   PhFolderOpen as FolderOpen,
   PhGitPullRequest as GitPullRequest,
   PhUploadSimple as UploadSimple
@@ -589,7 +587,7 @@ const canSubmitPr = computed(
 const stepList = computed(() => [
   {
     label: '创建文件夹',
-    done: Boolean(workspaceHandle.value)
+    done: Boolean(workspaceHandle.value || workspacePath.value)
   },
   {
     label: '资源信息',
@@ -654,6 +652,7 @@ const selectWorkspace = async (): Promise<void> => {
     })) as unknown as WorkspaceDirectoryHandle
     workspaceHandle.value = handle
     workspaceName.value = handle.name
+    newWorkspaceName.value = handle.name
     workspaceDisplayPath.value = handle.name
     appendLog(`已选择工作区: ${handle.name}`)
     await scanWorkspace()
@@ -820,7 +819,10 @@ const scanWorkspace = async (): Promise<void> => {
 }
 
 const refreshWorkspaceFileTree = async (): Promise<void> => {
-  if (!workspaceHandle.value) return
+  if (!workspaceHandle.value) {
+    appendLog('当前会话无法直接访问该目录，请重新点“选择已有文件夹”授权后再刷新。')
+    return
+  }
   await scanWorkspace()
 }
 
