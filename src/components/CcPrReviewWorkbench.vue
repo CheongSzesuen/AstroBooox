@@ -480,18 +480,24 @@
                         </span>
                         <span v-else class="text-sm font-medium text-foreground">-</span>
                       </div>
-                      <div class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between">
-                        <span class="text-xs text-muted-foreground">manifest_v2 链接</span>
-                        <span v-if="manifestV2Link" class="min-w-0 text-sm font-medium text-foreground">
-                          <a
-                            :href="manifestV2Link"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="break-all text-primary hover:underline"
+                      <div class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                        <span class="text-xs text-muted-foreground">链接（manifest_v2.links）</span>
+                        <div v-if="submissionOverview.links.length > 0" class="space-y-1 text-sm font-medium text-foreground">
+                          <div
+                            v-for="link in submissionOverview.links"
+                            :key="`resource-links-${link.title}-${link.url}`"
+                            class="min-w-0"
                           >
-                            {{ manifestV2Link }}
-                          </a>
-                        </span>
+                            <a
+                              :href="link.url"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="break-all text-primary hover:underline"
+                            >
+                              {{ link.title || link.url }}<span v-if="link.type">（{{ link.type }}）</span>
+                            </a>
+                          </div>
+                        </div>
                         <span v-else class="text-sm font-medium text-foreground">-</span>
                       </div>
                     </div>
@@ -504,28 +510,28 @@
                     </div>
                     <div class="space-y-2">
                       <div
-                        v-for="device in submissionOverview.supportedDevices"
-                        :key="device"
-                        class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm text-foreground"
-                      >
-                        {{ device }}
-                      </div>
-                      <div
-                        v-for="item in submissionOverview.downloads"
-                        :key="`${item.device}-${item.file}`"
+                        v-for="group in groupedDownloads"
+                        :key="`${group.raw || group.file}-${group.version}`"
                         class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
                       >
-                        <div class="text-xs text-muted-foreground">{{ item.device }} · {{ item.version || '-' }}</div>
-                        <div class="mt-1 text-xs text-muted-foreground">{{ item.file || '-' }}</div>
+                        <div class="text-xs text-muted-foreground">支持设备：{{ group.devices.join(' / ') || '-' }}</div>
+                        <div class="mt-1 text-xs text-muted-foreground">版本：{{ group.version || '-' }}</div>
+                        <div class="mt-1 text-xs text-muted-foreground">文件：{{ group.file || '-' }}</div>
                         <a
-                          v-if="item.raw"
-                          :href="item.raw"
+                          v-if="group.raw"
+                          :href="group.raw"
                           target="_blank"
                           rel="noopener noreferrer"
                           class="mt-1 block break-all text-xs text-primary hover:underline"
                         >
-                          {{ item.raw }}
+                          {{ group.raw }}
                         </a>
+                      </div>
+                      <div
+                        v-if="groupedDownloads.length === 0"
+                        class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm text-foreground"
+                      >
+                        {{ submissionOverview.supportedDevices.join(' / ') || '-' }}
                       </div>
                     </div>
                   </div>
@@ -557,12 +563,12 @@
                           :href="submissionOverview.images.icon.url"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="mt-2 block overflow-hidden rounded-full border border-border/60 bg-background/70"
+                          class="mt-2 mx-auto flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border border-border/60 bg-background/70"
                         >
                           <img
                             :src="getDisplayImageUrl(submissionOverview.images.icon.url)"
                             alt="Icon 预览"
-                            class="mx-auto aspect-square h-36 w-36 object-cover"
+                            class="h-full w-full rounded-full object-cover"
                             loading="lazy"
                           />
                         </a>
@@ -1470,15 +1476,24 @@ const hasSubmissionOverview = computed(() =>
   || Boolean(submissionOverview.value.images.cover)
   || submissionOverview.value.images.previews.length > 0
 )
-const manifestV2Link = computed(() => {
-  const pr = selectedPr.value
-  if (!pr?.resourceRepoOwner || !pr?.resourceRepoName) return ''
-  const ref = encodeURIComponent(pr.resourceRepoRef || 'main')
-  const hasManifestV2 = repoFiles.value.includes('manifest_v2.json')
-  const hasManifestV1 = repoFiles.value.includes('manifest.json')
-  const fileName = hasManifestV2 ? 'manifest_v2.json' : (hasManifestV1 ? 'manifest.json' : '')
-  if (!fileName) return ''
-  return `https://github.com/${pr.resourceRepoOwner}/${pr.resourceRepoName}/blob/${ref}/${fileName}`
+const groupedDownloads = computed<Array<{ raw: string; file: string; version: string; devices: string[] }>>(() => {
+  const map = new Map<string, { raw: string; file: string; version: string; devices: string[] }>()
+  for (const item of submissionOverview.value.downloads) {
+    const key = `${item.raw || ''}||${item.file || ''}||${item.version || ''}`
+    if (!map.has(key)) {
+      map.set(key, {
+        raw: item.raw || '',
+        file: item.file || '',
+        version: item.version || '',
+        devices: []
+      })
+    }
+    const target = map.get(key)!
+    if (item.device && !target.devices.includes(item.device)) {
+      target.devices.push(item.device)
+    }
+  }
+  return Array.from(map.values())
 })
 const imageSlides = computed<Array<{ key: string; label: string; file: string; url: string }>>(() => {
   const slides: Array<{ key: string; label: string; file: string; url: string }> = []
