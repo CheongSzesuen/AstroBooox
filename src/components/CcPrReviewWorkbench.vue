@@ -559,6 +559,9 @@
                     <div class="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
                       <div v-if="submissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
                         <div class="text-xs text-muted-foreground">Icon · {{ submissionOverview.images.icon.file }}</div>
+                        <div class="mt-1 text-xs text-muted-foreground">
+                          大小：{{ formatBytes(getImageMeta(submissionOverview.images.icon.url).byteSize) }}
+                        </div>
                         <a
                           :href="submissionOverview.images.icon.url"
                           target="_blank"
@@ -570,11 +573,16 @@
                             alt="Icon 预览"
                             class="h-full w-full rounded-full object-contain p-3"
                             loading="lazy"
+                            @load="(event) => handleImageLoad(submissionOverview.images.icon!.url, event)"
                           />
                         </a>
                       </div>
                       <div v-if="submissionOverview.images.cover" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
                         <div class="text-xs text-muted-foreground">Cover · {{ submissionOverview.images.cover.file }}</div>
+                        <div class="mt-1 text-xs text-muted-foreground">
+                          大小：{{ formatBytes(getImageMeta(submissionOverview.images.cover.url).byteSize) }} ·
+                          宽高比：{{ formatAspectRatio(submissionOverview.images.cover.url) }}
+                        </div>
                         <a
                           :href="submissionOverview.images.cover.url"
                           target="_blank"
@@ -586,6 +594,7 @@
                             alt="Cover 预览"
                             class="max-h-[420px] w-full object-contain"
                             loading="lazy"
+                            @load="(event) => handleImageLoad(submissionOverview.images.cover!.url, event)"
                           />
                         </a>
                       </div>
@@ -1061,6 +1070,7 @@ const pickerMatchedLineNumbers = computed(() => {
 const pickerMatchCursor = ref(-1)
 const pickerLineRowRefs = new Map<number, HTMLElement>()
 const imageBlobUrlMap = ref<Record<string, string>>({})
+const imageMetaMap = ref<Record<string, { width?: number; height?: number; byteSize?: number }>>({})
 const loadingImageSet = new Set<string>()
 const [imageCarouselRef, imageCarouselApi] = emblaCarouselVue({ loop: false, align: 'start' })
 const canImagePrev = ref(false)
@@ -1270,6 +1280,51 @@ const parseRawGithubUrl = (rawUrl: string): { owner: string; repo: string; ref: 
 }
 
 const getDisplayImageUrl = (url: string): string => imageBlobUrlMap.value[url] || url
+const getImageMeta = (url: string): { width?: number; height?: number; byteSize?: number } => imageMetaMap.value[url] || {}
+
+const setImageMeta = (url: string, next: { width?: number; height?: number; byteSize?: number }): void => {
+  if (!url) return
+  imageMetaMap.value = {
+    ...imageMetaMap.value,
+    [url]: {
+      ...imageMetaMap.value[url],
+      ...next
+    }
+  }
+}
+
+const formatBytes = (bytes?: number): string => {
+  if (!bytes || bytes < 0) return '-'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
+
+const gcd = (a: number, b: number): number => {
+  let x = Math.abs(a)
+  let y = Math.abs(b)
+  while (y !== 0) {
+    const temp = y
+    y = x % y
+    x = temp
+  }
+  return x || 1
+}
+
+const formatAspectRatio = (url: string): string => {
+  const meta = getImageMeta(url)
+  if (!meta.width || !meta.height) return '-'
+  const divisor = gcd(meta.width, meta.height)
+  return `${meta.width / divisor}:${meta.height / divisor}`
+}
+
+const handleImageLoad = (url: string, event: Event): void => {
+  if (!(event.target instanceof HTMLImageElement)) return
+  const width = event.target.naturalWidth
+  const height = event.target.naturalHeight
+  if (!width || !height) return
+  setImageMeta(url, { width, height })
+}
 
 const ensureImageDisplayUrl = async (url: string): Promise<void> => {
   if (!url || imageBlobUrlMap.value[url] || loadingImageSet.has(url)) return
@@ -1284,6 +1339,7 @@ const ensureImageDisplayUrl = async (url: string): Promise<void> => {
     )
     if (!file.content || (file.encoding && file.encoding !== 'base64')) return
     const bytes = decodeBase64ToBytes(file.content.replace(/\n/g, ''))
+    setImageMeta(url, { byteSize: bytes.byteLength })
     const blob = new Blob([bytes], { type: inferImageMimeType(url) })
     const objectUrl = URL.createObjectURL(blob)
     imageBlobUrlMap.value = {
