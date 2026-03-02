@@ -97,7 +97,6 @@ import {
   PhGithubLogo as GithubLogo,
   PhInfo as Info
 } from '@phosphor-icons/vue'
-import axios, { type AxiosError, type AxiosResponse } from 'axios'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -112,6 +111,7 @@ import PRHeader from '@/components/CodeReview/PRHeader.vue'
 import PRTabs from '@/components/CodeReview/PRTabs.vue'
 import FilesTabContent from '@/components/CodeReview/PRTabs/FilesTabContent.vue'
 import AnalysisTabContent from '@/components/CodeReview/PRTabs/AnalysisTabContent.vue'
+import { createGitHubClient, normalizeGitHubError } from '@/utils/githubOctokitClient'
 import type { 
   PullRequest, 
   FileChange, 
@@ -133,27 +133,36 @@ const props = withDefaults(defineProps<{
 })
 
 const githubTokenSetupHint = '当前会话未检测到 GitHub Token，请先返回 Creator Console 登录。'
-const GITHUB_API_BASE = 'https://api.github.com'
 const hasGithubToken = computed(() => Boolean(props.token.trim()))
 
-async function githubGet(
+interface GitHubResponse<T> {
+  data: T
+}
+
+async function githubGet<T = any>(
   pathOrUrl: string,
   options?: { params?: Record<string, unknown>; headers?: Record<string, string> }
-): Promise<AxiosResponse<any>> {
+): Promise<GitHubResponse<T>> {
   const token = props.token.trim()
-  const headers: Record<string, string> = {
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-    ...(options?.headers || {})
+  const { rest } = createGitHubClient(token)
+  let path = pathOrUrl.startsWith('http')
+    ? pathOrUrl.replace(/^https?:\/\/api\.github\.com/i, '')
+    : pathOrUrl
+
+  if (options?.params && Object.keys(options.params).length > 0) {
+    const query = new URLSearchParams()
+    for (const [key, value] of Object.entries(options.params)) {
+      if (value === undefined || value === null) continue
+      query.append(key, String(value))
+    }
+    const suffix = query.toString()
+    if (suffix) {
+      path += path.includes('?') ? `&${suffix}` : `?${suffix}`
+    }
   }
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
-  }
-  const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${GITHUB_API_BASE}${pathOrUrl}`
-  return axios.get(url, {
-    params: options?.params,
-    headers
-  })
+
+  const response = await rest.request(`GET ${path}`)
+  return { data: response.data as T }
 }
 
 // 响应式状态
@@ -183,9 +192,9 @@ const getErrorMessage = (error: unknown): string => {
   return '未知错误'
 }
 
-// 添加 AxiosError 类型检查函数
-const isAxiosError = (error: unknown): error is AxiosError => {
-  return (error as AxiosError).isAxiosError === true
+const getErrorStatus = (error: unknown): number | null => {
+  const normalized = normalizeGitHubError(error)
+  return typeof normalized.status === 'number' ? normalized.status : null
 }
 
 onMounted(() => {
@@ -239,24 +248,15 @@ const fetchPullRequests = async () => {
     }))
   } catch (error: unknown) {
     console.error('获取PR列表失败:', error)
-    
-    if (isAxiosError(error)) {
-      const errorData = error.response?.data as { message?: string } || {}
-      if (error.response?.status === 401) {
-        errorMessage.value = hasGithubToken.value
-          ? 'GitHub认证失败，请检查Token是否有效'
-          : `${githubTokenSetupHint} 当前请求返回 401，请先配置可用 token。`
-      } else if (error.response?.status === 404) {
-        errorMessage.value = `仓库不存在: ${props.repoOwner}/${props.repoName}`
-      } else {
-        const detail = `获取PR列表失败: ${errorData.message || error.message}`
-        errorMessage.value = hasGithubToken.value ? detail : `${githubTokenSetupHint} ${detail}`
-      }
-    } else if (error instanceof Error) {
-      const detail = `获取PR列表失败: ${error.message}`
-      errorMessage.value = hasGithubToken.value ? detail : `${githubTokenSetupHint} ${detail}`
+    const status = getErrorStatus(error)
+    const detail = `获取PR列表失败: ${getErrorMessage(error)}`
+    if (status === 401) {
+      errorMessage.value = hasGithubToken.value
+        ? 'GitHub认证失败，请检查Token是否有效'
+        : `${githubTokenSetupHint} 当前请求返回 401，请先配置可用 token。`
+    } else if (status === 404) {
+      errorMessage.value = `仓库不存在: ${props.repoOwner}/${props.repoName}`
     } else {
-      const detail = '获取PR列表失败: 未知错误'
       errorMessage.value = hasGithubToken.value ? detail : `${githubTokenSetupHint} ${detail}`
     }
   } finally {
@@ -462,10 +462,10 @@ const fetchRepoManifest = async (repoUrl: string) => {
     
     // 尝试多种获取方式
     const attempts = [
-      fetchViaGitHubAPI(owner, repo),
-      fetchViaRaw(owner, repo, 'main'),
-      fetchViaRaw(owner, repo, 'master'),
-      fetchViaRaw(owner, repo, 'HEAD')
+      fetchViaGitHubAPIWithRef(owner, repo),
+      fetchViaGitHubAPIWithRef(owner, repo, 'main'),
+      fetchViaGitHubAPIWithRef(owner, repo, 'master'),
+      fetchViaGitHubAPIWithRef(owner, repo, 'HEAD')
     ]
 
     for (const attempt of attempts) {
@@ -485,14 +485,16 @@ const fetchRepoManifest = async (repoUrl: string) => {
   }
 }
 
-const fetchViaGitHubAPI = async (owner: string, repo: string): Promise<ManifestData> => {
+const fetchViaGitHubAPIWithRef = async (
+  owner: string,
+  repo: string,
+  ref?: string
+): Promise<ManifestData> => {
   try {
     const { data } = await githubGet(`/repos/${owner}/${repo}/contents/manifest.json`, {
-      headers: {
-        Accept: 'application/vnd.github.v3.raw'
-      }
+      ...(ref ? { params: { ref } } : {})
     })
-    
+
     let manifestContent
     if (typeof data === 'string') {
       manifestContent = JSON.parse(data)
@@ -501,22 +503,10 @@ const fetchViaGitHubAPI = async (owner: string, repo: string): Promise<ManifestD
     } else {
       manifestContent = data
     }
-    
+
     return processManifestData(manifestContent)
   } catch (error: unknown) {
-    throw new Error(`GitHub API方式失败: ${getErrorMessage(error)}`)
-  }
-}
-
-const fetchViaRaw = async (owner: string, repo: string, branch: string): Promise<ManifestData> => {
-  try {
-    const { data } = await axios.get(
-      `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/manifest.json`,
-      { timeout: 10000 }
-    )
-    return processManifestData(data)
-  } catch (error: unknown) {
-    throw new Error(`raw ${branch}方式失败: ${getErrorMessage(error)}`)
+    throw new Error(`GitHub API方式失败: ${getErrorMessage(error)}${ref ? ` (ref=${ref})` : ''}`)
   }
 }
 

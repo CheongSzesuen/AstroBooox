@@ -95,6 +95,7 @@ import {
 } from '@phosphor-icons/vue'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/composables/useTheme'
+import { createGitHubClient } from '@/utils/githubOctokitClient'
 import type { AppMode } from '@/type/manifest'
 
 defineProps<{
@@ -129,9 +130,11 @@ const setMode = (newMode: AppMode): void => {
 
 onMounted(async () => {
   try {
-    const response = await fetch('https://api.github.com/repos/CheongSzesuen/AstroBooox')
-    if (!response.ok) return
-    const data = await response.json()
+    const { rest } = createGitHubClient()
+    const { data } = await rest.repos.get({
+      owner: 'CheongSzesuen',
+      repo: 'AstroBooox'
+    })
     if (typeof data?.stargazers_count === 'number') {
       stars.value = data.stargazers_count
     }

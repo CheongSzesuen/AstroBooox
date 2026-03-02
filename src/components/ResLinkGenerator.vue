@@ -225,6 +225,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { createGitHubClient } from '@/utils/githubOctokitClient'
 import {
   Dialog,
   DialogContent,
@@ -297,11 +298,29 @@ const getAuthorName = (path) => {
   return parts.length > 0 ? parts[0] : '未知';
 };
 
+const decodeBase64Utf8 = (base64) => {
+  const normalized = base64.replace(/\n/g, '');
+  const binary = atob(normalized);
+  const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+  return new TextDecoder('utf-8').decode(bytes);
+};
+
 // 从远程加载资源列表
 const loadResources = async () => {
   try {
-    const response = await fetch('https://cdn.jsdelivr.net/gh/AstralSightStudios/AstroBox-Repo@refs/heads/main/index.csv');
-    const csvText = await response.text();
+    const { rest } = createGitHubClient();
+    const { data } = await rest.repos.getContent({
+      owner: 'AstralSightStudios',
+      repo: 'AstroBox-Repo',
+      path: 'index.csv',
+      ref: 'main'
+    });
+
+    if (Array.isArray(data) || data.type !== 'file' || !data.content) {
+      throw new Error('index.csv 内容获取失败');
+    }
+
+    const csvText = decodeBase64Utf8(data.content);
     const lines = csvText.split('\n').filter(line => line.trim() !== ''); // 过滤空行
     
     if (lines.length <= 1) {

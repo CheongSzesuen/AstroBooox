@@ -1,3 +1,5 @@
+import { createGitHubClient, normalizeGitHubError } from '@/utils/githubOctokitClient'
+
 export type ReviewState = 'waiting_review' | 'changes_requested' | 'fixed_waiting'
 
 export interface CatalogEntry {
@@ -69,17 +71,8 @@ interface GitHubApiError extends Error {
   status?: number
 }
 
-const API_BASE = 'https://api.github.com'
-const API_VERSION = '2022-11-28'
 const CATALOG_CSV_HEADER =
   'id,name,restype,repo_owner,repo_name,repo_commit_hash,icon,cover,tags,device_vendors,devices,paid_type'
-
-const buildHeaders = (token: string, contentType?: string): HeadersInit => ({
-  Accept: 'application/vnd.github+json',
-  'X-GitHub-Api-Version': API_VERSION,
-  Authorization: `Bearer ${token}`,
-  ...(contentType ? { 'Content-Type': contentType } : {})
-})
 
 const makeError = (status: number, message: string): GitHubApiError => {
   const error = new Error(message) as GitHubApiError
@@ -87,35 +80,29 @@ const makeError = (status: number, message: string): GitHubApiError => {
   return error
 }
 
-const parseError = async (response: Response): Promise<never> => {
-  const raw = await response.text()
-  const fallback = `GitHub API ${response.status}: ${response.statusText}`
-
-  let message = fallback
-  try {
-    const data = JSON.parse(raw) as { message?: string }
-    message = data.message ? `GitHub API ${response.status}: ${data.message}` : fallback
-  } catch {
-    message = raw ? `GitHub API ${response.status}: ${raw}` : fallback
-  }
-
-  throw makeError(response.status, message)
-}
-
 const githubFetch = async <T>(path: string, token: string, init?: RequestInit): Promise<T> => {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...buildHeaders(token),
-      ...(init?.headers || {})
+  const { rest } = createGitHubClient(token)
+  const method = (init?.method || 'GET').toUpperCase()
+  let data: unknown = undefined
+  if (typeof init?.body === 'string') {
+    try {
+      data = JSON.parse(init.body)
+    } catch {
+      data = init.body
     }
-  })
-
-  if (!response.ok) {
-    await parseError(response)
+  } else if (init?.body !== undefined) {
+    data = init.body
   }
 
-  return (await response.json()) as T
+  try {
+    const response = await rest.request(`${method} ${path}`, {
+      ...(data !== undefined ? { data } : {})
+    })
+    return response.data as T
+  } catch (error: unknown) {
+    const normalized = normalizeGitHubError(error)
+    throw makeError(normalized.status || 500, normalized.message)
+  }
 }
 
 const encodePath = (path: string): string =>
@@ -287,17 +274,16 @@ export const repoPathExists = async (params: {
   ref: string
 }): Promise<boolean> => {
   const { token, owner, repo, path, ref } = params
-  const response = await fetch(
-    `${API_BASE}/repos/${owner}/${repo}/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`,
-    {
-      headers: buildHeaders(token)
-    }
-  )
-  if (response.status === 404) return false
-  if (!response.ok) {
-    await parseError(response)
+  try {
+    await githubFetch<unknown>(
+      `/repos/${owner}/${repo}/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`,
+      token
+    )
+    return true
+  } catch (error: unknown) {
+    if ((error as GitHubApiError)?.status === 404) return false
+    throw error
   }
-  return true
 }
 
 export const putRepoFile = async (params: {
@@ -317,7 +303,6 @@ export const putRepoFile = async (params: {
     token,
     {
       method: 'PUT',
-      headers: buildHeaders(token, 'application/json'),
       body: JSON.stringify({
         message,
         content: contentBase64,
@@ -344,7 +329,6 @@ export const ensureUserRepository = async (params: {
       owner: { login: string }
     }>('/user/repos', token, {
       method: 'POST',
-      headers: buildHeaders(token, 'application/json'),
       body: JSON.stringify({
         name: repoName,
         description,
@@ -405,7 +389,6 @@ export const createBranchIfMissing = async (params: {
   try {
     await githubFetch<{ ref: string }>(`/repos/${owner}/${repo}/git/refs`, token, {
       method: 'POST',
-      headers: buildHeaders(token, 'application/json'),
       body: JSON.stringify({
         ref: `refs/heads/${branch}`,
         sha: baseSha
@@ -465,8 +448,7 @@ export const ensureFork = async (params: {
     `/repos/${upstreamOwner}/${upstreamRepo}/forks`,
     token,
     {
-      method: 'POST',
-      headers: buildHeaders(token, 'application/json')
+      method: 'POST'
     }
   )
 
@@ -713,7 +695,6 @@ export const createPullRequestWithHead = async (params: {
     token,
     {
       method: 'POST',
-      headers: buildHeaders(token, 'application/json'),
       body: JSON.stringify({
         title,
         body,
@@ -901,7 +882,6 @@ export const createPullRequestIssueComment = async (params: {
     token,
     {
       method: 'POST',
-      headers: buildHeaders(token, 'application/json'),
       body: JSON.stringify({ body })
     }
   )

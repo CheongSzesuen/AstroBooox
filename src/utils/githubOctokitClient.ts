@@ -13,14 +13,20 @@ export interface GitHubClientBundle {
   graphql: ReturnType<typeof graphql.defaults>
 }
 
-export const createGitHubClient = (token: string): GitHubClientBundle => {
-  const auth = token.trim()
-  if (!auth) {
-    throw new Error('GitHub Token 不能为空')
+export interface GitHubRequestErrorLike extends Error {
+  status?: number
+  response?: {
+    data?: {
+      message?: string
+    }
   }
+}
+
+export const createGitHubClient = (token = ''): GitHubClientBundle => {
+  const auth = token.trim()
 
   const rest = new EnhancedOctokit({
-    auth,
+    ...(auth ? { auth } : {}),
     request: {
       retries: 2
     },
@@ -40,14 +46,35 @@ export const createGitHubClient = (token: string): GitHubClientBundle => {
     }
   })
 
-  const graph = graphql.defaults({
-    headers: {
-      authorization: `token ${auth}`
-    }
-  })
+  const graph = graphql.defaults(
+    auth
+      ? {
+          headers: {
+            authorization: `token ${auth}`
+          }
+        }
+      : {}
+  )
 
   return {
     rest,
     graphql: graph
   }
+}
+
+export const normalizeGitHubError = (error: unknown): GitHubRequestErrorLike => {
+  const fallback = new Error('GitHub 请求失败') as GitHubRequestErrorLike
+  if (!error || typeof error !== 'object') return fallback
+  const casted = error as GitHubRequestErrorLike
+  const status = casted.status
+  const responseMessage = casted.response?.data?.message
+  const message = responseMessage || casted.message || fallback.message
+  const normalized = new Error(message) as GitHubRequestErrorLike
+  if (typeof status === 'number') {
+    normalized.status = status
+  }
+  if (casted.response) {
+    normalized.response = casted.response
+  }
+  return normalized
 }

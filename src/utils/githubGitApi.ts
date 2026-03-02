@@ -1,5 +1,4 @@
-const GITHUB_API_BASE = 'https://api.github.com'
-const GITHUB_API_VERSION = '2022-11-28'
+import { createGitHubClient, normalizeGitHubError } from '@/utils/githubOctokitClient'
 
 export interface GitHubUser {
   login: string
@@ -44,48 +43,35 @@ interface GitHubApiError extends Error {
   status?: number
 }
 
-const buildHeaders = (token: string, contentType?: string): HeadersInit => ({
-  Accept: 'application/vnd.github+json',
-  'X-GitHub-Api-Version': GITHUB_API_VERSION,
-  ...(contentType ? { 'Content-Type': contentType } : {}),
-  Authorization: `Bearer ${token}`
-})
-
 const makeApiError = (status: number, message: string): GitHubApiError => {
   const error = new Error(message) as GitHubApiError
   error.status = status
   return error
 }
 
-const parseErrorResponse = async (response: Response): Promise<never> => {
-  const text = await response.text()
-  const fallback = `GitHub API ${response.status}: ${response.statusText}`
-
-  let message = fallback
-  try {
-    const data = JSON.parse(text) as { message?: string }
-    message = data.message ? `GitHub API ${response.status}: ${data.message}` : fallback
-  } catch {
-    message = text ? `GitHub API ${response.status}: ${text}` : fallback
-  }
-
-  throw makeApiError(response.status, message)
-}
-
 const requestJson = async <T>(path: string, token: string, init?: RequestInit): Promise<T> => {
-  const response = await fetch(`${GITHUB_API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...buildHeaders(token),
-      ...(init?.headers || {})
+  const { rest } = createGitHubClient(token)
+  const method = (init?.method || 'GET').toUpperCase()
+  let data: unknown = undefined
+  if (typeof init?.body === 'string') {
+    try {
+      data = JSON.parse(init.body)
+    } catch {
+      data = init.body
     }
-  })
-
-  if (!response.ok) {
-    await parseErrorResponse(response)
+  } else if (init?.body !== undefined) {
+    data = init.body
   }
 
-  return (await response.json()) as T
+  try {
+    const response = await rest.request(`${method} ${path}`, {
+      ...(data !== undefined ? { data } : {})
+    })
+    return response.data as T
+  } catch (error: unknown) {
+    const normalized = normalizeGitHubError(error)
+    throw makeApiError(normalized.status || 500, normalized.message)
+  }
 }
 
 const encodeContentPath = (path: string): string =>
@@ -140,7 +126,6 @@ export const createRepository = async (
 
   return requestJson<GitHubRepository>('/user/repos', token, {
     method: 'POST',
-    headers: buildHeaders(token, 'application/json'),
     body: JSON.stringify({
       name: name.trim(),
       description: description.trim(),
@@ -225,7 +210,6 @@ export const commitTextFile = async (params: {
     token,
     {
       method: 'POST',
-      headers: buildHeaders(token, 'application/json'),
       body: JSON.stringify({
         content: toBase64(fileContent),
         encoding: 'base64'
@@ -238,7 +222,6 @@ export const commitTextFile = async (params: {
     token,
     {
       method: 'POST',
-      headers: buildHeaders(token, 'application/json'),
       body: JSON.stringify({
         base_tree: baseTreeSha,
         tree: [
@@ -258,7 +241,6 @@ export const commitTextFile = async (params: {
     token,
     {
       method: 'POST',
-      headers: buildHeaders(token, 'application/json'),
       body: JSON.stringify({
         message: commitMessage.trim(),
         tree: treeData.sha,
@@ -272,7 +254,6 @@ export const commitTextFile = async (params: {
     token,
     {
       method: 'PATCH',
-      headers: buildHeaders(token, 'application/json'),
       body: JSON.stringify({
         sha: newCommit.sha,
         force: false
@@ -306,7 +287,6 @@ export const createPullRequest = async (params: {
     title: string
   }>(`/repos/${baseOwner}/${baseRepo}/pulls`, token, {
     method: 'POST',
-    headers: buildHeaders(token, 'application/json'),
     body: JSON.stringify({
       title: title.trim(),
       body: body?.trim() || undefined,

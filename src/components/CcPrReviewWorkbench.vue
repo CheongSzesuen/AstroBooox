@@ -657,6 +657,7 @@ import { Textarea } from '@/components/ui/textarea'
 import ReviewCommentComposer from '@/components/review/ReviewCommentComposer.vue'
 import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue'
 import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
+import { createGitHubClient, normalizeGitHubError } from '@/utils/githubOctokitClient'
 import {
   Card,
   CardContent,
@@ -1895,36 +1896,25 @@ const ruleChecks = computed<RuleCheckItem[]>(() => {
 })
 
 async function githubGet<T>(path: string): Promise<T> {
-  const response = await fetch(`https://api.github.com${path}`, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      Authorization: `Bearer ${props.token.trim()}`
-    }
-  })
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(text || `GitHub API ${response.status}`)
+  try {
+    const { rest } = createGitHubClient(props.token.trim())
+    const response = await rest.request(`GET ${path}`)
+    return response.data as T
+  } catch (error: unknown) {
+    const normalized = normalizeGitHubError(error)
+    throw new Error(normalized.message)
   }
-  return response.json() as Promise<T>
 }
 
 async function githubPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  const response = await fetch(`https://api.github.com${path}`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      Authorization: `Bearer ${props.token.trim()}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  })
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(text || `GitHub API ${response.status}`)
+  try {
+    const { rest } = createGitHubClient(props.token.trim())
+    const response = await rest.request(`POST ${path}`, { data: body })
+    return response.data as T
+  } catch (error: unknown) {
+    const normalized = normalizeGitHubError(error)
+    throw new Error(normalized.message)
   }
-  return response.json() as Promise<T>
 }
 
 const fetchRepoJsonFile = async (
