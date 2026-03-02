@@ -233,33 +233,32 @@
                 >
                   当前 PR 暂无评论
                 </div>
-                <div
-                  v-for="(comment, index) in prComments"
-                  :key="comment.id"
-                  class="relative flex items-start gap-3"
-                >
+                <div v-else class="relative space-y-3">
+                  <div class="pointer-events-none absolute bottom-3 left-[46px] top-4 w-px bg-border" />
                   <div
-                    v-if="index < prComments.length - 1"
-                    class="pointer-events-none absolute bottom-[-12px] left-[46px] top-[36px] w-px bg-border"
-                  />
-                  <img
-                    v-if="comment.user?.avatar_url && comment.user?.login"
-                    :src="getOptimizedAvatarUrl(comment.user.login, comment.user.avatar_url)"
-                    class="h-8 w-8 shrink-0 rounded-full object-cover"
-                    loading="lazy"
-                    @load="cacheAvatar(comment.user.login, comment.user.avatar_url)"
-                  />
-                  <div class="min-w-0 flex-1 rounded-md border border-border px-3 py-2 text-sm">
-                    <div class="mb-3 flex items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
-                      <span class="inline-flex min-w-0 items-center gap-2">
-                        <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
-                        <span class="shrink-0">{{ formatCommentRelativeTime(comment.created_at) }}</span>
-                      </span>
-                      <a :href="comment.html_url" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">
-                        打开评论
-                      </a>
+                    v-for="comment in prComments"
+                    :key="comment.id"
+                    class="relative flex items-start gap-3"
+                  >
+                    <img
+                      v-if="comment.user?.avatar_url && comment.user?.login"
+                      :src="getOptimizedAvatarUrl(comment.user.login, comment.user.avatar_url)"
+                      class="relative z-10 h-8 w-8 shrink-0 rounded-full bg-background object-cover"
+                      loading="lazy"
+                      @load="cacheAvatar(comment.user.login, comment.user.avatar_url)"
+                    />
+                    <div class="relative z-10 min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-2 text-sm">
+                      <div class="mb-3 flex items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
+                        <span class="inline-flex min-w-0 items-center gap-2">
+                          <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
+                          <span class="shrink-0">{{ formatCommentRelativeTime(comment.created_at) }}</span>
+                        </span>
+                        <a :href="comment.html_url" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">
+                          打开评论
+                        </a>
+                      </div>
+                      <div class="pt-1 whitespace-pre-wrap break-words text-foreground">{{ comment.body }}</div>
                     </div>
-                    <div class="pt-1 whitespace-pre-wrap break-words text-foreground">{{ comment.body }}</div>
                   </div>
                 </div>
               </div>
