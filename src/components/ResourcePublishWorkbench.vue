@@ -578,6 +578,7 @@
                     :src="getPhosphorIconSvgUrl(name)"
                     :alt="name"
                     class="h-6 w-6 shrink-0"
+                    :class="theme === 'dark' ? 'invert' : 'invert-0'"
                     decoding="async"
                   />
                   <span class="line-clamp-2 break-all text-[11px] leading-4">{{ name }}</span>
@@ -718,6 +719,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
 import { useCcSession } from '@/composables/useCcSession'
 import { type WorkspaceTreeItem, useCcWorkspace } from '@/composables/useCcWorkspace'
+import { useTheme } from '@/composables/useTheme'
+import phosphorIconNames from '@/data/phosphor-icon-names'
 import {
   type CatalogEntry,
   type PublishingResource,
@@ -825,6 +828,7 @@ const props = withDefaults(defineProps<{ mode?: WorkbenchMode }>(), {
 const mode = computed<WorkbenchMode>(() => props.mode)
 
 const { token, currentUser } = useCcSession()
+const { theme } = useTheme()
 const {
   workspacePath,
   workspaceHandle: persistedWorkspaceHandle,
@@ -1005,24 +1009,6 @@ const canSubmitPr = computed(
         prTitle.value.trim()
     )
 )
-
-const phosphorIconNames = [
-  'github-logo', 'git-branch', 'git-pull-request', 'git-commit', 'code', 'code-block',
-  'terminal', 'folder', 'folder-open', 'file', 'files', 'house', 'globe', 'link',
-  'link-simple', 'arrow-square-out', 'share-network', 'download', 'upload', 'cloud',
-  'cloud-arrow-up', 'cloud-arrow-down', 'chat-circle', 'chat-text', 'chats-circle',
-  'paper-plane-tilt', 'envelope', 'phone', 'device-mobile', 'monitor', 'desktop',
-  'book', 'book-open', 'newspaper', 'article', 'notebook', 'list', 'list-bullets',
-  'list-checks', 'check-circle', 'warning-circle', 'info', 'question', 'lightbulb',
-  'star', 'heart', 'bookmark', 'medal', 'trophy', 'rocket', 'planet', 'sparkle',
-  'camera', 'image', 'images', 'play-circle', 'pause-circle', 'music-note', 'headphones',
-  'film-strip', 'television', 'game-controller', 'app-window', 'grid-four', 'squares-four',
-  'wrench', 'gear', 'sliders-horizontal', 'bug', 'shield-check', 'lock', 'key',
-  'currency-circle-dollar', 'credit-card', 'shopping-cart', 'package', 'cube',
-  'chart-bar', 'chart-line', 'trend-up', 'calendar', 'clock', 'timer', 'map-pin',
-  'map-trifold', 'compass', 'users', 'user-circle', 'identification-card', 'at',
-  'telegram-logo', 'twitter-logo', 'youtube-logo', 'bilibili-logo', 'qq-logo'
-] as const
 
 const filteredPhosphorIconNames = computed(() => {
   const keyword = linkIconQuery.value.trim().toLowerCase()
