@@ -435,113 +435,136 @@
 
           <Card>
             <CardHeader class="pb-3">
-              <CardTitle class="text-base">分析总览</CardTitle>
+              <CardTitle class="text-base">资源提交信息</CardTitle>
             </CardHeader>
             <CardContent class="space-y-3 pt-0 text-sm">
               <div v-if="detailsLoading" class="text-xs text-muted-foreground">正在加载文件变更...</div>
               <div
-                v-else-if="prFiles.length === 0"
+                v-else-if="!hasSubmissionOverview"
                 class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
               >
-                当前 PR 没有可展示的文件变更
+                未在 PR 内容中识别到结构化资源信息（请确认包含“## 资源信息”等区块）
               </div>
               <div v-else class="space-y-3">
-                <div class="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary" class="h-6 gap-1.5 rounded-full px-2.5 text-xs">
-                    <ChartBar :size="14" weight="duotone" class="shrink-0" />
-                    文件 {{ prFiles.length }}
-                  </Badge>
-                  <Badge variant="outline" class="h-6 rounded-full px-2.5 text-xs">
-                    +{{ totalAdditions }} / -{{ totalDeletions }}
-                  </Badge>
-                  <Badge
-                    :variant="analysisRiskLevel === 'high' ? 'destructive' : analysisRiskLevel === 'medium' ? 'secondary' : 'outline'"
-                    class="h-6 rounded-full px-2.5 text-xs"
-                  >
-                    风险：{{ analysisRiskLabel }}
-                  </Badge>
-                </div>
-
-                <div class="grid gap-3 lg:grid-cols-2">
+                <div class="grid gap-3 xl:grid-cols-2">
                   <div class="rounded-md border border-border p-3">
-                    <div class="mb-2 text-xs font-semibold text-muted-foreground">变更统计</div>
-                    <div class="grid grid-cols-2 gap-2">
-                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
-                        <div class="text-[11px] text-muted-foreground">图片资源</div>
-                        <div class="text-base font-semibold text-foreground">{{ imageFileCount }}</div>
-                      </div>
-                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
-                        <div class="text-[11px] text-muted-foreground">清单文件</div>
-                        <div class="text-base font-semibold text-foreground">{{ manifestFileCount }}</div>
-                      </div>
-                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
-                        <div class="text-[11px] text-muted-foreground">二进制/无Diff</div>
-                        <div class="text-base font-semibold text-foreground">{{ binaryLikeFileCount }}</div>
-                      </div>
-                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
-                        <div class="text-[11px] text-muted-foreground">删除文件</div>
-                        <div class="text-base font-semibold text-foreground">{{ removedFileCount }}</div>
+                    <div class="mb-2 text-xs font-semibold text-muted-foreground">资源信息</div>
+                    <div class="space-y-2">
+                      <div
+                        v-for="item in submissionOverview.resourceInfo"
+                        :key="item.key"
+                        class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between"
+                      >
+                        <span class="text-xs text-muted-foreground">{{ item.key }}</span>
+                        <span class="text-sm font-medium text-foreground">{{ item.value || '-' }}</span>
                       </div>
                     </div>
                   </div>
 
                   <div class="rounded-md border border-border p-3">
-                    <div class="mb-2 text-xs font-semibold text-muted-foreground">审核提示</div>
+                    <div class="mb-2 text-xs font-semibold text-muted-foreground">支持设备</div>
                     <div class="space-y-2">
-                      <div v-for="item in analysisChecklist" :key="item.label" class="flex items-start gap-2">
-                        <component
-                          :is="item.ok ? CheckCircle : WarningCircle"
-                          :size="16"
-                          weight="fill"
-                          :class="item.ok ? 'text-emerald-600' : 'text-amber-500'"
-                          class="mt-0.5 shrink-0"
-                        />
-                        <div class="min-w-0">
-                          <div class="text-sm font-medium text-foreground">{{ item.label }}</div>
-                          <div class="text-xs text-muted-foreground">{{ item.detail }}</div>
-                        </div>
+                      <div
+                        v-for="device in submissionOverview.supportedDevices"
+                        :key="device"
+                        class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm text-foreground"
+                      >
+                        {{ device }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="rounded-md border border-border p-3">
+                    <div class="mb-2 text-xs font-semibold text-muted-foreground">仓库信息</div>
+                    <div class="space-y-2 text-sm">
+                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                        <div class="text-xs text-muted-foreground">资源仓库</div>
+                        <a
+                          v-if="submissionOverview.repoUrl"
+                          :href="submissionOverview.repoUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="break-all text-primary hover:underline"
+                        >
+                          {{ submissionOverview.repoUrl }}
+                        </a>
+                        <span v-else class="text-foreground">-</span>
+                      </div>
+                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                        <div class="text-xs text-muted-foreground">提交短哈希</div>
+                        <code class="text-foreground">{{ submissionOverview.shortHash || '-' }}</code>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="rounded-md border border-border p-3">
+                    <div class="mb-2 text-xs font-semibold text-muted-foreground">图片资源（Raw）</div>
+                    <div class="space-y-2 text-sm">
+                      <div v-if="submissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                        <div class="text-xs text-muted-foreground">Icon · {{ submissionOverview.images.icon.file }}</div>
+                        <a :href="submissionOverview.images.icon.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
+                          {{ submissionOverview.images.icon.url }}
+                        </a>
+                      </div>
+                      <div v-if="submissionOverview.images.cover" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                        <div class="text-xs text-muted-foreground">Cover · {{ submissionOverview.images.cover.file }}</div>
+                        <a :href="submissionOverview.images.cover.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
+                          {{ submissionOverview.images.cover.url }}
+                        </a>
+                      </div>
+                      <div
+                        v-for="preview in submissionOverview.images.previews"
+                        :key="`${preview.file}-${preview.url}`"
+                        class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
+                      >
+                        <div class="text-xs text-muted-foreground">Preview · {{ preview.file }}</div>
+                        <a :href="preview.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
+                          {{ preview.url }}
+                        </a>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div class="rounded-md border border-border p-3">
-                  <div class="mb-2 text-xs font-semibold text-muted-foreground">快速链接</div>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <a
-                      :href="selectedPr.url"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-xs text-primary hover:underline"
+                  <div class="mb-2 text-xs font-semibold text-muted-foreground">下载资源（downloads）</div>
+                  <div class="space-y-2 text-sm">
+                    <div
+                      v-for="item in submissionOverview.downloads"
+                      :key="`${item.device}-${item.file}`"
+                      class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
                     >
-                      打开 PR
-                    </a>
-                    <a
-                      :href="`${selectedPr.url}/files`"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-xs text-primary hover:underline"
+                      <div class="font-medium text-foreground">{{ item.device }}</div>
+                      <div class="mt-1 text-xs text-muted-foreground">version: {{ item.version || '-' }}</div>
+                      <div class="mt-1 text-xs text-muted-foreground">file: {{ item.file || '-' }}</div>
+                      <a
+                        v-if="item.raw"
+                        :href="item.raw"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="mt-1 block break-all text-xs text-primary hover:underline"
+                      >
+                        {{ item.raw }}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="rounded-md border border-border p-3">
+                  <div class="mb-2 text-xs font-semibold text-muted-foreground">链接（manifest_v2.links）</div>
+                  <div class="space-y-2 text-sm">
+                    <div
+                      v-for="link in submissionOverview.links"
+                      :key="`${link.title}-${link.url}`"
+                      class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
                     >
-                      查看 Files
-                    </a>
-                    <a
-                      v-if="resourceRepoUrl"
-                      :href="resourceRepoUrl"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-xs text-primary hover:underline"
-                    >
-                      打开作者仓库
-                    </a>
-                    <a
-                      v-if="firstImageRawUrl"
-                      :href="firstImageRawUrl"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-xs text-primary hover:underline"
-                    >
-                      打开首张变更图片
-                    </a>
+                      <div class="text-foreground">
+                        {{ link.title }}<span v-if="link.type">（{{ link.type }}）</span>
+                      </div>
+                      <a :href="link.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
+                        {{ link.url }}
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -556,7 +579,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import {
-  PhChartBar as ChartBar,
   PhArrowLeft as ArrowLeft,
   PhArrowDown as ArrowDown,
   PhArrowUp as ArrowUp,
@@ -568,8 +590,6 @@ import {
   PhFolder as FolderIcon,
   PhGithubLogo as GithubLogo,
   PhGitPullRequest as GitPullRequest,
-  PhWarningCircle as WarningCircle,
-  PhCheckCircle as CheckCircle,
   PhLinkSimple as LinkSimple,
   PhMagnifyingGlass as MagnifyingGlass
 } from '@phosphor-icons/vue'
@@ -608,6 +628,7 @@ interface ReviewStatusResult {
 interface PullListItem {
   number: number
   title: string
+  body: string
   author: string
   authorAvatar: string
   createdAt: string
@@ -640,6 +661,33 @@ interface PullFileItem {
   blob_url?: string
   raw_url?: string
   patch?: string
+}
+
+interface DownloadItem {
+  device: string
+  version: string
+  file: string
+  raw: string
+}
+
+interface LinkItem {
+  title: string
+  type: string
+  url: string
+}
+
+interface SubmissionOverview {
+  resourceInfo: Array<{ key: string; value: string }>
+  supportedDevices: string[]
+  repoUrl: string
+  shortHash: string
+  images: {
+    icon: { file: string; url: string } | null
+    cover: { file: string; url: string } | null
+    previews: Array<{ file: string; url: string }>
+  }
+  downloads: DownloadItem[]
+  links: LinkItem[]
 }
 
 interface PickerTreeItem {
@@ -769,52 +817,12 @@ const renderedCommentPreviewHtml = computed(() => {
 })
 const canSubmitComment = computed(() => Boolean(normalizedCommentId.value))
 const submitButtonTitle = computed(() => (canSubmitComment.value ? '' : '请填写id'))
-const totalAdditions = computed(() => prFiles.value.reduce((sum, file) => sum + file.additions, 0))
-const totalDeletions = computed(() => prFiles.value.reduce((sum, file) => sum + file.deletions, 0))
-const imageFileCount = computed(() => prFiles.value.filter(file => isImageFile(file.filename)).length)
-const manifestFileCount = computed(() =>
-  prFiles.value.filter(file => /(^|\/)(manifest(_v2)?\.json|catalog\.csv)$/i.test(file.filename)).length
-)
-const binaryLikeFileCount = computed(() => prFiles.value.filter(file => !file.patch).length)
-const removedFileCount = computed(() => prFiles.value.filter(file => file.status === 'removed').length)
-const analysisRiskLevel = computed<'low' | 'medium' | 'high'>(() => {
-  const changeVolume = totalAdditions.value + totalDeletions.value
-  if (prFiles.value.length > 20 || changeVolume > 1200 || removedFileCount.value >= 3) return 'high'
-  if (prFiles.value.length > 8 || changeVolume > 400 || binaryLikeFileCount.value > 0) return 'medium'
-  return 'low'
+const submissionBodySource = computed(() => {
+  const prBody = selectedPr.value?.body || ''
+  if (prBody.includes('## 资源信息')) return prBody
+  const candidate = prComments.value.find(comment => comment.body?.includes('## 资源信息'))
+  return candidate?.body || prBody
 })
-const analysisRiskLabel = computed(() => {
-  if (analysisRiskLevel.value === 'high') return '高'
-  if (analysisRiskLevel.value === 'medium') return '中'
-  return '低'
-})
-const analysisChecklist = computed(() => [
-  {
-    label: '资源清单文件',
-    ok: manifestFileCount.value > 0,
-    detail: manifestFileCount.value > 0 ? '检测到 manifest/catalog 相关变更' : '未检测到 manifest/catalog 变更'
-  },
-  {
-    label: '图片资源检查',
-    ok: imageFileCount.value > 0,
-    detail: imageFileCount.value > 0 ? `检测到 ${imageFileCount.value} 个图片文件` : '未检测到图片文件变更'
-  },
-  {
-    label: '二进制文件风险',
-    ok: binaryLikeFileCount.value === 0,
-    detail: binaryLikeFileCount.value === 0 ? '均可直接审阅 diff' : `${binaryLikeFileCount.value} 个文件无可读 diff`
-  },
-  {
-    label: '删除改动',
-    ok: removedFileCount.value === 0,
-    detail: removedFileCount.value === 0 ? '未检测到删除文件' : `检测到 ${removedFileCount.value} 个删除文件`
-  }
-])
-const resourceRepoUrl = computed(() => {
-  if (!selectedPr.value?.resourceRepoOwner || !selectedPr.value.resourceRepoName) return ''
-  return `https://github.com/${selectedPr.value.resourceRepoOwner}/${selectedPr.value.resourceRepoName}`
-})
-const firstImageRawUrl = computed(() => prFiles.value.find(file => isImageFile(file.filename))?.raw_url || '')
 const pickerPaths = computed(() => {
   const source = filePickerTab.value === 'pr'
     ? prFiles.value.map(file => file.filename)
@@ -1079,6 +1087,158 @@ const parseResourceRepoFromPrBody = (body: string): { owner: string; repo: strin
   return null
 }
 
+const stripMarkdown = (value: string): string => value
+  .replace(/`([^`]+)`/g, '$1')
+  .replace(/\*\*([^*]+)\*\*/g, '$1')
+  .replace(/\s+/g, ' ')
+  .trim()
+
+const parseSubmissionOverview = (body: string): SubmissionOverview => {
+  const overview: SubmissionOverview = {
+    resourceInfo: [],
+    supportedDevices: [],
+    repoUrl: '',
+    shortHash: '',
+    images: {
+      icon: null,
+      cover: null,
+      previews: []
+    },
+    downloads: [],
+    links: []
+  }
+  if (!body) return overview
+
+  const lines = body.split('\n')
+  let currentSection = ''
+  let currentDownload: DownloadItem | null = null
+  let waitingImageLabel: 'icon' | 'cover' | 'preview' | null = null
+  let waitingImageFile = ''
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+    if (!line) continue
+
+    const heading = line.match(/^##\s+(.+)$/)
+    if (heading) {
+      currentSection = heading[1].trim()
+      currentDownload = null
+      waitingImageLabel = null
+      waitingImageFile = ''
+      continue
+    }
+
+    if (line.startsWith('---')) continue
+
+    if (currentSection.includes('资源信息')) {
+      const m = line.match(/^-\s*([^：:]+)[：:]\s*(.+)$/)
+      if (m) {
+        overview.resourceInfo.push({ key: stripMarkdown(m[1]), value: stripMarkdown(m[2]) })
+      }
+      continue
+    }
+
+    if (currentSection.includes('支持设备')) {
+      const m = line.match(/^-\s*(.+)$/)
+      if (m) overview.supportedDevices.push(stripMarkdown(m[1]))
+      continue
+    }
+
+    if (currentSection.includes('仓库信息')) {
+      const m = line.match(/^-\s*([^：:]+)[：:]\s*(.+)$/)
+      if (!m) continue
+      const key = stripMarkdown(m[1])
+      const value = stripMarkdown(m[2])
+      if (key.includes('资源仓库')) overview.repoUrl = value
+      if (key.includes('提交短哈希')) overview.shortHash = value
+      continue
+    }
+
+    if (currentSection.includes('图片资源')) {
+      const m = line.match(/^-\s*([^：:]+)[：:]\s*(.*)$/)
+      if (m) {
+        const label = stripMarkdown(m[1]).toLowerCase()
+        const rest = stripMarkdown(m[2])
+        const fileMatch = m[2].match(/`([^`]+)`/)
+        if (label.includes('icon')) {
+          waitingImageLabel = 'icon'
+          waitingImageFile = fileMatch?.[1] || rest
+        } else if (label.includes('cover')) {
+          waitingImageLabel = 'cover'
+          waitingImageFile = fileMatch?.[1] || rest
+        } else if (label.includes('preview')) {
+          waitingImageLabel = 'preview'
+          waitingImageFile = ''
+        }
+        continue
+      }
+      const previewFile = line.match(/^-\s*`([^`]+)`\s*$/)
+      if (previewFile && waitingImageLabel === 'preview') {
+        waitingImageFile = previewFile[1]
+        continue
+      }
+      const urlMatch = line.match(/https?:\/\/\S+/)
+      if (urlMatch && waitingImageLabel) {
+        const item = { file: waitingImageFile || urlMatch[0].split('/').pop() || '', url: urlMatch[0] }
+        if (waitingImageLabel === 'icon') overview.images.icon = item
+        if (waitingImageLabel === 'cover') overview.images.cover = item
+        if (waitingImageLabel === 'preview') overview.images.previews.push(item)
+        waitingImageLabel = null
+        waitingImageFile = ''
+      }
+      continue
+    }
+
+    if (currentSection.includes('下载资源')) {
+      const deviceLine = line.match(/^-\s*`?([^`:]+)`?\s*$/)
+      if (deviceLine) {
+        currentDownload = {
+          device: stripMarkdown(deviceLine[1]),
+          version: '',
+          file: '',
+          raw: ''
+        }
+        overview.downloads.push(currentDownload)
+        continue
+      }
+      const m = line.match(/^-\s*([^：:]+)[：:]\s*(.+)$/)
+      if (m && currentDownload) {
+        const key = stripMarkdown(m[1]).toLowerCase()
+        const value = stripMarkdown(m[2])
+        if (key === 'version') currentDownload.version = value
+        if (key === 'file') currentDownload.file = value
+        if (key === 'raw') currentDownload.raw = value
+      }
+      continue
+    }
+
+    if (currentSection.includes('links')) {
+      const m = line.match(/^-\s*([^（(:：]+)(?:（([^）]+)）)?[：:]\s*(https?:\/\/\S+)/)
+      if (m) {
+        overview.links.push({
+          title: stripMarkdown(m[1]),
+          type: stripMarkdown(m[2] || ''),
+          url: stripMarkdown(m[3])
+        })
+      }
+    }
+  }
+
+  return overview
+}
+
+const submissionOverview = computed<SubmissionOverview>(() => parseSubmissionOverview(submissionBodySource.value))
+const hasSubmissionOverview = computed(() =>
+  submissionOverview.value.resourceInfo.length > 0
+  || submissionOverview.value.supportedDevices.length > 0
+  || Boolean(submissionOverview.value.repoUrl)
+  || submissionOverview.value.downloads.length > 0
+  || submissionOverview.value.links.length > 0
+  || Boolean(submissionOverview.value.images.icon)
+  || Boolean(submissionOverview.value.images.cover)
+  || submissionOverview.value.images.previews.length > 0
+)
+
 async function githubGet<T>(path: string): Promise<T> {
   const response = await fetch(`https://api.github.com${path}`, {
     headers: {
@@ -1184,6 +1344,7 @@ const loadPullRequests = async (): Promise<void> => {
       list.push({
         number: pr.number,
         title: pr.title,
+        body: pr.body || '',
         author: pr.user?.login || 'unknown',
         authorAvatar: pr.user?.avatar_url || '',
         createdAt: pr.created_at,
@@ -1227,7 +1388,10 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
   selectedPickerContent.value = ''
   selectedPickerLine.value = null
   try {
-    const [comments, files] = await Promise.all([
+    const [pullDetail, comments, files] = await Promise.all([
+      githubGet<{ body?: string }>(
+        `/repos/${props.owner}/${props.repo}/pulls/${pr.number}`
+      ),
       githubGet<IssueCommentItem[]>(
         `/repos/${props.owner}/${props.repo}/issues/${pr.number}/comments?per_page=100`
       ),
@@ -1235,6 +1399,7 @@ const loadPrDetails = async (pr: PullListItem): Promise<void> => {
         `/repos/${props.owner}/${props.repo}/pulls/${pr.number}/files?per_page=100`
       )
     ])
+    pr.body = pullDetail.body || pr.body
     prComments.value = comments
     prFiles.value = files
     await loadRepoFiles(pr)
