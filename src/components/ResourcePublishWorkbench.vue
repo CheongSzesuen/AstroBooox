@@ -626,6 +626,16 @@ const toReleaseFolderName = (raw: string): string => {
   return prefix.endsWith('_AstroBox_Release') ? prefix : `${prefix}_AstroBox_Release`
 }
 
+const validateGitHubRepoName = (name: string): string | null => {
+  if (!name) return '名称不能为空'
+  if (name.length > 100) return '长度不能超过 100 个字符'
+  if (!/^[A-Za-z0-9._-]+$/.test(name)) return '仅允许英文、数字、点号(.)、下划线(_)和连字符(-)'
+  if (!/^[A-Za-z0-9]/.test(name) || !/[A-Za-z0-9]$/.test(name)) return '必须以英文或数字开头和结尾'
+  if (name.includes('..')) return '不能包含连续点号(..)'
+  if (/\.git$/i.test(name)) return '不能以 .git 结尾'
+  return null
+}
+
 const requireToken = (): string => {
   const value = token.value.trim()
   if (!value) throw new Error('请先输入 GitHub Token')
@@ -668,6 +678,10 @@ const createWorkspaceFolder = async (): Promise<void> => {
     })) as unknown as WorkspaceDirectoryHandle
 
     const folderName = toReleaseFolderName(newWorkspaceName.value)
+    const validationError = validateGitHubRepoName(folderName)
+    if (validationError) {
+      throw new Error(`文件夹名不符合 GitHub 仓库命名要求：${validationError}`)
+    }
     const handle = await parent.getDirectoryHandle(folderName, { create: true })
     workspaceHandle.value = handle
     workspaceName.value = handle.name
