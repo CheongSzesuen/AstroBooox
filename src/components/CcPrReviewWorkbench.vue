@@ -245,8 +245,8 @@
           </Card>
 
           <Dialog :open="filePickerOpen" @update:open="filePickerOpen = $event">
-            <DialogContent class="h-[88vh] w-[92vw] max-w-[1120px] p-0">
-              <div class="flex h-full flex-col">
+            <DialogContent class="h-[88vh] w-[92vw] max-w-[1120px] overflow-hidden p-0">
+              <div class="flex h-full flex-col overflow-hidden">
                 <DialogHeader class="border-b border-border px-5 py-4">
                   <DialogTitle>插入文件定位</DialogTitle>
                   <DialogDescription>
@@ -254,8 +254,8 @@
                   </DialogDescription>
                 </DialogHeader>
 
-                <div v-if="filePickerStep === 'file'" class="flex min-h-0 flex-1 flex-col">
-                  <div class="border-b border-border px-4 py-3">
+                <div v-if="filePickerStep === 'file'" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <div class="shrink-0 border-b border-border px-4 py-3">
                     <div class="flex items-center justify-between gap-2">
                       <Tabs :model-value="filePickerTab" @update:model-value="(v) => filePickerTab = v as 'pr' | 'repo'">
                         <TabsList class="grid w-[260px] grid-cols-2">
@@ -275,7 +275,7 @@
                       <Input v-model="filePickerSearch" placeholder="筛选文件..." class="h-8 text-xs" />
                     </div>
                   </div>
-                  <div class="min-h-0 flex-1 overflow-auto p-3">
+                  <div class="min-h-0 flex-1 overflow-auto overscroll-contain p-3">
                     <div
                       v-for="item in pickerTreeItems"
                       :key="`tree-${filePickerTab}-${item.type}-${item.path}`"
@@ -309,7 +309,8 @@
                       </button>
                     </div>
                   </div>
-                  <div class="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
+                  <div class="shrink-0 border-t border-border bg-background px-4 py-3">
+                    <div class="flex items-center justify-between gap-2">
                     <div class="min-w-0 truncate text-xs text-muted-foreground">
                       {{ selectedPickerPath ? `已选择：${selectedPickerPath}` : '请选择文件后继续' }}
                     </div>
@@ -321,11 +322,13 @@
                         下一步：选择具体行
                       </Button>
                     </div>
+                    </div>
                   </div>
                 </div>
 
-                <div v-else class="flex min-h-0 flex-1 flex-col">
-                  <div class="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+                <div v-else class="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <div class="shrink-0 border-b border-border px-4 py-3">
+                    <div class="flex items-center justify-between gap-2">
                     <div class="min-w-0 space-y-0.5 text-xs text-muted-foreground">
                       <span class="inline-flex items-center gap-1.5">
                         <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
@@ -342,8 +345,9 @@
                         插入行定位
                       </Button>
                     </div>
+                    </div>
                   </div>
-                  <div class="flex items-center justify-between gap-2 border-b border-border bg-background/80 px-4 py-2 backdrop-blur">
+                  <div class="shrink-0 flex items-center justify-between gap-2 border-b border-border bg-background/80 px-4 py-2 backdrop-blur">
                     <Input v-model="pickerLineSearch" placeholder="搜索当前文件内容..." class="h-8 max-w-sm text-xs" />
                     <div class="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{{ pickerMatchedLineNumbers.length }} 个匹配</span>
@@ -967,6 +971,9 @@ const loadPullRequests = async (): Promise<void> => {
       })
     }
     pullRequests.value = list.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    if (pullRequests.value.length === 1) {
+      isSidebarCollapsed.value = true
+    }
     if (pullRequests.value.length > 0) {
       await selectPr(pullRequests.value[0])
     } else {
