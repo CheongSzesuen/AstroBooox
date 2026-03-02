@@ -51,6 +51,124 @@
             </CardContent>
           </Card>
 
+          <Card v-if="workspacePath || workspaceTree.length" class="border-border bg-card">
+            <CardHeader class="pb-2">
+              <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">File Tree</CardTitle>
+            </CardHeader>
+            <CardContent class="pt-0">
+              <p class="truncate px-1 text-[11px] text-muted-foreground">{{ workspacePath || '未选择文件夹' }}</p>
+              <nav class="mt-2 max-h-56 overflow-y-auto" aria-label="Workspace File Tree">
+                <div
+                  v-if="workspaceTree.length === 0"
+                  class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
+                >
+                  当前文件夹暂无可识别文件
+                </div>
+                <ul v-else class="space-y-1" role="tree" aria-label="Workspace Tree">
+                  <li
+                    v-for="item in visibleWorkspaceItems"
+                    :key="item.path"
+                    role="treeitem"
+                    :aria-level="item.depth + 1"
+                  >
+                    <button
+                      v-if="item.type === 'folder'"
+                      type="button"
+                      class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
+                      :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                      :title="item.path"
+                      @click="toggleWorkspaceFolder(item.path)"
+                    >
+                      <CaretRight
+                        v-if="item.collapsed"
+                        :size="12"
+                        weight="bold"
+                        class="shrink-0 text-muted-foreground"
+                      />
+                      <CaretDown
+                        v-else
+                        :size="12"
+                        weight="bold"
+                        class="shrink-0 text-muted-foreground"
+                      />
+                      <FolderIcon :size="14" weight="fill" class="shrink-0 text-muted-foreground" />
+                      <span class="truncate">{{ item.label }}</span>
+                    </button>
+                    <div
+                      v-else
+                      class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                      :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                      :title="item.path"
+                    >
+                      <span class="w-3 shrink-0" />
+                      <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                      <span class="truncate">{{ item.label }}</span>
+                    </div>
+                  </li>
+                </ul>
+              </nav>
+            </CardContent>
+          </Card>
+
+          <Card v-if="remoteWorkspacePath || remoteWorkspaceTree.length" class="border-border bg-card">
+            <CardHeader class="pb-2">
+              <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">GitHub仓库文件</CardTitle>
+            </CardHeader>
+            <CardContent class="pt-0">
+              <p class="truncate px-1 text-[11px] text-muted-foreground">{{ remoteWorkspacePath || '未同步远程仓库' }}</p>
+              <nav class="mt-2 max-h-56 overflow-y-auto" aria-label="Remote File Tree">
+                <div
+                  v-if="remoteWorkspaceTree.length === 0"
+                  class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
+                >
+                  当前 GitHub 仓库暂无可识别文件
+                </div>
+                <ul v-else class="space-y-1" role="tree" aria-label="Remote Tree">
+                  <li
+                    v-for="item in visibleRemoteItems"
+                    :key="item.path"
+                    role="treeitem"
+                    :aria-level="item.depth + 1"
+                  >
+                    <button
+                      v-if="item.type === 'folder'"
+                      type="button"
+                      class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
+                      :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                      :title="item.path"
+                      @click="toggleRemoteFolder(item.path)"
+                    >
+                      <CaretRight
+                        v-if="item.collapsed"
+                        :size="12"
+                        weight="bold"
+                        class="shrink-0 text-muted-foreground"
+                      />
+                      <CaretDown
+                        v-else
+                        :size="12"
+                        weight="bold"
+                        class="shrink-0 text-muted-foreground"
+                      />
+                      <FolderIcon :size="14" weight="fill" class="shrink-0 text-muted-foreground" />
+                      <span class="truncate">{{ item.label }}</span>
+                    </button>
+                    <div
+                      v-else
+                      class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                      :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                      :title="item.path"
+                    >
+                      <span class="w-3 shrink-0" />
+                      <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                      <span class="truncate">{{ item.label }}</span>
+                    </div>
+                  </li>
+                </ul>
+              </nav>
+            </CardContent>
+          </Card>
+
           <Card class="hidden border-border bg-card xl:block">
             <CardHeader class="pb-2">
               <div class="flex items-center justify-between gap-2">
@@ -748,8 +866,12 @@
 import { computed, defineAsyncComponent, nextTick, ref, watch, type Component } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
+  PhCaretDown as CaretDown,
+  PhCaretRight as CaretRight,
   PhDotsSixVertical as DragDots,
+  PhFile as FileIcon,
   PhFolderOpen as FolderOpen,
+  PhFolder as FolderIcon,
   PhGitPullRequest as GitPullRequest,
   PhMinus as MinusIcon,
   PhUploadSimple as UploadSimple
@@ -915,7 +1037,10 @@ const mode = computed<WorkbenchMode>(() => props.mode)
 const { token, currentUser } = useCcSession()
 const {
   workspacePath,
+  workspaceTree,
   workspaceHandle: persistedWorkspaceHandle,
+  remoteWorkspacePath,
+  remoteWorkspaceTree,
   setRemoteWorkspace,
   setWorkspace,
   setWorkspaceHandle,
@@ -927,6 +1052,8 @@ const workspaceBusy = ref(false)
 const newWorkspaceName = ref('')
 const workspaceDisplayPath = ref('')
 const activeStep = ref(0)
+const collapsedWorkspaceFolders = ref<string[]>([])
+const collapsedRemoteFolders = ref<string[]>([])
 const submitMode = ref<SubmitMode>('v2')
 const showSubmitVersionDialog = ref(false)
 
@@ -995,6 +1122,61 @@ const paidTypeSelectValue = computed({
     paidType.value = value === 'free' ? '' : value
   }
 })
+
+type VisibleTreeItem = WorkspaceTreeItem & { collapsed: boolean }
+
+const getVisibleTreeItems = (
+  tree: WorkspaceTreeItem[],
+  collapsedPaths: string[]
+): VisibleTreeItem[] => {
+  const collapsedSet = new Set(collapsedPaths)
+  const stack: string[] = []
+  const visible: VisibleTreeItem[] = []
+
+  for (const item of tree) {
+    while (stack.length > item.depth) {
+      stack.pop()
+    }
+
+    const hidden = stack.some(path => collapsedSet.has(path))
+    if (!hidden) {
+      visible.push({
+        ...item,
+        collapsed: item.type === 'folder' && collapsedSet.has(item.path)
+      })
+    }
+
+    if (item.type === 'folder') {
+      stack.push(item.path)
+    }
+  }
+
+  return visible
+}
+
+const visibleWorkspaceItems = computed(() =>
+  getVisibleTreeItems(workspaceTree.value, collapsedWorkspaceFolders.value)
+)
+
+const visibleRemoteItems = computed(() =>
+  getVisibleTreeItems(remoteWorkspaceTree.value, collapsedRemoteFolders.value)
+)
+
+const toggleWorkspaceFolder = (path: string): void => {
+  if (collapsedWorkspaceFolders.value.includes(path)) {
+    collapsedWorkspaceFolders.value = collapsedWorkspaceFolders.value.filter(item => item !== path)
+    return
+  }
+  collapsedWorkspaceFolders.value = [...collapsedWorkspaceFolders.value, path]
+}
+
+const toggleRemoteFolder = (path: string): void => {
+  if (collapsedRemoteFolders.value.includes(path)) {
+    collapsedRemoteFolders.value = collapsedRemoteFolders.value.filter(item => item !== path)
+    return
+  }
+  collapsedRemoteFolders.value = [...collapsedRemoteFolders.value, path]
+}
 
 const resolvedRepoName = computed(() => {
   const manual = repoName.value.trim()
@@ -1575,6 +1757,28 @@ watch(
     }
   },
   { immediate: true }
+)
+
+watch(
+  () => workspaceTree.value,
+  tree => {
+    const validFolderPaths = new Set(tree.filter(item => item.type === 'folder').map(item => item.path))
+    collapsedWorkspaceFolders.value = collapsedWorkspaceFolders.value.filter(path =>
+      validFolderPaths.has(path)
+    )
+  },
+  { deep: true }
+)
+
+watch(
+  () => remoteWorkspaceTree.value,
+  tree => {
+    const validFolderPaths = new Set(tree.filter(item => item.type === 'folder').map(item => item.path))
+    collapsedRemoteFolders.value = collapsedRemoteFolders.value.filter(path =>
+      validFolderPaths.has(path)
+    )
+  },
+  { deep: true }
 )
 
 const toReleaseFolderName = (raw: string): string => {
