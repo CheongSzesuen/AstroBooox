@@ -32,10 +32,11 @@
           href="/cc/"
           variant="outline"
           size="sm"
-          class="hidden h-8 gap-1.5 md:inline-flex"
+          class="h-8 gap-1.5 px-2 sm:px-3"
+          aria-label="进入 CC 页面"
         >
           <Compass :size="15" weight="duotone" />
-          CC
+          <span class="hidden sm:inline">CC</span>
         </Button>
 
         <Button
