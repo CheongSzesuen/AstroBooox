@@ -9,6 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@octokit/auth-token": "^6.0.0",
+    "@octokit/graphql": "^9.0.3",
+    "@octokit/plugin-paginate-rest": "^14.0.0",
+    "@octokit/plugin-retry": "^8.1.0",
+    "@octokit/plugin-throttling": "^11.0.3",
+    "@octokit/rest": "^22.0.1",
     "@phosphor-icons/core": "^2.1.1",
     "@phosphor-icons/vue": "^2.2.1",
     "@vueuse/core": "^14.2.1",
