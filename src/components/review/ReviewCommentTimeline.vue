@@ -14,6 +14,7 @@
       v-for="comment in comments"
       :key="comment.id"
       class="relative flex items-start gap-3"
+      :data-review-comment-id="String(comment.id)"
     >
       <img
         v-if="comment.user?.avatar_url && comment.user?.login"

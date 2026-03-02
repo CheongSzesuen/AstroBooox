@@ -859,9 +859,20 @@
           @back="closeReviewDetail"
         >
           <template #meta>
-            <Badge variant="secondary" class="h-6 rounded-full px-2.5 text-xs">Open</Badge>
-            <span class="text-sm text-muted-foreground">{{ selectedReviewItem.id }} · {{ selectedReviewItem.name }}</span>
-            <span class="text-sm text-muted-foreground">{{ selectedReviewItem.restype }}</span>
+            <Badge variant="secondary" class="h-6 gap-1.5 rounded-full px-2.5 text-xs">
+              <GitPullRequest :size="14" weight="duotone" class="shrink-0" />
+              Open
+            </Badge>
+            <span class="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+              <img
+                v-if="selectedReviewItem.prAuthorAvatar"
+                :src="selectedReviewItem.prAuthorAvatar"
+                class="h-6 w-6 shrink-0 rounded-full object-cover"
+                loading="lazy"
+              />
+              <span class="truncate font-medium text-foreground">{{ selectedReviewItem.prAuthor || 'unknown' }}</span>
+              <span class="shrink-0">opened {{ formatDate(selectedReviewItem.createdAt) }}</span>
+            </span>
           </template>
           <template #actions>
             <Button
@@ -901,6 +912,23 @@
               检测到 NEEDFIX 标签且尚未出现对应 FIXED：{{ selectedReviewItem.unresolvedTagIds.join(' / ') }}
             </div>
             <div v-if="reviewCommentsError" class="text-xs text-destructive">{{ reviewCommentsError }}</div>
+            <ReviewCommentComposer
+              :avatar-url="selectedReviewItem?.prAuthorAvatar || ''"
+              :comment-id="reviewCommentId"
+              :comment-message="reviewCommentMessage"
+              :editor-tab="reviewCommentEditorTab"
+              :preview-html="reviewRenderedCommentPreviewHtml"
+              :can-submit="canSubmitReviewComment"
+              :submitting="reviewCommentSubmitting"
+              :submit-button-title="reviewSubmitButtonTitle"
+              id-placeholder="自定义 ID，例如 icon_png_check"
+              message-placeholder="评论说明（文件引用请用上方按钮插入）"
+              textarea-class="min-h-[140px]"
+              @update:comment-id="reviewCommentId = $event"
+              @update:comment-message="reviewCommentMessage = $event"
+              @update:editor-tab="reviewCommentEditorTab = $event"
+              @submit="submitReviewComment"
+            />
             <ReviewCommentTimeline
               v-if="!reviewCommentsLoading"
               :comments="selectedReviewComments"
@@ -945,11 +973,23 @@
         </CardContent>
       </Card>
     </template>
+
+    <Dialog :open="reviewCommentResultDialogOpen" @update:open="reviewCommentResultDialogOpen = $event">
+      <DialogContent class="max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>{{ reviewCommentResultDialogTitle }}</DialogTitle>
+          <DialogDescription>{{ reviewCommentResultDialogMessage }}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button @click="reviewCommentResultDialogOpen = false">我知道了</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref, watch, type Component } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, watch, type Component } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
@@ -992,6 +1032,7 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import ReviewCommentComposer from '@/components/review/ReviewCommentComposer.vue'
 import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue'
 import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
 import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
@@ -1006,6 +1047,7 @@ import {
 } from '@/components/resourcePublishWorkbenchDeviceCatalog'
 import {
   type CatalogEntry,
+  createPullRequestIssueComment,
   type LegacyCatalogEntry,
   type PullRequestIssueComment,
   type PublishingResource,
@@ -1159,12 +1201,38 @@ const selectedReviewItem = ref<PublishingResource | null>(null)
 const reviewCommentsLoading = ref(false)
 const reviewCommentsError = ref('')
 const selectedReviewComments = ref<PullRequestIssueComment[]>([])
+const reviewCommentId = ref('')
+const reviewCommentMessage = ref('')
+const reviewCommentEditorTab = ref<'edit' | 'preview'>('edit')
+const reviewCommentSubmitting = ref(false)
+const reviewCommentResultDialogOpen = ref(false)
+const reviewCommentResultDialogTitle = ref('')
+const reviewCommentResultDialogMessage = ref('')
 
 const ownedLoading = ref(false)
 const ownedItems = ref<CatalogEntry[]>([])
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
+const normalizeReviewCommentId = (value: string): string =>
+  value.trim().replace(/\s+/g, '_').replace(/\]/g, '')
+const normalizedReviewCommentId = computed(() => normalizeReviewCommentId(reviewCommentId.value))
+const reviewCommentBodyPreview = computed(() => {
+  const bodyParts = [reviewCommentMessage.value.trim()].filter(Boolean)
+  const prefixId = normalizedReviewCommentId.value || '<填写ID>'
+  return `[ABCC_NEEDFIX_${prefixId}] ${bodyParts.join('\n')}`.trim()
+})
+const reviewSubmitCommentBody = computed(() => {
+  if (!normalizedReviewCommentId.value) return ''
+  const bodyParts = [reviewCommentMessage.value.trim()].filter(Boolean)
+  return `[ABCC_NEEDFIX_${normalizedReviewCommentId.value}] ${bodyParts.join('\n')}`.trim()
+})
+const reviewRenderedCommentPreviewHtml = computed(() => {
+  if (!reviewCommentBodyPreview.value) return '<span class="text-muted-foreground">（这里显示评论内容）</span>'
+  return renderSimpleMarkdownPreview(reviewCommentBodyPreview.value)
+})
+const canSubmitReviewComment = computed(() => Boolean(normalizedReviewCommentId.value && selectedReviewItem.value))
+const reviewSubmitButtonTitle = computed(() => (canSubmitReviewComment.value ? '' : '请填写id'))
 const paidTypeSelectValue = computed({
   get: () => paidType.value || 'free',
   set: value => {
@@ -1177,6 +1245,25 @@ const stripReleaseFolderSuffix = (raw: string): string =>
     .trim()
     .replace(/_AstroBox_Release$/i, '')
     .replace(/_+$/g, '')
+
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+const renderSimpleMarkdownPreview = (source: string): string => {
+  let html = escapeHtml(source)
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, url) => {
+    const normalizedLabel = label.replace(/^`(.+)`$/, '$1')
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2">${normalizedLabel}</a>`
+  })
+  html = html.replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">$1</code>')
+  html = html.replace(/\n/g, '<br>')
+  return html
+}
 
 const workspaceFolderPrefixInput = computed({
   get: () => stripReleaseFolderSuffix(newWorkspaceName.value),
@@ -2785,6 +2872,54 @@ const loadReviewComments = async (prNumber: number): Promise<void> => {
   }
 }
 
+const openReviewCommentResultDialog = (title: string, message: string): void => {
+  reviewCommentResultDialogTitle.value = title
+  reviewCommentResultDialogMessage.value = message
+  reviewCommentResultDialogOpen.value = true
+}
+
+const scrollToReviewCommentById = async (commentId: number): Promise<void> => {
+  const selector = `[data-review-comment-id="${commentId}"]`
+  for (let i = 0; i < 8; i += 1) {
+    await nextTick()
+    const element = document.querySelector(selector)
+    if (element instanceof HTMLElement) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    await new Promise(resolve => setTimeout(resolve, 80))
+  }
+}
+
+const submitReviewComment = async (): Promise<void> => {
+  if (!selectedReviewItem.value) return
+  const body = reviewSubmitCommentBody.value
+  if (!body) {
+    openReviewCommentResultDialog('发送失败', '评论 ID 不能为空')
+    return
+  }
+
+  reviewCommentSubmitting.value = true
+  try {
+    const created = await createPullRequestIssueComment({
+      token: requireToken(),
+      owner: upstreamOwner.value.trim(),
+      repo: upstreamRepo.value.trim(),
+      prNumber: selectedReviewItem.value.prNumber,
+      body
+    })
+    await loadReviewComments(selectedReviewItem.value.prNumber)
+    await scrollToReviewCommentById(created.id)
+    reviewCommentMessage.value = ''
+    reviewCommentEditorTab.value = 'edit'
+    openReviewCommentResultDialog('发送成功', '评论已发送并立即刷新评论列表。')
+  } catch (error: unknown) {
+    openReviewCommentResultDialog('发送失败', error instanceof Error ? error.message : '评论发送失败')
+  } finally {
+    reviewCommentSubmitting.value = false
+  }
+}
+
 const openReviewItem = (item: PublishingResource): void => {
   selectedReviewItem.value = item
   void loadReviewComments(item.prNumber)
@@ -2794,6 +2929,9 @@ const closeReviewDetail = (): void => {
   selectedReviewItem.value = null
   selectedReviewComments.value = []
   reviewCommentsError.value = ''
+  reviewCommentId.value = ''
+  reviewCommentMessage.value = ''
+  reviewCommentEditorTab.value = 'edit'
 }
 
 const loadOwnedList = async (): Promise<void> => {

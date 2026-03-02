@@ -143,76 +143,29 @@
               <CardTitle class="text-base">审核评论</CardTitle>
             </CardHeader>
             <CardContent class="space-y-3 pt-0">
-              <div v-if="detailsError" class="text-xs text-destructive">{{ detailsError }}</div>
-              <div v-if="detailsSuccess" class="text-xs text-emerald-600">{{ detailsSuccess }}</div>
               <div v-if="repoFilesError" class="text-xs text-destructive">{{ repoFilesError }}</div>
 
               <div class="space-y-2">
-                <div class="flex items-start gap-3">
-                  <img
-                    v-if="selectedPr?.authorAvatar"
-                    :src="getOptimizedAvatarUrl(selectedPr.author, selectedPr.authorAvatar)"
-                    class="h-8 w-8 shrink-0 rounded-full object-cover"
-                    loading="lazy"
-                    @load="cacheAvatar(selectedPr.author, selectedPr.authorAvatar)"
-                  />
-                  <div class="min-w-0 flex-1 overflow-hidden rounded-md border border-border">
-                    <Tabs v-model="commentEditorTab">
-                      <div class="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-2">
-                        <TabsList class="inline-flex h-8 rounded-none border-0 bg-transparent p-0">
-                          <TabsTrigger value="edit">Write</TabsTrigger>
-                          <TabsTrigger value="preview">Preview</TabsTrigger>
-                        </TabsList>
-                        <Button size="sm" variant="outline" class="h-8 gap-1.5 px-2.5 text-xs" @click="openFilePicker">
-                          <LinkSimple :size="14" weight="bold" />
-                          插入文件定位
-                        </Button>
-                      </div>
-                      <div class="px-3 py-3">
-                        <TabsContent value="edit" class="mt-0">
-                          <div class="grid gap-2">
-                            <div class="flex items-center rounded-md border border-input bg-background">
-                              <span class="shrink-0 border-r border-border px-3 text-xs text-muted-foreground">[ABCC_NEEDFIX_</span>
-                              <Input
-                                v-model="commentId"
-                                class="border-0 shadow-none focus-visible:ring-0"
-                                placeholder="自定义 ID，例如 icon_png_check"
-                              />
-                              <span class="shrink-0 px-3 text-xs text-muted-foreground">]</span>
-                            </div>
-                            <Textarea
-                              id="review-comment-message"
-                              ref="commentMessageTextareaRef"
-                              v-model="commentMessage"
-                              placeholder="评论说明（文件引用请用上方按钮插入）"
-                              class="min-h-[150px]"
-                              @click="syncCommentCursor"
-                              @keyup="syncCommentCursor"
-                              @select="syncCommentCursor"
-                            />
-                          </div>
-                        </TabsContent>
-                        <TabsContent value="preview" class="mt-0">
-                          <div
-                            class="whitespace-pre-wrap break-words text-sm leading-6 text-foreground"
-                            v-html="renderedCommentPreviewHtml"
-                          />
-                        </TabsContent>
-                      </div>
-                    </Tabs>
-                    <div class="flex items-center justify-end border-t border-border bg-muted/20 px-3 py-2">
-                      <span :title="submitButtonTitle" class="inline-flex">
-                        <Button
-                          size="sm"
-                          :disabled="!canSubmitComment || commentSubmitting"
-                          @click="submitPresetComment"
-                        >
-                          {{ commentSubmitting ? '发送中...' : '发送评论' }}
-                        </Button>
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                <ReviewCommentComposer
+                  :avatar-url="selectedPr?.authorAvatar ? getOptimizedAvatarUrl(selectedPr.author, selectedPr.authorAvatar) : ''"
+                  :comment-id="commentId"
+                  :comment-message="commentMessage"
+                  :editor-tab="commentEditorTab"
+                  :preview-html="renderedCommentPreviewHtml"
+                  :can-submit="canSubmitComment"
+                  :submitting="commentSubmitting"
+                  :submit-button-title="submitButtonTitle"
+                  :show-file-picker-button="true"
+                  id-placeholder="自定义 ID，例如 icon_png_check"
+                  message-placeholder="评论说明（文件引用请用上方按钮插入）"
+                  textarea-class="min-h-[140px]"
+                  @update:comment-id="commentId = $event"
+                  @update:comment-message="commentMessage = $event"
+                  @update:editor-tab="commentEditorTab = $event"
+                  @open-file-picker="openFilePicker"
+                  @submit="submitPresetComment"
+                  @cursor-event="syncCommentCursor"
+                />
 
                 <div class="pt-1 text-xs font-medium text-muted-foreground">最近评论</div>
                 <ReviewCommentTimeline
@@ -396,6 +349,18 @@
                   </div>
                 </div>
               </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog :open="commentResultDialogOpen" @update:open="commentResultDialogOpen = $event">
+            <DialogContent class="max-w-[420px]">
+              <DialogHeader>
+                <DialogTitle>{{ commentResultDialogTitle }}</DialogTitle>
+                <DialogDescription>{{ commentResultDialogMessage }}</DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button @click="commentResultDialogOpen = false">我知道了</Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
 
@@ -682,12 +647,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import ReviewCommentComposer from '@/components/review/ReviewCommentComposer.vue'
 import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue'
 import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
 import {
@@ -820,7 +787,6 @@ const selectedPr = ref<PullListItem | null>(null)
 const isSidebarCollapsed = ref(false)
 const detailsLoading = ref(false)
 const detailsError = ref('')
-const detailsSuccess = ref('')
 const prComments = ref<IssueCommentItem[]>([])
 const prFiles = ref<PullFileItem[]>([])
 const csvRowFromRepoDiff = ref<CsvV2Row | null>(null)
@@ -848,6 +814,9 @@ const commentMessageTextareaRef = ref<unknown>(null)
 const commentCursorStart = ref<number | null>(null)
 const commentCursorEnd = ref<number | null>(null)
 const commentSubmitting = ref(false)
+const commentResultDialogOpen = ref(false)
+const commentResultDialogTitle = ref('')
+const commentResultDialogMessage = ref('')
 
 const canLoad = computed(() => Boolean(props.owner.trim() && props.repo.trim() && props.token.trim()))
 const sidebarClass = computed(() => [
@@ -1179,6 +1148,12 @@ const renderMarkdownPreview = (source: string): string => {
   html = html.replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">$1</code>')
   html = html.replace(/\n/g, '<br>')
   return html
+}
+
+const openCommentResultDialog = (title: string, message: string): void => {
+  commentResultDialogTitle.value = title
+  commentResultDialogMessage.value = message
+  commentResultDialogOpen.value = true
 }
 
 const decodeBase64Utf8 = (base64: string): string => {
@@ -2081,7 +2056,6 @@ const loadPullRequests = async (): Promise<void> => {
 const loadPrDetails = async (pr: PullListItem): Promise<void> => {
   detailsLoading.value = true
   detailsError.value = ''
-  detailsSuccess.value = ''
   repoFilesError.value = ''
   filePickerSearch.value = ''
   selectedPickerPath.value = ''
@@ -2178,24 +2152,19 @@ const loadRepoFiles = async (pr: PullListItem): Promise<void> => {
 }
 
 const selectPr = async (pr: PullListItem): Promise<void> => {
-  detailsSuccess.value = ''
   selectedPr.value = pr
   await loadPrDetails(pr)
 }
 
 const refreshSelectedPrDetails = async (): Promise<void> => {
   if (!selectedPr.value) return
-  detailsSuccess.value = ''
   await loadPrDetails(selectedPr.value)
 }
 
-const refreshPrCommentsAndStatus = async (pr: PullListItem, createdCommentId?: number): Promise<void> => {
+const refreshPrCommentsAndStatus = async (pr: PullListItem): Promise<void> => {
   const comments = await githubGet<IssueCommentItem[]>(
     `/repos/${props.owner}/${props.repo}/issues/${pr.number}/comments?per_page=100`
   )
-  if (createdCommentId && !comments.some(comment => comment.id === createdCommentId)) {
-    throw new Error('评论提交后校验失败：未在最新评论列表中找到该评论')
-  }
   prComments.value = comments
   const review = deriveReviewStatus(comments)
   pr.review = review
@@ -2308,16 +2277,27 @@ const insertSelectedLineReference = (): void => {
   filePickerOpen.value = false
 }
 
+const scrollToCommentById = async (commentId: number): Promise<void> => {
+  const selector = `[data-review-comment-id="${commentId}"]`
+  for (let i = 0; i < 8; i += 1) {
+    await nextTick()
+    const element = document.querySelector(selector)
+    if (element instanceof HTMLElement) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    await new Promise(resolve => setTimeout(resolve, 80))
+  }
+}
+
 const submitPresetComment = async (): Promise<void> => {
   if (!selectedPr.value) return
   const body = submitCommentBody.value
   if (!body) {
-    detailsError.value = '评论 ID 不能为空'
+    openCommentResultDialog('发送失败', '评论 ID 不能为空')
     return
   }
   commentSubmitting.value = true
-  detailsError.value = ''
-  detailsSuccess.value = ''
   try {
     const created = await githubPost<{ id: number }>(
       `/repos/${props.owner}/${props.repo}/issues/${selectedPr.value.number}/comments`,
@@ -2325,10 +2305,11 @@ const submitPresetComment = async (): Promise<void> => {
     )
     commentMessage.value = ''
     commentEditorTab.value = 'edit'
-    await refreshPrCommentsAndStatus(selectedPr.value, created.id)
-    detailsSuccess.value = '评论发送成功，已立即刷新评论列表'
+    await refreshPrCommentsAndStatus(selectedPr.value)
+    await scrollToCommentById(created.id)
+    openCommentResultDialog('发送成功', '评论已发送并立即刷新评论列表。')
   } catch (error: unknown) {
-    detailsError.value = error instanceof Error ? error.message : '评论发送失败'
+    openCommentResultDialog('发送失败', error instanceof Error ? error.message : '评论发送失败')
   } finally {
     commentSubmitting.value = false
   }

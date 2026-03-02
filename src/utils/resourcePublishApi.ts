@@ -26,6 +26,8 @@ export interface PublishingResource {
   prNumber: number
   prTitle: string
   prUrl: string
+  prAuthor?: string
+  prAuthorAvatar?: string
 }
 
 export interface PullRequestIssueComment {
@@ -822,7 +824,7 @@ export const loadInProgressResources = async (params: {
       title: string
       html_url: string
       created_at: string
-      user?: { login?: string }
+      user?: { login?: string; avatar_url?: string }
     }>
   >(`/repos/${targetOwner}/${targetRepo}/pulls?state=open&per_page=50`, token)
 
@@ -860,7 +862,9 @@ export const loadInProgressResources = async (params: {
             createdAt: pr.created_at,
             prNumber: pr.number,
             prTitle: pr.title,
-            prUrl: pr.html_url
+            prUrl: pr.html_url,
+            prAuthor: pr.user?.login || '',
+            prAuthorAvatar: pr.user?.avatar_url || ''
           })
       }
     } catch {
@@ -882,6 +886,26 @@ export const loadPullRequestIssueComments = async (params: {
     `/repos/${owner}/${repo}/issues/${prNumber}/comments?per_page=100`,
     token
   )
+}
+
+export const createPullRequestIssueComment = async (params: {
+  token: string
+  owner: string
+  repo: string
+  prNumber: number
+  body: string
+}): Promise<{ id: number }> => {
+  const { token, owner, repo, prNumber, body } = params
+  const payload = await githubFetch<{ id: number }>(
+    `/repos/${owner}/${repo}/issues/${prNumber}/comments`,
+    token,
+    {
+      method: 'POST',
+      headers: buildHeaders(token, 'application/json'),
+      body: JSON.stringify({ body })
+    }
+  )
+  return { id: payload.id }
 }
 
 export const loadOwnedResources = async (params: {
