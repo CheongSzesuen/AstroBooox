@@ -738,6 +738,20 @@
         </DialogContent>
       </Dialog>
 
+      <Dialog :open="showFolderNameValidationDialog" @update:open="showFolderNameValidationDialog = $event">
+        <DialogContent class="max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>文件夹名称不符合规范</DialogTitle>
+            <DialogDescription>
+              {{ folderNameValidationMessage }}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" @click="showFolderNameValidationDialog = false">我知道了</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog :open="showLinkIconPicker" @update:open="showLinkIconPicker = $event">
         <DialogContent class="w-[95vw] !max-w-[900px]">
           <DialogHeader>
@@ -1094,6 +1108,8 @@ const showResourceIdGuide = ref(false)
 const showOutOfWorkspaceFileDialog = ref(false)
 const showImageValidationDialog = ref(false)
 const imageValidationMessage = ref('')
+const showFolderNameValidationDialog = ref(false)
+const folderNameValidationMessage = ref('')
 const showUploadCompleteDialog = ref(false)
 const showLinkIconPicker = ref(false)
 const linkIconPickerIndex = ref<number | null>(null)
@@ -1961,7 +1977,9 @@ const createWorkspaceFolder = async (): Promise<void> => {
     const folderName = toReleaseFolderName(newWorkspaceName.value)
     const validationError = validateGitHubRepoName(folderName)
     if (validationError) {
-      throw new Error(`文件夹名不符合 GitHub 仓库命名要求：${validationError}`)
+      folderNameValidationMessage.value = `文件夹名不符合 GitHub 仓库命名要求：${validationError}`
+      showFolderNameValidationDialog.value = true
+      return
     }
     const handle = await parent.getDirectoryHandle(folderName, { create: true })
     setWorkspaceHandle(handle)
