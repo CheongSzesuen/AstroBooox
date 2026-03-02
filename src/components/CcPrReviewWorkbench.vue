@@ -343,18 +343,34 @@
                       </Button>
                     </div>
                   </div>
-                  <div class="min-h-0 flex-1 overflow-auto bg-muted/20 p-4">
+                  <div class="flex items-center justify-between gap-2 border-b border-border bg-background/80 px-4 py-2 backdrop-blur">
+                    <Input v-model="pickerLineSearch" placeholder="搜索当前文件内容..." class="h-8 max-w-sm text-xs" />
+                    <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{{ pickerMatchedLineNumbers.length }} 个匹配</span>
+                      <Button size="sm" variant="outline" :disabled="pickerMatchedLineNumbers.length === 0" @click="gotoPrevPickerMatch">
+                        上一条
+                      </Button>
+                      <Button size="sm" variant="outline" :disabled="pickerMatchedLineNumbers.length === 0" @click="gotoNextPickerMatch">
+                        下一条
+                      </Button>
+                    </div>
+                  </div>
+                  <div class="min-h-0 flex-1 overflow-auto overscroll-contain bg-muted/20 p-4">
                     <div v-if="pickerLoading" class="text-xs text-muted-foreground">加载文件内容中...</div>
                     <div v-else-if="pickerError" class="text-xs text-destructive">{{ pickerError }}</div>
                     <div v-else-if="!selectedPickerPath" class="text-xs text-muted-foreground">请先返回上一步选择文件</div>
                     <div v-else class="font-mono text-xs leading-5">
                       <button
                         v-for="(line, index) in pickerContentLines"
+                        :ref="el => setPickerLineRowRef(index + 1, el as Element | null)"
                         :key="`line-${index}`"
                         type="button"
                         class="flex w-full items-start gap-3 rounded px-2 py-0.5 text-left hover:bg-accent/60"
-                        :class="selectedPickerLine === index + 1 ? 'bg-accent text-accent-foreground' : ''"
-                        @click="selectedPickerLine = index + 1"
+                        :class="[
+                          selectedPickerLine === index + 1 ? 'bg-accent text-accent-foreground' : '',
+                          isPickerLineMatched(index + 1) ? 'ring-1 ring-primary/40' : ''
+                        ]"
+                        @click="selectPickerLine(index + 1)"
                       >
                         <span class="w-10 shrink-0 text-right text-muted-foreground">{{ index + 1 }}</span>
                         <span class="whitespace-pre-wrap break-all">{{ line || ' ' }}</span>
@@ -440,7 +456,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
@@ -565,6 +581,7 @@ const filePickerSearch = ref('')
 const selectedPickerPath = ref('')
 const selectedPickerContent = ref('')
 const selectedPickerLine = ref<number | null>(null)
+const pickerLineSearch = ref('')
 const pickerLoading = ref(false)
 const pickerError = ref('')
 const commentId = ref('')
@@ -721,6 +738,62 @@ const pickerTreeItems = computed<PickerTreeItem[]>(() => {
   return output
 })
 const pickerContentLines = computed(() => selectedPickerContent.value.split('\n'))
+const normalizedPickerLineSearch = computed(() => pickerLineSearch.value.trim().toLowerCase())
+const pickerMatchedLineNumbers = computed(() => {
+  const query = normalizedPickerLineSearch.value
+  if (!query) return []
+  const numbers: number[] = []
+  pickerContentLines.value.forEach((line, index) => {
+    if (line.toLowerCase().includes(query)) {
+      numbers.push(index + 1)
+    }
+  })
+  return numbers
+})
+const pickerMatchCursor = ref(-1)
+const pickerLineRowRefs = new Map<number, HTMLElement>()
+
+const setPickerLineRowRef = (lineNumber: number, element: Element | null): void => {
+  if (!(element instanceof HTMLElement)) {
+    pickerLineRowRefs.delete(lineNumber)
+    return
+  }
+  pickerLineRowRefs.set(lineNumber, element)
+}
+
+const isPickerLineMatched = (lineNumber: number): boolean =>
+  pickerMatchedLineNumbers.value.includes(lineNumber)
+
+const scrollToPickerLine = async (lineNumber: number): Promise<void> => {
+  await nextTick()
+  const row = pickerLineRowRefs.get(lineNumber)
+  row?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+}
+
+const focusPickerMatchByCursor = async (): Promise<void> => {
+  if (pickerMatchCursor.value < 0 || pickerMatchedLineNumbers.value.length === 0) return
+  const lineNumber = pickerMatchedLineNumbers.value[pickerMatchCursor.value]
+  selectedPickerLine.value = lineNumber
+  await scrollToPickerLine(lineNumber)
+}
+
+const gotoNextPickerMatch = async (): Promise<void> => {
+  const total = pickerMatchedLineNumbers.value.length
+  if (total === 0) return
+  pickerMatchCursor.value = (pickerMatchCursor.value + 1 + total) % total
+  await focusPickerMatchByCursor()
+}
+
+const gotoPrevPickerMatch = async (): Promise<void> => {
+  const total = pickerMatchedLineNumbers.value.length
+  if (total === 0) return
+  pickerMatchCursor.value = (pickerMatchCursor.value - 1 + total) % total
+  await focusPickerMatchByCursor()
+}
+
+const selectPickerLine = (lineNumber: number): void => {
+  selectedPickerLine.value = lineNumber
+}
 
 const buildRepoBlobUrl = (path: string): string => {
   if (!selectedPr.value) return ''
@@ -1017,6 +1090,9 @@ const openFilePicker = (): void => {
   selectedPickerPath.value = ''
   selectedPickerContent.value = ''
   selectedPickerLine.value = null
+  pickerLineSearch.value = ''
+  pickerMatchCursor.value = -1
+  pickerLineRowRefs.clear()
   pickerError.value = ''
 }
 
@@ -1038,11 +1114,17 @@ const readRepoTextFileOrEmpty = async (path: string): Promise<string> => {
 const selectPickerPath = (path: string): void => {
   selectedPickerPath.value = path
   selectedPickerLine.value = null
+  pickerLineSearch.value = ''
+  pickerMatchCursor.value = -1
+  pickerLineRowRefs.clear()
 }
 
 const enterPickerLineStep = async (): Promise<void> => {
   if (!selectedPickerPath.value) return
   filePickerStep.value = 'line'
+  pickerLineSearch.value = ''
+  pickerMatchCursor.value = -1
+  pickerLineRowRefs.clear()
   pickerError.value = ''
   pickerLoading.value = true
   try {
@@ -1109,9 +1191,24 @@ watch(
     selectedPickerPath.value = ''
     selectedPickerLine.value = null
     selectedPickerContent.value = ''
+    pickerLineSearch.value = ''
+    pickerMatchCursor.value = -1
+    pickerLineRowRefs.clear()
     pickerError.value = ''
     pickerLoading.value = false
     filePickerStep.value = 'file'
+  }
+)
+
+watch(
+  () => [normalizedPickerLineSearch.value, pickerContentLines.value.length] as const,
+  async () => {
+    if (!normalizedPickerLineSearch.value) {
+      pickerMatchCursor.value = -1
+      return
+    }
+    pickerMatchCursor.value = pickerMatchedLineNumbers.value.length > 0 ? 0 : -1
+    await focusPickerMatchByCursor()
   }
 )
 </script>
