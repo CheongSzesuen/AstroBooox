@@ -61,18 +61,18 @@
             :class="
               selectedPr?.number === item.number
                 ? isSidebarCollapsed
-                  ? 'mx-auto h-12 w-12 justify-center p-1.5 border-border bg-muted shadow-sm'
+                  ? 'mx-auto h-12 w-12 justify-center p-0.5 border-border bg-muted shadow-sm'
                   : 'w-full gap-2.5 px-2.5 py-2 border-border bg-muted shadow-sm'
                 : isSidebarCollapsed
-                  ? 'mx-auto h-12 w-12 justify-center p-1.5 border-transparent hover:bg-accent'
+                  ? 'mx-auto h-12 w-12 justify-center p-0.5 border-transparent hover:bg-accent'
                   : 'w-full gap-2.5 px-2.5 py-2 border-transparent hover:bg-accent'
             "
             @click="selectPr(item)"
           >
             <img
               :src="getOptimizedAvatarUrl(item.author, item.authorAvatar)"
-              :class="isSidebarCollapsed ? 'h-10 w-10 rounded-md' : 'h-8 w-8 rounded-md'"
-              class="shrink-0 object-cover"
+              :class="isSidebarCollapsed ? 'h-10 w-10 rounded-full' : 'h-8 w-8 rounded-md'"
+              class="shrink-0 object-cover object-center"
               loading="lazy"
               @load="cacheAvatar(item.author, item.authorAvatar)"
             />
