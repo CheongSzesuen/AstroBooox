@@ -136,7 +136,10 @@ const githubTokenSetupHint = '当前会话未检测到 GitHub Token，请先返�
 const GITHUB_API_BASE = 'https://api.github.com'
 const hasGithubToken = computed(() => Boolean(props.token.trim()))
 
-const githubGet = async <T>(pathOrUrl: string, options?: { params?: Record<string, unknown>; headers?: Record<string, string> }) => {
+async function githubGet<T>(
+  pathOrUrl: string,
+  options?: { params?: Record<string, unknown>; headers?: Record<string, string> }
+) {
   const token = props.token.trim()
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
