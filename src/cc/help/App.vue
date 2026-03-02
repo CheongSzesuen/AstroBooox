@@ -33,7 +33,7 @@
               New personal access token (classic)
             </h1>
             <p class="mt-2 text-sm text-muted-foreground">
-              直接打开创建页即可，不需要先走菜单路径。
+              按照下方流程创建Token，不要分享给任何人。
             </p>
           </div>
 

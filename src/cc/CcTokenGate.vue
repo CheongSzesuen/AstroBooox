@@ -14,7 +14,10 @@
       <div class="relative z-20 mt-auto space-y-4">
         <blockquote class="space-y-2">
           <p class="text-lg leading-8">
-            “所有操作都由你的 GitHub Token 驱动，进入控制台前先完成一次 Token 验证。”
+            基于浏览器的AstroBooox Creator Console 需要GitHub API提供接口
+          </p>
+          <p class="text-lg leading-8">
+            所有填入的Token不会被上传，也不会被保存到浏览器本地，只用于当前会话
           </p>
           <footer class="text-sm text-zinc-300">Token Session Gate</footer>
         </blockquote>
@@ -82,12 +85,12 @@
           class="cc-login-card cc-login-light border-zinc-200 bg-white/95 text-zinc-900 shadow-xl backdrop-blur lg:border-zinc-700 lg:bg-zinc-900/90 lg:text-zinc-100"
         >
           <CardHeader class="pb-3">
-            <CardTitle class="text-base">认证凭据</CardTitle>
-            <CardDescription>不会写入 localStorage，仅在当前页面会话中使用。</CardDescription>
+            <CardTitle class="text-base">GitHub Token</CardTitle>
+            <CardDescription>务必使用自己的GitHub Token</CardDescription>
           </CardHeader>
           <CardContent class="space-y-3 pt-0">
             <div class="space-y-1.5">
-              <Label for="cc-token">GitHub Token</Label>
+              <!-- <Label for="cc-token">GitHub Token</Label> -->
               <Input
                 id="cc-token"
                 v-model="token"

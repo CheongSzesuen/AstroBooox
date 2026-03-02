@@ -51,121 +51,125 @@
             </CardContent>
           </Card>
 
-          <Card v-if="workspacePath || workspaceTree.length" class="border-border bg-card">
+          <Card v-if="workspacePath || workspaceTree.length || remoteWorkspacePath || remoteWorkspaceTree.length" class="border-border bg-card">
             <CardHeader class="pb-2">
-              <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">File Tree</CardTitle>
+              <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">文件树</CardTitle>
             </CardHeader>
             <CardContent class="pt-0">
-              <p class="truncate px-1 text-[11px] text-muted-foreground">{{ workspacePath || '未选择文件夹' }}</p>
-              <nav class="mt-2 max-h-56 overflow-y-auto" aria-label="Workspace File Tree">
-                <div
-                  v-if="workspaceTree.length === 0"
-                  class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
-                >
-                  当前文件夹暂无可识别文件
-                </div>
-                <ul v-else class="space-y-1" role="tree" aria-label="Workspace Tree">
-                  <li
-                    v-for="item in visibleWorkspaceItems"
-                    :key="item.path"
-                    role="treeitem"
-                    :aria-level="item.depth + 1"
-                  >
-                    <button
-                      v-if="item.type === 'folder'"
-                      type="button"
-                      class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
-                      :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
-                      :title="item.path"
-                      @click="toggleWorkspaceFolder(item.path)"
-                    >
-                      <CaretRight
-                        v-if="item.collapsed"
-                        :size="12"
-                        weight="bold"
-                        class="shrink-0 text-muted-foreground"
-                      />
-                      <CaretDown
-                        v-else
-                        :size="12"
-                        weight="bold"
-                        class="shrink-0 text-muted-foreground"
-                      />
-                      <FolderIcon :size="14" weight="fill" class="shrink-0 text-muted-foreground" />
-                      <span class="truncate">{{ item.label }}</span>
-                    </button>
-                    <div
-                      v-else
-                      class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
-                      :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
-                      :title="item.path"
-                    >
-                      <span class="w-3 shrink-0" />
-                      <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
-                      <span class="truncate">{{ item.label }}</span>
-                    </div>
-                  </li>
-                </ul>
-              </nav>
-            </CardContent>
-          </Card>
+              <Tabs v-model="fileTreeTab" class="space-y-2">
+                <TabsList class="grid w-full grid-cols-2">
+                  <TabsTrigger value="workspace">本地文件</TabsTrigger>
+                  <TabsTrigger value="remote">GitHub仓库文件</TabsTrigger>
+                </TabsList>
 
-          <Card v-if="remoteWorkspacePath || remoteWorkspaceTree.length" class="border-border bg-card">
-            <CardHeader class="pb-2">
-              <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">GitHub仓库文件</CardTitle>
-            </CardHeader>
-            <CardContent class="pt-0">
-              <p class="truncate px-1 text-[11px] text-muted-foreground">{{ remoteWorkspacePath || '未同步远程仓库' }}</p>
-              <nav class="mt-2 max-h-56 overflow-y-auto" aria-label="Remote File Tree">
-                <div
-                  v-if="remoteWorkspaceTree.length === 0"
-                  class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
-                >
-                  当前 GitHub 仓库暂无可识别文件
-                </div>
-                <ul v-else class="space-y-1" role="tree" aria-label="Remote Tree">
-                  <li
-                    v-for="item in visibleRemoteItems"
-                    :key="item.path"
-                    role="treeitem"
-                    :aria-level="item.depth + 1"
-                  >
-                    <button
-                      v-if="item.type === 'folder'"
-                      type="button"
-                      class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
-                      :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
-                      :title="item.path"
-                      @click="toggleRemoteFolder(item.path)"
-                    >
-                      <CaretRight
-                        v-if="item.collapsed"
-                        :size="12"
-                        weight="bold"
-                        class="shrink-0 text-muted-foreground"
-                      />
-                      <CaretDown
-                        v-else
-                        :size="12"
-                        weight="bold"
-                        class="shrink-0 text-muted-foreground"
-                      />
-                      <FolderIcon :size="14" weight="fill" class="shrink-0 text-muted-foreground" />
-                      <span class="truncate">{{ item.label }}</span>
-                    </button>
+                <TabsContent value="workspace" class="mt-0">
+                  <p class="truncate px-1 text-[11px] text-muted-foreground">{{ workspacePath || '未选择文件夹' }}</p>
+                  <nav class="mt-2 max-h-56 overflow-y-auto" aria-label="Workspace File Tree">
                     <div
-                      v-else
-                      class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
-                      :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
-                      :title="item.path"
+                      v-if="workspaceTree.length === 0"
+                      class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
                     >
-                      <span class="w-3 shrink-0" />
-                      <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
-                      <span class="truncate">{{ item.label }}</span>
+                      当前文件夹暂无可识别文件
                     </div>
-                  </li>
-                </ul>
-              </nav>
+                    <ul v-else class="space-y-1" role="tree" aria-label="Workspace Tree">
+                      <li
+                        v-for="item in visibleWorkspaceItems"
+                        :key="item.path"
+                        role="treeitem"
+                        :aria-level="item.depth + 1"
+                      >
+                        <button
+                          v-if="item.type === 'folder'"
+                          type="button"
+                          class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
+                          :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                          :title="item.path"
+                          @click="toggleWorkspaceFolder(item.path)"
+                        >
+                          <CaretRight
+                            v-if="item.collapsed"
+                            :size="12"
+                            weight="bold"
+                            class="shrink-0 text-muted-foreground"
+                          />
+                          <CaretDown
+                            v-else
+                            :size="12"
+                            weight="bold"
+                            class="shrink-0 text-muted-foreground"
+                          />
+                          <FolderIcon :size="14" weight="fill" class="shrink-0 text-muted-foreground" />
+                          <span class="truncate">{{ item.label }}</span>
+                        </button>
+                        <div
+                          v-else
+                          class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                          :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                          :title="item.path"
+                        >
+                          <span class="w-3 shrink-0" />
+                          <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                          <span class="truncate">{{ item.label }}</span>
+                        </div>
+                      </li>
+                    </ul>
+                  </nav>
+                </TabsContent>
+
+                <TabsContent value="remote" class="mt-0">
+                  <p class="truncate px-1 text-[11px] text-muted-foreground">{{ remoteWorkspacePath || '未同步远程仓库' }}</p>
+                  <nav class="mt-2 max-h-56 overflow-y-auto" aria-label="Remote File Tree">
+                    <div
+                      v-if="remoteWorkspaceTree.length === 0"
+                      class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
+                    >
+                      当前 GitHub 仓库暂无可识别文件
+                    </div>
+                    <ul v-else class="space-y-1" role="tree" aria-label="Remote Tree">
+                      <li
+                        v-for="item in visibleRemoteItems"
+                        :key="item.path"
+                        role="treeitem"
+                        :aria-level="item.depth + 1"
+                      >
+                        <button
+                          v-if="item.type === 'folder'"
+                          type="button"
+                          class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
+                          :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                          :title="item.path"
+                          @click="toggleRemoteFolder(item.path)"
+                        >
+                          <CaretRight
+                            v-if="item.collapsed"
+                            :size="12"
+                            weight="bold"
+                            class="shrink-0 text-muted-foreground"
+                          />
+                          <CaretDown
+                            v-else
+                            :size="12"
+                            weight="bold"
+                            class="shrink-0 text-muted-foreground"
+                          />
+                          <FolderIcon :size="14" weight="fill" class="shrink-0 text-muted-foreground" />
+                          <span class="truncate">{{ item.label }}</span>
+                        </button>
+                        <div
+                          v-else
+                          class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                          :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                          :title="item.path"
+                        >
+                          <span class="w-3 shrink-0" />
+                          <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                          <span class="truncate">{{ item.label }}</span>
+                        </div>
+                      </li>
+                    </ul>
+                  </nav>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
 
@@ -341,14 +345,14 @@
 
                   <div class="grid gap-3 md:grid-cols-2">
                     <div class="space-y-1.5">
-                      <Label for="icon-path">icon 文件</Label>
+                      <Label for="icon-path">图标</Label>
                       <div class="flex gap-2 max-sm:flex-col">
                         <Input id="icon-path" v-model="iconPath" readonly placeholder="点击右侧按钮从工作区选择文件" />
                         <Button variant="outline" @click="selectIconFile">选择文件</Button>
                       </div>
                     </div>
                     <div class="space-y-1.5">
-                      <Label for="cover-path">cover 文件</Label>
+                      <Label for="cover-path">封面</Label>
                       <div class="flex gap-2 max-sm:flex-col">
                         <Input id="cover-path" v-model="coverPath" readonly placeholder="点击右侧按钮从工作区选择文件" />
                         <Button variant="outline" @click="selectCoverFile">选择文件</Button>
@@ -564,36 +568,21 @@
 
           <Card v-if="activeStep === 3">
             <CardHeader class="pb-3">
-              <CardTitle class="text-base">步骤 4：Catalog 与 Pull Request</CardTitle>
+              <CardTitle class="text-base">步骤 4：提交 Pull Request</CardTitle>
             </CardHeader>
             <CardContent class="space-y-4 pt-0">
               <div class="grid gap-3 md:grid-cols-2">
                 <div class="space-y-1.5">
-                  <Label for="upstream-owner">目录仓库 Owner</Label>
+                  <Label for="upstream-owner">目标仓库 Owner</Label>
                   <Input id="upstream-owner" v-model="upstreamOwner" />
                 </div>
                 <div class="space-y-1.5">
-                  <Label for="upstream-repo">目录仓库名</Label>
+                  <Label for="upstream-repo">目标仓库名</Label>
                   <Input id="upstream-repo" v-model="upstreamRepo" />
                 </div>
               </div>
 
-              <div class="grid gap-3 md:grid-cols-2">
-                <div class="space-y-1.5">
-                  <Label for="target-owner">PR 目标 Owner</Label>
-                  <Input id="target-owner" v-model="targetOwner" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="target-repo">PR 目标仓库</Label>
-                  <Input id="target-repo" v-model="targetRepo" />
-                </div>
-              </div>
-
-              <div class="grid gap-3 md:grid-cols-2">
-                <div class="space-y-1.5">
-                  <Label for="catalog-path">v2 Catalog 文件路径</Label>
-                  <Input id="catalog-path" v-model="catalogPath" placeholder="index_v2.csv（仅 v2 使用）" />
-                </div>
+              <div class="grid gap-3 md:grid-cols-1">
                 <div class="space-y-1.5">
                   <Label for="pr-title">PR 标题</Label>
                   <Input id="pr-title" v-model="prTitle" placeholder="[ABCC] Add new resource" />
@@ -608,7 +597,7 @@
               <div class="flex flex-wrap items-center gap-2">
                 <Button :disabled="creatingPr || !canSubmitPr" @click="handleCreateCatalogPr">
                   <GitPullRequest :size="16" weight="duotone" />
-                  {{ creatingPr ? '创建中...' : '更新 Catalog 并创建 PR' }}
+                  {{ creatingPr ? '创建中...' : '提交 Pull Request' }}
                 </Button>
                 <a
                   v-if="latestPrUrl"
@@ -904,6 +893,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
 import { useCcSession } from '@/composables/useCcSession'
@@ -1052,6 +1042,7 @@ const workspaceBusy = ref(false)
 const newWorkspaceName = ref('')
 const workspaceDisplayPath = ref('')
 const activeStep = ref(0)
+const fileTreeTab = ref<'workspace' | 'remote'>('workspace')
 const collapsedWorkspaceFolders = ref<string[]>([])
 const collapsedRemoteFolders = ref<string[]>([])
 const submitMode = ref<SubmitMode>('v2')
@@ -1092,8 +1083,6 @@ const previewItems = ref<Array<{ id: string; path: string }>>([])
 
 const upstreamOwner = ref('AstralSightStudios')
 const upstreamRepo = ref('AstroBox-Repo')
-const targetOwner = ref('AstralSightStudios')
-const targetRepo = ref('AstroBox-Repo')
 const catalogPath = ref('index_v2.csv')
 
 const prTitle = ref('')
@@ -1285,8 +1274,6 @@ const canSubmitPr = computed(
         uploadedRepoName.value &&
         upstreamOwner.value.trim() &&
         upstreamRepo.value.trim() &&
-        targetOwner.value.trim() &&
-        targetRepo.value.trim() &&
         (submitMode.value === 'v1' || catalogPath.value.trim()) &&
         prTitle.value.trim()
     )
@@ -1426,7 +1413,10 @@ const buildAutoPrBody = (): string => {
     '',
     '## 链接（manifest_v2.links）',
     '',
-    linksSection
+    linksSection,
+    '',
+    '---',
+    '此 PR 由 AstroBooox Cretor Console（https://astrobooox-ng.waijade.cn/cc/）生成，如有问题前往 https://github.com/CheongSzesuen/AstroBooox/issues 提交 issue。'
   ].join('\n')
 }
 
@@ -1483,7 +1473,7 @@ const stepList = computed(() => [
     done: Boolean(uploadedCommitSha.value)
   },
   {
-    label: '创建 PR',
+    label: '提交 Pull Request',
     done: Boolean(latestPrUrl.value)
   }
 ])
@@ -1754,6 +1744,20 @@ watch(
     const fallbackName = getWorkspaceFolderNameFromPath(path || '')
     if (fallbackName) {
       newWorkspaceName.value = fallbackName
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [workspaceTree.value.length, remoteWorkspaceTree.value.length] as const,
+  ([workspaceCount, remoteCount]) => {
+    if (fileTreeTab.value === 'workspace' && workspaceCount === 0 && remoteCount > 0) {
+      fileTreeTab.value = 'remote'
+      return
+    }
+    if (fileTreeTab.value === 'remote' && remoteCount === 0 && workspaceCount > 0) {
+      fileTreeTab.value = 'workspace'
     }
   },
   { immediate: true }
@@ -2541,8 +2545,8 @@ const handleCreateCatalogPr = async (): Promise<void> => {
 
     const pr = await createPullRequestWithHead({
       token: accessToken,
-      baseOwner: targetOwner.value.trim(),
-      baseRepo: targetRepo.value.trim(),
+      baseOwner: upstreamOwner.value.trim(),
+      baseRepo: upstreamRepo.value.trim(),
       baseBranch: MAIN_BRANCH,
       headOwner: forkResult.forkOwner,
       headBranch: forkResult.branch,
@@ -2565,8 +2569,8 @@ const loadReviewList = async (): Promise<void> => {
     reviewItems.value = await loadInProgressResources({
       token: requireToken(),
       username: currentUser.value,
-      targetOwner: targetOwner.value.trim(),
-      targetRepo: targetRepo.value.trim(),
+      targetOwner: upstreamOwner.value.trim(),
+      targetRepo: upstreamRepo.value.trim(),
       catalogPath: catalogPath.value.trim()
     })
   } catch (error: unknown) {
