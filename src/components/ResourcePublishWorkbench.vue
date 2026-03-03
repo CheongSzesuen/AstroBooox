@@ -838,7 +838,17 @@
           </DialogHeader>
           <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_360px]">
             <div class="space-y-3">
-              <Input v-model="remotePickerSearch" placeholder="搜索文件名或路径" />
+              <div class="flex gap-2 max-sm:flex-col">
+                <Input v-model="remotePickerSearch" placeholder="搜索文件名或路径" />
+                <Button variant="outline" @click="openRemotePickerLocalUpload">本地上传</Button>
+                <input
+                  ref="remotePickerLocalInputRef"
+                  type="file"
+                  class="hidden"
+                  :multiple="remotePickerMode === 'preview'"
+                  @change="handleRemotePickerLocalUpload"
+                >
+              </div>
               <div class="max-h-[60vh] overflow-y-auto rounded-lg border border-border">
                 <div
                   v-if="remotePickerTreeItems.length === 0"
@@ -885,18 +895,32 @@
                   </template>
                 </div>
               </div>
+              <div v-if="remotePickerLocalItems.length > 0" class="space-y-1 rounded-lg border border-border bg-muted/20 p-2">
+                <p class="px-1 text-[11px] text-muted-foreground">本地上传（OPFS）</p>
+                <button
+                  v-for="path in remotePickerLocalItems"
+                  :key="`local-picker-${path}`"
+                  type="button"
+                  class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30"
+                  :class="remotePickerSelectedPaths.includes(path) ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'"
+                  @click="toggleRemotePickerPath(path)"
+                >
+                  <FileIcon :size="14" weight="duotone" class="shrink-0" />
+                  <span class="truncate">{{ path }}</span>
+                </button>
+              </div>
             </div>
             <div class="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
               <div class="text-xs text-muted-foreground">图片预览</div>
               <a
                 v-if="remotePickerPreviewPath && isImagePath(remotePickerPreviewPath)"
-                :href="getRawUrl(remotePickerPreviewPath)"
+                :href="getPickerPreviewUrl(remotePickerPreviewPath)"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="block overflow-hidden rounded-md border border-border bg-background"
               >
                 <img
-                  :src="getRawUrl(remotePickerPreviewPath)"
+                  :src="getPickerPreviewUrl(remotePickerPreviewPath)"
                   :alt="remotePickerPreviewPath"
                   class="h-64 w-full object-contain"
                 >
@@ -1722,6 +1746,7 @@ const folderNameValidationMessage = ref('')
 const showUploadCompleteDialog = ref(false)
 const showRemoteFilePickerDialog = ref(false)
 const showLinkIconPicker = ref(false)
+const remotePickerLocalInputRef = ref<HTMLInputElement | null>(null)
 const linkIconPickerIndex = ref<number | null>(null)
 const linkPickerInitialQuery = ref('')
 const iconPath = ref('')
@@ -1732,6 +1757,8 @@ const remotePickerMode = ref<RemotePickerMode>('preview')
 const remotePickerDeviceId = ref('')
 const remotePickerSearch = ref('')
 const remotePickerSelectedPaths = ref<string[]>([])
+const opfsLocalPathSet = ref<Record<string, true>>({})
+const opfsLocalPreviewUrlMap = ref<Record<string, string>>({})
 
 const upstreamOwner = ref(defaultTargetOwner.value)
 const upstreamRepo = ref(defaultTargetRepo.value)
@@ -2363,6 +2390,20 @@ const remotePickerTreeItems = computed(() => {
 })
 
 const remotePickerPreviewPath = computed(() => remotePickerSelectedPaths.value[0] || '')
+const remotePickerLocalItems = computed(() => {
+  const keyword = remotePickerSearch.value.trim().toLowerCase()
+  const all = Object.keys(opfsLocalPathSet.value)
+  return all
+    .filter(path => {
+      if (
+        (remotePickerMode.value === 'icon' || remotePickerMode.value === 'cover' || remotePickerMode.value === 'preview') &&
+        !isImagePath(path)
+      ) return false
+      if (!keyword) return true
+      return path.toLowerCase().includes(keyword)
+    })
+    .sort((a, b) => a.localeCompare(b, 'zh-CN'))
+})
 
 const toggleWorkspaceFolder = (path: string): void => {
   if (collapsedWorkspaceFolders.value.includes(path)) {
@@ -2496,7 +2537,7 @@ const canUpload = computed(
     Boolean(
       token.value.trim() &&
         currentUser.value &&
-        workspaceHandle.value &&
+        (workspaceHandle.value || isResourceUpdateMode.value) &&
         isResourceInfoValid.value &&
         resolvedRepoName.value
     )
@@ -2553,6 +2594,9 @@ const getRawUrl = (path: string): string => {
   const encodedPath = encodeUrlPath(path)
   return `https://raw.githubusercontent.com/${owner}/${repo}/${MAIN_BRANCH}/${encodedPath}`
 }
+
+const getPickerPreviewUrl = (path: string): string =>
+  opfsLocalPreviewUrlMap.value[path] || getRawUrl(path)
 
 const getLegacyDeviceCode = (deviceId: string): string => {
   const device = getDeviceById(deviceId)
@@ -2995,6 +3039,92 @@ const createPreviewItemFromPath = (path: string): { id: string; path: string } =
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
   path
 })
+
+const sanitizeRepoFileName = (name: string): string =>
+  name
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, '_')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'file'
+
+const buildOpfsRepoPath = (mode: RemotePickerMode, fileName: string, index = 0): string => {
+  const safeName = sanitizeRepoFileName(fileName)
+  const stamp = Date.now()
+  if (mode === 'icon') return `images/icon_${stamp}_${safeName}`
+  if (mode === 'cover') return `images/cover_${stamp}_${safeName}`
+  if (mode === 'download') return `downloads/${safeName}`
+  return `images/preview_${stamp}_${index}_${safeName}`
+}
+
+const writeFileToOpfs = async (repoPath: string, file: File): Promise<void> => {
+  const root = await navigator.storage.getDirectory()
+  const parts = ['astrobooox-local', ...repoPath.split('/').filter(Boolean)]
+  let dir = root
+  for (let i = 0; i < parts.length - 1; i++) {
+    dir = await dir.getDirectoryHandle(parts[i], { create: true })
+  }
+  const fileHandle = await dir.getFileHandle(parts[parts.length - 1], { create: true })
+  const writable = await fileHandle.createWritable()
+  await writable.write(file)
+  await writable.close()
+}
+
+const readFileFromOpfs = async (repoPath: string): Promise<File | null> => {
+  try {
+    const root = await navigator.storage.getDirectory()
+    const parts = ['astrobooox-local', ...repoPath.split('/').filter(Boolean)]
+    let dir = root
+    for (let i = 0; i < parts.length - 1; i++) {
+      dir = await dir.getDirectoryHandle(parts[i])
+    }
+    const fileHandle = await dir.getFileHandle(parts[parts.length - 1])
+    return await fileHandle.getFile()
+  } catch {
+    return null
+  }
+}
+
+const openRemotePickerLocalUpload = (): void => {
+  const input = remotePickerLocalInputRef.value
+  if (!input) return
+  input.value = ''
+  input.click()
+}
+
+const handleRemotePickerLocalUpload = async (event: Event): Promise<void> => {
+  const input = event.target as HTMLInputElement | null
+  const files = input?.files
+  if (!files || files.length === 0) return
+
+  if (!navigator.storage?.getDirectory) {
+    appendLog('当前浏览器不支持 OPFS，无法使用本地上传')
+    return
+  }
+
+  const fileList = Array.from(files)
+  const nextSelected: string[] = []
+
+  for (let i = 0; i < fileList.length; i++) {
+    const file = fileList[i]
+    const repoPath = buildOpfsRepoPath(remotePickerMode.value, file.name, i)
+    await writeFileToOpfs(repoPath, file)
+    opfsLocalPathSet.value[repoPath] = true
+    if (isImagePath(repoPath)) {
+      const previousUrl = opfsLocalPreviewUrlMap.value[repoPath]
+      if (previousUrl) URL.revokeObjectURL(previousUrl)
+      opfsLocalPreviewUrlMap.value[repoPath] = URL.createObjectURL(file)
+    }
+    nextSelected.push(repoPath)
+  }
+
+  if (remotePickerMode.value === 'preview') {
+    const merged = new Set([...remotePickerSelectedPaths.value, ...nextSelected])
+    remotePickerSelectedPaths.value = [...merged]
+  } else {
+    remotePickerSelectedPaths.value = [nextSelected[nextSelected.length - 1]]
+  }
+}
 
 const selectMultiplePreviewFiles = async (): Promise<void> => {
   const workspace = await ensureWorkspaceHandle()
@@ -3772,8 +3902,8 @@ const handleUploadResources = async (): Promise<void> => {
       throw new Error(linksValidationMessage.value)
     }
 
-    const workspace = await ensureWorkspaceHandle()
-    if (!workspace) {
+    const workspace = workspaceHandle.value || (isResourceUpdateMode.value ? null : await ensureWorkspaceHandle())
+    if (!workspace && !isResourceUpdateMode.value) {
       throw new Error('请先选择并授权工作区文件夹')
     }
 
@@ -3811,11 +3941,29 @@ const handleUploadResources = async (): Promise<void> => {
     }
 
     for (const path of selectedUploadPaths.value) {
-      const file = await readFileByPath(workspace, path)
-      if (!file) {
-        throw new Error(`工作区中未找到文件: ${path}`)
+      if (opfsLocalPathSet.value[path]) {
+        const localFile = await readFileFromOpfs(path)
+        if (!localFile) {
+          throw new Error(`OPFS 文件读取失败: ${path}`)
+        }
+        uploadQueue.push({ path, file: localFile })
+        continue
       }
-      uploadQueue.push({ path, file })
+
+      if (workspace) {
+        const file = await readFileByPath(workspace, path)
+        if (file) {
+          uploadQueue.push({ path, file })
+          continue
+        }
+      }
+
+      if (isResourceUpdateMode.value) {
+        appendLog(`复用远程已存在文件: ${path}`)
+        continue
+      }
+
+      throw new Error(`工作区中未找到文件: ${path}`)
     }
 
     if (uploadQueue.length === 0) {
