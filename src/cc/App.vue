@@ -196,7 +196,12 @@
                         alt="owner avatar"
                         class="h-7 w-7 shrink-0 rounded-full border border-border bg-muted/30 object-cover"
                       />
-                      <Input id="cc-setting-owner" v-model="settingsForm.defaultTargetOwner" placeholder="AstralSightStudios" />
+                      <Input
+                        id="cc-setting-owner"
+                        :model-value="defaultTargetOwner"
+                        readonly
+                        class="cursor-not-allowed bg-muted/40 text-muted-foreground"
+                      />
                       <span class="text-sm text-muted-foreground">/</span>
                       <Input id="cc-setting-repo" v-model="settingsForm.defaultTargetRepo" placeholder="AstroBox-Repo" />
                     </div>
@@ -338,6 +343,10 @@
           v-else
           :mode="workbenchMode"
           @request-tab="navigateToTab"
+          @request-route="applyRouteState($event, { withProgress: true })"
+          :resource-detail-key="publishedResourceDetailKey"
+          :pull-request-number="pullRequestRouteNumber"
+          :pull-request-target-repo="pullRequestRouteTargetRepo"
         />
       </section>
     </main>
@@ -428,6 +437,9 @@ const routeProgressVisible = ref(false)
 let routeProgressTimer: ReturnType<typeof setInterval> | null = null
 const pendingLoginRoute = ref<CcRouteState | null>(null)
 const pendingLoginUser = ref('')
+const publishedResourceDetailKey = ref('')
+const pullRequestRouteNumber = ref(0)
+const pullRequestRouteTargetRepo = ref('')
 const workbenchMode = computed<'publish' | 'review' | 'published'>(() =>
   tab.value === 'settings' || tab.value === 'review' || tab.value === 'resource_edit'
     ? 'publish'
@@ -460,10 +472,27 @@ const resolveRouteFromLocation = (): CcRouteState => {
   if (typeof window === 'undefined') return CC_DEFAULT_ROUTE
   const searchParams = new URLSearchParams(window.location.search)
   const redirectedPath = searchParams.get('cc_path')
-  if (redirectedPath && redirectedPath.startsWith('/cc')) {
-    return resolveCcRouteFromPath(redirectedPath)
+  const route = redirectedPath && redirectedPath.startsWith('/cc')
+    ? resolveCcRouteFromPath(redirectedPath)
+    : resolveCcRouteFromPath(window.location.pathname)
+  const routeTargetRepo = (searchParams.get('target_repo') || '').trim().toLowerCase()
+  if (route.tab === 'pullrequest' && route.pullRequestNumber && route.pullRequestNumber > 0) {
+    route.pullRequestTargetRepo = routeTargetRepo
   }
-  return resolveCcRouteFromPath(window.location.pathname)
+  const expected = (
+    searchParams.get('gh_user') ||
+    searchParams.get('cc_user') ||
+    ''
+  ).trim().toLowerCase()
+  const current = currentUser.value.trim().toLowerCase()
+  if (expected && current && expected !== current) {
+    return {
+      ...CC_DEFAULT_ROUTE,
+      resourceDetailKey: '',
+      requireGhUser: false
+    }
+  }
+  return route
 }
 
 const resolveExpectedUserFromLocation = (): string => {
@@ -476,12 +505,19 @@ const resolveExpectedUserFromLocation = (): string => {
   ).trim().toLowerCase()
 }
 
-const buildCcUrlWithUser = (path: string): string => {
+const buildCcUrlWithUser = (path: string, state: CcRouteState): string => {
   const normalizedPath = path || CC_PATHS.root
-  const login = currentUser.value.trim()
-  if (!login) return normalizedPath
   const params = new URLSearchParams()
-  params.set('gh_user', login)
+  const isPullRequestDetail = state.tab === 'pullrequest' && (state.pullRequestNumber || 0) > 0
+  if (state.requireGhUser && !isPullRequestDetail) {
+    const login = currentUser.value.trim()
+    if (login) params.set('gh_user', login)
+  }
+  if (isPullRequestDetail) {
+    const targetRepo = (state.pullRequestTargetRepo || '').trim().toLowerCase()
+    if (targetRepo) params.set('target_repo', targetRepo)
+  }
+  if (params.size === 0) return normalizedPath
   return `${normalizedPath}?${params.toString()}`
 }
 
@@ -522,10 +558,13 @@ const applyRouteState = (
 
   tab.value = state.tab
   settingsSection.value = state.settingsSection
+  publishedResourceDetailKey.value = state.tab === 'published' ? (state.resourceDetailKey || '') : ''
+  pullRequestRouteNumber.value = state.tab === 'pullrequest' ? Number(state.pullRequestNumber || 0) : 0
+  pullRequestRouteTargetRepo.value = state.tab === 'pullrequest' ? (state.pullRequestTargetRepo || '') : ''
 
   if (options?.syncUrl !== false && typeof window !== 'undefined') {
     const targetPath = buildCcPath(state)
-    const targetUrl = buildCcUrlWithUser(targetPath)
+    const targetUrl = buildCcUrlWithUser(targetPath, state)
     const currentUrl = `${window.location.pathname}${window.location.search}`
     if (currentUrl !== targetUrl) {
       const method = options?.replace ? 'replaceState' : 'pushState'
@@ -543,7 +582,11 @@ const applyRouteState = (
 const navigateToTab = (nextTab: CcTab): void => {
   const nextState: CcRouteState = {
     tab: nextTab,
-    settingsSection: nextTab === 'settings' ? settingsSection.value : 'defaults'
+    settingsSection: nextTab === 'settings' ? settingsSection.value : 'defaults',
+    resourceDetailKey: '',
+    pullRequestNumber: 0,
+    pullRequestTargetRepo: '',
+    requireGhUser: false
   }
   applyRouteState(nextState, { withProgress: true })
 }
@@ -584,7 +627,7 @@ const openSettingsPage = (): void => {
 
 const saveSettings = (): void => {
   saveDefaults({
-    defaultTargetOwner: settingsForm.value.defaultTargetOwner,
+    defaultTargetOwner: defaultTargetOwner.value,
     defaultTargetRepo: settingsForm.value.defaultTargetRepo,
     defaultCatalogPath: settingsForm.value.defaultCatalogPath,
     ownedDisplayPriority: settingsForm.value.ownedDisplayPriority,
@@ -628,7 +671,7 @@ const handleEscapeKey = (event: KeyboardEvent): void => {
 
 const handlePopState = (): void => {
   if (!isAuthenticated.value) return
-  applyRouteState(resolveCcRouteFromPath(window.location.pathname), {
+  applyRouteState(resolveRouteFromLocation(), {
     syncUrl: false,
     withProgress: true
   })
@@ -660,9 +703,10 @@ const handleSignOut = (): void => {
 onMounted(() => {
   if (!isAuthenticated.value) {
     if (!isCcLoginPath(window.location.pathname)) {
-      const targetPath = buildCcPath(resolveRouteFromLocation())
+      const routeFromLocation = resolveRouteFromLocation()
+      const targetPath = buildCcPath(routeFromLocation)
       const expected = resolveExpectedUserFromLocation()
-      pendingLoginRoute.value = resolveRouteFromLocation()
+      pendingLoginRoute.value = routeFromLocation
       pendingLoginUser.value = expected
       const params = new URLSearchParams()
       params.set('cc_path', targetPath)
@@ -696,9 +740,10 @@ watch(
     if (typeof window === 'undefined') return
     if (!authed) {
       if (!isCcLoginPath(window.location.pathname)) {
-        const targetPath = buildCcPath(resolveRouteFromLocation())
+        const routeFromLocation = resolveRouteFromLocation()
+        const targetPath = buildCcPath(routeFromLocation)
         const expected = resolveExpectedUserFromLocation() || currentUser.value.trim().toLowerCase()
-        pendingLoginRoute.value = resolveRouteFromLocation()
+        pendingLoginRoute.value = routeFromLocation
         pendingLoginUser.value = expected
         const params = new URLSearchParams()
         params.set('cc_path', targetPath)

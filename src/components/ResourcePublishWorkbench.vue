@@ -817,9 +817,6 @@
               </Button>
             </div>
             <CardDescription>查看你提交后处于审核中的资源。</CardDescription>
-            <p class="text-xs text-muted-foreground">
-              当前目标仓库：{{ upstreamOwner }}/{{ upstreamRepo }}（{{ catalogPath }}）
-            </p>
           </CardHeader>
           <CardContent class="space-y-2 pt-0">
             <div
@@ -1462,6 +1459,7 @@ import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
 import { useCcResourceEdit } from '@/composables/useCcResourceEdit'
 import { useCcSettings } from '@/composables/useCcSettings'
 import { useCcSession } from '@/composables/useCcSession'
+import type { CcRouteState } from '@/cc/route-config'
 import { type WorkspaceTreeItem, useCcWorkspace } from '@/composables/useCcWorkspace'
 import {
   type DeviceOption,
@@ -1540,11 +1538,17 @@ const linkIconComponentCache = new Map<string, Component | null>()
 
 
 type WorkbenchMode = 'publish' | 'review' | 'published'
-const props = withDefaults(defineProps<{ mode?: WorkbenchMode }>(), {
+const props = withDefaults(defineProps<{
+  mode?: WorkbenchMode
+  resourceDetailKey?: string
+  pullRequestNumber?: number
+  pullRequestTargetRepo?: string
+}>(), {
   mode: 'publish'
 })
 const emit = defineEmits<{
   (event: 'request-tab', tab: WorkbenchMode | 'resource_edit' | 'settings' | 'review' | 'pullrequest'): void
+  (event: 'request-route', state: CcRouteState): void
 }>()
 const mode = computed<WorkbenchMode>(() => props.mode)
 const { setDraft: setResourceEditDraft } = useCcResourceEdit()
@@ -1761,6 +1765,9 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
     return bt.localeCompare(at)
   })
 })
+
+const buildOwnedDetailRouteKey = (item: Pick<OwnedMergedItem, 'repo_name'>): string =>
+  item.repo_name.trim().toLowerCase()
 
 const filteredOwnedItems = computed<OwnedMergedItem[]>(() =>
   ownedMergedItems.value.filter(item => {
@@ -3876,14 +3883,47 @@ const submitReviewComment = async (): Promise<void> => {
   }
 }
 
-const openReviewItem = (item: PublishingResource): void => {
+const normalizeRepoRef = (value: string): string => value.trim().replace(/^\/+|\/+$/g, '').toLowerCase()
+
+const currentReviewTargetRepo = computed(() => {
+  const repo = upstreamRepo.value.trim()
+  if (!repo) return ''
+  return normalizeRepoRef(repo)
+})
+
+const parseReviewTargetRepo = (value: string): { repo: string } | null => {
+  const normalized = normalizeRepoRef(value)
+  if (!normalized || normalized.includes('/')) return null
+  return { repo: normalized }
+}
+
+const applyReviewTargetRepoFromRoute = (): void => {
+  const parsed = parseReviewTargetRepo(props.pullRequestTargetRepo || '')
+  if (!parsed) return
+  if (normalizeRepoRef(upstreamRepo.value) !== parsed.repo) {
+    upstreamRepo.value = parsed.repo
+  }
+}
+
+const openReviewItem = (item: PublishingResource, options: { syncRoute?: boolean } = {}): void => {
+  const { syncRoute = true } = options
   selectedReviewItem.value = item
   clearReviewEditingTarget()
   clearReviewReplyTarget()
+  if (syncRoute) {
+    emit('request-route', {
+      tab: 'pullrequest',
+      settingsSection: 'defaults',
+      pullRequestNumber: item.prNumber,
+      pullRequestTargetRepo: currentReviewTargetRepo.value,
+      requireGhUser: false
+    })
+  }
   void loadReviewComments(item.prNumber)
 }
 
-const closeReviewDetail = (): void => {
+const closeReviewDetail = (options: { syncRoute?: boolean } = {}): void => {
+  const { syncRoute = true } = options
   selectedReviewItem.value = null
   selectedReviewComments.value = []
   reviewCommentsError.value = ''
@@ -3894,6 +3934,15 @@ const closeReviewDetail = (): void => {
   clearReviewReplyTarget()
   reviewDeleteCommentDialogOpen.value = false
   reviewDeleteCommentTarget.value = null
+  if (syncRoute) {
+    emit('request-route', {
+      tab: 'pullrequest',
+      settingsSection: 'defaults',
+      pullRequestNumber: 0,
+      pullRequestTargetRepo: '',
+      requireGhUser: false
+    })
+  }
 }
 
 const loadOwnedList = async (): Promise<void> => {
@@ -3914,16 +3963,26 @@ const loadOwnedList = async (): Promise<void> => {
   }
 }
 
-const openOwnedItemDetail = (item: OwnedMergedItem): void => {
+const openOwnedItemDetail = (item: OwnedMergedItem, options: { syncRoute?: boolean } = {}): void => {
+  const { syncRoute = true } = options
   selectedOwnedItem.value = item
   ownedPreviewActiveIndex.value = 0
   ownedPreviewSnapCount.value = 0
   ownedPreviewCanPrev.value = false
   ownedPreviewCanNext.value = false
+  if (syncRoute) {
+    emit('request-route', {
+      tab: 'published',
+      settingsSection: 'defaults',
+      resourceDetailKey: buildOwnedDetailRouteKey(item),
+      requireGhUser: true
+    })
+  }
   void loadOwnedItemDetail(item)
 }
 
-const closeOwnedDetail = (): void => {
+const closeOwnedDetail = (options: { syncRoute?: boolean } = {}): void => {
+  const { syncRoute = true } = options
   selectedOwnedItem.value = null
   ownedDetail.value = null
   ownedDetailError.value = ''
@@ -3931,6 +3990,14 @@ const closeOwnedDetail = (): void => {
   ownedPreviewCanNext.value = false
   ownedPreviewActiveIndex.value = 0
   ownedPreviewSnapCount.value = 0
+  if (syncRoute) {
+    emit('request-route', {
+      tab: 'published',
+      settingsSection: 'defaults',
+      resourceDetailKey: '',
+      requireGhUser: false
+    })
+  }
 }
 
 const loadOwnedItemDetail = async (item?: OwnedMergedItem): Promise<void> => {
@@ -4024,7 +4091,7 @@ const startEditOwnedResource = (): void => {
     previews: previewPaths
   })
 
-  closeOwnedDetail()
+  closeOwnedDetail({ syncRoute: false })
   emit('request-tab', 'resource_edit')
 }
 
@@ -4066,12 +4133,65 @@ watch(
   ([currentMode, canLoad]) => {
     if (!canLoad) return
     if (currentMode === 'review') {
+      applyReviewTargetRepoFromRoute()
       void loadReviewList()
       return
     }
     if (currentMode === 'published') {
       void loadOwnedList()
     }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [mode.value, props.pullRequestTargetRepo || ''] as const,
+  ([currentMode]) => {
+    if (currentMode !== 'review') return
+    applyReviewTargetRepoFromRoute()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [mode.value, props.pullRequestNumber || 0, reviewItems.value.length, reviewLoading.value] as const,
+  ([currentMode, routePrNumber, reviewCount, loading]) => {
+    if (currentMode !== 'review') return
+    if (loading) return
+    if (!routePrNumber) {
+      if (selectedReviewItem.value) closeReviewDetail({ syncRoute: false })
+      return
+    }
+    if (reviewCount === 0) return
+    const matched = reviewItems.value.find(item => item.prNumber === routePrNumber)
+    if (!matched) {
+      if (selectedReviewItem.value) closeReviewDetail({ syncRoute: false })
+      return
+    }
+    if (selectedReviewItem.value?.prNumber === matched.prNumber && selectedReviewItem.value?.id === matched.id) return
+    openReviewItem(matched, { syncRoute: false })
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [mode.value, props.resourceDetailKey || '', ownedMergedItems.value.length, ownedLoading.value] as const,
+  ([currentMode, detailKey, mergedCount, loading]) => {
+    if (currentMode !== 'published') return
+    if (loading) return
+    if (mergedCount === 0) return
+    const normalizedKey = detailKey.trim().toLowerCase()
+    if (!normalizedKey) {
+      if (selectedOwnedItem.value) closeOwnedDetail({ syncRoute: false })
+      return
+    }
+    const matched = ownedMergedItems.value.find(item => buildOwnedDetailRouteKey(item) === normalizedKey)
+    if (!matched) {
+      if (selectedOwnedItem.value) closeOwnedDetail({ syncRoute: false })
+      return
+    }
+    if (selectedOwnedItem.value?.key === matched.key) return
+    openOwnedItemDetail(matched, { syncRoute: false })
   },
   { immediate: true }
 )

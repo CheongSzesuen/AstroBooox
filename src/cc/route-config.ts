@@ -4,6 +4,10 @@ export type CcSettingsSection = 'defaults' | 'account'
 export type CcRouteState = {
   tab: CcTab
   settingsSection: CcSettingsSection
+  resourceDetailKey?: string
+  pullRequestNumber?: number
+  pullRequestTargetRepo?: string
+  requireGhUser?: boolean
 }
 
 export const CC_PATHS = {
@@ -20,7 +24,11 @@ export const CC_PATHS = {
 
 export const CC_DEFAULT_ROUTE: CcRouteState = {
   tab: 'publish',
-  settingsSection: 'defaults'
+  settingsSection: 'defaults',
+  resourceDetailKey: '',
+  pullRequestNumber: 0,
+  pullRequestTargetRepo: '',
+  requireGhUser: false
 }
 
 export const normalizeCcPath = (path?: string): string => {
@@ -36,9 +44,19 @@ export const buildCcPath = (state: CcRouteState): string => {
   if (state.tab === 'settings') {
     return state.settingsSection === 'account' ? CC_PATHS.settingsAccount : CC_PATHS.settings
   }
+  if (state.tab === 'published') {
+    const key = (state.resourceDetailKey || '').trim()
+    if (key) return `${CC_PATHS.published}/${encodeURIComponent(key)}`
+    return CC_PATHS.published
+  }
   if (state.tab === 'publish') return CC_PATHS.publish
-  if (state.tab === 'pullrequest') return CC_PATHS.pullRequest
-  if (state.tab === 'published') return CC_PATHS.published
+  if (state.tab === 'pullrequest') {
+    const prNumber = Number(state.pullRequestNumber || 0)
+    if (Number.isInteger(prNumber) && prNumber > 0) {
+      return `${CC_PATHS.pullRequest}/${prNumber}`
+    }
+    return CC_PATHS.pullRequest
+  }
   if (state.tab === 'resource_edit') return CC_PATHS.resourceEdit
   return CC_PATHS.review
 }
@@ -48,16 +66,33 @@ export const resolveCcRouteFromPath = (pathname: string): CcRouteState => {
   const segments = normalized.split('/').filter(Boolean)
   if (segments[0] !== 'cc') return CC_DEFAULT_ROUTE
   const section = segments[1] || 'publish'
-  if (section === 'publish') return { tab: 'publish', settingsSection: 'defaults' }
-  if (section === 'pullrequest') return { tab: 'pullrequest', settingsSection: 'defaults' }
-  if (section === 'review') return { tab: 'review', settingsSection: 'defaults' }
-  if (section === 'resource' && segments[2] === 'edit') return { tab: 'resource_edit', settingsSection: 'defaults' }
-  if (section === 'resource') return { tab: 'published', settingsSection: 'defaults' }
-  if (section === 'published') return { tab: 'published', settingsSection: 'defaults' }
+  if (section === 'publish') return { tab: 'publish', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
+  if (section === 'pullrequest') {
+    const rawPrNumber = Number(segments[2] || 0)
+    return {
+      tab: 'pullrequest',
+      settingsSection: 'defaults',
+      resourceDetailKey: '',
+      pullRequestNumber: Number.isInteger(rawPrNumber) && rawPrNumber > 0 ? rawPrNumber : 0,
+      pullRequestTargetRepo: '',
+      requireGhUser: false
+    }
+  }
+  if (section === 'review') return { tab: 'review', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
+  if (section === 'resource' && segments[2] === 'edit') return { tab: 'resource_edit', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
+  if (section === 'resource') {
+    const detailKey = segments[2] ? decodeURIComponent(segments[2]) : ''
+    return { tab: 'published', settingsSection: 'defaults', resourceDetailKey: detailKey, pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
+  }
+  if (section === 'published') return { tab: 'published', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'settings') {
     return {
       tab: 'settings',
-      settingsSection: segments[2] === 'account' ? 'account' : 'defaults'
+      settingsSection: segments[2] === 'account' ? 'account' : 'defaults',
+      resourceDetailKey: '',
+      pullRequestNumber: 0,
+      pullRequestTargetRepo: '',
+      requireGhUser: false
     }
   }
   return CC_DEFAULT_ROUTE
