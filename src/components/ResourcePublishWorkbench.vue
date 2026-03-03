@@ -836,19 +836,12 @@
               远程仓库：{{ remoteWorkspacePath || '未同步远程仓库' }}
             </DialogDescription>
           </DialogHeader>
+          <div class="shrink-0 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            步骤 {{ remotePickerStep }} / 2：
+            {{ remotePickerStep === 1 ? '选择或新建目标文件夹' : '本地导入并选择文件' }}
+          </div>
           <div class="grid min-h-0 flex-1 gap-3 overflow-hidden md:grid-cols-[minmax(0,1fr)_360px]">
             <div class="flex min-h-0 flex-col gap-3">
-              <div class="flex gap-2 max-sm:flex-col">
-                <Input v-model="remotePickerSearch" placeholder="搜索文件名或路径" />
-                <Button variant="outline" @click="openRemotePickerLocalUpload">本地上传</Button>
-                <input
-                  ref="remotePickerLocalInputRef"
-                  type="file"
-                  class="hidden"
-                  :multiple="remotePickerMode === 'preview'"
-                  @change="handleRemotePickerLocalUpload"
-                >
-              </div>
               <div class="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
                 <span class="text-muted-foreground">本地导入目录（点左侧文件夹设置）</span>
                 <div class="flex items-center gap-2">
@@ -864,19 +857,46 @@
                   </Button>
                 </div>
               </div>
-              <Input
-                v-model="remotePickerUploadFileName"
-                placeholder="本地导入文件名（可选，含扩展名）"
-              />
+              <div v-if="remotePickerStep === 1" class="flex gap-2 max-sm:flex-col">
+                <Input v-model="remotePickerSearch" placeholder="搜索文件夹" />
+                <Input v-model="remotePickerNewFolderName" placeholder="新建文件夹名称" />
+                <Button variant="outline" @click="createRemotePickerFolder">新建</Button>
+              </div>
+              <div v-else class="space-y-2">
+                <div class="flex gap-2 max-sm:flex-col">
+                  <Input v-model="remotePickerSearch" placeholder="搜索文件名或路径" />
+                  <Button variant="outline" @click="openRemotePickerLocalUpload">本地上传</Button>
+                  <input
+                    ref="remotePickerLocalInputRef"
+                    type="file"
+                    class="hidden"
+                    :multiple="remotePickerMode === 'preview'"
+                    @change="handleRemotePickerLocalUpload"
+                  >
+                </div>
+                <Input
+                  v-model="remotePickerUploadFileName"
+                  placeholder="本地导入文件名（可选，含扩展名）"
+                />
+              </div>
               <div class="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
                 <div
-                  v-if="remotePickerTreeItems.length === 0 && remotePickerLocalItems.length === 0"
+                  v-if="remotePickerStep === 1 && remotePickerFolderItems.length === 0"
+                  class="px-3 py-4 text-center text-xs text-muted-foreground"
+                >
+                  暂无可选文件夹
+                </div>
+                <div
+                  v-else-if="remotePickerStep === 2 && remotePickerTreeItems.length === 0 && remotePickerLocalItems.length === 0"
                   class="px-3 py-4 text-center text-xs text-muted-foreground"
                 >
                   暂无可选文件
                 </div>
                 <div v-else class="space-y-0.5 py-1">
-                  <template v-for="item in remotePickerTreeItems" :key="`picker-${item.path}`">
+                  <template
+                    v-for="item in (remotePickerStep === 1 ? remotePickerFolderItems : remotePickerTreeItems)"
+                    :key="`picker-${item.path}`"
+                  >
                     <button
                       v-if="item.type === 'folder'"
                       type="button"
@@ -907,7 +927,7 @@
                       </span>
                     </button>
                     <button
-                      v-else
+                      v-else-if="remotePickerStep === 2"
                       type="button"
                       class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30"
                       :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
@@ -920,7 +940,7 @@
                     </button>
                   </template>
                 </div>
-                <div v-if="remotePickerLocalItems.length > 0" class="space-y-1 border-t border-border bg-muted/20 p-2">
+                <div v-if="remotePickerStep === 2 && remotePickerLocalItems.length > 0" class="space-y-1 border-t border-border bg-muted/20 p-2">
                   <p class="px-1 text-[11px] text-muted-foreground">本地上传（OPFS）</p>
                   <button
                     v-for="path in remotePickerLocalItems"
@@ -962,7 +982,9 @@
           </div>
           <DialogFooter class="mt-3 shrink-0 border-t border-border pt-3">
             <Button variant="outline" @click="showRemoteFilePickerDialog = false">取消</Button>
-            <Button @click="applyRemotePickerSelection">确认选择</Button>
+            <Button v-if="remotePickerStep === 1" @click="remotePickerStep = 2">下一步</Button>
+            <Button v-else variant="outline" @click="remotePickerStep = 1">上一步</Button>
+            <Button v-if="remotePickerStep === 2" @click="applyRemotePickerSelection">确认选择</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1785,6 +1807,9 @@ const remotePickerSearch = ref('')
 const remotePickerSelectedPaths = ref<string[]>([])
 const remotePickerTargetFolder = ref('')
 const remotePickerUploadFileName = ref('')
+const remotePickerStep = ref<1 | 2>(1)
+const remotePickerNewFolderName = ref('')
+const remotePickerDraftFolders = ref<string[]>([])
 const opfsLocalPathSet = ref<Record<string, true>>({})
 const opfsLocalPreviewUrlMap = ref<Record<string, string>>({})
 
@@ -2405,6 +2430,29 @@ const remotePickerTitle = computed(() => {
   return '选择预览图（可多选）'
 })
 
+const remotePickerFolderItems = computed(() => {
+  const fromRemote = remoteWorkspaceTree.value.filter(item => item.type === 'folder')
+  const fromDraft = remotePickerDraftFolders.value.map(path => {
+    const segments = path.split('/').filter(Boolean)
+    return {
+      type: 'folder' as const,
+      path,
+      label: segments[segments.length - 1] || path,
+      depth: Math.max(0, segments.length - 1)
+    }
+  })
+  const merged = [...fromRemote, ...fromDraft]
+  const dedup = new Map<string, WorkspaceTreeItem>()
+  for (const item of merged) {
+    if (!dedup.has(item.path)) dedup.set(item.path, item)
+  }
+  const keyword = remotePickerSearch.value.trim().toLowerCase()
+  return [...dedup.values()]
+    .sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'))
+    .map(item => ({ ...item, collapsed: collapsedRemoteFolders.value.includes(item.path) }))
+    .filter(item => !keyword || item.path.toLowerCase().includes(keyword) || item.label.toLowerCase().includes(keyword))
+})
+
 const remotePickerTreeItems = computed(() => {
   const keyword = remotePickerSearch.value.trim().toLowerCase()
   return visibleRemoteItems.value.filter(item => {
@@ -2435,6 +2483,28 @@ const remotePickerLocalItems = computed(() => {
     })
     .sort((a, b) => a.localeCompare(b, 'zh-CN'))
 })
+
+const createRemotePickerFolder = (): void => {
+  const rawName = remotePickerNewFolderName.value.trim()
+  if (!rawName) {
+    appendLog('请输入新文件夹名称')
+    return
+  }
+  const folderName = sanitizeRepoFileName(rawName)
+  if (!folderName) {
+    appendLog('新文件夹名称不合法')
+    return
+  }
+  const parent = sanitizeRepoFolderPath(remotePickerTargetFolder.value)
+  const fullPath = parent ? `${parent}/${folderName}` : folderName
+  const existsInRemote = remoteWorkspaceTree.value.some(item => item.type === 'folder' && item.path === fullPath)
+  const existsInDraft = remotePickerDraftFolders.value.includes(fullPath)
+  if (!existsInRemote && !existsInDraft) {
+    remotePickerDraftFolders.value = [...remotePickerDraftFolders.value, fullPath]
+  }
+  remotePickerTargetFolder.value = fullPath
+  remotePickerNewFolderName.value = ''
+}
 
 const toggleWorkspaceFolder = (path: string): void => {
   if (collapsedWorkspaceFolders.value.includes(path)) {
@@ -3074,10 +3144,10 @@ const createPreviewItemFromPath = (path: string): { id: string; path: string } =
 const sanitizeRepoFileName = (name: string): string =>
   name
     .trim()
-    .replace(/[\\/:*?"<>|]+/g, '_')
-    .replace(/\s+/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '') || 'file'
+    .replace(/[\\/]/g, '_')
+    .replace(/[\u0000-\u001F]+/g, '')
+    .replace(/^\.+/, '')
+    .replace(/\.+$/, '') || 'file'
 
 const sanitizeRepoFolderPath = (folderPath: string): string =>
   folderPath
@@ -3087,7 +3157,9 @@ const sanitizeRepoFolderPath = (folderPath: string): string =>
     .join('/')
 
 const buildUploadedFileName = (originalName: string, index: number, total: number): string => {
-  const custom = sanitizeRepoFileName(remotePickerUploadFileName.value)
+  const customRaw = remotePickerUploadFileName.value.trim()
+  const custom = sanitizeRepoFileName(customRaw)
+  if (!customRaw) return sanitizeRepoFileName(originalName)
   if (!custom) return sanitizeRepoFileName(originalName)
   const originDot = originalName.lastIndexOf('.')
   const originExt = originDot > 0 && originDot < originalName.length - 1 ? originalName.slice(originDot) : ''
@@ -3250,7 +3322,6 @@ const selectMultiplePreviewFiles = async (): Promise<void> => {
 
 const selectRemotePickerFolder = (path: string): void => {
   remotePickerTargetFolder.value = remotePickerTargetFolder.value === path ? '' : path
-  toggleRemoteFolder(path)
 }
 
 const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
@@ -3264,6 +3335,9 @@ const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
   remotePickerSearch.value = ''
   remotePickerSelectedPaths.value = []
   remotePickerUploadFileName.value = ''
+  remotePickerStep.value = 1
+  remotePickerNewFolderName.value = ''
+  remotePickerDraftFolders.value = []
   remotePickerTargetFolder.value = getDefaultUploadFolder(mode)
   showRemoteFilePickerDialog.value = true
 }
