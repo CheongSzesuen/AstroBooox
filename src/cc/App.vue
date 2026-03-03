@@ -255,31 +255,30 @@
                           <LinkSimple :size="14" weight="duotone" />
                           打开 GitHub 主页
                         </a>
+                        <div class="mt-3 flex flex-nowrap gap-2">
+                          <div class="min-w-0 flex-1 rounded-md border border-border bg-background/60 p-2 text-center">
+                            <div class="inline-flex items-center gap-1 text-muted-foreground">
+                              <ArchiveBox :size="13" weight="duotone" />
+                              <span class="text-[11px]">仓库</span>
+                            </div>
+                            <div class="mt-1 text-sm font-semibold text-foreground">{{ accountProfile.public_repos ?? '-' }}</div>
+                          </div>
+                          <div class="min-w-0 flex-1 rounded-md border border-border bg-background/60 p-2 text-center">
+                            <div class="inline-flex items-center gap-1 text-muted-foreground">
+                              <Users :size="13" weight="duotone" />
+                              <span class="text-[11px]">粉丝</span>
+                            </div>
+                            <div class="mt-1 text-sm font-semibold text-foreground">{{ accountProfile.followers ?? '-' }}</div>
+                          </div>
+                          <div class="min-w-0 flex-1 rounded-md border border-border bg-background/60 p-2 text-center">
+                            <div class="inline-flex items-center gap-1 text-muted-foreground">
+                              <UserPlus :size="13" weight="duotone" />
+                              <span class="text-[11px]">关注</span>
+                            </div>
+                            <div class="mt-1 text-sm font-semibold text-foreground">{{ accountProfile.following ?? '-' }}</div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-3 gap-2">
-                    <div class="rounded-md border border-border bg-muted/20 p-3 text-center">
-                      <div class="inline-flex items-center gap-1 text-muted-foreground">
-                        <ArchiveBox :size="14" weight="duotone" />
-                        <span class="text-xs">仓库</span>
-                      </div>
-                      <div class="mt-1 text-sm font-semibold text-foreground">{{ accountProfile.public_repos ?? '-' }}</div>
-                    </div>
-                    <div class="rounded-md border border-border bg-muted/20 p-3 text-center">
-                      <div class="inline-flex items-center gap-1 text-muted-foreground">
-                        <Users :size="14" weight="duotone" />
-                        <span class="text-xs">粉丝</span>
-                      </div>
-                      <div class="mt-1 text-sm font-semibold text-foreground">{{ accountProfile.followers ?? '-' }}</div>
-                    </div>
-                    <div class="rounded-md border border-border bg-muted/20 p-3 text-center">
-                      <div class="inline-flex items-center gap-1 text-muted-foreground">
-                        <UserPlus :size="14" weight="duotone" />
-                        <span class="text-xs">关注</span>
-                      </div>
-                      <div class="mt-1 text-sm font-semibold text-foreground">{{ accountProfile.following ?? '-' }}</div>
                     </div>
                   </div>
 
@@ -305,7 +304,7 @@
                       <div class="mt-1 break-all font-medium text-foreground">{{ accountProfile.blog || '-' }}</div>
                     </div>
                     <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-                      <div class="inline-flex items-center gap-1 text-xs text-muted-foreground"><At :size="13" weight="duotone" /> Twitter</div>
+                      <div class="inline-flex items-center gap-1 text-xs text-muted-foreground"><TwitterLogo :size="13" weight="duotone" /> Twitter</div>
                       <div class="mt-1 break-all font-medium text-foreground">{{ accountProfile.twitter_username || '-' }}</div>
                     </div>
                     <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
@@ -333,7 +332,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
-  PhAt as At,
   PhArchiveBox as ArchiveBox,
   PhBuildings as Buildings,
   PhCalendarBlank as CalendarBlank,
@@ -350,6 +348,7 @@ import {
   PhEnvelopeSimple as EnvelopeSimple,
   PhSignOut as SignOut,
   PhSun as Sun,
+  PhTwitterLogo as TwitterLogo,
   PhUploadSimple as UploadSimple,
   PhUserCircle as UserCircle,
   PhUserPlus as UserPlus,
