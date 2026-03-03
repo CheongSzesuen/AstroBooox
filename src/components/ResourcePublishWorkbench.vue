@@ -849,10 +849,25 @@
                   @change="handleRemotePickerLocalUpload"
                 >
               </div>
-              <div class="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
+              <div class="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
                 <span class="text-muted-foreground">本地导入目录（点左侧文件夹设置）</span>
-                <span class="max-w-[60%] truncate font-medium text-foreground">{{ remotePickerTargetFolder || '未选择' }}</span>
+                <div class="flex items-center gap-2">
+                  <span class="max-w-[180px] truncate font-medium text-foreground">{{ remotePickerTargetFolder || '根目录' }}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="h-6 px-2 text-[11px]"
+                    :disabled="!remotePickerTargetFolder"
+                    @click="remotePickerTargetFolder = ''"
+                  >
+                    清除
+                  </Button>
+                </div>
               </div>
+              <Input
+                v-model="remotePickerUploadFileName"
+                placeholder="本地导入文件名（可选，含扩展名）"
+              />
               <div class="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
                 <div
                   v-if="remotePickerTreeItems.length === 0 && remotePickerLocalItems.length === 0"
@@ -1769,6 +1784,7 @@ const remotePickerDeviceId = ref('')
 const remotePickerSearch = ref('')
 const remotePickerSelectedPaths = ref<string[]>([])
 const remotePickerTargetFolder = ref('')
+const remotePickerUploadFileName = ref('')
 const opfsLocalPathSet = ref<Record<string, true>>({})
 const opfsLocalPreviewUrlMap = ref<Record<string, string>>({})
 
@@ -3067,6 +3083,18 @@ const sanitizeRepoFolderPath = (folderPath: string): string =>
     .filter(Boolean)
     .join('/')
 
+const buildUploadedFileName = (originalName: string, index: number, total: number): string => {
+  const custom = sanitizeRepoFileName(remotePickerUploadFileName.value)
+  if (!custom) return sanitizeRepoFileName(originalName)
+  if (total <= 1) return custom
+
+  const dot = custom.lastIndexOf('.')
+  const hasExt = dot > 0 && dot < custom.length - 1
+  const base = hasExt ? custom.slice(0, dot) : custom
+  const ext = hasExt ? custom.slice(dot) : ''
+  return `${base}_${index + 1}${ext}`
+}
+
 const getDefaultUploadFolder = (mode: RemotePickerMode): string => {
   if (mode === 'download') return 'downloads'
   if (mode === 'preview') return 'images/previews'
@@ -3076,10 +3104,10 @@ const getDefaultUploadFolder = (mode: RemotePickerMode): string => {
 
 const buildOpfsRepoPath = (mode: RemotePickerMode, fileName: string, folderPath: string, index = 0): string => {
   const safeName = sanitizeRepoFileName(fileName)
-  const safeFolder = sanitizeRepoFolderPath(folderPath) || getDefaultUploadFolder(mode)
+  const safeFolder = sanitizeRepoFolderPath(folderPath)
   const stamp = Date.now().toString(36)
   const suffix = mode === 'preview' ? `${stamp}_${index}` : stamp
-  return `${safeFolder}/${suffix}_${safeName}`
+  return safeFolder ? `${safeFolder}/${suffix}_${safeName}` : `${suffix}_${safeName}`
 }
 
 const writeFileToOpfs = async (repoPath: string, file: File): Promise<void> => {
@@ -3144,15 +3172,12 @@ const handleRemotePickerLocalUpload = async (event: Event): Promise<void> => {
   const fileList = Array.from(files)
   const nextSelected: string[] = []
   const targetFolder = sanitizeRepoFolderPath(remotePickerTargetFolder.value)
-  if (!targetFolder) {
-    appendLog('请先在左侧文件树选择一个目标文件夹，再执行本地上传')
-    return
-  }
   remotePickerTargetFolder.value = targetFolder
 
   for (let i = 0; i < fileList.length; i++) {
     const file = fileList[i]
-    const repoPath = buildOpfsRepoPath(remotePickerMode.value, file.name, targetFolder, i)
+    const targetName = buildUploadedFileName(file.name, i, fileList.length)
+    const repoPath = buildOpfsRepoPath(remotePickerMode.value, targetName, targetFolder, i)
     await writeFileToOpfs(repoPath, file)
     opfsLocalPathSet.value[repoPath] = true
     if (isImagePath(repoPath)) {
@@ -3219,7 +3244,7 @@ const selectMultiplePreviewFiles = async (): Promise<void> => {
 }
 
 const selectRemotePickerFolder = (path: string): void => {
-  remotePickerTargetFolder.value = path
+  remotePickerTargetFolder.value = remotePickerTargetFolder.value === path ? '' : path
   toggleRemoteFolder(path)
 }
 
@@ -3233,6 +3258,7 @@ const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
   remotePickerDeviceId.value = deviceId
   remotePickerSearch.value = ''
   remotePickerSelectedPaths.value = []
+  remotePickerUploadFileName.value = ''
   const preferredFolder = getDefaultUploadFolder(mode)
   const availableFolders = new Set(remoteWorkspaceTree.value.filter(item => item.type === 'folder').map(item => item.path))
   if (availableFolders.has(preferredFolder)) {
