@@ -60,6 +60,19 @@ export interface LegacyCatalogEntry {
   paid_type: string
 }
 
+export interface OwnedResourceEntry {
+  source: 'v1' | 'v2'
+  key: string
+  name: string
+  restype: string
+  icon: string
+  repo_owner: string
+  repo_name: string
+  repo_commit_hash: string
+  description: string
+  commitDate: string
+}
+
 export interface RepoTreeItem {
   type: 'folder' | 'file'
   path: string
@@ -233,6 +246,99 @@ export const parseCatalogCsv = (csv: string): CatalogEntry[] => {
 const parseCatalogRow = (row: string): CatalogEntry | null => {
   const parsed = parseCatalogCsv(`${CATALOG_CSV_HEADER}\n${row}`)
   return parsed[0] || null
+}
+
+const parseLegacyCatalogCsv = (csv: string): LegacyCatalogEntry[] => {
+  const rows = csv
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+  const entries: LegacyCatalogEntry[] = []
+
+  for (const row of rows) {
+    const cols = row.split(',')
+    if (cols.length < 7) continue
+    entries.push({
+      name: cols[0] || '',
+      icon: cols[1] || '',
+      cover: cols[2] || '',
+      restype: cols[3] || '',
+      tags: cols[4] || '',
+      devices: cols[5] || '',
+      path: cols[6] || '',
+      paid_type: cols[7] || ''
+    })
+  }
+
+  return entries
+}
+
+const parseGitHubRepoFromUrl = (url: string): { owner: string; repo: string } | null => {
+  const trimmed = url.trim()
+  if (!trimmed) return null
+
+  const matched = trimmed.match(/^https?:\/\/github\.com\/([^/]+)\/([^/#?]+)(?:[/?#].*)?$/i)
+  if (!matched) return null
+
+  return {
+    owner: matched[1],
+    repo: matched[2].replace(/\.git$/i, '')
+  }
+}
+
+const getResourceDescriptionFromManifestText = (text: string): string => {
+  try {
+    const parsed = JSON.parse(text) as {
+      description?: unknown
+      item?: {
+        description?: unknown
+      }
+    }
+    const byItem = typeof parsed?.item?.description === 'string' ? parsed.item.description.trim() : ''
+    if (byItem) return byItem
+    const byRoot = typeof parsed?.description === 'string' ? parsed.description.trim() : ''
+    return byRoot
+  } catch {
+    return ''
+  }
+}
+
+const loadRepoDescription = async (params: {
+  token: string
+  owner: string
+  repo: string
+  ref: string
+}): Promise<string> => {
+  const { token, owner, repo, ref } = params
+  const candidates = ['manifest_v2.json', 'manifest.json']
+  for (const filePath of candidates) {
+    const file = await fetchRepoFileOrNull(token, owner, repo, filePath, ref)
+    if (!file?.content) continue
+    const text = base64ToText(file.content)
+    const description = getResourceDescriptionFromManifestText(text)
+    if (description) return description
+  }
+  return ''
+}
+
+const loadCommitDate = async (params: {
+  token: string
+  owner: string
+  repo: string
+  ref: string
+}): Promise<string> => {
+  const { token, owner, repo, ref } = params
+  try {
+    const data = await githubFetch<{
+      commit?: {
+        committer?: { date?: string }
+        author?: { date?: string }
+      }
+    }>(`/repos/${owner}/${repo}/commits/${encodeURIComponent(ref)}`, token)
+    return data.commit?.committer?.date || data.commit?.author?.date || ''
+  } catch {
+    return ''
+  }
 }
 
 export const fetchRepoFile = async (
@@ -930,9 +1036,125 @@ export const loadOwnedResources = async (params: {
   upstreamRepo: string
   upstreamBranch: string
   catalogPath: string
-}): Promise<CatalogEntry[]> => {
-  const { token, username, upstreamOwner, upstreamRepo, upstreamBranch, catalogPath } = params
-  const file = await fetchRepoFile(token, upstreamOwner, upstreamRepo, catalogPath, upstreamBranch)
-  const content = base64ToText(file.content || '')
-  return parseCatalogCsv(content).filter(entry => entry.repo_owner === username)
+  legacyCatalogPath?: string
+}): Promise<OwnedResourceEntry[]> => {
+  const {
+    token,
+    username,
+    upstreamOwner,
+    upstreamRepo,
+    upstreamBranch,
+    catalogPath,
+    legacyCatalogPath = 'index.csv'
+  } = params
+  const items: OwnedResourceEntry[] = []
+
+  const [v2CatalogFile, v1CatalogFile] = await Promise.all([
+    fetchRepoFileOrNull(token, upstreamOwner, upstreamRepo, catalogPath, upstreamBranch),
+    fetchRepoFileOrNull(token, upstreamOwner, upstreamRepo, legacyCatalogPath, upstreamBranch)
+  ])
+
+  const v2Entries = v2CatalogFile?.content
+    ? parseCatalogCsv(base64ToText(v2CatalogFile.content)).filter(entry => entry.repo_owner === username)
+    : []
+
+  const v2Items = await Promise.all(
+    v2Entries.map(async entry => {
+      const [description, commitDate] = await Promise.all([
+        loadRepoDescription({
+          token,
+          owner: entry.repo_owner,
+          repo: entry.repo_name,
+          ref: entry.repo_commit_hash || 'main'
+        }),
+        loadCommitDate({
+          token,
+          owner: entry.repo_owner,
+          repo: entry.repo_name,
+          ref: entry.repo_commit_hash || 'main'
+        })
+      ])
+
+      return {
+        source: 'v2' as const,
+        key: `v2:${entry.id}:${entry.repo_owner}/${entry.repo_name}`,
+        name: entry.name,
+        restype: entry.restype,
+        icon: entry.icon,
+        repo_owner: entry.repo_owner,
+        repo_name: entry.repo_name,
+        repo_commit_hash: entry.repo_commit_hash,
+        description,
+        commitDate
+      }
+    })
+  )
+  items.push(...v2Items)
+
+  const v1Entries = v1CatalogFile?.content
+    ? parseLegacyCatalogCsv(base64ToText(v1CatalogFile.content))
+    : []
+  const v1Items = await Promise.all(
+    v1Entries.map(async (entry, index) => {
+      const resourceJsonPath = entry.path ? `resources/${entry.path}` : ''
+      if (!resourceJsonPath) return null
+
+      const resourceFile = await fetchRepoFileOrNull(
+        token,
+        upstreamOwner,
+        upstreamRepo,
+        resourceJsonPath,
+        upstreamBranch
+      )
+      if (!resourceFile?.content) return null
+
+      let repoOwner = ''
+      let repoName = ''
+      let repoRef = 'main'
+      try {
+        const parsed = JSON.parse(base64ToText(resourceFile.content)) as {
+          repo_url?: unknown
+          repo_commit_hash?: unknown
+        }
+        const repoUrl = typeof parsed.repo_url === 'string' ? parsed.repo_url.trim() : ''
+        const repoInfo = parseGitHubRepoFromUrl(repoUrl)
+        repoOwner = repoInfo?.owner || ''
+        repoName = repoInfo?.repo || ''
+        repoRef = typeof parsed.repo_commit_hash === 'string' && parsed.repo_commit_hash.trim()
+          ? parsed.repo_commit_hash.trim()
+          : 'main'
+      } catch {
+        return null
+      }
+
+      if (!repoOwner || !repoName) return null
+
+      const description = await loadRepoDescription({
+        token,
+        owner: repoOwner,
+        repo: repoName,
+        ref: repoRef
+      })
+
+      return {
+        source: 'v1' as const,
+        key: `v1:${entry.path || entry.name}:${index}`,
+        name: entry.name,
+        restype: entry.restype,
+        icon: entry.icon,
+        repo_owner: repoOwner,
+        repo_name: repoName,
+        repo_commit_hash: repoRef,
+        description,
+        commitDate: ''
+      }
+    })
+  )
+  for (const entry of v1Items) {
+    if (entry) {
+      items.push(entry)
+    }
+  }
+
+  return items
 }

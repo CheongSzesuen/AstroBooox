@@ -1007,12 +1007,31 @@
           </div>
           <div
             v-for="item in ownedItems"
-            :key="item.id"
+            :key="item.key"
             class="rounded-lg border border-border bg-card px-3 py-3"
           >
-            <div class="text-sm font-semibold text-foreground">{{ item.id }} · {{ item.name }}</div>
-            <div class="mt-1 text-xs text-muted-foreground">
-              {{ item.restype }} · {{ item.repo_owner }}/{{ item.repo_name }}
+            <div class="flex items-start gap-3">
+              <img
+                :src="getOwnedItemIconUrl(item)"
+                :alt="`${item.name} icon`"
+                class="mt-0.5 h-10 w-10 shrink-0 rounded-full border border-border bg-muted/50 object-cover"
+              />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <div class="truncate text-sm font-semibold text-foreground">{{ item.name }}</div>
+                  <Badge variant="outline">{{ item.source.toUpperCase() }}</Badge>
+                </div>
+                <div class="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {{ item.description || '暂无描述' }}
+                </div>
+                <div class="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                  <GithubLogo :size="14" weight="duotone" />
+                  <span class="truncate">{{ item.repo_owner }}/{{ item.repo_name }}</span>
+                </div>
+                <div v-if="item.source === 'v2'" class="mt-1 text-xs text-muted-foreground">
+                  index_v2 hash: {{ item.repo_commit_hash || '-' }} · 提交时间: {{ item.commitDate ? formatDate(item.commitDate) : '-' }}
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -1061,6 +1080,7 @@ import {
   PhFile as FileIcon,
   PhFolderOpen as FolderOpen,
   PhFolder as FolderIcon,
+  PhGithubLogo as GithubLogo,
   PhGitPullRequest as GitPullRequest,
   PhMinus as MinusIcon,
   PhUploadSimple as UploadSimple
@@ -1110,9 +1130,9 @@ import {
   normalizeDeviceToken
 } from '@/components/resourcePublishWorkbenchDeviceCatalog'
 import {
-  type CatalogEntry,
   createPullRequestIssueComment,
   type LegacyCatalogEntry,
+  type OwnedResourceEntry,
   type PullRequestIssueComment,
   type PublishingResource,
   arrayBufferToBase64,
@@ -1299,7 +1319,7 @@ const reviewReplyTargetComment = ref<{
 } | null>(null)
 
 const ownedLoading = ref(false)
-const ownedItems = ref<CatalogEntry[]>([])
+const ownedItems = ref<OwnedResourceEntry[]>([])
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
@@ -3188,6 +3208,17 @@ const loadOwnedList = async (): Promise<void> => {
   } finally {
     ownedLoading.value = false
   }
+}
+
+const getOwnedItemIconUrl = (item: OwnedResourceEntry): string => {
+  const value = item.icon?.trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+  if (item.source === 'v2' && item.repo_owner && item.repo_name && item.repo_commit_hash) {
+    const normalized = value.replace(/^\/+/, '')
+    return `https://raw.githubusercontent.com/${item.repo_owner}/${item.repo_name}/${item.repo_commit_hash}/${normalized}`
+  }
+  return value
 }
 
 watch(
