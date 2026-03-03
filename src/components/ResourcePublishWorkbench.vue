@@ -2990,10 +2990,31 @@ const collectUpdateChangeLines = (): string[] => {
   pushIfChanged('图标', normalizeTextValue(draft.icon), normalizeTextValue(iconPath.value))
   pushIfChanged('封面', normalizeTextValue(draft.cover), normalizeTextValue(coverPath.value))
 
-  const beforePreview = normalizeStringArray(draft.previews).join('|')
-  const afterPreview = normalizeStringArray(previewItems.value.map(item => item.path)).join('|')
+  const beforePreviewList = normalizeStringArray(draft.previews)
+  const afterPreviewList = normalizeStringArray(previewItems.value.map(item => item.path))
+  const beforePreview = beforePreviewList.join('|')
+  const afterPreview = afterPreviewList.join('|')
   if (beforePreview !== afterPreview) {
-    lines.push(`- 预览图：共 ${normalizeStringArray(draft.previews).length} 张 -> ${normalizeStringArray(previewItems.value.map(item => item.path)).length} 张`)
+    const beforeSet = new Set(beforePreviewList)
+    const afterSet = new Set(afterPreviewList)
+    const added = afterPreviewList.filter(path => !beforeSet.has(path))
+    const removed = beforePreviewList.filter(path => !afterSet.has(path))
+    if (added.length > 0) {
+      lines.push(`- 预览图：新增 ${added.length} 张`)
+      for (const path of added) {
+        lines.push(`  - \`${path}\``)
+        lines.push(`    ${getRawUrl(path)}`)
+      }
+    }
+    if (removed.length > 0) {
+      lines.push(`- 预览图：移除 ${removed.length} 张`)
+      for (const path of removed) {
+        lines.push(`  - \`${path}\``)
+      }
+    }
+    if (added.length === 0 && removed.length === 0) {
+      lines.push(`- 预览图：顺序已调整（${beforePreviewList.length} 张）`)
+    }
   }
 
   const beforeTags = normalizeStringArray(draft.tags).join('|')
@@ -4519,6 +4540,10 @@ const handleCreateCatalogPr = async (): Promise<void> => {
         catalogPath: catalogPath.value.trim(),
         currentUser: username,
         branchName,
+        matchId: isResourceUpdateMode.value
+          ? (resourceEditDraft.value?.catalogId || itemId.value).trim()
+          : itemId.value.trim(),
+        requireExisting: isResourceUpdateMode.value,
         entry: {
           id: itemId.value.trim(),
           name: itemName.value.trim(),
@@ -4558,6 +4583,7 @@ const handleCreateCatalogPr = async (): Promise<void> => {
         null,
         2
       )
+      const legacyRelativePath = `${legacyAuthorFolder}/${legacyFileName}`
       const v1Result = await updateLegacyCatalogAndResourceJsonInForkBranch({
         token: accessToken,
         upstreamOwner: upstreamOwner.value.trim(),
@@ -4566,9 +4592,11 @@ const handleCreateCatalogPr = async (): Promise<void> => {
         currentUser: username,
         branchName,
         catalogPath: LEGACY_CATALOG_PATH,
-        resourceJsonPath: `${LEGACY_RESOURCES_DIR}/${legacyAuthorFolder}/${legacyFileName}`,
+        resourceJsonPath: `${LEGACY_RESOURCES_DIR}/${legacyRelativePath}`,
         legacyEntry,
-        resourceManifestJson: legacyManifestRef
+        resourceManifestJson: legacyManifestRef,
+        matchPath: legacyRelativePath,
+        requireExisting: isResourceUpdateMode.value
       })
       forkResult = v1Result
       appendLog(`v1 Catalog 更新完成: ${v1Result.forkOwner}/${v1Result.forkRepo}@${v1Result.branch}`)

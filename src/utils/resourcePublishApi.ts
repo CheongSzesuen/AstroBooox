@@ -675,11 +675,18 @@ export const ensureFork = async (params: {
   throw new Error('Fork 创建超时，请稍后重试')
 }
 
-const appendOrReplaceCatalogRow = (existingCsv: string, entry: CatalogEntry): string => {
+const appendOrReplaceCatalogRow = (
+  existingCsv: string,
+  entry: CatalogEntry,
+  options?: {
+    matchId?: string
+    requireExisting?: boolean
+  }
+): string => {
+  const targetId = (options?.matchId || entry.id).trim()
   const rows = existingCsv.split(/\r?\n/).filter(line => line.trim().length > 0)
   const header = rows[0] || CATALOG_CSV_HEADER
   const body = rows.slice(1)
-  const filtered = body.filter(line => !line.startsWith(`${entry.id},`))
 
   const rowString = [
     entry.id,
@@ -696,11 +703,37 @@ const appendOrReplaceCatalogRow = (existingCsv: string, entry: CatalogEntry): st
     entry.paid_type
   ].join(',')
 
-  filtered.push(rowString)
-  return [header, ...filtered].join('\n')
+  let replaced = false
+  for (let i = 0; i < body.length; i++) {
+    const row = body[i]
+    const parsed = parseCatalogRow(row)
+    if (!parsed) continue
+    if (parsed.id.trim() !== targetId) continue
+    body[i] = rowString
+    replaced = true
+    break
+  }
+
+  if (!replaced) {
+    if (options?.requireExisting) {
+      throw new Error(`未在 catalog 中找到待更新的资源行: ${targetId}`)
+    }
+    body.push(rowString)
+  }
+
+  return [header, ...body].join('\n')
 }
 
-const appendLegacyCatalogRow = (existingCsv: string, entry: LegacyCatalogEntry): string => {
+const appendLegacyCatalogRow = (
+  existingCsv: string,
+  entry: LegacyCatalogEntry,
+  options?: {
+    matchPath?: string
+    requireExisting?: boolean
+  }
+): string => {
+  const targetPath = (options?.matchPath || entry.path || '').trim()
+  const rows = existingCsv.split(/\r?\n/).filter(line => line.trim().length > 0)
   const row = [
     entry.name,
     entry.icon,
@@ -711,12 +744,25 @@ const appendLegacyCatalogRow = (existingCsv: string, entry: LegacyCatalogEntry):
     entry.path,
     entry.paid_type
   ].join(',')
-  const newline = existingCsv.includes('\r\n') ? '\r\n' : '\n'
-  if (!existingCsv) return row
-  if (existingCsv.endsWith('\n') || existingCsv.endsWith('\r\n')) {
-    return `${existingCsv}${row}`
+
+  let replaced = false
+  const nextRows = rows.map(line => {
+    const parsed = parseLegacyCatalogCsv(line)[0]
+    if (!parsed) return line
+    if (!targetPath || parsed.path.trim() !== targetPath) return line
+    replaced = true
+    return row
+  })
+
+  if (!replaced) {
+    if (options?.requireExisting) {
+      throw new Error(`未在 index.csv 中找到待更新的资源行: ${targetPath}`)
+    }
+    nextRows.push(row)
   }
-  return `${existingCsv}${newline}${row}`
+
+  const newline = existingCsv.includes('\r\n') ? '\r\n' : '\n'
+  return nextRows.join(newline)
 }
 
 export const updateCatalogInForkBranch = async (params: {
@@ -728,6 +774,8 @@ export const updateCatalogInForkBranch = async (params: {
   currentUser: string
   branchName: string
   entry: CatalogEntry
+  matchId?: string
+  requireExisting?: boolean
 }): Promise<{ forkOwner: string; forkRepo: string; branch: string }> => {
   const {
     token,
@@ -737,7 +785,9 @@ export const updateCatalogInForkBranch = async (params: {
     catalogPath,
     currentUser,
     branchName,
-    entry
+    entry,
+    matchId = '',
+    requireExisting = false
   } = params
 
   const fork = await ensureFork({
@@ -771,7 +821,10 @@ export const updateCatalogInForkBranch = async (params: {
   )
 
   const csvContent = base64ToText(fileData.content || '')
-  const updatedCsv = appendOrReplaceCatalogRow(csvContent, entry)
+  const updatedCsv = appendOrReplaceCatalogRow(csvContent, entry, {
+    matchId,
+    requireExisting
+  })
 
   await putRepoFile({
     token,
@@ -802,6 +855,8 @@ export const updateLegacyCatalogAndResourceJsonInForkBranch = async (params: {
   resourceJsonPath: string
   legacyEntry: LegacyCatalogEntry
   resourceManifestJson: string
+  matchPath?: string
+  requireExisting?: boolean
 }): Promise<{ forkOwner: string; forkRepo: string; branch: string }> => {
   const {
     token,
@@ -813,7 +868,9 @@ export const updateLegacyCatalogAndResourceJsonInForkBranch = async (params: {
     catalogPath,
     resourceJsonPath,
     legacyEntry,
-    resourceManifestJson
+    resourceManifestJson,
+    matchPath = '',
+    requireExisting = false
   } = params
 
   const fork = await ensureFork({
@@ -840,7 +897,10 @@ export const updateLegacyCatalogAndResourceJsonInForkBranch = async (params: {
 
   const legacyFile = await fetchRepoFile(token, fork.owner, fork.repo, catalogPath, branchName)
   const legacyCsvContent = base64ToText(legacyFile.content || '')
-  const nextLegacyCsv = appendLegacyCatalogRow(legacyCsvContent, legacyEntry)
+  const nextLegacyCsv = appendLegacyCatalogRow(legacyCsvContent, legacyEntry, {
+    matchPath,
+    requireExisting
+  })
 
   await putRepoFile({
     token,
@@ -848,7 +908,7 @@ export const updateLegacyCatalogAndResourceJsonInForkBranch = async (params: {
     repo: fork.repo,
     path: catalogPath,
     branch: branchName,
-    message: `Append legacy catalog for ${legacyEntry.name}`,
+    message: `${requireExisting ? 'Update' : 'Append'} legacy catalog for ${legacyEntry.name}`,
     contentBase64: textToBase64(nextLegacyCsv),
     sha: legacyFile.sha
   })
