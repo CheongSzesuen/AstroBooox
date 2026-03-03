@@ -999,14 +999,20 @@
           <CardDescription>查看当前账号已发布到目录的资源。</CardDescription>
         </CardHeader>
         <CardContent class="space-y-2 pt-0">
+          <Tabs v-model="ownedTab" class="space-y-2">
+            <TabsList class="grid w-full grid-cols-2">
+              <TabsTrigger value="v2">V2</TabsTrigger>
+              <TabsTrigger value="v1">V1</TabsTrigger>
+            </TabsList>
+          </Tabs>
           <div
-            v-if="ownedItems.length === 0"
+            v-if="displayedOwnedItems.length === 0"
             class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
           >
             暂无数据
           </div>
           <div
-            v-for="item in ownedItems"
+            v-for="item in displayedOwnedItems"
             :key="item.key"
             class="rounded-lg border border-border bg-card px-3 py-3"
           >
@@ -1017,18 +1023,21 @@
                 class="mt-0.5 h-10 w-10 shrink-0 rounded-full border border-border bg-muted/50 object-cover"
               />
               <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-2">
-                  <div class="truncate text-sm font-semibold text-foreground">{{ item.name }}</div>
-                  <Badge variant="outline">{{ item.source.toUpperCase() }}</Badge>
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <div class="truncate text-sm font-semibold text-foreground">{{ item.name }}</div>
+                    <div class="mt-1 truncate text-xs text-muted-foreground">{{ item.repo_owner }}/{{ item.repo_name }}</div>
+                  </div>
+                  <GithubLogo :size="16" weight="duotone" class="mt-0.5 shrink-0 text-muted-foreground" />
                 </div>
                 <div class="mt-1 line-clamp-2 text-xs text-muted-foreground">
                   {{ item.description || '暂无描述' }}
                 </div>
-                <div class="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                  <GithubLogo :size="14" weight="duotone" />
-                  <span class="truncate">{{ item.repo_owner }}/{{ item.repo_name }}</span>
+                <div class="mt-1 flex items-center gap-2">
+                  <Badge variant="outline">{{ item.sourceLabel }}</Badge>
+                  <span class="text-xs text-muted-foreground">{{ item.restype }}</span>
                 </div>
-                <div v-if="item.source === 'v2'" class="mt-1 text-xs text-muted-foreground">
+                <div v-if="item.commitDate || item.repo_commit_hash" class="mt-1 text-xs text-muted-foreground">
                   index_v2 hash: {{ item.repo_commit_hash || '-' }} · 提交时间: {{ item.commitDate ? formatDate(item.commitDate) : '-' }}
                 </div>
               </div>
@@ -1320,6 +1329,69 @@ const reviewReplyTargetComment = ref<{
 
 const ownedLoading = ref(false)
 const ownedItems = ref<OwnedResourceEntry[]>([])
+const ownedTab = ref<'v1' | 'v2'>('v2')
+
+interface OwnedMergedItem {
+  key: string
+  name: string
+  restype: string
+  icon: string
+  repo_owner: string
+  repo_name: string
+  repo_commit_hash: string
+  description: string
+  commitDate: string
+  sources: Array<'v1' | 'v2'>
+  sourceLabel: string
+}
+
+const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
+  const grouped = new Map<string, OwnedMergedItem>()
+  for (const item of ownedItems.value) {
+    const key = [
+      item.repo_owner.trim().toLowerCase(),
+      item.repo_name.trim().toLowerCase(),
+      item.name.trim().toLowerCase(),
+      item.description.trim().toLowerCase(),
+      item.restype.trim().toLowerCase()
+    ].join('|')
+    const existing = grouped.get(key)
+    if (!existing) {
+      grouped.set(key, {
+        key,
+        name: item.name,
+        restype: item.restype,
+        icon: item.icon,
+        repo_owner: item.repo_owner,
+        repo_name: item.repo_name,
+        repo_commit_hash: item.source === 'v2' ? item.repo_commit_hash : '',
+        description: item.description,
+        commitDate: item.source === 'v2' ? item.commitDate : '',
+        sources: [item.source],
+        sourceLabel: item.source.toUpperCase()
+      })
+      continue
+    }
+
+    if (!existing.sources.includes(item.source)) {
+      existing.sources.push(item.source)
+    }
+    if (!existing.icon && item.icon) {
+      existing.icon = item.icon
+    }
+    if (item.source === 'v2') {
+      existing.repo_commit_hash = item.repo_commit_hash || existing.repo_commit_hash
+      existing.commitDate = item.commitDate || existing.commitDate
+    }
+    existing.sourceLabel = existing.sources.length > 1 ? 'V1 + V2' : existing.sources[0].toUpperCase()
+  }
+
+  return Array.from(grouped.values())
+})
+
+const displayedOwnedItems = computed<OwnedMergedItem[]>(() =>
+  ownedMergedItems.value.filter(item => item.sources.includes(ownedTab.value))
+)
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
@@ -3210,11 +3282,16 @@ const loadOwnedList = async (): Promise<void> => {
   }
 }
 
-const getOwnedItemIconUrl = (item: OwnedResourceEntry): string => {
+const getOwnedItemIconUrl = (item: {
+  icon: string
+  repo_owner: string
+  repo_name: string
+  repo_commit_hash: string
+}): string => {
   const value = item.icon?.trim()
   if (!value) return ''
   if (/^https?:\/\//i.test(value)) return value
-  if (item.source === 'v2' && item.repo_owner && item.repo_name && item.repo_commit_hash) {
+  if (item.repo_owner && item.repo_name && item.repo_commit_hash) {
     const normalized = value.replace(/^\/+/, '')
     return `https://raw.githubusercontent.com/${item.repo_owner}/${item.repo_name}/${item.repo_commit_hash}/${normalized}`
   }
