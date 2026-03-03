@@ -438,7 +438,14 @@
                         </div>
                       </template>
                     </draggable>
-                    <Button variant="default" class="font-semibold" @click="selectMultiplePreviewFiles">+ 添加预览图</Button>
+                    <div v-if="isResourceUpdateMode" class="flex gap-2 max-sm:flex-col">
+                      <Input
+                        v-model="previewPathInput"
+                        placeholder="输入远程仓库中的相对路径，如 images/preview-1.png"
+                      />
+                      <Button variant="default" class="font-semibold" @click="addPreviewByPath">+ 添加路径</Button>
+                    </div>
+                    <Button v-else variant="default" class="font-semibold" @click="selectMultiplePreviewFiles">+ 添加预览图</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -1616,6 +1623,7 @@ const linkPickerInitialQuery = ref('')
 const iconPath = ref('')
 const coverPath = ref('')
 const previewItems = ref<Array<{ id: string; path: string }>>([])
+const previewPathInput = ref('')
 
 const upstreamOwner = ref(defaultTargetOwner.value)
 const upstreamRepo = ref(defaultTargetRepo.value)
@@ -2688,6 +2696,7 @@ const applyResourceEditDraft = (): void => {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
       path
     }))
+  previewPathInput.value = ''
 
   const normalizedDeviceIds = draft.devices
     .split(/[;；,，]/)
@@ -2868,6 +2877,29 @@ const selectMultiplePreviewFiles = async (): Promise<void> => {
     if (error instanceof Error && error.name === 'AbortError') return
     appendLog(`选择预览图失败: ${error instanceof Error ? error.message : '未知错误'}`)
   }
+}
+
+const addPreviewByPath = (): void => {
+  const raw = previewPathInput.value.trim()
+  if (!raw) {
+    appendLog('请先输入预览图路径')
+    return
+  }
+
+  const normalizedPath = raw.replace(/\\/g, '/').replace(/^\/+/, '')
+  if (!normalizedPath) {
+    appendLog('预览图路径不能为空')
+    return
+  }
+
+  const exists = previewItems.value.some(item => item.path === normalizedPath)
+  if (exists) {
+    appendLog(`预览图已存在: ${normalizedPath}`)
+    return
+  }
+
+  previewItems.value = [...previewItems.value, createPreviewItemFromPath(normalizedPath)]
+  previewPathInput.value = ''
 }
 
 const removePreview = (index: number): void => {
@@ -3216,6 +3248,7 @@ const resetResourceInfoFields = (): void => {
   iconPath.value = ''
   coverPath.value = ''
   previewItems.value = []
+  previewPathInput.value = ''
   selectedDeviceIds.value = []
   downloads.value = {}
   authors.value = [{ name: '', authorUrl: '', bindABAccount: true }]
