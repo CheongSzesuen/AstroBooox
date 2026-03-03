@@ -3104,18 +3104,15 @@ const buildUploadedFileName = (originalName: string, index: number, total: numbe
 }
 
 const getDefaultUploadFolder = (mode: RemotePickerMode): string => {
-  if (mode === 'download') return 'downloads'
-  if (mode === 'preview') return 'images/previews'
-  if (mode === 'cover') return 'images'
-  return 'images'
+  return ''
 }
 
 const buildOpfsRepoPath = (mode: RemotePickerMode, fileName: string, folderPath: string, index = 0): string => {
   const safeName = sanitizeRepoFileName(fileName)
   const safeFolder = sanitizeRepoFolderPath(folderPath)
-  const stamp = Date.now().toString(36)
-  const suffix = mode === 'preview' ? `${stamp}_${index}` : stamp
-  return safeFolder ? `${safeFolder}/${suffix}_${safeName}` : `${suffix}_${safeName}`
+  const fallbackName = mode === 'preview' ? `${index + 1}_${safeName}` : safeName
+  const finalName = safeName || fallbackName
+  return safeFolder ? `${safeFolder}/${finalName}` : finalName
 }
 
 const writeFileToOpfs = async (repoPath: string, file: File): Promise<void> => {
@@ -3267,14 +3264,7 @@ const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
   remotePickerSearch.value = ''
   remotePickerSelectedPaths.value = []
   remotePickerUploadFileName.value = ''
-  const preferredFolder = getDefaultUploadFolder(mode)
-  const availableFolders = new Set(remoteWorkspaceTree.value.filter(item => item.type === 'folder').map(item => item.path))
-  if (availableFolders.has(preferredFolder)) {
-    remotePickerTargetFolder.value = preferredFolder
-  } else {
-    const matched = [...availableFolders].find(folder => folder.startsWith(preferredFolder))
-    remotePickerTargetFolder.value = matched || ''
-  }
+  remotePickerTargetFolder.value = getDefaultUploadFolder(mode)
   showRemoteFilePickerDialog.value = true
 }
 
