@@ -829,16 +829,16 @@
       </Dialog>
 
       <Dialog :open="showRemoteFilePickerDialog" @update:open="showRemoteFilePickerDialog = $event">
-        <DialogContent class="flex max-h-[88vh] w-[95vw] !max-w-[1120px] flex-col overflow-hidden">
+        <DialogContent class="w-[95vw] !max-w-[1120px] overflow-hidden">
           <DialogHeader class="shrink-0">
             <DialogTitle>{{ remotePickerTitle }}</DialogTitle>
             <DialogDescription>
               远程仓库：{{ remoteWorkspacePath || '未同步远程仓库' }}
             </DialogDescription>
           </DialogHeader>
-          <div class="grid flex-1 gap-3 overflow-hidden md:grid-cols-[minmax(0,1fr)_360px]">
-            <div class="flex min-h-0 flex-col gap-3">
-              <div class="shrink-0 flex gap-2 max-sm:flex-col">
+          <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_360px]">
+            <div class="space-y-3">
+              <div class="flex gap-2 max-sm:flex-col">
                 <Input v-model="remotePickerSearch" placeholder="搜索文件名或路径" />
                 <Button variant="outline" @click="openRemotePickerLocalUpload">本地上传</Button>
                 <input
@@ -849,12 +849,11 @@
                   @change="handleRemotePickerLocalUpload"
                 >
               </div>
-              <Input
-                class="shrink-0"
-                v-model="remotePickerUploadFolder"
-                placeholder="本地上传目标目录（GitHub相对路径），如 images/previews"
-              />
-              <div class="min-h-0 overflow-y-auto rounded-lg border border-border">
+              <div class="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
+                <span class="text-muted-foreground">本地导入目录（点左侧文件夹设置）</span>
+                <span class="max-w-[60%] truncate font-medium text-foreground">{{ remotePickerTargetFolder || '未选择' }}</span>
+              </div>
+              <div class="h-[52vh] overflow-y-auto rounded-lg border border-border">
                 <div
                   v-if="remotePickerTreeItems.length === 0 && remotePickerLocalItems.length === 0"
                   class="px-3 py-4 text-center text-xs text-muted-foreground"
@@ -866,9 +865,10 @@
                     <button
                       v-if="item.type === 'folder'"
                       type="button"
-                      class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted/30"
+                      class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30"
                       :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
-                      @click="toggleRemoteFolder(item.path)"
+                      :class="remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'"
+                      @click="selectRemotePickerFolder(item.path)"
                     >
                       <CaretRight
                         v-if="item.collapsed"
@@ -884,6 +884,12 @@
                       />
                       <FolderIcon :size="14" weight="fill" class="shrink-0" />
                       <span class="truncate">{{ item.label }}</span>
+                      <span
+                        v-if="remotePickerTargetFolder === item.path"
+                        class="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary"
+                      >
+                        导入目录
+                      </span>
                     </button>
                     <button
                       v-else
@@ -915,7 +921,7 @@
                 </div>
               </div>
             </div>
-            <div class="shrink-0 space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+            <div class="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
               <div class="text-xs text-muted-foreground">图片预览</div>
               <a
                 v-if="remotePickerPreviewPath && isImagePath(remotePickerPreviewPath)"
@@ -939,7 +945,7 @@
               <p class="break-all text-[11px] text-muted-foreground">{{ remotePickerPreviewPath || '未选择文件' }}</p>
             </div>
           </div>
-          <DialogFooter class="shrink-0">
+          <DialogFooter>
             <Button variant="outline" @click="showRemoteFilePickerDialog = false">取消</Button>
             <Button @click="applyRemotePickerSelection">确认选择</Button>
           </DialogFooter>
@@ -1762,7 +1768,7 @@ const remotePickerMode = ref<RemotePickerMode>('preview')
 const remotePickerDeviceId = ref('')
 const remotePickerSearch = ref('')
 const remotePickerSelectedPaths = ref<string[]>([])
-const remotePickerUploadFolder = ref('')
+const remotePickerTargetFolder = ref('')
 const opfsLocalPathSet = ref<Record<string, true>>({})
 const opfsLocalPreviewUrlMap = ref<Record<string, string>>({})
 
@@ -3137,8 +3143,12 @@ const handleRemotePickerLocalUpload = async (event: Event): Promise<void> => {
 
   const fileList = Array.from(files)
   const nextSelected: string[] = []
-  const targetFolder = sanitizeRepoFolderPath(remotePickerUploadFolder.value) || getDefaultUploadFolder(remotePickerMode.value)
-  remotePickerUploadFolder.value = targetFolder
+  const targetFolder = sanitizeRepoFolderPath(remotePickerTargetFolder.value)
+  if (!targetFolder) {
+    appendLog('请先在左侧文件树选择一个目标文件夹，再执行本地上传')
+    return
+  }
+  remotePickerTargetFolder.value = targetFolder
 
   for (let i = 0; i < fileList.length; i++) {
     const file = fileList[i]
@@ -3208,6 +3218,11 @@ const selectMultiplePreviewFiles = async (): Promise<void> => {
   }
 }
 
+const selectRemotePickerFolder = (path: string): void => {
+  remotePickerTargetFolder.value = path
+  toggleRemoteFolder(path)
+}
+
 const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
   if (remoteWorkspaceTree.value.length === 0) {
     appendLog('远程仓库文件树为空，请先同步远程仓库')
@@ -3218,7 +3233,14 @@ const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
   remotePickerDeviceId.value = deviceId
   remotePickerSearch.value = ''
   remotePickerSelectedPaths.value = []
-  remotePickerUploadFolder.value = getDefaultUploadFolder(mode)
+  const preferredFolder = getDefaultUploadFolder(mode)
+  const availableFolders = new Set(remoteWorkspaceTree.value.filter(item => item.type === 'folder').map(item => item.path))
+  if (availableFolders.has(preferredFolder)) {
+    remotePickerTargetFolder.value = preferredFolder
+  } else {
+    const matched = [...availableFolders].find(folder => folder.startsWith(preferredFolder))
+    remotePickerTargetFolder.value = matched || ''
+  }
   showRemoteFilePickerDialog.value = true
 }
 
