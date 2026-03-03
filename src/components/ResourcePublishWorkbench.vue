@@ -517,11 +517,6 @@
                       <div class="space-y-1.5">
                         <Label :for="`link-icon-${index}`">图标名（icon）</Label>
                         <div class="flex gap-2">
-                          <Input
-                            :id="`link-icon-${index}`"
-                            v-model="link.icon"
-                            placeholder="github-logo / house / globe"
-                          />
                           <div class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background">
                             <component
                               :is="getLinkIconPreviewComponent(link.icon)"
@@ -537,6 +532,11 @@
                               class="text-muted-foreground"
                             />
                           </div>
+                          <Input
+                            :id="`link-icon-${index}`"
+                            v-model="link.icon"
+                            placeholder="github-logo / house / globe"
+                          />
                           <Button variant="outline" @click="openLinkIconPicker(index)">搜索图标</Button>
                         </div>
                       </div>
@@ -665,26 +665,20 @@
               <CardTitle class="text-base">步骤 4：提交 Pull Request</CardTitle>
             </CardHeader>
             <CardContent class="space-y-4 pt-0">
-              <div class="grid gap-3 md:grid-cols-2">
-                <div class="space-y-1.5">
-                  <Label for="upstream-owner">目标仓库 Owner</Label>
-                  <Input id="upstream-owner" v-model="upstreamOwner" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="upstream-repo">目标仓库名</Label>
-                  <Input id="upstream-repo" v-model="upstreamRepo" />
-                </div>
+              <div class="rounded-lg border border-border bg-muted/20 p-3 text-sm">
+                <p class="text-xs text-muted-foreground">目标仓库（来自设置）</p>
+                <p class="mt-1 font-medium text-foreground">{{ upstreamOwner }}/{{ upstreamRepo }}</p>
               </div>
 
               <div class="grid gap-3 md:grid-cols-1">
                 <div class="space-y-1.5">
                   <Label for="pr-title">PR 标题</Label>
-                  <Input id="pr-title" v-model="prTitle" placeholder="[ABCC] Add new resource" />
+                  <Input id="pr-title" v-model="prTitle" placeholder="[ABoooxCC] 更新 XXXX 快应用/表盘" />
                 </div>
               </div>
 
               <div class="space-y-1.5">
-                <Label for="pr-body">PR 描述（可选）</Label>
+                <Label for="pr-body">PR 描述（自动生成变更项）</Label>
                 <Textarea id="pr-body" v-model="prBody" class="min-h-[110px]" />
               </div>
 
@@ -2935,91 +2929,112 @@ const normalizedLegacyDevicesText = computed(() =>
 
 const buildAutoPrTitle = (): string => {
   const name = itemName.value.trim() || '未命名资源'
-  if (isResourceUpdateMode.value) {
-    return `[ABoooxCC]更新 ${name} ${formatResourceTypeForTitle(restype.value)}`
+  return `[ABoooxCC] 更新 ${name} ${formatResourceTypeForTitle(restype.value)}`
+}
+
+const normalizeTextValue = (value: string): string => value.trim()
+
+const normalizeStringArray = (values: string[]): string[] =>
+  values.map(item => item.trim()).filter(Boolean)
+
+const normalizeLinks = (values: Array<{ icon: string; title: string; url: string }>): string =>
+  JSON.stringify(
+    values
+      .map(link => ({
+        icon: link.icon.trim(),
+        title: link.title.trim(),
+        url: link.url.trim()
+      }))
+      .filter(link => link.icon || link.title || link.url)
+      .sort((a, b) => `${a.title}|${a.url}|${a.icon}`.localeCompare(`${b.title}|${b.url}|${b.icon}`, 'zh-CN'))
+  )
+
+const normalizeAuthors = (values: Array<{ name: string; authorUrl: string; bindABAccount: boolean }>): string =>
+  JSON.stringify(
+    values
+      .map(author => ({
+        name: author.name.trim(),
+        authorUrl: author.authorUrl.trim(),
+        bindABAccount: Boolean(author.bindABAccount)
+      }))
+      .filter(author => author.name || author.authorUrl)
+      .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  )
+
+const normalizeDownloads = (values: Record<string, { version: string; file_name: string }>): string =>
+  JSON.stringify(
+    Object.entries(values)
+      .map(([device, entry]) => ({
+        device,
+        version: String(entry?.version || '').trim(),
+        file_name: String(entry?.file_name || '').trim()
+      }))
+      .filter(entry => entry.device || entry.version || entry.file_name)
+      .sort((a, b) => a.device.localeCompare(b.device, 'zh-CN'))
+  )
+
+const collectUpdateChangeLines = (): string[] => {
+  const draft = resourceEditDraft.value
+  if (!draft) return []
+
+  const lines: string[] = []
+  const pushIfChanged = (label: string, before: string, after: string): void => {
+    if (before === after) return
+    lines.push(`- ${label}：\`${before || '--'}\` -> \`${after || '--'}\``)
   }
-  return `[ABoooxCC]添加 ${name} ${formatResourceTypeForTitle(restype.value)}`
+
+  pushIfChanged('资源名称', normalizeTextValue(draft.name), normalizeTextValue(itemName.value))
+  pushIfChanged('资源描述', normalizeTextValue(draft.description), normalizeTextValue(itemDescription.value))
+  pushIfChanged('资源类型', normalizeTextValue(draft.restype), normalizeTextValue(restype.value))
+  pushIfChanged('付费类型', normalizeTextValue(draft.paidType), normalizeTextValue(paidType.value))
+  pushIfChanged('图标', normalizeTextValue(draft.icon), normalizeTextValue(iconPath.value))
+  pushIfChanged('封面', normalizeTextValue(draft.cover), normalizeTextValue(coverPath.value))
+
+  const beforePreview = normalizeStringArray(draft.previews).join('|')
+  const afterPreview = normalizeStringArray(previewItems.value.map(item => item.path)).join('|')
+  if (beforePreview !== afterPreview) {
+    lines.push(`- 预览图：共 ${normalizeStringArray(draft.previews).length} 张 -> ${normalizeStringArray(previewItems.value.map(item => item.path)).length} 张`)
+  }
+
+  const beforeTags = normalizeStringArray(draft.tags).join('|')
+  const afterTags = normalizeStringArray(tags.value).join('|')
+  pushIfChanged('标签', beforeTags, afterTags)
+
+  const beforeLinks = normalizeLinks(draft.links)
+  const afterLinks = normalizeLinks(links.value)
+  if (beforeLinks !== afterLinks) {
+    lines.push('- 相关链接：已更新')
+  }
+
+  const beforeAuthors = normalizeAuthors(draft.authors)
+  const afterAuthors = normalizeAuthors(authors.value)
+  if (beforeAuthors !== afterAuthors) {
+    lines.push('- 作者信息：已更新')
+  }
+
+  const beforeDownloads = normalizeDownloads(draft.downloads)
+  const afterDownloads = normalizeDownloads(downloads.value)
+  if (beforeDownloads !== afterDownloads) {
+    lines.push('- 下载资源（downloads）：已更新')
+  }
+
+  return lines
 }
 
 const buildAutoPrBody = (): string => {
-  const normalizedTagText = tags.value
-    .map(tag => tag.trim())
-    .filter(Boolean)
-    .join(' / ') || '无'
-
-  const supportDevices = selectedDeviceIds.value
-    .map(id => `- ${id}（${getDeviceLabel(id)}）`)
-    .join('\n') || '- 无'
-
+  const changeLines = collectUpdateChangeLines()
   const repoUrl = uploadedRepoUrl.value || `https://github.com/${uploadedRepoOwner.value || currentUser.value || '--'}/${uploadedRepoName.value || resolvedRepoName.value || '--'}`
   const shortHash = uploadedCommitSha.value ? uploadedCommitSha.value.slice(0, 7) : '--'
-  const iconFile = iconPath.value.trim()
-  const coverFile = coverPath.value.trim()
-
-  const previewSection = previewItems.value.length
-    ? previewItems.value
-        .map(item => `- \`${item.path}\`\n  ${getRawUrl(item.path)}`)
-        .join('\n')
-    : '- 无'
-
-  const downloadsSection = selectedDeviceIds.value.length
-    ? selectedDeviceIds.value
-        .map(deviceId => {
-          const entry = downloads.value[deviceId]
-          if (!entry) return `- \`${deviceId}\`\n  - version: \`--\`\n  - file: \`--\`\n  - raw: --`
-          const filePath = entry.file_name.trim()
-          return [
-            `- \`${deviceId}\``,
-            `  - version: \`${entry.version.trim() || '--'}\``,
-            `  - file: \`${filePath || '--'}\``,
-            `  - raw: ${filePath ? getRawUrl(filePath) : '--'}`
-          ].join('\n')
-        })
-        .join('\n')
-    : '- 无'
-
-  const linksSection = links.value.length
-    ? links.value
-        .filter(link => link.icon.trim() || link.title.trim() || link.url.trim())
-        .map(link => `- ${link.title.trim() || '未命名链接'}（${link.icon.trim() || '无图标'}）：${link.url.trim() || '--'}`)
-        .join('\n') || '- 无'
-    : '- 无'
 
   return [
-    '## 资源信息',
+    '## 本次变更',
     '',
-    `- 资源名称：${itemName.value.trim() || '--'}`,
-    `- 资源 ID：${itemId.value.trim() || '--'}`,
-    `- 资源类型：${formatResourceTypeForTitle(restype.value)}（${formatResourceTypeForCatalog(restype.value)}）`,
-    `- 提交版本：${submitModeLabel.value}`,
-    `- 付费类型：${formatPaidTypeLabel(paidType.value)}`,
-    `- 标签：${normalizedTagText}`,
-    '',
-    '## 支持设备',
-    '',
-    supportDevices,
+    ...(changeLines.length > 0 ? changeLines : ['- 未检测到字段变化（仅同步仓库文件）']),
     '',
     '## 仓库信息',
     '',
     `- 资源仓库：${repoUrl}`,
     `- 提交短哈希：\`${shortHash}\``,
-    '',
-    '## 图片资源（Raw）',
-    '',
-    `- Icon：\`${iconFile || '--'}\`  `,
-    iconFile ? getRawUrl(iconFile) : '--',
-    `- Cover：\`${coverFile || '--'}\`  `,
-    coverFile ? getRawUrl(coverFile) : '--',
-    '- Preview：',
-    previewSection,
-    '',
-    '## 下载资源（downloads）',
-    '',
-    downloadsSection,
-    '',
-    '## 链接（manifest_v2.links）',
-    '',
-    linksSection,
     '',
     '---',
     '此 PR 由 AstroBooox Cretor Console（https://astrobooox-ng.waijade.cn/cc/）生成，如有问题前往 https://github.com/CheongSzesuen/AstroBooox/issues 提交 issue。'
