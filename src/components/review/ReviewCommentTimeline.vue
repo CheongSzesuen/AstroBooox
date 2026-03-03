@@ -270,6 +270,13 @@ const getReplyTargetId = (replyTarget: string): number | null => {
   return Number.isFinite(id) ? id : null
 }
 
+const highlightReviewCommentElement = (element: HTMLElement): void => {
+  element.classList.add('ring-2', 'ring-primary/70', 'shadow-sm')
+  setTimeout(() => {
+    element.classList.remove('ring-2', 'ring-primary/70', 'shadow-sm')
+  }, 1500)
+}
+
 const scrollToReplyTarget = async (replyTarget: string): Promise<void> => {
   const id = getReplyTargetId(replyTarget)
   if (!id) return
@@ -278,6 +285,7 @@ const scrollToReplyTarget = async (replyTarget: string): Promise<void> => {
     const element = document.querySelector(selector)
     if (element instanceof HTMLElement) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      highlightReviewCommentElement(element)
       return
     }
     await new Promise(resolve => setTimeout(resolve, 80))

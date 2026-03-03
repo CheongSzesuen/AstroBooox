@@ -3015,6 +3015,13 @@ const openReviewCommentResultDialog = (title: string, message: string): void => 
   reviewCommentResultDialogOpen.value = true
 }
 
+const highlightReviewCommentElement = (element: HTMLElement): void => {
+  element.classList.add('ring-2', 'ring-primary/70', 'shadow-sm')
+  setTimeout(() => {
+    element.classList.remove('ring-2', 'ring-primary/70', 'shadow-sm')
+  }, 1500)
+}
+
 const scrollToReviewCommentById = async (commentId: number): Promise<void> => {
   const selector = `[data-review-comment-id="${commentId}"]`
   for (let i = 0; i < 8; i += 1) {
@@ -3022,6 +3029,7 @@ const scrollToReviewCommentById = async (commentId: number): Promise<void> => {
     const element = document.querySelector(selector)
     if (element instanceof HTMLElement) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      highlightReviewCommentElement(element)
       return
     }
     await new Promise(resolve => setTimeout(resolve, 80))
