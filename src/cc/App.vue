@@ -67,17 +67,17 @@
               type="button"
               class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
               :class="{ 'bg-accent': showUserMenu }"
-              :title="currentUser ? `当前用户：${currentUser}` : '未校验 Token'"
+              :title="currentUser ? `当前用户：${displayUserName}` : '未校验 Token'"
               @click="toggleUserMenu"
             >
               <img
-                v-if="avatarUrl"
-                :src="avatarUrl"
+                v-if="displayAvatarUrl"
+                :src="displayAvatarUrl"
                 alt="User Avatar"
                 class="h-6 w-6 rounded-full border border-border object-cover"
               />
               <UserCircle v-else :size="18" weight="duotone" class="text-muted-foreground" />
-              <span class="hidden sm:inline">{{ currentUser || '未校验 Token' }}</span>
+              <span class="hidden sm:inline">{{ displayUserName || '未校验 Token' }}</span>
               <CaretDown :size="14" weight="bold" class="text-muted-foreground" />
             </button>
 
@@ -179,16 +179,17 @@
                 </div>
                 <div class="space-y-3">
                   <div class="space-y-1.5">
-                    <Label for="cc-setting-owner">Owner</Label>
-                    <Input id="cc-setting-owner" v-model="settingsForm.defaultTargetOwner" placeholder="AstralSightStudios" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="cc-setting-repo">Repo</Label>
-                    <Input id="cc-setting-repo" v-model="settingsForm.defaultTargetRepo" placeholder="AstroBox-Repo" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="cc-setting-catalog">Catalog Path</Label>
-                    <Input id="cc-setting-catalog" v-model="settingsForm.defaultCatalogPath" placeholder="index_v2.csv" />
+                    <Label for="cc-setting-owner">Owner / Repo</Label>
+                    <div class="flex items-center gap-2">
+                      <img
+                        :src="settingsOwnerAvatarUrl"
+                        alt="owner avatar"
+                        class="h-7 w-7 shrink-0 rounded-full border border-border bg-muted/30 object-cover"
+                      />
+                      <Input id="cc-setting-owner" v-model="settingsForm.defaultTargetOwner" placeholder="AstralSightStudios" />
+                      <span class="text-sm text-muted-foreground">/</span>
+                      <Input id="cc-setting-repo" v-model="settingsForm.defaultTargetRepo" placeholder="AstroBox-Repo" />
+                    </div>
                   </div>
                   <div class="space-y-1.5">
                     <Label for="cc-setting-owned-priority">已发布展示优先版本</Label>
@@ -202,6 +203,18 @@
                       </SelectContent>
                     </Select>
                   </div>
+                  <div class="space-y-1.5">
+                    <Label for="cc-setting-v2-followup-tag">显示“v2需要跟进”标签</Label>
+                    <Select v-model="settingsForm.showV2FollowUpTag">
+                      <SelectTrigger id="cc-setting-v2-followup-tag">
+                        <SelectValue placeholder="选择显示策略" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="on">显示</SelectItem>
+                        <SelectItem value="off">隐藏</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div class="flex justify-end">
                   <Button @click="saveSettings">保存设置</Button>
@@ -211,11 +224,24 @@
               <div v-else class="space-y-4">
                 <div>
                   <h3 class="text-sm font-semibold text-foreground">账号信息</h3>
-                  <p class="mt-1 text-xs text-muted-foreground">当前登录的 GitHub 会话信息。</p>
+                  <p class="mt-1 text-xs text-muted-foreground">当前登录信息与本地展示资料配置（不修改 GitHub 真实资料）。</p>
                 </div>
                 <div class="rounded-md border border-border bg-muted/20 p-3 text-sm">
-                  <div class="text-xs text-muted-foreground">当前账号</div>
+                  <div class="text-xs text-muted-foreground">GitHub 账号</div>
                   <div class="mt-1 font-medium text-foreground">{{ currentUser || '未登录' }}</div>
+                </div>
+                <div class="space-y-3">
+                  <div class="space-y-1.5">
+                    <Label for="cc-setting-custom-name">显示昵称（本地）</Label>
+                    <Input id="cc-setting-custom-name" v-model="settingsForm.customDisplayName" placeholder="例如：小王同学" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="cc-setting-custom-avatar">头像 URL（本地）</Label>
+                    <Input id="cc-setting-custom-avatar" v-model="settingsForm.customAvatarUrl" placeholder="https://example.com/avatar.png" />
+                  </div>
+                </div>
+                <div class="flex justify-end">
+                  <Button @click="saveSettings">保存设置</Button>
                 </div>
                 <div class="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
                   账号的 Token 管理请通过右上角菜单执行退出后重新登录。
@@ -260,14 +286,26 @@ const tab = ref<'publish' | 'review' | 'published' | 'audit' | 'settings'>('publ
 const { token, currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
 const { clearWorkspace, clearRemoteWorkspace } = useCcWorkspace()
 const { theme, toggleTheme } = useTheme()
-const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath, ownedDisplayPriority, saveDefaults } = useCcSettings()
+const {
+  defaultTargetOwner,
+  defaultTargetRepo,
+  defaultCatalogPath,
+  ownedDisplayPriority,
+  showV2FollowUpTag,
+  customDisplayName,
+  customAvatarUrl,
+  saveDefaults
+} = useCcSettings()
 const showUserMenu = ref(false)
 const userMenuRoot = ref<HTMLElement | null>(null)
 const settingsForm = ref({
   defaultTargetOwner: defaultTargetOwner.value,
   defaultTargetRepo: defaultTargetRepo.value,
   defaultCatalogPath: defaultCatalogPath.value,
-  ownedDisplayPriority: ownedDisplayPriority.value
+  ownedDisplayPriority: ownedDisplayPriority.value,
+  showV2FollowUpTag: showV2FollowUpTag.value ? 'on' : 'off',
+  customDisplayName: customDisplayName.value,
+  customAvatarUrl: customAvatarUrl.value
 })
 const settingsSection = ref<'defaults' | 'account'>('defaults')
 const workbenchMode = computed<'publish' | 'review' | 'published'>(() =>
@@ -282,6 +320,13 @@ const repositoriesUrl = computed(() =>
     ? `https://github.com/${currentUser.value}?tab=repositories`
     : 'https://github.com'
 )
+const settingsOwnerAvatarUrl = computed(() => {
+  const owner = settingsForm.value.defaultTargetOwner.trim()
+  if (!owner) return 'https://github.com/ghost.png'
+  return `https://github.com/${owner}.png`
+})
+const displayUserName = computed(() => customDisplayName.value.trim() || currentUser.value)
+const displayAvatarUrl = computed(() => customAvatarUrl.value.trim() || avatarUrl.value)
 
 const closeUserMenu = (): void => {
   showUserMenu.value = false
@@ -297,7 +342,10 @@ const openSettingsPage = (): void => {
     defaultTargetOwner: defaultTargetOwner.value,
     defaultTargetRepo: defaultTargetRepo.value,
     defaultCatalogPath: defaultCatalogPath.value,
-    ownedDisplayPriority: ownedDisplayPriority.value
+    ownedDisplayPriority: ownedDisplayPriority.value,
+    showV2FollowUpTag: showV2FollowUpTag.value ? 'on' : 'off',
+    customDisplayName: customDisplayName.value,
+    customAvatarUrl: customAvatarUrl.value
   }
   settingsSection.value = 'defaults'
   closeUserMenu()
@@ -305,7 +353,15 @@ const openSettingsPage = (): void => {
 }
 
 const saveSettings = (): void => {
-  saveDefaults(settingsForm.value)
+  saveDefaults({
+    defaultTargetOwner: settingsForm.value.defaultTargetOwner,
+    defaultTargetRepo: settingsForm.value.defaultTargetRepo,
+    defaultCatalogPath: settingsForm.value.defaultCatalogPath,
+    ownedDisplayPriority: settingsForm.value.ownedDisplayPriority,
+    showV2FollowUpTag: settingsForm.value.showV2FollowUpTag === 'on',
+    customDisplayName: settingsForm.value.customDisplayName,
+    customAvatarUrl: settingsForm.value.customAvatarUrl
+  })
 }
 
 const handleGlobalPointerDown = (event: MouseEvent): void => {

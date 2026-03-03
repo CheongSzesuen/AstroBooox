@@ -1047,7 +1047,7 @@
                       <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
                       <Badge v-if="item.sources.includes('v1')" variant="outline">V1</Badge>
                       <Badge v-if="item.sources.includes('v2')" variant="outline">V2</Badge>
-                      <Badge v-if="item.v2NeedsFollowUp" variant="destructive">v2需要跟进</Badge>
+                      <Badge v-if="showV2FollowUpTag && item.v2NeedsFollowUp" variant="destructive">v2需要跟进</Badge>
                     </div>
                   </div>
                   <a
@@ -1253,7 +1253,7 @@ const {
   clearRemoteWorkspace
 } = useCcWorkspace()
 const { appendPublishLog: appendLog, publishLogsText, clearPublishLogs } = useCcPublishLogs()
-const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath, ownedDisplayPriority } = useCcSettings()
+const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath, ownedDisplayPriority, showV2FollowUpTag } = useCcSettings()
 const workspaceBusy = ref(false)
 const newWorkspaceName = ref('')
 const RELEASE_FOLDER_SUFFIX = '_AstroBox_Release'
