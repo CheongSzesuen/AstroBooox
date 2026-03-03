@@ -828,6 +828,20 @@
         </DialogContent>
       </Dialog>
 
+      <Dialog :open="showFileNameConflictDialog" @update:open="showFileNameConflictDialog = $event">
+        <DialogContent class="max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>文件名冲突</DialogTitle>
+            <DialogDescription>
+              {{ fileNameConflictMessage }}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" @click="showFileNameConflictDialog = false">我知道了</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog :open="showRemoteFilePickerDialog" @update:open="showRemoteFilePickerDialog = $event">
         <DialogContent class="flex h-[78vh] w-[95vw] !max-w-[1120px] flex-col overflow-hidden">
           <DialogHeader class="shrink-0">
@@ -843,7 +857,6 @@
               </div>
               <div v-else class="space-y-2">
                 <div class="flex gap-2 max-sm:flex-col">
-                  <Input v-model="remotePickerSearch" placeholder="搜索文件名或路径" />
                   <Button variant="outline" @click="openRemotePickerLocalUpload">本地上传</Button>
                   <input
                     ref="remotePickerLocalInputRef"
@@ -940,6 +953,7 @@
                                   class="flex cursor-pointer items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
                                   @select="createRemotePickerFolder(item.path)"
                                 >
+                                  <FolderPlus :size="14" weight="duotone" class="mr-1.5 shrink-0" />
                                   新建子文件夹
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
@@ -947,6 +961,7 @@
                                   :disabled="!isDraftFolder(item.path)"
                                   @select="startRenameDraftFolder(item.path)"
                                 >
+                                  <NotePencil :size="14" weight="duotone" class="mr-1.5 shrink-0" />
                                   重命名
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
@@ -954,6 +969,7 @@
                                   :disabled="!isDraftFolder(item.path)"
                                   @select="deleteDraftFolder(item.path)"
                                 >
+                                  <TrashIcon :size="14" weight="duotone" class="mr-1.5 shrink-0" />
                                   删除
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -969,12 +985,14 @@
                             class="flex cursor-pointer items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
                             @select="selectRemotePickerFolder(item.path)"
                           >
+                            <CheckCircle :size="14" weight="duotone" class="mr-1.5 shrink-0" />
                             设为目标文件夹
                           </ContextMenuItem>
                           <ContextMenuItem
                             class="flex cursor-pointer items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
                             @select="createRemotePickerFolder(item.path)"
                           >
+                            <FolderPlus :size="14" weight="duotone" class="mr-1.5 shrink-0" />
                             新建子文件夹
                           </ContextMenuItem>
                           <ContextMenuItem
@@ -982,6 +1000,7 @@
                             :disabled="!isDraftFolder(item.path)"
                             @select="startRenameDraftFolder(item.path)"
                           >
+                            <NotePencil :size="14" weight="duotone" class="mr-1.5 shrink-0" />
                             重命名
                           </ContextMenuItem>
                           <ContextMenuItem
@@ -989,6 +1008,7 @@
                             :disabled="!isDraftFolder(item.path)"
                             @select="deleteDraftFolder(item.path)"
                           >
+                            <TrashIcon :size="14" weight="duotone" class="mr-1.5 shrink-0" />
                             删除
                           </ContextMenuItem>
                         </ContextMenuContent>
@@ -1016,6 +1036,12 @@
                             class="flex cursor-pointer items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
                             @select="toggleRemotePickerPath(item.path)"
                           >
+                            <component
+                              :is="remotePickerSelectedPaths.includes(item.path) ? MinusIcon : CheckCircle"
+                              :size="14"
+                              weight="duotone"
+                              class="mr-1.5 shrink-0"
+                            />
                             {{ remotePickerSelectedPaths.includes(item.path) ? '取消选择' : '选择文件' }}
                           </ContextMenuItem>
                         </ContextMenuContent>
@@ -1704,6 +1730,7 @@ import {
   PhImageSquare as ImageSquare,
   PhMinus as MinusIcon,
   PhNotePencil as NotePencil,
+  PhTrash as TrashIcon,
   PhUploadSimple as UploadSimple,
   PhWarningCircle as WarningCircle
 } from '@phosphor-icons/vue'
@@ -1888,6 +1915,8 @@ const showImageValidationDialog = ref(false)
 const imageValidationMessage = ref('')
 const showFolderNameValidationDialog = ref(false)
 const folderNameValidationMessage = ref('')
+const showFileNameConflictDialog = ref(false)
+const fileNameConflictMessage = ref('')
 const showUploadCompleteDialog = ref(false)
 const showRemoteFilePickerDialog = ref(false)
 const showLinkIconPicker = ref(false)
@@ -1900,7 +1929,6 @@ const previewItems = ref<Array<{ id: string; path: string }>>([])
 type RemotePickerMode = 'icon' | 'cover' | 'preview' | 'download'
 const remotePickerMode = ref<RemotePickerMode>('preview')
 const remotePickerDeviceId = ref('')
-const remotePickerSearch = ref('')
 const remotePickerSelectedPaths = ref<string[]>([])
 const remotePickerTargetFolder = ref('')
 const remotePickerUploadFileName = ref('')
@@ -2550,23 +2578,18 @@ const remotePickerFolderItems = computed(() => {
 })
 
 const remotePickerTreeItems = computed(() => {
-  const keyword = remotePickerSearch.value.trim().toLowerCase()
   return visibleRemoteItems.value.filter(item => {
-    if (item.type === 'folder') {
-      return !keyword || item.path.toLowerCase().includes(keyword) || item.label.toLowerCase().includes(keyword)
-    }
+    if (item.type === 'folder') return true
     if (
       (remotePickerMode.value === 'icon' || remotePickerMode.value === 'cover' || remotePickerMode.value === 'preview') &&
       !isImageSelectablePath(item.path)
     ) return false
-    if (!keyword) return true
-    return item.path.toLowerCase().includes(keyword) || item.label.toLowerCase().includes(keyword)
+    return true
   })
 })
 
 const remotePickerPreviewPath = computed(() => remotePickerSelectedPaths.value[0] || '')
 const remotePickerLocalItems = computed(() => {
-  const keyword = remotePickerSearch.value.trim().toLowerCase()
   const all = Object.keys(opfsLocalPathSet.value)
   return all
     .filter(path => {
@@ -2574,11 +2597,15 @@ const remotePickerLocalItems = computed(() => {
         (remotePickerMode.value === 'icon' || remotePickerMode.value === 'cover' || remotePickerMode.value === 'preview') &&
         !isImageSelectablePath(path)
       ) return false
-      if (!keyword) return true
-      return path.toLowerCase().includes(keyword)
+      return true
     })
     .sort((a, b) => a.localeCompare(b, 'zh-CN'))
 })
+
+const openFileNameConflictDialog = (repoPath: string): void => {
+  fileNameConflictMessage.value = `路径 "${repoPath}" 已存在同名文件，请修改文件名或目标文件夹后重试。`
+  showFileNameConflictDialog.value = true
+}
 
 const createRemotePickerFolder = (parentPath?: string): void => {
   const folderNameBase = '新建文件夹'
@@ -3420,22 +3447,36 @@ const handleRemotePickerLocalUpload = async (event: Event): Promise<void> => {
   }
 
   const fileList = Array.from(files)
-  const nextSelected: string[] = []
   const targetFolder = sanitizeRepoFolderPath(remotePickerTargetFolder.value)
   remotePickerTargetFolder.value = targetFolder
+  const nextSelected: string[] = []
+  const pendingUploads: Array<{ file: File; repoPath: string }> = []
+  const existingPaths = new Set<string>([
+    ...remoteWorkspaceTree.value.filter(item => item.type === 'file').map(item => item.path),
+    ...Object.keys(opfsLocalPathSet.value)
+  ])
 
   for (let i = 0; i < fileList.length; i++) {
     const file = fileList[i]
     const targetName = buildUploadedFileName(file.name, i, fileList.length)
     const repoPath = buildOpfsRepoPath(remotePickerMode.value, targetName, targetFolder, i)
-    await writeFileToOpfs(repoPath, file)
-    opfsLocalPathSet.value[repoPath] = true
-    if (isImagePath(repoPath)) {
-      const previousUrl = opfsLocalPreviewUrlMap.value[repoPath]
-      if (previousUrl) URL.revokeObjectURL(previousUrl)
-      opfsLocalPreviewUrlMap.value[repoPath] = URL.createObjectURL(file)
+    if (existingPaths.has(repoPath)) {
+      openFileNameConflictDialog(repoPath)
+      return
     }
-    nextSelected.push(repoPath)
+    existingPaths.add(repoPath)
+    pendingUploads.push({ file, repoPath })
+  }
+
+  for (const pending of pendingUploads) {
+    await writeFileToOpfs(pending.repoPath, pending.file)
+    opfsLocalPathSet.value[pending.repoPath] = true
+    if (isImagePath(pending.repoPath)) {
+      const previousUrl = opfsLocalPreviewUrlMap.value[pending.repoPath]
+      if (previousUrl) URL.revokeObjectURL(previousUrl)
+      opfsLocalPreviewUrlMap.value[pending.repoPath] = URL.createObjectURL(pending.file)
+    }
+    nextSelected.push(pending.repoPath)
   }
 
   if (remotePickerMode.value === 'preview') {
@@ -3505,7 +3546,6 @@ const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
 
   remotePickerMode.value = mode
   remotePickerDeviceId.value = deviceId
-  remotePickerSearch.value = ''
   remotePickerSelectedPaths.value = []
   remotePickerUploadFileName.value = ''
   remotePickerStep.value = 1
