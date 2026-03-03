@@ -1044,6 +1044,7 @@
                   <div class="min-w-0">
                     <div class="flex items-center gap-1.5">
                       <div class="truncate text-sm font-semibold text-foreground">{{ item.name }}</div>
+                      <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
                       <Badge v-if="item.sources.includes('v1')" variant="outline">V1</Badge>
                       <Badge v-if="item.sources.includes('v2')" variant="outline">V2</Badge>
                     </div>
@@ -1061,9 +1062,6 @@
                 </div>
                 <div class="mt-1 line-clamp-2 text-xs text-muted-foreground">
                   {{ item.description || '暂无描述' }}
-                </div>
-                <div class="mt-1 flex items-center gap-2">
-                  <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
                 </div>
                 <div v-if="item.commitDate" class="mt-1 text-xs text-muted-foreground">
                   上次更新时间: {{ formatDate(item.commitDate) }}
