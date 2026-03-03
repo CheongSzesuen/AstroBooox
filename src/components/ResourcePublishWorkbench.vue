@@ -1498,7 +1498,11 @@ const emit = defineEmits<{
   (event: 'request-route', state: CcRouteState): void
 }>()
 const mode = computed<WorkbenchMode>(() => props.mode)
-const { setDraft: setResourceEditDraft } = useCcResourceEdit()
+const {
+  draft: resourceEditDraft,
+  setDraft: setResourceEditDraft,
+  clearDraft: clearResourceEditDraft
+} = useCcResourceEdit()
 
 const { token, currentUser } = useCcSession()
 const {
@@ -1524,6 +1528,7 @@ const fileTreeTab = ref<'workspace' | 'remote'>('workspace')
 const collapsedWorkspaceFolders = ref<string[]>([])
 const collapsedRemoteFolders = ref<string[]>([])
 const submitMode = ref<SubmitMode>('v2')
+const isResourceUpdateMode = ref(false)
 const showSubmitVersionDialog = ref(false)
 
 const workspaceHandle = computed<WorkspaceDirectoryHandle | null>(
@@ -1622,6 +1627,7 @@ const ownedSupportFilter = ref<'all' | 'v1_only' | 'v2_only' | 'both'>('all')
 
 interface OwnedMergedItem {
   key: string
+  catalogId: string
   name: string
   restype: string
   icon: string
@@ -1629,6 +1635,10 @@ interface OwnedMergedItem {
   repo_name: string
   repo_commit_hash: string
   description: string
+  tags: string
+  device_vendors: string
+  devices: string
+  paid_type: string
   commitDate: string
   sources: Array<'v1' | 'v2'>
   v1RepoCommitHash: string
@@ -1653,6 +1663,7 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
     if (!existing) {
       grouped.set(key, {
         key,
+        catalogId: item.catalogId,
         name: item.name,
         restype: item.restype,
         icon: item.icon,
@@ -1660,6 +1671,10 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
         repo_name: item.repo_name,
         repo_commit_hash: item.repo_commit_hash,
         description: item.description,
+        tags: item.tags,
+        device_vendors: item.device_vendors,
+        devices: item.devices,
+        paid_type: item.paid_type,
         commitDate: item.commitDate,
         sources: [item.source],
         v1RepoCommitHash: item.source === 'v1' ? item.repo_commit_hash : '',
@@ -1691,6 +1706,11 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
         existing.repo_name = item.repo_name || existing.repo_name
         existing.repo_commit_hash = item.repo_commit_hash || existing.repo_commit_hash
         existing.description = item.description || existing.description
+        existing.tags = item.tags || existing.tags
+        existing.device_vendors = item.device_vendors || existing.device_vendors
+        existing.devices = item.devices || existing.devices
+        existing.paid_type = item.paid_type || existing.paid_type
+        existing.catalogId = item.catalogId || existing.catalogId
         existing.commitDate = item.commitDate || existing.commitDate
       }
     } else {
@@ -1699,6 +1719,21 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
       }
       if (!existing.commitDate && item.commitDate) {
         existing.commitDate = item.commitDate
+      }
+      if (!existing.tags && item.tags) {
+        existing.tags = item.tags
+      }
+      if (!existing.device_vendors && item.device_vendors) {
+        existing.device_vendors = item.device_vendors
+      }
+      if (!existing.devices && item.devices) {
+        existing.devices = item.devices
+      }
+      if (!existing.paid_type && item.paid_type) {
+        existing.paid_type = item.paid_type
+      }
+      if (!existing.catalogId && item.catalogId) {
+        existing.catalogId = item.catalogId
       }
     }
     if (item.source === 'v2' && item.v2NeedsFollowUp) {
@@ -2337,6 +2372,9 @@ const normalizedLegacyDevicesText = computed(() =>
 
 const buildAutoPrTitle = (): string => {
   const name = itemName.value.trim() || '未命名资源'
+  if (isResourceUpdateMode.value) {
+    return `[ABoooxCC]更新 ${name} ${formatResourceTypeForTitle(restype.value)}`
+  }
   return `[ABoooxCC]添加 ${name} ${formatResourceTypeForTitle(restype.value)}`
 }
 
@@ -2557,6 +2595,52 @@ const addTag = (): void => {
 
 const removeTag = (index: number): void => {
   tags.value.splice(index, 1)
+}
+
+const applyResourceEditDraft = (): void => {
+  const draft = resourceEditDraft.value
+  if (!draft) return
+
+  resetResourceInfoFields()
+  isResourceUpdateMode.value = true
+  submitMode.value = 'v2'
+
+  itemId.value = draft.catalogId.trim()
+  itemName.value = draft.name.trim()
+  restype.value = normalizeOwnedRestype(draft.restype) === 'watchface' ? 'watchface' : 'quickapp'
+  paidType.value = draft.paidType.trim()
+  itemDescription.value = draft.description.trim()
+  tags.value = draft.tags.map(tag => tag.trim()).filter(Boolean)
+  iconPath.value = draft.icon.trim()
+  coverPath.value = draft.cover.trim()
+  previewItems.value = draft.previews
+    .map(path => path.trim())
+    .filter(Boolean)
+    .map(path => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      path
+    }))
+
+  const normalizedDeviceIds = draft.devices
+    .split(/[;；,，]/)
+    .map(token => normalizeDeviceToken(token))
+    .filter(Boolean)
+  selectedDeviceIds.value = [...new Set(normalizedDeviceIds)]
+  downloads.value = {}
+  selectedDeviceIds.value.forEach((deviceId) => ensureDownload(deviceId))
+
+  upstreamOwner.value = defaultTargetOwner.value.trim()
+  upstreamRepo.value = defaultTargetRepo.value.trim()
+  catalogPath.value = defaultCatalogPath.value.trim()
+  repoName.value = draft.repoName.trim()
+  uploadedRepoOwner.value = draft.repoOwner.trim()
+  uploadedRepoName.value = draft.repoName.trim()
+  uploadedRepoUrl.value = `https://github.com/${draft.repoOwner.trim()}/${draft.repoName.trim()}`
+  uploadedCommitSha.value = draft.repoCommitHash.trim()
+  latestPrUrl.value = ''
+
+  activeStep.value = 1
+  appendLog(`已载入资源更新草稿：${draft.repoOwner}/${draft.repoName}`)
 }
 
 const pickFileFromWorkspace = async (): Promise<PickedWorkspaceFile | null> => {
@@ -3030,6 +3114,7 @@ const loadRemoteRepoTree = async (
   })
 
 const resetResourceInfoFields = (): void => {
+  isResourceUpdateMode.value = false
   itemId.value = ''
   itemName.value = ''
   restype.value = 'quickapp'
@@ -3953,18 +4038,6 @@ const normalizeCatalogText = (value: unknown): string => {
   return String(value || '').trim()
 }
 
-const resolveV2CatalogIdFromOwnedItems = (owner: string, repo: string): string => {
-  const matched = ownedItems.value.find(item =>
-    item.source === 'v2' &&
-    item.repo_owner.trim().toLowerCase() === owner.trim().toLowerCase() &&
-    item.repo_name.trim().toLowerCase() === repo.trim().toLowerCase()
-  )
-  if (!matched?.key) return ''
-  const segments = matched.key.split(':')
-  if (segments.length < 3) return ''
-  return segments[1].trim()
-}
-
 const startEditOwnedResource = (): void => {
   const current = selectedOwnedItem.value
   const detail = ownedDetail.value
@@ -3996,9 +4069,7 @@ const startEditOwnedResource = (): void => {
   const parsedRestype = String(item.restype || current.restype || '').trim()
   const normalizedRestype = normalizeOwnedRestype(parsedRestype)
   const restype = normalizedRestype === 'watchface' ? 'watchface' : 'quickapp'
-  const catalogId =
-    String(item.id || '').trim() ||
-    resolveV2CatalogIdFromOwnedItems(current.repo_owner, current.repo_name)
+  const catalogId = String(current.catalogId || item.id || '').trim()
 
   setResourceEditDraft({
     key: current.key,
@@ -4009,10 +4080,10 @@ const startEditOwnedResource = (): void => {
     name: String(item.name || current.name || '').trim(),
     restype,
     description: String(item.description || current.description || '').trim(),
-    tags: extractTagList(item.tags),
-    deviceVendors: normalizeCatalogText(item.device_vendors),
-    devices: normalizeCatalogText(item.devices),
-    paidType: normalizeCatalogText(item.paid_type),
+    tags: extractTagList(current.tags || item.tags),
+    deviceVendors: normalizeCatalogText(current.device_vendors || item.device_vendors),
+    devices: normalizeCatalogText(current.devices || item.devices),
+    paidType: normalizeCatalogText(current.paid_type || item.paid_type),
     icon: String(item.icon || current.icon || '').trim(),
     cover: String(item.cover || '').trim(),
     previews: previewPaths
@@ -4054,6 +4125,17 @@ const formatOwnedRestype = (value: string): string => {
   if (normalized === 'quickapp') return '快应用'
   return value
 }
+
+watch(
+  () => [mode.value, resourceEditDraft.value?.key || ''] as const,
+  ([currentMode, draftKey]) => {
+    if (currentMode !== 'publish') return
+    if (!draftKey) return
+    applyResourceEditDraft()
+    clearResourceEditDraft()
+  },
+  { immediate: true }
+)
 
 watch(
   () => [mode.value, canLoadList.value] as const,

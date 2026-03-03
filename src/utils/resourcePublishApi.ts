@@ -63,6 +63,7 @@ export interface LegacyCatalogEntry {
 export interface OwnedResourceEntry {
   source: 'v1' | 'v2'
   key: string
+  catalogId: string
   name: string
   restype: string
   icon: string
@@ -70,6 +71,10 @@ export interface OwnedResourceEntry {
   repo_name: string
   repo_commit_hash: string
   description: string
+  tags: string
+  device_vendors: string
+  devices: string
+  paid_type: string
   commitDate: string
   v2NeedsFollowUp: boolean
 }
@@ -1191,6 +1196,7 @@ export const loadOwnedResources = async (params: {
       return {
         source: 'v2' as const,
         key: `v2:${entry.id}:${entry.repo_owner}/${entry.repo_name}`,
+        catalogId: entry.id,
         name: entry.name,
         restype: entry.restype,
         icon: entry.icon,
@@ -1198,6 +1204,10 @@ export const loadOwnedResources = async (params: {
         repo_name: entry.repo_name,
         repo_commit_hash: entry.repo_commit_hash,
         description,
+        tags: entry.tags || '',
+        device_vendors: entry.device_vendors || '',
+        devices: entry.devices || '',
+        paid_type: entry.paid_type || '',
         commitDate,
         v2NeedsFollowUp
       }
@@ -1274,6 +1284,7 @@ export const loadOwnedResources = async (params: {
       return {
         source: 'v1' as const,
         key: `v1:${entry.path || entry.name}:${index}`,
+        catalogId: '',
         name: entry.name,
         restype: entry.restype,
         icon: entry.icon,
@@ -1281,6 +1292,10 @@ export const loadOwnedResources = async (params: {
         repo_name: repoName,
         repo_commit_hash: repoRef,
         description,
+        tags: entry.tags || '',
+        device_vendors: '',
+        devices: entry.devices || '',
+        paid_type: entry.paid_type || '',
         commitDate: '',
         v2NeedsFollowUp: false
       }

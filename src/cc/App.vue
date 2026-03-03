@@ -143,10 +143,6 @@
           :repo="defaultTargetRepo"
           :token="token"
         />
-        <CcResourceEditWorkbench
-          v-else-if="tab === 'resource_edit'"
-          @back="navigateToTab('published')"
-        />
         <div v-else-if="tab === 'settings'" class="w-full max-w-[1120px] space-y-4">
           <div>
             <h2 class="text-base font-semibold text-foreground">Settings</h2>
@@ -379,7 +375,6 @@ import {
   PhUsers as Users
 } from '@phosphor-icons/vue'
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
-import CcResourceEditWorkbench from '@/components/CcResourceEditWorkbench.vue'
 import CcPrReviewWorkbench from '@/components/CcPrReviewWorkbench.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
