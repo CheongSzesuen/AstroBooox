@@ -3511,9 +3511,7 @@ const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
   remotePickerStep.value = 1
   remotePickerDraftFolders.value = []
   cancelRenameDraftFolder()
-  collapsedRemoteFolders.value = remoteWorkspaceTree.value
-    .filter(item => item.type === 'folder')
-    .map(item => item.path)
+  collapsedRemoteFolders.value = []
   remotePickerTargetFolder.value = getDefaultUploadFolder(mode)
   showRemoteFilePickerDialog.value = true
 }
