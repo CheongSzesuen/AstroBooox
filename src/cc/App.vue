@@ -373,13 +373,16 @@ import { useCcSession } from '@/composables/useCcSession'
 import { useCcWorkspace } from '@/composables/useCcWorkspace'
 import { useTheme } from '@/composables/useTheme'
 import { getAuthenticatedProfile, type GitHubAuthenticatedProfile } from '@/utils/githubGitApi'
-
-type CcTab = 'publish' | 'review' | 'published' | 'audit' | 'settings'
-type SettingsSection = 'defaults' | 'account'
-type CcRouteState = {
-  tab: CcTab
-  settingsSection: SettingsSection
-}
+import {
+  CC_DEFAULT_ROUTE,
+  CC_PATHS,
+  buildCcPath,
+  isCcLoginPath,
+  resolveCcRouteFromPath,
+  type CcRouteState,
+  type CcSettingsSection,
+  type CcTab
+} from '@/cc/route-config'
 
 const tab = ref<CcTab>('publish')
 const { token, currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
@@ -409,7 +412,7 @@ const settingsForm = ref({
 const accountProfileLoading = ref(false)
 const accountProfileError = ref('')
 const accountProfile = ref<GitHubAuthenticatedProfile | null>(null)
-const settingsSection = ref<SettingsSection>('defaults')
+const settingsSection = ref<CcSettingsSection>('defaults')
 const routeProgress = ref(0)
 const routeProgressVisible = ref(false)
 let routeProgressTimer: ReturnType<typeof setInterval> | null = null
@@ -437,37 +440,14 @@ const formatDateTime = (value?: string): string => {
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
-const resolveRouteFromPath = (pathname: string): CcRouteState => {
-  const cleaned = pathname
-    .replace(/\/+$/, '')
-    .replace(/^\/+/, '')
-  const parts = cleaned.split('/').filter(Boolean)
-  if (parts[0] !== 'cc') {
-    return { tab: 'publish', settingsSection: 'defaults' }
+const resolveRouteFromLocation = (): CcRouteState => {
+  if (typeof window === 'undefined') return CC_DEFAULT_ROUTE
+  const searchParams = new URLSearchParams(window.location.search)
+  const redirectedPath = searchParams.get('cc_path')
+  if (redirectedPath && redirectedPath.startsWith('/cc')) {
+    return resolveCcRouteFromPath(redirectedPath)
   }
-  const section = parts[1] || 'publish'
-  if (section === 'publish') return { tab: 'publish', settingsSection: 'defaults' }
-  if (section === 'review') return { tab: 'review', settingsSection: 'defaults' }
-  if (section === 'published') return { tab: 'published', settingsSection: 'defaults' }
-  if (section === 'audit') return { tab: 'audit', settingsSection: 'defaults' }
-  if (section === 'settings') {
-    return {
-      tab: 'settings',
-      settingsSection: parts[2] === 'account' ? 'account' : 'defaults'
-    }
-  }
-  return { tab: 'publish', settingsSection: 'defaults' }
-}
-
-const buildPathByState = (state: CcRouteState): string => {
-  if (state.tab === 'settings') {
-    if (state.settingsSection === 'account') return '/cc/settings/account'
-    return '/cc/settings'
-  }
-  if (state.tab === 'publish') return '/cc/publish'
-  if (state.tab === 'review') return '/cc/review'
-  if (state.tab === 'published') return '/cc/published'
-  return '/cc/audit'
+  return resolveCcRouteFromPath(window.location.pathname)
 }
 
 const startRouteProgress = (): void => {
@@ -509,7 +489,7 @@ const applyRouteState = (
   settingsSection.value = state.settingsSection
 
   if (options?.syncUrl !== false && typeof window !== 'undefined') {
-    const targetPath = buildPathByState(state)
+    const targetPath = buildCcPath(state)
     if (window.location.pathname !== targetPath) {
       const method = options?.replace ? 'replaceState' : 'pushState'
       window.history[method](null, '', targetPath)
@@ -531,7 +511,7 @@ const navigateToTab = (nextTab: CcTab): void => {
   applyRouteState(nextState, { withProgress: true })
 }
 
-const openSettingsSection = (section: SettingsSection): void => {
+const openSettingsSection = (section: CcSettingsSection): void => {
   applyRouteState(
     {
       tab: 'settings',
@@ -610,7 +590,8 @@ const handleEscapeKey = (event: KeyboardEvent): void => {
 }
 
 const handlePopState = (): void => {
-  applyRouteState(resolveRouteFromPath(window.location.pathname), {
+  if (!isAuthenticated.value) return
+  applyRouteState(resolveCcRouteFromPath(window.location.pathname), {
     syncUrl: false,
     withProgress: true
   })
@@ -625,18 +606,49 @@ const handleSignOut = (): void => {
   clearWorkspace()
   clearRemoteWorkspace()
   clearSession()
-  applyRouteState({ tab: 'publish', settingsSection: 'defaults' }, { replace: true, withProgress: false })
+  if (typeof window !== 'undefined') {
+    window.history.replaceState(null, '', CC_PATHS.login)
+  }
 }
 
 onMounted(() => {
-  applyRouteState(resolveRouteFromPath(window.location.pathname), {
-    replace: true,
-    withProgress: false
-  })
+  if (!isAuthenticated.value) {
+    if (!isCcLoginPath(window.location.pathname)) {
+      window.history.replaceState(null, '', CC_PATHS.login)
+    }
+  } else {
+    applyRouteState(resolveRouteFromLocation(), {
+      replace: true,
+      withProgress: false
+    })
+    if (window.location.pathname === CC_PATHS.root && window.location.search) {
+      const searchParams = new URLSearchParams(window.location.search)
+      if (searchParams.has('cc_path')) {
+        const targetPath = buildCcPath(resolveRouteFromLocation())
+        window.history.replaceState(null, '', targetPath)
+      }
+    }
+  }
   window.addEventListener('popstate', handlePopState)
   document.addEventListener('mousedown', handleGlobalPointerDown)
   document.addEventListener('keydown', handleEscapeKey)
 })
+
+watch(
+  () => isAuthenticated.value,
+  authed => {
+    if (typeof window === 'undefined') return
+    if (!authed) {
+      if (!isCcLoginPath(window.location.pathname)) {
+        window.history.replaceState(null, '', CC_PATHS.login)
+      }
+      return
+    }
+    if (isCcLoginPath(window.location.pathname)) {
+      applyRouteState(CC_DEFAULT_ROUTE, { replace: true, withProgress: false })
+    }
+  }
+)
 
 watch(
   () => [tab.value, settingsSection.value, token.value] as const,

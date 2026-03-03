@@ -14,8 +14,12 @@ const router = createRouter({
 
           if (pathname.startsWith('/cc/help')) {
             window.location.replace(`${origin}/cc/help/${search}${hash}`)
-          } else {
+          } else if (pathname === '/cc' || pathname === '/cc/') {
             window.location.replace(`${origin}/cc/${search}${hash}`)
+          } else {
+            const redirectedPath = encodeURIComponent(pathname)
+            const queryPrefix = search ? `${search}&` : '?'
+            window.location.replace(`${origin}/cc/${queryPrefix}cc_path=${redirectedPath}${hash}`)
           }
         }
         return false
