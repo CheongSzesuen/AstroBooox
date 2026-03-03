@@ -111,12 +111,14 @@
           />
         </div>
         <div
+          :data-review-comment-content-id="String(comment.id)"
           class="pt-1 break-words text-foreground"
           :class="isCollapsed(comment) ? 'max-h-36 overflow-hidden' : ''"
         >
           <span
             v-if="parsedOf(comment).tagId"
-            class="mr-1 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground"
+            class="mr-1 inline-flex items-center rounded border px-2 py-0.5 text-[11px]"
+            :class="getTagBadgeClass(parsedOf(comment).tagType)"
           >
             {{ parsedOf(comment).tagType || 'COMMENT' }} · {{ parsedOf(comment).tagId }}
           </span>
@@ -263,6 +265,11 @@ const parsedOf = (comment: ReviewCommentItem): ParsedReviewComment =>
 
 const renderCommentHtml = (content: string): string => renderCommentMarkdownHtml(content)
 const renderCommentInlineHtml = (content: string): string => renderCommentMarkdownInlineHtml(content)
+const getTagBadgeClass = (tagType: ParsedReviewComment['tagType']): string => {
+  if (tagType === 'NEEDFIX') return 'border-red-500/40 bg-red-500/15 text-red-700'
+  if (tagType === 'FIXED') return 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700'
+  return 'border-border bg-muted/30 text-muted-foreground'
+}
 const getReplyTargetId = (replyTarget: string): number | null => {
   const match = replyTarget.match(/#(\d+)/)
   if (!match) return null
@@ -271,16 +278,16 @@ const getReplyTargetId = (replyTarget: string): number | null => {
 }
 
 const highlightReviewCommentElement = (element: HTMLElement): void => {
-  element.classList.add('ring-2', 'ring-primary/70', 'shadow-sm')
+  element.classList.add('rounded-md', 'bg-primary/10', 'transition-colors')
   setTimeout(() => {
-    element.classList.remove('ring-2', 'ring-primary/70', 'shadow-sm')
+    element.classList.remove('rounded-md', 'bg-primary/10', 'transition-colors')
   }, 1500)
 }
 
 const scrollToReplyTarget = async (replyTarget: string): Promise<void> => {
   const id = getReplyTargetId(replyTarget)
   if (!id) return
-  const selector = `[data-review-comment-id="${id}"]`
+  const selector = `[data-review-comment-content-id="${id}"]`
   for (let i = 0; i < 8; i += 1) {
     const element = document.querySelector(selector)
     if (element instanceof HTMLElement) {

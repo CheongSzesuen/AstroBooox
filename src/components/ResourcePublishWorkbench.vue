@@ -1392,8 +1392,14 @@ const stripReleaseFolderSuffix = (raw: string): string =>
 
 const buildReviewCommentPreviewCardHtml = (body: string): string => {
   const parsed = parseReviewCommentBody(body)
+  const tagClass =
+    parsed.tagType === 'NEEDFIX'
+      ? 'border-red-500/40 bg-red-500/15 text-red-700'
+      : parsed.tagType === 'FIXED'
+        ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700'
+        : 'border-border bg-muted/30 text-muted-foreground'
   const tag = parsed.tagId
-    ? `<span class="mr-1 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">${escapeHtml(parsed.tagType || 'COMMENT')} · ${escapeHtml(parsed.tagId)}</span>`
+    ? `<span class="mr-1 inline-flex items-center rounded border px-2 py-0.5 text-[11px] ${tagClass}">${escapeHtml(parsed.tagType || 'COMMENT')} · ${escapeHtml(parsed.tagId)}</span>`
     : ''
   const reply = parsed.replyTarget
     ? `<div class="mb-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground"><div class="font-medium text-foreground">回复 ${escapeHtml(parsed.replyTarget)}</div>${parsed.replyExcerpt ? `<div class="mt-1">${renderCommentMarkdownHtml(parsed.replyExcerpt)}</div>` : ''}</div>`
@@ -3016,14 +3022,14 @@ const openReviewCommentResultDialog = (title: string, message: string): void => 
 }
 
 const highlightReviewCommentElement = (element: HTMLElement): void => {
-  element.classList.add('ring-2', 'ring-primary/70', 'shadow-sm')
+  element.classList.add('rounded-md', 'bg-primary/10', 'transition-colors')
   setTimeout(() => {
-    element.classList.remove('ring-2', 'ring-primary/70', 'shadow-sm')
+    element.classList.remove('rounded-md', 'bg-primary/10', 'transition-colors')
   }, 1500)
 }
 
 const scrollToReviewCommentById = async (commentId: number): Promise<void> => {
-  const selector = `[data-review-comment-id="${commentId}"]`
+  const selector = `[data-review-comment-content-id="${commentId}"]`
   for (let i = 0; i < 8; i += 1) {
     await nextTick()
     const element = document.querySelector(selector)

@@ -1227,8 +1227,14 @@ const addCommentReference = (path: string, line: number | null): void => {
 
 const buildCommentPreviewCardHtml = (body: string): string => {
   const parsed = parseReviewCommentBody(body)
+  const tagClass =
+    parsed.tagType === 'NEEDFIX'
+      ? 'border-red-500/40 bg-red-500/15 text-red-700'
+      : parsed.tagType === 'FIXED'
+        ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700'
+        : 'border-border bg-muted/30 text-muted-foreground'
   const tag = parsed.tagId
-    ? `<span class="mr-1 inline-flex items-center rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">${escapeHtml(parsed.tagType || 'COMMENT')} · ${escapeHtml(parsed.tagId)}</span>`
+    ? `<span class="mr-1 inline-flex items-center rounded border px-2 py-0.5 text-[11px] ${tagClass}">${escapeHtml(parsed.tagType || 'COMMENT')} · ${escapeHtml(parsed.tagId)}</span>`
     : ''
   const reply = parsed.replyTarget
     ? `<div class="mb-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground"><div class="font-medium text-foreground">回复 ${escapeHtml(parsed.replyTarget)}</div>${parsed.replyExcerpt ? `<div class="mt-1">${renderCommentMarkdownHtml(parsed.replyExcerpt)}</div>` : ''}</div>`
