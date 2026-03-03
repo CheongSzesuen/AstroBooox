@@ -1402,7 +1402,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, ref, watch, type Component } from 'vue'
+import { computed, nextTick, ref, watch, type Component } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
@@ -1533,8 +1533,7 @@ interface LinkIconOption {
 }
 
 const LINK_ICON_MAX_RENDER = 720
-const phosphorIconModules = import.meta.glob('/node_modules/@phosphor-icons/vue/dist/icons/*.vue.mjs')
-const linkIconComponentCache = new Map<string, Component | null>()
+const phosphorIconModules = import.meta.glob('/node_modules/@phosphor-icons/vue/dist/icons/*.vue.mjs', { eager: true })
 
 
 type WorkbenchMode = 'publish' | 'review' | 'published'
@@ -2500,21 +2499,9 @@ const displayedPhosphorIconOptions = computed(() =>
 )
 
 const getLinkIconComponent = (pascalName: string): Component | null => {
-  if (linkIconComponentCache.has(pascalName)) {
-    return linkIconComponentCache.get(pascalName) || null
-  }
   const modulePath = `/node_modules/@phosphor-icons/vue/dist/icons/Ph${pascalName}.vue.mjs`
-  const loader = phosphorIconModules[modulePath] as (() => Promise<unknown>) | undefined
-  if (!loader) {
-    linkIconComponentCache.set(pascalName, null)
-    return null
-  }
-  const iconComponent = defineAsyncComponent(async () => {
-    const module = (await loader()) as { default?: Component } | Component
-    return (module as { default?: Component }).default || (module as Component)
-  })
-  linkIconComponentCache.set(pascalName, iconComponent)
-  return iconComponent
+  const iconModule = phosphorIconModules[modulePath] as { default?: Component } | undefined
+  return iconModule?.default || null
 }
 
 const stepList = computed(() => [
