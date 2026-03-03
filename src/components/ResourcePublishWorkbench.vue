@@ -1019,8 +1019,11 @@
               <div class="min-w-0 flex-1">
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
-                    <div class="truncate text-sm font-semibold text-foreground">{{ item.name }}</div>
-                    <div class="mt-1 truncate text-xs text-muted-foreground">{{ item.repo_owner }}/{{ item.repo_name }}</div>
+                    <div class="flex items-center gap-1.5">
+                      <div class="truncate text-sm font-semibold text-foreground">{{ item.name }}</div>
+                      <Badge v-if="item.sources.includes('v1')" variant="outline">V1</Badge>
+                      <Badge v-if="item.sources.includes('v2')" variant="outline">V2</Badge>
+                    </div>
                   </div>
                   <a
                     :href="getOwnedItemRepoUrl(item)"
@@ -1037,8 +1040,7 @@
                   {{ item.description || '暂无描述' }}
                 </div>
                 <div class="mt-1 flex items-center gap-2">
-                  <Badge variant="outline">{{ item.sourceLabel }}</Badge>
-                  <span class="text-xs text-muted-foreground">{{ item.restype }}</span>
+                  <span class="text-xs text-muted-foreground">{{ formatOwnedRestype(item.restype) }}</span>
                 </div>
                 <div v-if="item.commitDate" class="mt-1 text-xs text-muted-foreground">
                   上次更新时间: {{ formatDate(item.commitDate) }}
@@ -1344,7 +1346,6 @@ interface OwnedMergedItem {
   description: string
   commitDate: string
   sources: Array<'v1' | 'v2'>
-  sourceLabel: string
 }
 
 const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
@@ -1372,8 +1373,7 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
         repo_commit_hash: item.repo_commit_hash,
         description: item.description,
         commitDate: item.commitDate,
-        sources: [item.source],
-        sourceLabel: item.source.toUpperCase()
+        sources: [item.source]
       })
       continue
     }
@@ -1404,7 +1404,6 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
         existing.commitDate = item.commitDate
       }
     }
-    existing.sourceLabel = existing.sources.length > 1 ? 'V1 + V2' : existing.sources[0].toUpperCase()
   }
 
   return Array.from(grouped.values()).sort((a, b) => {
@@ -3321,6 +3320,13 @@ const getOwnedItemIconUrl = (item: {
 
 const getOwnedItemRepoUrl = (item: { repo_owner: string; repo_name: string }): string =>
   `https://github.com/${item.repo_owner}/${item.repo_name}`
+
+const formatOwnedRestype = (value: string): string => {
+  const normalized = value.trim().toLowerCase()
+  if (normalized === 'watchface' || normalized === 'watch_face') return '表盘'
+  if (normalized === 'quickapp' || normalized === 'quick_app') return '快应用'
+  return value
+}
 
 watch(
   () => [mode.value, canLoadList.value] as const,
