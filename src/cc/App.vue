@@ -233,19 +233,89 @@
                   {{ accountProfileError }}
                 </div>
                 <div v-else-if="accountProfile" class="space-y-3">
-                  <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <div
-                      v-for="item in accountProfileEntries"
-                      :key="item.key"
-                      class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm"
-                    >
-                      <div class="text-xs text-muted-foreground">{{ item.label }}</div>
-                      <div class="mt-1 break-all font-medium text-foreground">{{ item.value || '-' }}</div>
+                  <div class="rounded-lg border border-border bg-muted/20 p-4">
+                    <div class="flex items-start gap-3">
+                      <img
+                        :src="accountProfile.avatar_url || 'https://github.com/ghost.png'"
+                        alt="GitHub Avatar"
+                        class="h-14 w-14 shrink-0 rounded-full border border-border object-cover"
+                      />
+                      <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                          <span class="truncate text-sm font-semibold text-foreground">{{ accountProfile.name || accountProfile.login }}</span>
+                          <Badge variant="outline">@{{ accountProfile.login }}</Badge>
+                        </div>
+                        <div class="mt-1 text-xs text-muted-foreground">{{ accountProfile.bio || '暂无简介' }}</div>
+                        <a
+                          :href="accountProfile.html_url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                        >
+                          <LinkSimple :size="14" weight="duotone" />
+                          打开 GitHub 主页
+                        </a>
+                      </div>
                     </div>
                   </div>
-                  <div class="rounded-md border border-border bg-muted/20 p-3">
-                    <div class="mb-2 text-xs text-muted-foreground">原始返回（/user）</div>
-                    <pre class="max-h-[280px] overflow-auto whitespace-pre-wrap break-all text-xs text-foreground">{{ accountProfileRaw }}</pre>
+
+                  <div class="grid grid-cols-3 gap-2">
+                    <div class="rounded-md border border-border bg-muted/20 p-3 text-center">
+                      <div class="inline-flex items-center gap-1 text-muted-foreground">
+                        <ArchiveBox :size="14" weight="duotone" />
+                        <span class="text-xs">仓库</span>
+                      </div>
+                      <div class="mt-1 text-sm font-semibold text-foreground">{{ accountProfile.public_repos ?? '-' }}</div>
+                    </div>
+                    <div class="rounded-md border border-border bg-muted/20 p-3 text-center">
+                      <div class="inline-flex items-center gap-1 text-muted-foreground">
+                        <Users :size="14" weight="duotone" />
+                        <span class="text-xs">粉丝</span>
+                      </div>
+                      <div class="mt-1 text-sm font-semibold text-foreground">{{ accountProfile.followers ?? '-' }}</div>
+                    </div>
+                    <div class="rounded-md border border-border bg-muted/20 p-3 text-center">
+                      <div class="inline-flex items-center gap-1 text-muted-foreground">
+                        <UserPlus :size="14" weight="duotone" />
+                        <span class="text-xs">关注</span>
+                      </div>
+                      <div class="mt-1 text-sm font-semibold text-foreground">{{ accountProfile.following ?? '-' }}</div>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                      <div class="inline-flex items-center gap-1 text-xs text-muted-foreground"><Hash :size="13" weight="duotone" /> ID</div>
+                      <div class="mt-1 break-all font-medium text-foreground">{{ accountProfile.id ?? '-' }}</div>
+                    </div>
+                    <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                      <div class="inline-flex items-center gap-1 text-xs text-muted-foreground"><Buildings :size="13" weight="duotone" /> 公司</div>
+                      <div class="mt-1 break-all font-medium text-foreground">{{ accountProfile.company || '-' }}</div>
+                    </div>
+                    <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                      <div class="inline-flex items-center gap-1 text-xs text-muted-foreground"><MapPin :size="13" weight="duotone" /> 地区</div>
+                      <div class="mt-1 break-all font-medium text-foreground">{{ accountProfile.location || '-' }}</div>
+                    </div>
+                    <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                      <div class="inline-flex items-center gap-1 text-xs text-muted-foreground"><EnvelopeSimple :size="13" weight="duotone" /> 邮箱</div>
+                      <div class="mt-1 break-all font-medium text-foreground">{{ accountProfile.email || '-' }}</div>
+                    </div>
+                    <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                      <div class="inline-flex items-center gap-1 text-xs text-muted-foreground"><GlobeHemisphereWest :size="13" weight="duotone" /> 博客</div>
+                      <div class="mt-1 break-all font-medium text-foreground">{{ accountProfile.blog || '-' }}</div>
+                    </div>
+                    <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                      <div class="inline-flex items-center gap-1 text-xs text-muted-foreground"><At :size="13" weight="duotone" /> Twitter</div>
+                      <div class="mt-1 break-all font-medium text-foreground">{{ accountProfile.twitter_username || '-' }}</div>
+                    </div>
+                    <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                      <div class="inline-flex items-center gap-1 text-xs text-muted-foreground"><CalendarBlank :size="13" weight="duotone" /> 创建时间</div>
+                      <div class="mt-1 break-all font-medium text-foreground">{{ formatDateTime(accountProfile.created_at) }}</div>
+                    </div>
+                    <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                      <div class="inline-flex items-center gap-1 text-xs text-muted-foreground"><ClockCounterClockwise :size="13" weight="duotone" /> 更新时间</div>
+                      <div class="mt-1 break-all font-medium text-foreground">{{ formatDateTime(accountProfile.updated_at) }}</div>
+                    </div>
                   </div>
                 </div>
                 <div class="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
@@ -263,17 +333,27 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
+  PhAt as At,
   PhArchiveBox as ArchiveBox,
+  PhBuildings as Buildings,
+  PhCalendarBlank as CalendarBlank,
   PhCaretDown as CaretDown,
   PhCheckCircle as CheckCircle,
   PhClockCounterClockwise as ClockCounterClockwise,
   PhFolders as Folders,
   PhGearSix as GearSix,
+  PhGlobeHemisphereWest as GlobeHemisphereWest,
+  PhHash as Hash,
+  PhLinkSimple as LinkSimple,
+  PhMapPin as MapPin,
   PhMoon as Moon,
+  PhEnvelopeSimple as EnvelopeSimple,
   PhSignOut as SignOut,
   PhSun as Sun,
   PhUploadSimple as UploadSimple,
-  PhUserCircle as UserCircle
+  PhUserCircle as UserCircle,
+  PhUserPlus as UserPlus,
+  PhUsers as Users
 } from '@phosphor-icons/vue'
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
 import CcPrReviewWorkbench from '@/components/CcPrReviewWorkbench.vue'
@@ -334,25 +414,12 @@ const settingsOwnerAvatarUrl = computed(() => {
   if (!owner) return 'https://github.com/ghost.png'
   return `https://github.com/${owner}.png`
 })
-const accountProfileEntries = computed(() => {
-  const profile = accountProfile.value
-  if (!profile) return []
-  return [
-    { key: 'login', label: 'Login', value: profile.login || '' },
-    { key: 'name', label: 'Name', value: profile.name || '' },
-    { key: 'id', label: 'ID', value: String(profile.id ?? '') },
-    { key: 'company', label: 'Company', value: profile.company || '' },
-    { key: 'location', label: 'Location', value: profile.location || '' },
-    { key: 'email', label: 'Email', value: profile.email || '' },
-    { key: 'blog', label: 'Blog', value: profile.blog || '' },
-    { key: 'twitter', label: 'Twitter', value: profile.twitter_username || '' },
-    { key: 'repos', label: 'Public Repos', value: String(profile.public_repos ?? '') },
-    { key: 'followers', label: 'Followers', value: String(profile.followers ?? '') },
-    { key: 'following', label: 'Following', value: String(profile.following ?? '') },
-    { key: 'profile', label: 'Profile URL', value: profile.html_url || '' }
-  ]
-})
-const accountProfileRaw = computed(() => JSON.stringify(accountProfile.value || {}, null, 2))
+const formatDateTime = (value?: string): string => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', { hour12: false })
+}
 
 const closeUserMenu = (): void => {
   showUserMenu.value = false
