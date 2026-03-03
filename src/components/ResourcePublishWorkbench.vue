@@ -1047,6 +1047,7 @@
                       <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
                       <Badge v-if="item.sources.includes('v1')" variant="outline">V1</Badge>
                       <Badge v-if="item.sources.includes('v2')" variant="outline">V2</Badge>
+                      <Badge v-if="item.v2NeedsFollowUp" variant="destructive">v2需要跟进</Badge>
                     </div>
                   </div>
                   <a
@@ -1369,6 +1370,7 @@ interface OwnedMergedItem {
   description: string
   commitDate: string
   sources: Array<'v1' | 'v2'>
+  v2NeedsFollowUp: boolean
 }
 
 const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
@@ -1396,7 +1398,8 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
         repo_commit_hash: item.repo_commit_hash,
         description: item.description,
         commitDate: item.commitDate,
-        sources: [item.source]
+        sources: [item.source],
+        v2NeedsFollowUp: item.v2NeedsFollowUp
       })
       continue
     }
@@ -1426,6 +1429,9 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
       if (!existing.commitDate && item.commitDate) {
         existing.commitDate = item.commitDate
       }
+    }
+    if (item.source === 'v2' && item.v2NeedsFollowUp) {
+      existing.v2NeedsFollowUp = true
     }
   }
 

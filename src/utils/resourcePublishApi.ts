@@ -71,6 +71,7 @@ export interface OwnedResourceEntry {
   repo_commit_hash: string
   description: string
   commitDate: string
+  v2NeedsFollowUp: boolean
 }
 
 export interface RepoTreeItem {
@@ -319,6 +320,80 @@ const loadRepoDescription = async (params: {
     if (description) return description
   }
   return ''
+}
+
+const normalizeVersionToNumbers = (raw: string): number[] => {
+  const cleaned = raw.trim().replace(/^[^0-9]*/, '')
+  if (!cleaned) return [0]
+  return cleaned
+    .split('.')
+    .map(part => {
+      const matched = part.match(/\d+/)
+      return matched ? Number(matched[0]) : 0
+    })
+}
+
+const compareVersion = (a: string, b: string): number => {
+  const left = normalizeVersionToNumbers(a)
+  const right = normalizeVersionToNumbers(b)
+  const maxLength = Math.max(left.length, right.length)
+  for (let i = 0; i < maxLength; i++) {
+    const l = left[i] ?? 0
+    const r = right[i] ?? 0
+    if (l > r) return 1
+    if (l < r) return -1
+  }
+  return 0
+}
+
+const getMaxVersion = (downloads: Array<{ version: string }>): string =>
+  downloads.reduce((max, item) => (compareVersion(item.version, max) > 0 ? item.version : max), '0')
+
+const parseManifestDownloads = (text: string): Array<{ version: string; file_name: string }> => {
+  try {
+    const parsed = JSON.parse(text) as {
+      downloads?: Record<string, { version?: unknown; file_name?: unknown }>
+    }
+    const downloads = parsed.downloads || {}
+    return Object.values(downloads).map(item => ({
+      version: typeof item?.version === 'string' ? item.version.trim() : '',
+      file_name: typeof item?.file_name === 'string' ? item.file_name.trim() : ''
+    }))
+  } catch {
+    return []
+  }
+}
+
+const detectV2NeedsFollowUp = (manifestV2Text: string, manifestV1Text: string): boolean => {
+  const v2Downloads = parseManifestDownloads(manifestV2Text)
+  const v1Downloads = parseManifestDownloads(manifestV1Text)
+  if (v1Downloads.length === 0) return false
+  if (v2Downloads.length === 0) return true
+
+  const v2PairSet = new Set(v2Downloads.map(item => `${item.file_name}|${item.version}`))
+  const hasMissingPair = v1Downloads.some(item => !v2PairSet.has(`${item.file_name}|${item.version}`))
+  if (hasMissingPair) return true
+
+  const maxV1 = getMaxVersion(v1Downloads)
+  const maxV2 = getMaxVersion(v2Downloads)
+  return compareVersion(maxV1, maxV2) > 0
+}
+
+const loadV2FollowUpStatus = async (params: {
+  token: string
+  owner: string
+  repo: string
+  ref: string
+}): Promise<boolean> => {
+  const { token, owner, repo, ref } = params
+  const [manifestV2File, manifestV1File] = await Promise.all([
+    fetchRepoFileOrNull(token, owner, repo, 'manifest_v2.json', ref),
+    fetchRepoFileOrNull(token, owner, repo, 'manifest.json', ref)
+  ])
+  const manifestV2Text = manifestV2File?.content ? base64ToText(manifestV2File.content) : ''
+  const manifestV1Text = manifestV1File?.content ? base64ToText(manifestV1File.content) : ''
+  if (!manifestV1Text) return false
+  return detectV2NeedsFollowUp(manifestV2Text, manifestV1Text)
 }
 
 const loadCommitDate = async (params: {
@@ -1051,6 +1126,7 @@ export const loadOwnedResources = async (params: {
   const normalizedUsername = username.trim().toLowerCase()
   const repoDescriptionCache = new Map<string, string>()
   const commitDateCache = new Map<string, string>()
+  const v2FollowUpCache = new Map<string, boolean>()
 
   const getCachedRepoDescription = async (owner: string, repo: string, ref: string): Promise<string> => {
     const cacheKey = `${owner}/${repo}@${ref}`
@@ -1070,6 +1146,15 @@ export const loadOwnedResources = async (params: {
     return loaded
   }
 
+  const getCachedV2FollowUp = async (owner: string, repo: string, ref: string): Promise<boolean> => {
+    const cacheKey = `${owner}/${repo}@${ref}`
+    const cached = v2FollowUpCache.get(cacheKey)
+    if (cached !== undefined) return cached
+    const loaded = await loadV2FollowUpStatus({ token, owner, repo, ref })
+    v2FollowUpCache.set(cacheKey, loaded)
+    return loaded
+  }
+
   const [v2CatalogFile, v1CatalogFile] = await Promise.all([
     fetchRepoFileOrNull(token, upstreamOwner, upstreamRepo, catalogPath, upstreamBranch),
     fetchRepoFileOrNull(token, upstreamOwner, upstreamRepo, legacyCatalogPath, upstreamBranch)
@@ -1086,6 +1171,7 @@ export const loadOwnedResources = async (params: {
         getCachedRepoDescription(entry.repo_owner, entry.repo_name, ref),
         getCachedCommitDate(entry.repo_owner, entry.repo_name, ref)
       ])
+      const v2NeedsFollowUp = await getCachedV2FollowUp(entry.repo_owner, entry.repo_name, ref)
 
       return {
         source: 'v2' as const,
@@ -1097,7 +1183,8 @@ export const loadOwnedResources = async (params: {
         repo_name: entry.repo_name,
         repo_commit_hash: entry.repo_commit_hash,
         description,
-        commitDate
+        commitDate,
+        v2NeedsFollowUp
       }
     })
   )
@@ -1179,7 +1266,8 @@ export const loadOwnedResources = async (params: {
         repo_name: repoName,
         repo_commit_hash: repoRef,
         description,
-        commitDate: ''
+        commitDate: '',
+        v2NeedsFollowUp: false
       }
     })
   )
