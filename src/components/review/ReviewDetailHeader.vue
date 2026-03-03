@@ -17,7 +17,7 @@
           <h1 class="min-w-0 break-words text-xl font-semibold leading-tight text-foreground md:text-2xl">
             {{ title }}
           </h1>
-          <span class="text-sm font-medium text-muted-foreground md:text-base">#{{ number }}</span>
+          <span v-if="number !== undefined && number !== null && String(number).trim() !== ''" class="text-sm font-medium text-muted-foreground md:text-base">#{{ number }}</span>
         </div>
 
         <div v-if="$slots.meta" class="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -38,7 +38,7 @@ import { Button } from '@/components/ui/button'
 
 withDefaults(defineProps<{
   title: string
-  number: string | number
+  number?: string | number
   showBack?: boolean
   backText?: string
 }>(), {

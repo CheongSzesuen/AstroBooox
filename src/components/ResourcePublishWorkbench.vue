@@ -1084,7 +1084,6 @@
       <div v-else class="space-y-4">
         <ReviewDetailHeader
           :title="selectedOwnedItem.name"
-          :number="`${selectedOwnedItem.repo_owner}/${selectedOwnedItem.repo_name}`"
           show-back
           @back="closeOwnedDetail"
         >
@@ -1124,6 +1123,41 @@
             </Button>
           </template>
         </ReviewDetailHeader>
+
+        <Card v-if="ownedSubmissionOverview.images.icon || ownedSubmissionOverview.images.cover">
+          <CardContent class="flex flex-wrap items-start gap-4 pt-4">
+            <a
+              v-if="ownedSubmissionOverview.images.icon"
+              :href="ownedSubmissionOverview.images.icon.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="group"
+            >
+              <div class="text-xs text-muted-foreground">Icon</div>
+              <img
+                :src="ownedSubmissionOverview.images.icon.url"
+                alt="Icon 预览"
+                class="mt-1 h-20 w-20 rounded-full border border-border object-cover transition-opacity group-hover:opacity-90"
+                loading="lazy"
+              />
+            </a>
+            <a
+              v-if="ownedSubmissionOverview.images.cover"
+              :href="ownedSubmissionOverview.images.cover.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="group min-w-0 flex-1"
+            >
+              <div class="text-xs text-muted-foreground">Cover</div>
+              <img
+                :src="ownedSubmissionOverview.images.cover.url"
+                alt="Cover 预览"
+                class="mt-1 max-h-24 w-full rounded-md border border-border object-contain transition-opacity group-hover:opacity-90"
+                loading="lazy"
+              />
+            </a>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader class="pb-3">
@@ -1235,44 +1269,10 @@
                   <ImageSquare :size="14" weight="duotone" />
                   图片资源（Raw）
                 </div>
-                <div v-if="!ownedSubmissionOverview.images.icon && !ownedSubmissionOverview.images.cover && ownedSubmissionOverview.images.previews.length === 0" class="rounded-md border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
+                <div v-if="ownedSubmissionOverview.images.previews.length === 0" class="rounded-md border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
                   未检测到图片资源
                 </div>
                 <div v-else class="space-y-3">
-                  <div class="grid gap-3 md:grid-cols-2">
-                    <div v-if="ownedSubmissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
-                      <div class="text-xs text-muted-foreground">Icon · {{ ownedSubmissionOverview.images.icon.file }}</div>
-                      <a
-                        :href="ownedSubmissionOverview.images.icon.url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="mt-2 mx-auto flex h-[180px] w-[180px] items-center justify-center overflow-hidden rounded-full border border-border/60 bg-background/70"
-                      >
-                        <img
-                          :src="ownedSubmissionOverview.images.icon.url"
-                          alt="Icon 预览"
-                          class="h-full w-full rounded-full object-contain p-3"
-                          loading="lazy"
-                        />
-                      </a>
-                    </div>
-                    <div v-if="ownedSubmissionOverview.images.cover" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
-                      <div class="text-xs text-muted-foreground">Cover · {{ ownedSubmissionOverview.images.cover.file }}</div>
-                      <a
-                        :href="ownedSubmissionOverview.images.cover.url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
-                      >
-                        <img
-                          :src="ownedSubmissionOverview.images.cover.url"
-                          alt="Cover 预览"
-                          class="max-h-[320px] w-full object-contain"
-                          loading="lazy"
-                        />
-                      </a>
-                    </div>
-                  </div>
                   <div v-if="ownedSubmissionOverview.images.previews.length > 0" class="space-y-2">
                     <div class="flex items-center justify-between gap-2">
                       <div class="text-xs text-muted-foreground">
@@ -1828,8 +1828,7 @@ const ownedSubmissionOverview = computed<OwnedSubmissionOverview>(() => {
     { key: '资源名称', value: String(item.name || selectedOwnedItem.value?.name || '').trim() },
     { key: '资源类型', value: formatOwnedRestype(String(item.restype || selectedOwnedItem.value?.restype || '').trim()) },
     { key: '资源描述', value: String(item.description || selectedOwnedItem.value?.description || '').trim() },
-    { key: 'V2 Hash', value: ownedDetail.value?.v2Ref || '-' },
-    { key: 'V1 Hash', value: ownedDetail.value?.v1Ref || '-' }
+    { key: 'V2 Hash', value: ownedDetail.value?.v2Ref || '-' }
   ]
 
   const downloadList = Object.entries(downloads).map(([device, meta]) => {
@@ -3873,7 +3872,7 @@ const loadOwnedItemDetail = async (item?: OwnedMergedItem): Promise<void> => {
       token: requireToken(),
       owner: target.repo_owner,
       repo: target.repo_name,
-      v1Ref: target.v1RepoCommitHash,
+      v1Ref: target.sources.includes('v1') ? '' : undefined,
       v2Ref: target.v2RepoCommitHash
     })
   } catch (error: unknown) {

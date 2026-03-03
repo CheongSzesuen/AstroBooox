@@ -1310,6 +1310,7 @@ export const loadOwnedResourceDetail = async (params: {
   v2Ref?: string
 }): Promise<OwnedResourceDetail> => {
   const { token, owner, repo } = params
+  const shouldLoadV1 = params.v1Ref !== undefined
   const v1Ref = params.v1Ref?.trim() || ''
   const v2Ref = params.v2Ref?.trim() || ''
 
@@ -1331,8 +1332,9 @@ export const loadOwnedResourceDetail = async (params: {
     latestCommit.commit?.author?.date?.trim() ||
     ''
 
+  const v1ManifestRef = v1Ref || defaultBranch
   const [v1ManifestFile, v2ManifestFile] = await Promise.all([
-    v1Ref ? fetchRepoFileOrNull(token, owner, repo, 'manifest.json', v1Ref) : Promise.resolve(null),
+    shouldLoadV1 ? fetchRepoFileOrNull(token, owner, repo, 'manifest.json', v1ManifestRef) : Promise.resolve(null),
     v2Ref ? fetchRepoFileOrNull(token, owner, repo, 'manifest_v2.json', v2Ref) : Promise.resolve(null)
   ])
 
