@@ -876,35 +876,88 @@
                     v-for="item in (remotePickerStep === 1 ? remotePickerFolderItems : remotePickerTreeItems)"
                     :key="`picker-${item.path}`"
                   >
-                    <button
+                    <div
                       v-if="item.type === 'folder'"
-                      type="button"
-                      class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30"
+                      class="flex w-full items-center gap-1"
                       :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
-                      :class="remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'"
-                      @click="selectRemotePickerFolder(item.path)"
                     >
-                      <CaretRight
-                        v-if="item.collapsed"
-                        :size="12"
-                        weight="bold"
-                        class="shrink-0"
-                      />
-                      <CaretDown
-                        v-else
-                        :size="12"
-                        weight="bold"
-                        class="shrink-0"
-                      />
-                      <FolderIcon :size="14" weight="fill" class="shrink-0" />
-                      <span class="truncate">{{ item.label }}</span>
-                      <span
-                        v-if="remotePickerTargetFolder === item.path"
-                        class="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary"
+                      <button
+                        type="button"
+                        class="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30"
+                        :class="remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'"
+                        @click="selectRemotePickerFolder(item.path)"
                       >
-                        目标文件夹
-                      </span>
-                    </button>
+                        <CaretRight
+                          v-if="item.collapsed"
+                          :size="12"
+                          weight="bold"
+                          class="shrink-0"
+                        />
+                        <CaretDown
+                          v-else
+                          :size="12"
+                          weight="bold"
+                          class="shrink-0"
+                        />
+                        <FolderIcon :size="14" weight="fill" class="shrink-0" />
+                        <Input
+                          v-if="remotePickerStep === 1 && remotePickerRenamingPath === item.path"
+                          ref="remotePickerRenameInputRef"
+                          v-model="remotePickerRenamingName"
+                          class="h-6 min-w-0 flex-1 px-1 text-xs"
+                          @click.stop
+                          @keydown.enter.prevent="commitRenameDraftFolder"
+                          @keydown.esc.prevent="cancelRenameDraftFolder"
+                          @blur="commitRenameDraftFolder"
+                        />
+                        <span v-else class="truncate">{{ item.label }}</span>
+                        <span
+                          v-if="remotePickerTargetFolder === item.path"
+                          class="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary"
+                        >
+                          目标文件夹
+                        </span>
+                      </button>
+                      <DropdownMenuRoot v-if="remotePickerStep === 1">
+                        <DropdownMenuTrigger as-child>
+                          <button
+                            type="button"
+                            class="inline-flex h-6 w-6 items-center justify-center rounded border border-border bg-background hover:bg-accent"
+                          >
+                            <DotsThreeVertical :size="12" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuPortal>
+                          <DropdownMenuContent
+                            side="right"
+                            align="start"
+                            :side-offset="6"
+                            class="z-50 min-w-[140px] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
+                          >
+                            <DropdownMenuItem
+                              class="flex cursor-pointer items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
+                              @select="selectRemotePickerFolder(item.path); createRemotePickerFolder()"
+                            >
+                              新建子文件夹
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              class="flex cursor-pointer items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
+                              :disabled="!isDraftFolder(item.path)"
+                              @select="startRenameDraftFolder(item.path)"
+                            >
+                              重命名
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              class="flex cursor-pointer items-center rounded px-2 py-1.5 text-sm text-destructive outline-none hover:bg-accent"
+                              :disabled="!isDraftFolder(item.path)"
+                              @select="deleteDraftFolder(item.path)"
+                            >
+                              删除
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenuPortal>
+                      </DropdownMenuRoot>
+                    </div>
                     <button
                       v-else-if="remotePickerStep === 2"
                       type="button"
@@ -1572,10 +1625,18 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue'
 import {
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuRoot,
+  DropdownMenuTrigger
+} from 'reka-ui'
+import {
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
   PhCaretRight as CaretRight,
   PhCheckCircle as CheckCircle,
+  PhDotsThreeVertical as DotsThreeVertical,
   PhDotsSixVertical as DragDots,
   PhFile as FileIcon,
   PhFolderPlus as FolderPlus,
@@ -1789,6 +1850,9 @@ const remotePickerTargetFolder = ref('')
 const remotePickerUploadFileName = ref('')
 const remotePickerStep = ref<1 | 2>(1)
 const remotePickerDraftFolders = ref<string[]>([])
+const remotePickerRenamingPath = ref('')
+const remotePickerRenamingName = ref('')
+const remotePickerRenameInputRef = ref<HTMLInputElement | null>(null)
 const opfsLocalPathSet = ref<Record<string, true>>({})
 const opfsLocalPreviewUrlMap = ref<Record<string, string>>({})
 
@@ -2478,6 +2542,81 @@ const createRemotePickerFolder = (): void => {
   const fullPath = parent ? `${parent}/${candidate}` : candidate
   remotePickerDraftFolders.value = [...remotePickerDraftFolders.value, fullPath]
   remotePickerTargetFolder.value = fullPath
+  startRenameDraftFolder(fullPath)
+}
+
+const isDraftFolder = (path: string): boolean =>
+  remotePickerDraftFolders.value.includes(path)
+
+const startRenameDraftFolder = (path: string): void => {
+  if (!isDraftFolder(path)) return
+  const segments = path.split('/').filter(Boolean)
+  const name = segments[segments.length - 1] || path
+  remotePickerRenamingPath.value = path
+  remotePickerRenamingName.value = name
+  void nextTick(() => {
+    const input = remotePickerRenameInputRef.value
+    if (!input) return
+    input.focus()
+    input.select()
+  })
+}
+
+const cancelRenameDraftFolder = (): void => {
+  remotePickerRenamingPath.value = ''
+  remotePickerRenamingName.value = ''
+}
+
+const commitRenameDraftFolder = (): void => {
+  const oldPath = remotePickerRenamingPath.value
+  if (!oldPath || !isDraftFolder(oldPath)) {
+    cancelRenameDraftFolder()
+    return
+  }
+
+  const newName = sanitizeRepoFileName(remotePickerRenamingName.value)
+  if (!newName) {
+    appendLog('文件夹名称不合法')
+    return
+  }
+
+  const parts = oldPath.split('/').filter(Boolean)
+  const parent = parts.slice(0, -1).join('/')
+  const newPath = parent ? `${parent}/${newName}` : newName
+  if (newPath === oldPath) {
+    cancelRenameDraftFolder()
+    return
+  }
+
+  const existsInRemote = remoteWorkspaceTree.value.some(item => item.type === 'folder' && item.path === newPath)
+  const existsInDraft = remotePickerDraftFolders.value.some(path => path === newPath && path !== oldPath)
+  if (existsInRemote || existsInDraft) {
+    appendLog('该文件夹名称已存在')
+    return
+  }
+
+  const prefix = `${oldPath}/`
+  remotePickerDraftFolders.value = remotePickerDraftFolders.value.map(path => {
+    if (path === oldPath) return newPath
+    if (path.startsWith(prefix)) return `${newPath}/${path.slice(prefix.length)}`
+    return path
+  })
+  if (remotePickerTargetFolder.value === oldPath || remotePickerTargetFolder.value.startsWith(prefix)) {
+    remotePickerTargetFolder.value = `${newPath}${remotePickerTargetFolder.value.slice(oldPath.length)}`
+  }
+  cancelRenameDraftFolder()
+}
+
+const deleteDraftFolder = (path: string): void => {
+  if (!isDraftFolder(path)) return
+  const prefix = `${path}/`
+  remotePickerDraftFolders.value = remotePickerDraftFolders.value.filter(item => item !== path && !item.startsWith(prefix))
+  if (remotePickerTargetFolder.value === path || remotePickerTargetFolder.value.startsWith(prefix)) {
+    remotePickerTargetFolder.value = ''
+  }
+  if (remotePickerRenamingPath.value === path || remotePickerRenamingPath.value.startsWith(prefix)) {
+    cancelRenameDraftFolder()
+  }
 }
 
 const toggleWorkspaceFolder = (path: string): void => {
@@ -3311,6 +3450,7 @@ const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
   remotePickerUploadFileName.value = ''
   remotePickerStep.value = 1
   remotePickerDraftFolders.value = []
+  cancelRenameDraftFolder()
   remotePickerTargetFolder.value = getDefaultUploadFolder(mode)
   showRemoteFilePickerDialog.value = true
 }
