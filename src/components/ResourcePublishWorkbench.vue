@@ -939,7 +939,7 @@
             <div class="shrink-0 space-y-3 rounded-lg border border-border bg-muted/20 p-3">
               <div class="text-xs text-muted-foreground">图片预览</div>
               <a
-                v-if="remotePickerPreviewPath && isImagePath(remotePickerPreviewPath)"
+                v-if="remotePickerPreviewPath && isImageSelectablePath(remotePickerPreviewPath)"
                 :href="getPickerPreviewUrl(remotePickerPreviewPath)"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -2395,6 +2395,9 @@ const isImagePath = (path: string): boolean => {
   return IMAGE_FILE_EXTENSIONS.some(ext => normalized.endsWith(ext))
 }
 
+const isImageSelectablePath = (path: string): boolean =>
+  isImagePath(path) || Boolean(opfsLocalPreviewUrlMap.value[path])
+
 const remotePickerTitle = computed(() => {
   if (remotePickerMode.value === 'icon') return '选择图标文件'
   if (remotePickerMode.value === 'cover') return '选择封面文件'
@@ -2410,7 +2413,7 @@ const remotePickerTreeItems = computed(() => {
     }
     if (
       (remotePickerMode.value === 'icon' || remotePickerMode.value === 'cover' || remotePickerMode.value === 'preview') &&
-      !isImagePath(item.path)
+      !isImageSelectablePath(item.path)
     ) return false
     if (!keyword) return true
     return item.path.toLowerCase().includes(keyword) || item.label.toLowerCase().includes(keyword)
@@ -2425,7 +2428,7 @@ const remotePickerLocalItems = computed(() => {
     .filter(path => {
       if (
         (remotePickerMode.value === 'icon' || remotePickerMode.value === 'cover' || remotePickerMode.value === 'preview') &&
-        !isImagePath(path)
+        !isImageSelectablePath(path)
       ) return false
       if (!keyword) return true
       return path.toLowerCase().includes(keyword)
@@ -3086,12 +3089,17 @@ const sanitizeRepoFolderPath = (folderPath: string): string =>
 const buildUploadedFileName = (originalName: string, index: number, total: number): string => {
   const custom = sanitizeRepoFileName(remotePickerUploadFileName.value)
   if (!custom) return sanitizeRepoFileName(originalName)
-  if (total <= 1) return custom
+  const originDot = originalName.lastIndexOf('.')
+  const originExt = originDot > 0 && originDot < originalName.length - 1 ? originalName.slice(originDot) : ''
+  const customDot = custom.lastIndexOf('.')
+  const hasCustomExt = customDot > 0 && customDot < custom.length - 1
+  const normalizedCustom = hasCustomExt ? custom : `${custom}${originExt}`
+  if (total <= 1) return normalizedCustom
 
-  const dot = custom.lastIndexOf('.')
-  const hasExt = dot > 0 && dot < custom.length - 1
-  const base = hasExt ? custom.slice(0, dot) : custom
-  const ext = hasExt ? custom.slice(dot) : ''
+  const dot = normalizedCustom.lastIndexOf('.')
+  const hasExt = dot > 0 && dot < normalizedCustom.length - 1
+  const base = hasExt ? normalizedCustom.slice(0, dot) : normalizedCustom
+  const ext = hasExt ? normalizedCustom.slice(dot) : ''
   return `${base}_${index + 1}${ext}`
 }
 
