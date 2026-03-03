@@ -1273,7 +1273,7 @@
                           :disabled="!canOwnedPreviewPrev"
                           @click="scrollOwnedPreviewPrev"
                         >
-                          <CaretRight :size="14" weight="bold" class="rotate-180" />
+                          <CaretLeft :size="14" weight="bold" />
                         </Button>
                         <Button
                           size="icon"
@@ -1286,30 +1286,41 @@
                         </Button>
                       </div>
                     </div>
-                    <div
-                      ref="ownedPreviewScrollerRef"
-                      class="flex gap-3 overflow-x-auto pb-1"
-                      @scroll="syncOwnedPreviewScrollState"
-                    >
-                      <div
-                        v-for="preview in ownedSubmissionOverview.images.previews"
-                        :key="preview.url"
-                        class="w-[220px] shrink-0 rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm"
-                      >
-                        <div class="truncate text-xs text-muted-foreground">Preview · {{ preview.file }}</div>
-                        <a
-                          :href="preview.url"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
-                        >
-                          <img
-                            :src="preview.url"
-                            :alt="`${preview.file} 预览`"
-                            class="h-40 w-full object-contain"
-                            loading="lazy"
-                          />
-                        </a>
+                    <div class="rounded-xl border border-border/70 bg-muted/20 p-2">
+                      <div ref="ownedPreviewEmblaRef" class="overflow-hidden">
+                        <div class="flex">
+                          <div
+                            v-for="preview in ownedSubmissionOverview.images.previews"
+                            :key="preview.url"
+                            class="min-w-0 shrink-0 basis-full px-1"
+                          >
+                            <a
+                              :href="preview.url"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="block overflow-hidden rounded-lg border border-border/60 bg-background/70"
+                            >
+                              <img
+                                :src="preview.url"
+                                :alt="`${preview.file} 预览`"
+                                class="h-48 w-full object-contain sm:h-56"
+                                loading="lazy"
+                              />
+                            </a>
+                            <div class="mt-2 truncate px-1 text-xs text-muted-foreground">Preview · {{ preview.file }}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-if="ownedPreviewSnapCount > 1" class="mt-2 flex items-center justify-center gap-1.5">
+                        <button
+                          v-for="index in ownedPreviewSnapCount"
+                          :key="`owned-preview-dot-${index}`"
+                          type="button"
+                          class="h-1.5 rounded-full transition-all"
+                          :class="index - 1 === ownedPreviewActiveIndex ? 'w-5 bg-foreground/80' : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'"
+                          :aria-label="`跳转到第 ${index} 张预览图`"
+                          @click="scrollOwnedPreviewTo(index - 1)"
+                        />
                       </div>
                     </div>
                   </div>
@@ -1383,9 +1394,11 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, ref, watch, type Component } from 'vue'
+import emblaCarouselVue from 'embla-carousel-vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
+  PhCaretLeft as CaretLeft,
   PhCaretRight as CaretRight,
   PhCheckCircle as CheckCircle,
   PhDotsSixVertical as DragDots,
@@ -1908,20 +1921,29 @@ const ownedRuleChecks = computed<Array<{ title: string; status: 'pass' | 'warn' 
   return checks
 })
 
-const ownedPreviewScrollerRef = ref<HTMLElement | null>(null)
+const [ownedPreviewEmblaRef, ownedPreviewEmblaApi] = emblaCarouselVue({
+  align: 'start',
+  loop: false,
+  containScroll: 'trimSnaps'
+})
 const ownedPreviewCanPrev = ref(false)
 const ownedPreviewCanNext = ref(false)
-const OWNED_PREVIEW_SCROLL_DISTANCE = 260
+const ownedPreviewActiveIndex = ref(0)
+const ownedPreviewSnapCount = ref(0)
 
 const syncOwnedPreviewScrollState = (): void => {
-  const el = ownedPreviewScrollerRef.value
-  if (!el) {
+  const api = ownedPreviewEmblaApi.value
+  if (!api) {
     ownedPreviewCanPrev.value = false
     ownedPreviewCanNext.value = false
+    ownedPreviewActiveIndex.value = 0
+    ownedPreviewSnapCount.value = ownedSubmissionOverview.value.images.previews.length
     return
   }
-  ownedPreviewCanPrev.value = el.scrollLeft > 4
-  ownedPreviewCanNext.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+  ownedPreviewCanPrev.value = api.canScrollPrev()
+  ownedPreviewCanNext.value = api.canScrollNext()
+  ownedPreviewActiveIndex.value = api.selectedScrollSnap()
+  ownedPreviewSnapCount.value = api.scrollSnapList().length
 }
 
 const canOwnedPreviewPrev = computed(() =>
@@ -1931,18 +1953,16 @@ const canOwnedPreviewNext = computed(() =>
   ownedSubmissionOverview.value.images.previews.length > 0 && ownedPreviewCanNext.value
 )
 
-const scrollOwnedPreviewBy = (offset: number): void => {
-  const el = ownedPreviewScrollerRef.value
-  if (!el) return
-  el.scrollBy({ left: offset, behavior: 'smooth' })
-}
-
 const scrollOwnedPreviewPrev = (): void => {
-  scrollOwnedPreviewBy(-OWNED_PREVIEW_SCROLL_DISTANCE)
+  ownedPreviewEmblaApi.value?.scrollPrev()
 }
 
 const scrollOwnedPreviewNext = (): void => {
-  scrollOwnedPreviewBy(OWNED_PREVIEW_SCROLL_DISTANCE)
+  ownedPreviewEmblaApi.value?.scrollNext()
+}
+
+const scrollOwnedPreviewTo = (index: number): void => {
+  ownedPreviewEmblaApi.value?.scrollTo(index)
 }
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
@@ -3836,6 +3856,9 @@ const loadOwnedList = async (): Promise<void> => {
 
 const openOwnedItemDetail = (item: OwnedMergedItem): void => {
   selectedOwnedItem.value = item
+  ownedPreviewEmblaApi.value?.scrollTo(0, true)
+  ownedPreviewActiveIndex.value = 0
+  ownedPreviewSnapCount.value = 0
   ownedPreviewCanPrev.value = false
   ownedPreviewCanNext.value = false
   void loadOwnedItemDetail(item)
@@ -3845,8 +3868,11 @@ const closeOwnedDetail = (): void => {
   selectedOwnedItem.value = null
   ownedDetail.value = null
   ownedDetailError.value = ''
+  ownedPreviewEmblaApi.value?.scrollTo(0, true)
   ownedPreviewCanPrev.value = false
   ownedPreviewCanNext.value = false
+  ownedPreviewActiveIndex.value = 0
+  ownedPreviewSnapCount.value = 0
 }
 
 const loadOwnedItemDetail = async (item?: OwnedMergedItem): Promise<void> => {
@@ -3867,6 +3893,7 @@ const loadOwnedItemDetail = async (item?: OwnedMergedItem): Promise<void> => {
   } finally {
     ownedDetailLoading.value = false
     void nextTick(() => {
+      ownedPreviewEmblaApi.value?.reInit()
       syncOwnedPreviewScrollState()
     })
   }
@@ -3923,6 +3950,33 @@ watch(
     }
   },
   { immediate: true }
+)
+
+watch(
+  () => ownedPreviewEmblaApi.value,
+  (api, previousApi) => {
+    if (previousApi) {
+      previousApi.off('select', syncOwnedPreviewScrollState)
+      previousApi.off('reInit', syncOwnedPreviewScrollState)
+    }
+    if (!api) {
+      syncOwnedPreviewScrollState()
+      return
+    }
+    api.on('select', syncOwnedPreviewScrollState)
+    api.on('reInit', syncOwnedPreviewScrollState)
+    syncOwnedPreviewScrollState()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => ownedSubmissionOverview.value.images.previews.map(item => item.url).join('|'),
+  async () => {
+    await nextTick()
+    ownedPreviewEmblaApi.value?.reInit()
+    syncOwnedPreviewScrollState()
+  }
 )
 
 const reviewStateText = (state: PublishingResource['status']): string => {
