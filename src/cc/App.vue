@@ -468,10 +468,36 @@ const formatDateTime = (value?: string): string => {
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
+const sanitizeCcRedirectPath = (rawPath: string | null): string => {
+  if (!rawPath) return ''
+  const value = rawPath.trim()
+  if (!value) return ''
+  if (value.startsWith('/cc')) return value
+  if (!/^https?:\/\//i.test(value)) return ''
+  try {
+    const parsed = new URL(value)
+    return parsed.pathname.startsWith('/cc') ? parsed.pathname : ''
+  } catch {
+    return ''
+  }
+}
+
+const buildLoginUrl = (targetPath: string, expectedUser: string): string => {
+  const params = new URLSearchParams()
+  const normalizedPath = targetPath.trim()
+  if (normalizedPath && normalizedPath !== CC_PATHS.publish) {
+    params.set('cc_path', normalizedPath)
+  }
+  if (expectedUser) {
+    params.set('cc_user', expectedUser)
+  }
+  return params.size > 0 ? `${CC_PATHS.login}?${params.toString()}` : CC_PATHS.login
+}
+
 const resolveRouteFromLocation = (): CcRouteState => {
   if (typeof window === 'undefined') return CC_DEFAULT_ROUTE
   const searchParams = new URLSearchParams(window.location.search)
-  const redirectedPath = searchParams.get('cc_path')
+  const redirectedPath = sanitizeCcRedirectPath(searchParams.get('cc_path'))
   const route = redirectedPath && redirectedPath.startsWith('/cc')
     ? resolveCcRouteFromPath(redirectedPath)
     : resolveCcRouteFromPath(window.location.pathname)
@@ -708,10 +734,7 @@ onMounted(() => {
       const expected = resolveExpectedUserFromLocation()
       pendingLoginRoute.value = routeFromLocation
       pendingLoginUser.value = expected
-      const params = new URLSearchParams()
-      params.set('cc_path', targetPath)
-      if (expected) params.set('cc_user', expected)
-      window.history.replaceState(null, '', `${CC_PATHS.login}?${params.toString()}`)
+      window.history.replaceState(null, '', buildLoginUrl(targetPath, expected))
     } else {
       pendingLoginRoute.value = resolveRouteFromLocation()
       pendingLoginUser.value = resolveExpectedUserFromLocation()
@@ -745,10 +768,7 @@ watch(
         const expected = resolveExpectedUserFromLocation() || currentUser.value.trim().toLowerCase()
         pendingLoginRoute.value = routeFromLocation
         pendingLoginUser.value = expected
-        const params = new URLSearchParams()
-        params.set('cc_path', targetPath)
-        if (expected) params.set('cc_user', expected)
-        window.history.replaceState(null, '', `${CC_PATHS.login}?${params.toString()}`)
+        window.history.replaceState(null, '', buildLoginUrl(targetPath, expected))
       }
       return
     }
