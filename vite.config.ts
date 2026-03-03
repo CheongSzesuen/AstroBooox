@@ -2,20 +2,21 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
-const appVersion =
+const commitSha =
   process.env.CF_PAGES_COMMIT_SHA ||
   process.env.GITHUB_SHA ||
   process.env.VERCEL_GIT_COMMIT_SHA ||
   process.env.CI_COMMIT_SHA ||
   process.env.SOURCE_VERSION ||
-  process.env.npm_package_version ||
-  'dev'
+  'local'
+const buildTimestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)
+const buildVersion = `${commitSha.slice(0, 12)}-${buildTimestamp}`
 
 export default defineConfig({
   plugins: [vue()],
   base: '/',
   define: {
-    __APP_VERSION__: JSON.stringify(appVersion)
+    __BUILD_VERSION__: JSON.stringify(buildVersion)
   },
   build: {
     rollupOptions: {

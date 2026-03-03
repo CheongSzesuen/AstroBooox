@@ -5,7 +5,7 @@ export const registerServiceWorker = async () => {
     return
   }
 
-  const swUrl = `/sw.js?v=${encodeURIComponent(__APP_VERSION__)}`
+  const swUrl = `/sw.js?v=${encodeURIComponent(__BUILD_VERSION__)}`
   const registration = await navigator.serviceWorker.register(swUrl, { scope: '/' })
 
   const activateAndReload = () => {

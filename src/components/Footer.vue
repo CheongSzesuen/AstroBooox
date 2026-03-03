@@ -38,8 +38,8 @@
         Open Source on GitHub
       </p>
 
-      <p class="m-0 text-xs text-muted-foreground/90" :title="appVersion">
-        当前版本：{{ appVersionDisplay }}
+      <p class="m-0 text-xs text-muted-foreground/90" :title="buildVersion">
+        当前构建：{{ buildVersionDisplay }}
       </p>
     </div>
 
@@ -77,9 +77,9 @@ import {
 } from '@/components/ui/dialog'
 
 const showTerms = ref(false)
-const appVersion = __APP_VERSION__
-const appVersionDisplay = computed(() => {
-  if (!appVersion) return 'unknown'
-  return appVersion.length > 12 ? appVersion.slice(0, 12) : appVersion
+const buildVersion = __BUILD_VERSION__
+const buildVersionDisplay = computed(() => {
+  if (!buildVersion) return 'unknown'
+  return buildVersion.length > 28 ? `${buildVersion.slice(0, 28)}...` : buildVersion
 })
 </script>
