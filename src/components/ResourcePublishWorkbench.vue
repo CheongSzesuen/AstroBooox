@@ -887,6 +887,7 @@
                             class="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30"
                             :class="remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'"
                             @click="selectRemotePickerFolder(item.path)"
+                            @dblclick="toggleRemoteFolder(item.path)"
                           >
                             <CaretRight
                               v-if="item.collapsed"
