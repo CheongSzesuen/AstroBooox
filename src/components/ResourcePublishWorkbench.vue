@@ -849,6 +849,10 @@
                   @change="handleRemotePickerLocalUpload"
                 >
               </div>
+              <Input
+                v-model="remotePickerUploadFolder"
+                placeholder="本地上传目标目录（GitHub相对路径），如 images/previews"
+              />
               <div class="max-h-[60vh] overflow-y-auto rounded-lg border border-border">
                 <div
                   v-if="remotePickerTreeItems.length === 0"
@@ -1757,6 +1761,7 @@ const remotePickerMode = ref<RemotePickerMode>('preview')
 const remotePickerDeviceId = ref('')
 const remotePickerSearch = ref('')
 const remotePickerSelectedPaths = ref<string[]>([])
+const remotePickerUploadFolder = ref('')
 const opfsLocalPathSet = ref<Record<string, true>>({})
 const opfsLocalPreviewUrlMap = ref<Record<string, string>>({})
 
@@ -3048,13 +3053,26 @@ const sanitizeRepoFileName = (name: string): string =>
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '') || 'file'
 
-const buildOpfsRepoPath = (mode: RemotePickerMode, fileName: string, index = 0): string => {
+const sanitizeRepoFolderPath = (folderPath: string): string =>
+  folderPath
+    .split('/')
+    .map(segment => sanitizeRepoFileName(segment))
+    .filter(Boolean)
+    .join('/')
+
+const getDefaultUploadFolder = (mode: RemotePickerMode): string => {
+  if (mode === 'download') return 'downloads'
+  if (mode === 'preview') return 'images/previews'
+  if (mode === 'cover') return 'images'
+  return 'images'
+}
+
+const buildOpfsRepoPath = (mode: RemotePickerMode, fileName: string, folderPath: string, index = 0): string => {
   const safeName = sanitizeRepoFileName(fileName)
-  const stamp = Date.now()
-  if (mode === 'icon') return `images/icon_${stamp}_${safeName}`
-  if (mode === 'cover') return `images/cover_${stamp}_${safeName}`
-  if (mode === 'download') return `downloads/${safeName}`
-  return `images/preview_${stamp}_${index}_${safeName}`
+  const safeFolder = sanitizeRepoFolderPath(folderPath) || getDefaultUploadFolder(mode)
+  const stamp = Date.now().toString(36)
+  const suffix = mode === 'preview' ? `${stamp}_${index}` : stamp
+  return `${safeFolder}/${suffix}_${safeName}`
 }
 
 const writeFileToOpfs = async (repoPath: string, file: File): Promise<void> => {
@@ -3085,6 +3103,20 @@ const readFileFromOpfs = async (repoPath: string): Promise<File | null> => {
   }
 }
 
+const removeFileFromOpfs = async (repoPath: string): Promise<void> => {
+  try {
+    const root = await navigator.storage.getDirectory()
+    const parts = ['astrobooox-local', ...repoPath.split('/').filter(Boolean)]
+    let dir = root
+    for (let i = 0; i < parts.length - 1; i++) {
+      dir = await dir.getDirectoryHandle(parts[i])
+    }
+    await dir.removeEntry(parts[parts.length - 1])
+  } catch {
+    // ignore remove errors to avoid blocking UI flow
+  }
+}
+
 const openRemotePickerLocalUpload = (): void => {
   const input = remotePickerLocalInputRef.value
   if (!input) return
@@ -3104,10 +3136,12 @@ const handleRemotePickerLocalUpload = async (event: Event): Promise<void> => {
 
   const fileList = Array.from(files)
   const nextSelected: string[] = []
+  const targetFolder = sanitizeRepoFolderPath(remotePickerUploadFolder.value) || getDefaultUploadFolder(remotePickerMode.value)
+  remotePickerUploadFolder.value = targetFolder
 
   for (let i = 0; i < fileList.length; i++) {
     const file = fileList[i]
-    const repoPath = buildOpfsRepoPath(remotePickerMode.value, file.name, i)
+    const repoPath = buildOpfsRepoPath(remotePickerMode.value, file.name, targetFolder, i)
     await writeFileToOpfs(repoPath, file)
     opfsLocalPathSet.value[repoPath] = true
     if (isImagePath(repoPath)) {
@@ -3183,6 +3217,7 @@ const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
   remotePickerDeviceId.value = deviceId
   remotePickerSearch.value = ''
   remotePickerSelectedPaths.value = []
+  remotePickerUploadFolder.value = getDefaultUploadFolder(mode)
   showRemoteFilePickerDialog.value = true
 }
 
@@ -3231,8 +3266,19 @@ const applyRemotePickerSelection = (): void => {
   showRemoteFilePickerDialog.value = false
 }
 
-const removePreview = (index: number): void => {
+const removePreview = async (index: number): Promise<void> => {
+  const target = previewItems.value[index]
+  if (!target) return
   previewItems.value.splice(index, 1)
+
+  if (!opfsLocalPathSet.value[target.path]) return
+  await removeFileFromOpfs(target.path)
+  delete opfsLocalPathSet.value[target.path]
+  const previewUrl = opfsLocalPreviewUrlMap.value[target.path]
+  if (previewUrl) {
+    URL.revokeObjectURL(previewUrl)
+    delete opfsLocalPreviewUrlMap.value[target.path]
+  }
 }
 
 const getWorkspaceFolderNameFromPath = (path: string): string => {
