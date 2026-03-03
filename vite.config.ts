@@ -1,6 +1,17 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
+import { execSync } from 'node:child_process'
+
+const resolveGitCommitSha = (): string => {
+  try {
+    return execSync('git rev-parse --short=12 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim()
+  } catch {
+    return 'local'
+  }
+}
 
 const commitSha =
   process.env.CF_PAGES_COMMIT_SHA ||
@@ -8,7 +19,7 @@ const commitSha =
   process.env.VERCEL_GIT_COMMIT_SHA ||
   process.env.CI_COMMIT_SHA ||
   process.env.SOURCE_VERSION ||
-  'local'
+  resolveGitCommitSha()
 const buildTimestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)
 const buildVersion = `${commitSha.slice(0, 12)}-${buildTimestamp}`
 
