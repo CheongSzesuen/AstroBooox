@@ -835,23 +835,11 @@
           </DialogHeader>
           <div class="grid min-h-0 flex-1 gap-3 overflow-hidden md:grid-cols-[minmax(0,1fr)_360px]">
             <div class="flex min-h-0 flex-col gap-3">
-              <div class="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
-                <span class="text-muted-foreground">本地导入目录（点左侧文件夹设置）</span>
-                <div class="flex items-center gap-2">
-                  <span class="max-w-[180px] truncate font-medium text-foreground">{{ remotePickerTargetFolder || '根目录' }}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="h-6 px-2 text-[11px]"
-                    :disabled="!remotePickerTargetFolder"
-                    @click="remotePickerTargetFolder = ''"
-                  >
-                    清除
-                  </Button>
-                </div>
-              </div>
               <div v-if="remotePickerStep === 1" class="flex gap-2 max-sm:flex-col">
-                <Button variant="outline" @click="createRemotePickerFolder">新建</Button>
+                <Button variant="outline" @click="createRemotePickerFolder">
+                  <FolderPlus :size="14" weight="duotone" />
+                  新建文件夹
+                </Button>
               </div>
               <div v-else class="space-y-2">
                 <div class="flex gap-2 max-sm:flex-col">
@@ -914,7 +902,7 @@
                         v-if="remotePickerTargetFolder === item.path"
                         class="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary"
                       >
-                        导入目录
+                        目标文件夹
                       </span>
                     </button>
                     <button
@@ -1590,6 +1578,7 @@ import {
   PhCheckCircle as CheckCircle,
   PhDotsSixVertical as DragDots,
   PhFile as FileIcon,
+  PhFolderPlus as FolderPlus,
   PhFolderOpen as FolderOpen,
   PhFolder as FolderIcon,
   PhGlobeHemisphereWest as GlobeHemisphereWest,
