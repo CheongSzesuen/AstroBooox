@@ -1350,13 +1350,15 @@ interface OwnedMergedItem {
 const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
   const grouped = new Map<string, OwnedMergedItem>()
   const preferredSource = ownedDisplayPriority.value === 'v1' ? 'v1' : 'v2'
+  const isNewerDate = (current: string, previous: string): boolean => {
+    if (!current) return false
+    if (!previous) return true
+    return current > previous
+  }
   for (const item of ownedItems.value) {
     const key = [
       item.repo_owner.trim().toLowerCase(),
-      item.repo_name.trim().toLowerCase(),
-      item.name.trim().toLowerCase(),
-      item.description.trim().toLowerCase(),
-      item.restype.trim().toLowerCase()
+      item.repo_name.trim().toLowerCase()
     ].join('|')
     const existing = grouped.get(key)
     if (!existing) {
@@ -1381,14 +1383,19 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
     }
     const shouldUseCurrent = item.source === preferredSource
     if (shouldUseCurrent) {
-      existing.name = item.name || existing.name
-      existing.restype = item.restype || existing.restype
-      existing.icon = item.icon || existing.icon
-      existing.repo_owner = item.repo_owner || existing.repo_owner
-      existing.repo_name = item.repo_name || existing.repo_name
-      existing.repo_commit_hash = item.repo_commit_hash || existing.repo_commit_hash
-      existing.description = item.description || existing.description
-      existing.commitDate = item.commitDate || existing.commitDate
+      const shouldReplacePreferred =
+        !existing.repo_commit_hash ||
+        isNewerDate(item.commitDate || '', existing.commitDate || '')
+      if (shouldReplacePreferred) {
+        existing.name = item.name || existing.name
+        existing.restype = item.restype || existing.restype
+        existing.icon = item.icon || existing.icon
+        existing.repo_owner = item.repo_owner || existing.repo_owner
+        existing.repo_name = item.repo_name || existing.repo_name
+        existing.repo_commit_hash = item.repo_commit_hash || existing.repo_commit_hash
+        existing.description = item.description || existing.description
+        existing.commitDate = item.commitDate || existing.commitDate
+      }
     } else {
       if (!existing.icon && item.icon) {
         existing.icon = item.icon
