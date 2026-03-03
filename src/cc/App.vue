@@ -137,29 +137,77 @@
           :repo="defaultTargetRepo"
           :token="token"
         />
-        <Card v-else class="w-full max-w-[920px]">
-          <CardHeader>
-            <CardTitle>设置</CardTitle>
-            <CardDescription>配置默认目标仓库，用于“等待审核 / 已发布资源 / 审核”调试。</CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-3">
-            <div class="space-y-1.5">
-              <Label for="cc-setting-owner">默认目标仓库 Owner</Label>
-              <Input id="cc-setting-owner" v-model="settingsForm.defaultTargetOwner" placeholder="AstralSightStudios" />
+        <div v-else class="w-full max-w-[1120px]">
+          <div class="rounded-xl border border-border bg-card">
+            <div class="border-b border-border px-5 py-4">
+              <h2 class="text-base font-semibold text-foreground">Settings</h2>
+              <p class="mt-1 text-sm text-muted-foreground">管理 Creator Console 的默认行为与偏好。</p>
             </div>
-            <div class="space-y-1.5">
-              <Label for="cc-setting-repo">默认目标仓库 Repo</Label>
-              <Input id="cc-setting-repo" v-model="settingsForm.defaultTargetRepo" placeholder="AstroBox-Repo" />
+
+            <div class="grid min-h-[520px] grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)]">
+              <aside class="border-b border-border bg-muted/20 p-3 md:border-b-0 md:border-r">
+                <nav class="space-y-1">
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition"
+                    :class="settingsSection === 'defaults' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+                    @click="settingsSection = 'defaults'"
+                  >
+                    <span>General</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition"
+                    :class="settingsSection === 'account' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+                    @click="settingsSection = 'account'"
+                  >
+                    <span>Account</span>
+                  </button>
+                </nav>
+              </aside>
+
+              <section class="p-5">
+                <div v-if="settingsSection === 'defaults'" class="space-y-5">
+                  <div>
+                    <h3 class="text-sm font-semibold text-foreground">默认目标仓库</h3>
+                    <p class="mt-1 text-xs text-muted-foreground">用于“等待审核 / 已发布资源 / 审核”页面的默认仓库配置。</p>
+                  </div>
+                  <div class="space-y-3">
+                    <div class="space-y-1.5">
+                      <Label for="cc-setting-owner">Owner</Label>
+                      <Input id="cc-setting-owner" v-model="settingsForm.defaultTargetOwner" placeholder="AstralSightStudios" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="cc-setting-repo">Repo</Label>
+                      <Input id="cc-setting-repo" v-model="settingsForm.defaultTargetRepo" placeholder="AstroBox-Repo" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="cc-setting-catalog">Catalog Path</Label>
+                      <Input id="cc-setting-catalog" v-model="settingsForm.defaultCatalogPath" placeholder="index_v2.csv" />
+                    </div>
+                  </div>
+                  <div class="flex justify-end">
+                    <Button @click="saveSettings">保存设置</Button>
+                  </div>
+                </div>
+
+                <div v-else class="space-y-4">
+                  <div>
+                    <h3 class="text-sm font-semibold text-foreground">账号信息</h3>
+                    <p class="mt-1 text-xs text-muted-foreground">当前登录的 GitHub 会话信息。</p>
+                  </div>
+                  <div class="rounded-md border border-border bg-muted/20 p-3 text-sm">
+                    <div class="text-xs text-muted-foreground">当前账号</div>
+                    <div class="mt-1 font-medium text-foreground">{{ currentUser || '未登录' }}</div>
+                  </div>
+                  <div class="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                    账号的 Token 管理请通过右上角菜单执行退出后重新登录。
+                  </div>
+                </div>
+              </section>
             </div>
-            <div class="space-y-1.5">
-              <Label for="cc-setting-catalog">默认目录文件路径</Label>
-              <Input id="cc-setting-catalog" v-model="settingsForm.defaultCatalogPath" placeholder="index_v2.csv" />
-            </div>
-            <div class="flex justify-end">
-              <Button @click="saveSettings">保存设置</Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </section>
     </main>
   </div>
@@ -183,13 +231,6 @@ import {
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
 import CcPrReviewWorkbench from '@/components/CcPrReviewWorkbench.vue'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import CcTokenGate from '@/cc/CcTokenGate.vue'
@@ -210,6 +251,7 @@ const settingsForm = ref({
   defaultTargetRepo: defaultTargetRepo.value,
   defaultCatalogPath: defaultCatalogPath.value
 })
+const settingsSection = ref<'defaults' | 'account'>('defaults')
 const workbenchMode = computed<'publish' | 'review' | 'published'>(() =>
   tab.value === 'settings' || tab.value === 'audit' ? 'publish' : tab.value
 )
@@ -238,6 +280,7 @@ const openSettingsPage = (): void => {
     defaultTargetRepo: defaultTargetRepo.value,
     defaultCatalogPath: defaultCatalogPath.value
   }
+  settingsSection.value = 'defaults'
   closeUserMenu()
   tab.value = 'settings'
 }
