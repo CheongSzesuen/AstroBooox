@@ -522,6 +522,21 @@
                             v-model="link.icon"
                             placeholder="github-logo / house / globe"
                           />
+                          <div class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+                            <component
+                              :is="getLinkIconPreviewComponent(link.icon)"
+                              v-if="getLinkIconPreviewComponent(link.icon)"
+                              :size="18"
+                              weight="duotone"
+                              class="text-foreground"
+                            />
+                            <WarningCircle
+                              v-else
+                              :size="16"
+                              weight="duotone"
+                              class="text-muted-foreground"
+                            />
+                          </div>
                           <Button variant="outline" @click="openLinkIconPicker(index)">搜索图标</Button>
                         </div>
                       </div>
@@ -1700,7 +1715,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, watch, type Component } from 'vue'
 import {
   ContextMenuContent,
   ContextMenuItem,
@@ -1838,6 +1853,7 @@ const LEGACY_RESOURCES_DIR = 'resources'
 type SubmitMode = 'v2' | 'v1' | 'both'
 
 const LinkIconPickerDialog = defineAsyncComponent(() => import('@/components/LinkIconPickerDialog.vue'))
+const phosphorIconModules = import.meta.glob('/node_modules/@phosphor-icons/vue/dist/icons/*.vue.mjs', { eager: true })
 
 
 type WorkbenchMode = 'publish' | 'review' | 'published'
@@ -3341,6 +3357,20 @@ const createPreviewItemFromPath = (path: string): { id: string; path: string } =
   path
 })
 
+const getLinkIconPreviewComponent = (iconName: string): Component | null => {
+  const normalized = iconName.trim().toLowerCase()
+  if (!normalized) return null
+  const pascalName = normalized
+    .split('-')
+    .filter(Boolean)
+    .map(part => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join('')
+  if (!pascalName) return null
+  const modulePath = `/node_modules/@phosphor-icons/vue/dist/icons/Ph${pascalName}.vue.mjs`
+  const iconModule = phosphorIconModules[modulePath] as { default?: Component } | undefined
+  return iconModule?.default || null
+}
+
 const sanitizeRepoFileName = (name: string, fallback = ''): string => {
   const normalized = name
     .trim()
@@ -3363,18 +3393,10 @@ const buildUploadedFileName = (originalName: string, index: number, total: numbe
   const custom = sanitizeRepoFileName(customRaw)
   if (!customRaw) return sanitizeRepoFileName(originalName, `upload_${index + 1}`)
   if (!custom) return sanitizeRepoFileName(originalName, `upload_${index + 1}`)
+  const base = custom.replace(/\.[^.]+$/, '')
   const originDot = originalName.lastIndexOf('.')
   const originExt = originDot > 0 && originDot < originalName.length - 1 ? originalName.slice(originDot) : ''
-  const customDot = custom.lastIndexOf('.')
-  const hasCustomExt = customDot > 0 && customDot < custom.length - 1
-  const normalizedCustom = hasCustomExt ? custom : `${custom}${originExt}`
-  if (total <= 1) return normalizedCustom
-
-  const dot = normalizedCustom.lastIndexOf('.')
-  const hasExt = dot > 0 && dot < normalizedCustom.length - 1
-  const base = hasExt ? normalizedCustom.slice(0, dot) : normalizedCustom
-  const ext = hasExt ? normalizedCustom.slice(dot) : ''
-  return `${base}_${index + 1}${ext}`
+  return `${base}${originExt}`
 }
 
 const getDefaultUploadFolder = (mode: RemotePickerMode): string => {
@@ -3447,6 +3469,10 @@ const handleRemotePickerLocalUpload = async (event: Event): Promise<void> => {
   }
 
   const fileList = Array.from(files)
+  if (remotePickerUploadFileName.value.trim() && fileList.length > 1) {
+    appendLog('已填写本地导入文件名时，一次只能选择一个文件')
+    return
+  }
   const targetFolder = sanitizeRepoFolderPath(remotePickerTargetFolder.value)
   remotePickerTargetFolder.value = targetFolder
   const nextSelected: string[] = []
