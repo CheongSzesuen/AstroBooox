@@ -1048,6 +1048,27 @@ export const loadOwnedResources = async (params: {
     legacyCatalogPath = 'index.csv'
   } = params
   const items: OwnedResourceEntry[] = []
+  const normalizedUsername = username.trim().toLowerCase()
+  const repoDescriptionCache = new Map<string, string>()
+  const commitDateCache = new Map<string, string>()
+
+  const getCachedRepoDescription = async (owner: string, repo: string, ref: string): Promise<string> => {
+    const cacheKey = `${owner}/${repo}@${ref}`
+    const cached = repoDescriptionCache.get(cacheKey)
+    if (cached !== undefined) return cached
+    const loaded = await loadRepoDescription({ token, owner, repo, ref })
+    repoDescriptionCache.set(cacheKey, loaded)
+    return loaded
+  }
+
+  const getCachedCommitDate = async (owner: string, repo: string, ref: string): Promise<string> => {
+    const cacheKey = `${owner}/${repo}@${ref}`
+    const cached = commitDateCache.get(cacheKey)
+    if (cached !== undefined) return cached
+    const loaded = await loadCommitDate({ token, owner, repo, ref })
+    commitDateCache.set(cacheKey, loaded)
+    return loaded
+  }
 
   const [v2CatalogFile, v1CatalogFile] = await Promise.all([
     fetchRepoFileOrNull(token, upstreamOwner, upstreamRepo, catalogPath, upstreamBranch),
@@ -1060,19 +1081,10 @@ export const loadOwnedResources = async (params: {
 
   const v2Items = await Promise.all(
     v2Entries.map(async entry => {
+      const ref = entry.repo_commit_hash || 'main'
       const [description, commitDate] = await Promise.all([
-        loadRepoDescription({
-          token,
-          owner: entry.repo_owner,
-          repo: entry.repo_name,
-          ref: entry.repo_commit_hash || 'main'
-        }),
-        loadCommitDate({
-          token,
-          owner: entry.repo_owner,
-          repo: entry.repo_name,
-          ref: entry.repo_commit_hash || 'main'
-        })
+        getCachedRepoDescription(entry.repo_owner, entry.repo_name, ref),
+        getCachedCommitDate(entry.repo_owner, entry.repo_name, ref)
       ])
 
       return {
@@ -1094,8 +1106,33 @@ export const loadOwnedResources = async (params: {
   const v1Entries = v1CatalogFile?.content
     ? parseLegacyCatalogCsv(base64ToText(v1CatalogFile.content))
     : []
+
+  const containsCurrentUsername = (value: string): boolean =>
+    Boolean(normalizedUsername && value.toLowerCase().includes(normalizedUsername))
+  const likelyAuthorFolders = new Set(
+    v1Entries
+      .filter(entry =>
+        containsCurrentUsername(entry.icon) ||
+        containsCurrentUsername(entry.cover) ||
+        containsCurrentUsername(entry.path)
+      )
+      .map(entry => entry.path.split('/').filter(Boolean)[0] || '')
+      .filter(Boolean)
+  )
+  const v1CandidateEntries = v1Entries.filter(entry => {
+    if (
+      containsCurrentUsername(entry.icon) ||
+      containsCurrentUsername(entry.cover) ||
+      containsCurrentUsername(entry.path)
+    ) {
+      return true
+    }
+    const folder = entry.path.split('/').filter(Boolean)[0] || ''
+    return Boolean(folder && likelyAuthorFolders.has(folder))
+  })
+
   const v1Items = await Promise.all(
-    v1Entries.map(async (entry, index) => {
+    v1CandidateEntries.map(async (entry, index) => {
       const resourceJsonPath = entry.path ? `resources/${entry.path}` : ''
       if (!resourceJsonPath) return null
 
@@ -1128,13 +1165,9 @@ export const loadOwnedResources = async (params: {
       }
 
       if (!repoOwner || !repoName) return null
+      if (normalizedUsername && repoOwner.trim().toLowerCase() !== normalizedUsername) return null
 
-      const description = await loadRepoDescription({
-        token,
-        owner: repoOwner,
-        repo: repoName,
-        ref: repoRef
-      })
+      const description = await getCachedRepoDescription(repoOwner, repoName, repoRef)
 
       return {
         source: 'v1' as const,
