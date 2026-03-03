@@ -937,7 +937,7 @@
                               >
                                 <DropdownMenuItem
                                   class="flex cursor-pointer items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
-                                  @select="selectRemotePickerFolder(item.path); createRemotePickerFolder()"
+                                  @select="createRemotePickerFolder(item.path)"
                                 >
                                   新建子文件夹
                                 </DropdownMenuItem>
@@ -972,7 +972,7 @@
                           </ContextMenuItem>
                           <ContextMenuItem
                             class="flex cursor-pointer items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
-                            @select="selectRemotePickerFolder(item.path); createRemotePickerFolder()"
+                            @select="createRemotePickerFolder(item.path)"
                           >
                             新建子文件夹
                           </ContextMenuItem>
@@ -2579,9 +2579,9 @@ const remotePickerLocalItems = computed(() => {
     .sort((a, b) => a.localeCompare(b, 'zh-CN'))
 })
 
-const createRemotePickerFolder = (): void => {
+const createRemotePickerFolder = (parentPath?: string): void => {
   const folderNameBase = '新建文件夹'
-  const parent = sanitizeRepoFolderPath(remotePickerTargetFolder.value)
+  const parent = sanitizeRepoFolderPath(parentPath ?? remotePickerTargetFolder.value)
 
   const taken = new Set([
     ...remoteWorkspaceTree.value.filter(item => item.type === 'folder').map(item => item.path),
