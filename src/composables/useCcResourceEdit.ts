@@ -2,12 +2,17 @@ import { computed, ref } from 'vue'
 
 export interface CcResourceEditDraft {
   key: string
+  catalogId: string
   repoOwner: string
   repoName: string
+  repoCommitHash: string
   name: string
   restype: string
   description: string
   tags: string[]
+  deviceVendors: string
+  devices: string
+  paidType: string
   icon: string
   cover: string
   previews: string[]
@@ -30,4 +35,3 @@ export const useCcResourceEdit = () => {
     clearDraft
   }
 }
-

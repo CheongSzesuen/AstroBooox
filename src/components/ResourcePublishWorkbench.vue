@@ -3946,6 +3946,25 @@ const extractTagList = (value: unknown): string[] => {
   return []
 }
 
+const normalizeCatalogText = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return value.map(item => String(item || '').trim()).filter(Boolean).join(';')
+  }
+  return String(value || '').trim()
+}
+
+const resolveV2CatalogIdFromOwnedItems = (owner: string, repo: string): string => {
+  const matched = ownedItems.value.find(item =>
+    item.source === 'v2' &&
+    item.repo_owner.trim().toLowerCase() === owner.trim().toLowerCase() &&
+    item.repo_name.trim().toLowerCase() === repo.trim().toLowerCase()
+  )
+  if (!matched?.key) return ''
+  const segments = matched.key.split(':')
+  if (segments.length < 3) return ''
+  return segments[1].trim()
+}
+
 const startEditOwnedResource = (): void => {
   const current = selectedOwnedItem.value
   const detail = ownedDetail.value
@@ -3975,20 +3994,25 @@ const startEditOwnedResource = (): void => {
     .map(value => String(value || '').trim())
     .filter(Boolean)
   const parsedRestype = String(item.restype || current.restype || '').trim()
-  const restype = normalizeOwnedRestype(parsedRestype) === 'quickapp'
-    ? '快应用'
-    : normalizeOwnedRestype(parsedRestype) === 'watchface'
-      ? '表盘'
-      : parsedRestype || '-'
+  const normalizedRestype = normalizeOwnedRestype(parsedRestype)
+  const restype = normalizedRestype === 'watchface' ? 'watchface' : 'quickapp'
+  const catalogId =
+    String(item.id || '').trim() ||
+    resolveV2CatalogIdFromOwnedItems(current.repo_owner, current.repo_name)
 
   setResourceEditDraft({
     key: current.key,
+    catalogId,
     repoOwner: current.repo_owner,
     repoName: current.repo_name,
+    repoCommitHash: String(current.v2RepoCommitHash || current.repo_commit_hash || '').trim(),
     name: String(item.name || current.name || '').trim(),
     restype,
     description: String(item.description || current.description || '').trim(),
     tags: extractTagList(item.tags),
+    deviceVendors: normalizeCatalogText(item.device_vendors),
+    devices: normalizeCatalogText(item.devices),
+    paidType: normalizeCatalogText(item.paid_type),
     icon: String(item.icon || current.icon || '').trim(),
     cover: String(item.cover || '').trim(),
     previews: previewPaths
