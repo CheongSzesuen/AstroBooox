@@ -1940,6 +1940,20 @@ const linkPickerInitialQuery = ref('')
 const iconPath = ref('')
 const coverPath = ref('')
 const previewItems = ref<Array<{ id: string; path: string }>>([])
+interface UpdateChangeBaseline {
+  name: string
+  description: string
+  restype: string
+  paidType: string
+  icon: string
+  cover: string
+  previews: string[]
+  tags: string[]
+  links: Array<{ icon: string; title: string; url: string }>
+  authors: Array<{ name: string; authorUrl: string; bindABAccount: boolean }>
+  downloads: Record<string, { version: string; file_name: string }>
+}
+const updateChangeBaseline = ref<UpdateChangeBaseline | null>(null)
 type RemotePickerMode = 'icon' | 'cover' | 'preview' | 'download'
 const remotePickerMode = ref<RemotePickerMode>('preview')
 const remotePickerDeviceId = ref('')
@@ -2974,8 +2988,8 @@ const normalizeDownloads = (values: Record<string, { version: string; file_name:
   )
 
 const collectUpdateChangeLines = (): string[] => {
-  const draft = resourceEditDraft.value
-  if (!draft) return []
+  const baseline = updateChangeBaseline.value
+  if (!baseline) return []
 
   const lines: string[] = []
   const pushIfChanged = (label: string, before: string, after: string): void => {
@@ -2983,14 +2997,14 @@ const collectUpdateChangeLines = (): string[] => {
     lines.push(`- ${label}：\`${before || '--'}\` -> \`${after || '--'}\``)
   }
 
-  pushIfChanged('资源名称', normalizeTextValue(draft.name), normalizeTextValue(itemName.value))
-  pushIfChanged('资源描述', normalizeTextValue(draft.description), normalizeTextValue(itemDescription.value))
-  pushIfChanged('资源类型', normalizeTextValue(draft.restype), normalizeTextValue(restype.value))
-  pushIfChanged('付费类型', normalizeTextValue(draft.paidType), normalizeTextValue(paidType.value))
-  pushIfChanged('图标', normalizeTextValue(draft.icon), normalizeTextValue(iconPath.value))
-  pushIfChanged('封面', normalizeTextValue(draft.cover), normalizeTextValue(coverPath.value))
+  pushIfChanged('资源名称', normalizeTextValue(baseline.name), normalizeTextValue(itemName.value))
+  pushIfChanged('资源描述', normalizeTextValue(baseline.description), normalizeTextValue(itemDescription.value))
+  pushIfChanged('资源类型', normalizeTextValue(baseline.restype), normalizeTextValue(restype.value))
+  pushIfChanged('付费类型', normalizeTextValue(baseline.paidType), normalizeTextValue(paidType.value))
+  pushIfChanged('图标', normalizeTextValue(baseline.icon), normalizeTextValue(iconPath.value))
+  pushIfChanged('封面', normalizeTextValue(baseline.cover), normalizeTextValue(coverPath.value))
 
-  const beforePreviewList = normalizeStringArray(draft.previews)
+  const beforePreviewList = normalizeStringArray(baseline.previews)
   const afterPreviewList = normalizeStringArray(previewItems.value.map(item => item.path))
   const beforePreview = beforePreviewList.join('|')
   const afterPreview = afterPreviewList.join('|')
@@ -3017,23 +3031,23 @@ const collectUpdateChangeLines = (): string[] => {
     }
   }
 
-  const beforeTags = normalizeStringArray(draft.tags).join('|')
+  const beforeTags = normalizeStringArray(baseline.tags).join('|')
   const afterTags = normalizeStringArray(tags.value).join('|')
   pushIfChanged('标签', beforeTags, afterTags)
 
-  const beforeLinks = normalizeLinks(draft.links)
+  const beforeLinks = normalizeLinks(baseline.links)
   const afterLinks = normalizeLinks(links.value)
   if (beforeLinks !== afterLinks) {
     lines.push('- 相关链接：已更新')
   }
 
-  const beforeAuthors = normalizeAuthors(draft.authors)
+  const beforeAuthors = normalizeAuthors(baseline.authors)
   const afterAuthors = normalizeAuthors(authors.value)
   if (beforeAuthors !== afterAuthors) {
     lines.push('- 作者信息：已更新')
   }
 
-  const beforeDownloads = normalizeDownloads(draft.downloads)
+  const beforeDownloads = normalizeDownloads(baseline.downloads)
   const afterDownloads = normalizeDownloads(downloads.value)
   if (beforeDownloads !== afterDownloads) {
     lines.push('- 下载资源（downloads）：已更新')
@@ -3270,6 +3284,35 @@ const applyResourceEditDraft = (): void => {
     .filter(Boolean)
   selectedDeviceIds.value = [...new Set(draftDeviceIds.length > 0 ? draftDeviceIds : fallbackDeviceIds)]
   selectedDeviceIds.value.forEach(deviceId => ensureDownload(deviceId))
+  updateChangeBaseline.value = {
+    name: draft.name.trim(),
+    description: draft.description.trim(),
+    restype: restype.value.trim(),
+    paidType: draft.paidType.trim(),
+    icon: draft.icon.trim(),
+    cover: draft.cover.trim(),
+    previews: draft.previews.map(path => path.trim()).filter(Boolean),
+    tags: draft.tags.map(tag => tag.trim()).filter(Boolean),
+    links: draftLinks.map(link => ({
+      icon: link.icon.trim(),
+      title: link.title.trim(),
+      url: link.url.trim()
+    })),
+    authors: draftAuthors.map(author => ({
+      name: author.name.trim(),
+      authorUrl: author.authorUrl.trim(),
+      bindABAccount: Boolean(author.bindABAccount)
+    })),
+    downloads: Object.fromEntries(
+      Object.entries(nextDownloads).map(([deviceId, entry]) => [
+        deviceId,
+        {
+          version: String(entry?.version || '').trim(),
+          file_name: String(entry?.file_name || '').trim()
+        }
+      ])
+    )
+  }
 
   upstreamOwner.value = defaultTargetOwner.value.trim()
   upstreamRepo.value = defaultTargetRepo.value.trim()
@@ -4014,6 +4057,7 @@ const syncRemoteWorkspaceForUpdate = async (repoOwner: string, repoName: string)
 const resetResourceInfoFields = (): void => {
   isResourceUpdateMode.value = false
   hasUploadedInCurrentFlow.value = false
+  updateChangeBaseline.value = null
   itemId.value = ''
   itemName.value = ''
   restype.value = 'quickapp'
