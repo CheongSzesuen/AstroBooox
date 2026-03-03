@@ -8,6 +8,9 @@ export type CcRouteState = {
   pullRequestNumber?: number
   pullRequestTargetRepo?: string
   requireGhUser?: boolean
+  editResourceId?: string
+  editTargetRepo?: string
+  editUser?: string
 }
 
 export const CC_PATHS = {
@@ -28,7 +31,10 @@ export const CC_DEFAULT_ROUTE: CcRouteState = {
   resourceDetailKey: '',
   pullRequestNumber: 0,
   pullRequestTargetRepo: '',
-  requireGhUser: false
+  requireGhUser: false,
+  editResourceId: '',
+  editTargetRepo: '',
+  editUser: ''
 }
 
 export const normalizeCcPath = (path?: string): string => {

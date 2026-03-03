@@ -3,7 +3,7 @@
     <template v-if="mode === 'publish'">
       <div class="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
         <div class="space-y-4 xl:sticky xl:top-[72px] xl:self-start">
-          <Card v-if="!isResourceUpdateMode">
+          <Card>
             <CardHeader class="pb-3">
               <CardTitle class="text-base">步骤导航</CardTitle>
             </CardHeader>
@@ -23,7 +23,7 @@
                     :class="
                       step.done
                         ? 'border-emerald-500/70 bg-emerald-500/10 text-emerald-600'
-                        : activeStep === index
+                        : activeStep === step.targetStep
                           ? 'border-primary/60 bg-primary/10 text-foreground'
                           : 'border-border bg-background text-muted-foreground'
                     "
@@ -34,16 +34,16 @@
                     type="button"
                     class="w-full rounded-xl border px-3 py-2 text-left text-sm transition"
                     :class="[
-                      activeStep === index
+                      activeStep === step.targetStep
                         ? 'border-primary/50 bg-primary/10 text-foreground'
                         : 'border-border bg-background text-muted-foreground hover:bg-muted/30',
                       step.done ? '!text-foreground' : ''
                     ]"
-                    @click="goToStep(index)"
+                    @click="goToStep(step.targetStep)"
                   >
                     <p class="font-medium">{{ step.label }}</p>
                     <p class="text-xs text-muted-foreground">
-                      {{ step.done ? '已完成' : activeStep === index ? '进行中' : '待完成' }}
+                      {{ step.done ? '已完成' : activeStep === step.targetStep ? '进行中' : '待完成' }}
                     </p>
                   </button>
                 </li>
@@ -51,12 +51,68 @@
             </CardContent>
           </Card>
 
-          <Card v-if="workspacePath || workspaceTree.length || remoteWorkspacePath || remoteWorkspaceTree.length" class="border-border bg-card">
+          <Card
+            v-if="isResourceUpdateMode || workspacePath || workspaceTree.length || remoteWorkspacePath || remoteWorkspaceTree.length"
+            class="border-border bg-card"
+          >
             <CardHeader class="pb-2">
               <CardTitle class="text-xs font-medium uppercase tracking-wide text-muted-foreground">文件树</CardTitle>
             </CardHeader>
             <CardContent class="pt-0">
-              <Tabs v-model="fileTreeTab" class="space-y-2">
+              <div v-if="isResourceUpdateMode" class="space-y-2">
+                <p class="truncate px-1 text-[11px] text-muted-foreground">{{ remoteWorkspacePath || '未同步远程仓库' }}</p>
+                <nav class="max-h-56 overflow-y-auto" aria-label="Remote File Tree">
+                  <div
+                    v-if="remoteWorkspaceTree.length === 0"
+                    class="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground"
+                  >
+                    当前 GitHub 仓库暂无可识别文件
+                  </div>
+                  <ul v-else class="space-y-1" role="tree" aria-label="Remote Tree">
+                    <li
+                      v-for="item in visibleRemoteItems"
+                      :key="item.path"
+                      role="treeitem"
+                      :aria-level="item.depth + 1"
+                    >
+                      <button
+                        v-if="item.type === 'folder'"
+                        type="button"
+                        class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
+                        :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                        :title="item.path"
+                        @click="toggleRemoteFolder(item.path)"
+                      >
+                        <CaretRight
+                          v-if="item.collapsed"
+                          :size="12"
+                          weight="bold"
+                          class="shrink-0 text-muted-foreground"
+                        />
+                        <CaretDown
+                          v-else
+                          :size="12"
+                          weight="bold"
+                          class="shrink-0 text-muted-foreground"
+                        />
+                        <FolderIcon :size="14" weight="fill" class="shrink-0 text-muted-foreground" />
+                        <span class="truncate">{{ item.label }}</span>
+                      </button>
+                      <div
+                        v-else
+                        class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                        :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                        :title="item.path"
+                      >
+                        <span class="w-3 shrink-0" />
+                        <FileIcon :size="14" weight="duotone" class="shrink-0 text-muted-foreground" />
+                        <span class="truncate">{{ item.label }}</span>
+                      </div>
+                    </li>
+                  </ul>
+                </nav>
+              </div>
+              <Tabs v-else v-model="fileTreeTab" class="space-y-2">
                 <TabsList class="grid w-full grid-cols-2">
                   <TabsTrigger value="workspace">本地文件</TabsTrigger>
                   <TabsTrigger value="remote">GitHub仓库文件</TabsTrigger>
@@ -189,7 +245,7 @@
         </div>
 
         <div class="space-y-4">
-          <Card>
+          <Card v-if="!isResourceUpdateMode">
             <CardHeader class="pb-3">
               <CardTitle class="text-base">当前文件夹路径</CardTitle>
             </CardHeader>
@@ -239,20 +295,14 @@
               </div>
 
               <div class="flex justify-end">
-                <Button :disabled="!stepList[0].done" @click="goToStep(1)">下一步</Button>
+                <Button :disabled="!isWorkspaceStepDone" @click="goToStep(1)">下一步</Button>
               </div>
             </CardContent>
           </Card>
 
           <Card v-if="activeStep === 1">
             <CardHeader class="pb-3">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle class="text-base">步骤 2：资源信息</CardTitle>
-                <Button variant="outline" size="sm" @click="reloadResourceInfoFromWorkspace">
-                  <ArrowsClockwise :size="14" weight="duotone" />
-                  从工作区重新加载
-                </Button>
-              </div>
+              <CardTitle class="text-base">步骤 2：资源信息</CardTitle>
             </CardHeader>
             <CardContent class="space-y-4 pt-0">
               <Card class="border-border/70 shadow-none">
@@ -520,7 +570,7 @@
 
               <div class="flex justify-between gap-2">
                 <Button variant="outline" @click="goToStep(0)">上一步</Button>
-                <Button :disabled="!stepList[1].done" @click="openSubmitVersionDialog">下一步</Button>
+                <Button :disabled="!isResourceInfoStepDone" @click="openSubmitVersionDialog">下一步</Button>
               </div>
             </CardContent>
           </Card>
@@ -567,7 +617,7 @@
 
               <div class="flex justify-between gap-2">
                 <Button variant="outline" @click="goToStep(1)">上一步</Button>
-                <Button :disabled="!stepList[2].done" @click="goToStep(3)">下一步</Button>
+                <Button :disabled="!isUploadStepDone" @click="goToStep(3)">下一步</Button>
               </div>
             </CardContent>
           </Card>
@@ -2463,35 +2513,45 @@ const buildAutoPrBody = (): string => {
   ].join('\n')
 }
 
-const stepList = computed(() => [
-  {
-    label: '创建文件夹',
-    done: Boolean(workspaceHandle.value || workspacePath.value)
-  },
-  {
-    label: '资源信息',
-    done: isResourceInfoValid.value
-  },
-  {
-    label: '上传仓库',
-    done: Boolean(uploadedCommitSha.value)
-  },
-  {
-    label: '提交 Pull Request',
-    done: Boolean(latestPrUrl.value)
+const isWorkspaceStepDone = computed(() => Boolean(workspaceHandle.value || workspacePath.value))
+const isResourceInfoStepDone = computed(() => isResourceInfoValid.value)
+const isUploadStepDone = computed(() => Boolean(uploadedCommitSha.value))
+const isPrStepDone = computed(() => Boolean(latestPrUrl.value))
+
+const stepList = computed(() => {
+  if (isResourceUpdateMode.value) {
+    return [
+      { label: '更新资源', done: isResourceInfoStepDone.value, targetStep: 1 },
+      { label: '上传仓库', done: isUploadStepDone.value, targetStep: 2 },
+      { label: '提交 Pull Request', done: isPrStepDone.value, targetStep: 3 }
+    ]
   }
-])
+
+  return [
+    { label: '创建文件夹', done: isWorkspaceStepDone.value, targetStep: 0 },
+    { label: '资源信息', done: isResourceInfoStepDone.value, targetStep: 1 },
+    { label: '上传仓库', done: isUploadStepDone.value, targetStep: 2 },
+    { label: '提交 Pull Request', done: isPrStepDone.value, targetStep: 3 }
+  ]
+})
 
 const canAccessStep = (index: number): boolean => {
+  if (isResourceUpdateMode.value) {
+    if (index <= 1) return true
+    if (index === 2) return isResourceInfoStepDone.value
+    if (index === 3) return isUploadStepDone.value
+    return false
+  }
+
   if (index <= 0) return true
-  if (index === 1) return stepList.value[0].done
-  if (index === 2) return stepList.value[1].done
-  if (index === 3) return stepList.value[2].done
+  if (index === 1) return isWorkspaceStepDone.value
+  if (index === 2) return isResourceInfoStepDone.value
+  if (index === 3) return isUploadStepDone.value
   return false
 }
 
 const openSubmitVersionDialog = (): void => {
-  if (!stepList.value[1].done) {
+  if (!isResourceInfoStepDone.value) {
     appendLog('请先完成资源信息后再继续')
     return
   }
@@ -2604,6 +2664,10 @@ const applyResourceEditDraft = (): void => {
   resetResourceInfoFields()
   isResourceUpdateMode.value = true
   submitMode.value = 'v2'
+  fileTreeTab.value = 'remote'
+  clearWorkspace()
+  workspaceDisplayPath.value = ''
+  workspaceName.value = ''
 
   itemId.value = draft.catalogId.trim()
   itemName.value = draft.name.trim()
@@ -2640,7 +2704,8 @@ const applyResourceEditDraft = (): void => {
   latestPrUrl.value = ''
 
   activeStep.value = 1
-  appendLog(`已载入资源更新草稿：${draft.repoOwner}/${draft.repoName}`)
+  appendLog(`已载入资源更新草稿：资源=${draft.catalogId}，仓库=${draft.repoOwner}/${draft.repoName}，用户=${currentUser.value || 'unknown'}`)
+  void syncRemoteWorkspaceForUpdate(draft.repoOwner, draft.repoName)
 }
 
 const pickFileFromWorkspace = async (): Promise<PickedWorkspaceFile | null> => {
@@ -3113,6 +3178,27 @@ const loadRemoteRepoTree = async (
     branch: MAIN_BRANCH
   })
 
+const syncRemoteWorkspaceForUpdate = async (repoOwner: string, repoName: string): Promise<void> => {
+  clearRemoteWorkspace()
+  const owner = repoOwner.trim()
+  const repo = repoName.trim()
+  if (!owner || !repo) return
+
+  const accessToken = token.value.trim()
+  if (!accessToken) {
+    appendLog('未检测到 Token，暂不加载远程仓库文件树')
+    return
+  }
+
+  try {
+    const remoteTree = await loadRemoteRepoTree(accessToken, owner, repo)
+    setRemoteWorkspace(`${owner}/${repo}@${MAIN_BRANCH}`, remoteTree)
+    appendLog('已同步远程仓库文件树')
+  } catch (error: unknown) {
+    appendLog(`远程文件树同步失败: ${error instanceof Error ? error.message : '未知错误'}`)
+  }
+}
+
 const resetResourceInfoFields = (): void => {
   isResourceUpdateMode.value = false
   itemId.value = ''
@@ -3235,15 +3321,6 @@ const scanWorkspace = async (options: { forceSync?: boolean } = {}): Promise<voi
     clearWorkspace()
     appendLog(`扫描目录失败: ${error instanceof Error ? error.message : '未知错误'}`)
   }
-}
-
-const reloadResourceInfoFromWorkspace = async (): Promise<void> => {
-  if (!workspaceHandle.value) {
-    appendLog('当前会话没有目录访问权限，请先重新授权工作区。')
-    return
-  }
-  await scanWorkspace({ forceSync: true })
-  appendLog('已从当前工作区重新加载资源信息')
 }
 
 const refreshWorkspaceFileTree = async (): Promise<void> => {
@@ -4090,7 +4167,17 @@ const startEditOwnedResource = (): void => {
   })
 
   closeOwnedDetail({ syncRoute: false })
-  emit('request-tab', 'resource_edit')
+  emit('request-route', {
+    tab: 'resource_edit',
+    settingsSection: 'defaults',
+    resourceDetailKey: '',
+    pullRequestNumber: 0,
+    pullRequestTargetRepo: '',
+    requireGhUser: true,
+    editResourceId: catalogId,
+    editTargetRepo: `${current.repo_owner}/${current.repo_name}`.toLowerCase(),
+    editUser: currentUser.value.trim().toLowerCase()
+  })
 }
 
 const getOwnedItemIconUrl = (item: {

@@ -500,6 +500,11 @@ const resolveRouteFromLocation = (): CcRouteState => {
   if (route.tab === 'pullrequest' && route.pullRequestNumber && route.pullRequestNumber > 0) {
     route.pullRequestTargetRepo = routeTargetRepo
   }
+  if (route.tab === 'resource_edit') {
+    route.editResourceId = (searchParams.get('edit_resource') || '').trim()
+    route.editTargetRepo = (searchParams.get('edit_target_repo') || '').trim().toLowerCase()
+    route.editUser = (searchParams.get('edit_user') || '').trim().toLowerCase()
+  }
   const expected = (
     searchParams.get('gh_user') ||
     searchParams.get('cc_user') ||
@@ -537,6 +542,14 @@ const buildCcUrlWithUser = (path: string, state: CcRouteState): string => {
   if (isPullRequestDetail) {
     const targetRepo = (state.pullRequestTargetRepo || '').trim().toLowerCase()
     if (targetRepo) params.set('target_repo', targetRepo)
+  }
+  if (state.tab === 'resource_edit') {
+    const editResource = (state.editResourceId || '').trim()
+    const editTargetRepo = (state.editTargetRepo || '').trim().toLowerCase()
+    const editUser = (state.editUser || '').trim().toLowerCase()
+    if (editResource) params.set('edit_resource', editResource)
+    if (editTargetRepo) params.set('edit_target_repo', editTargetRepo)
+    if (editUser) params.set('edit_user', editUser)
   }
   if (params.size === 0) return normalizedPath
   return `${normalizedPath}?${params.toString()}`
@@ -607,7 +620,10 @@ const navigateToTab = (nextTab: CcTab): void => {
     resourceDetailKey: '',
     pullRequestNumber: 0,
     pullRequestTargetRepo: '',
-    requireGhUser: false
+    requireGhUser: false,
+    editResourceId: '',
+    editTargetRepo: '',
+    editUser: ''
   }
   applyRouteState(nextState, { withProgress: true })
 }
