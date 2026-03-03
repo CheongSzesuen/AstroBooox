@@ -37,6 +37,10 @@
         </a>
         Open Source on GitHub
       </p>
+
+      <p class="m-0 text-xs text-muted-foreground/90" :title="appVersion">
+        当前版本：{{ appVersionDisplay }}
+      </p>
     </div>
 
     <Dialog :open="showTerms" @update:open="showTerms = $event">
@@ -60,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { PhGithubLogo as GithubLogo, PhInfo as Info } from '@phosphor-icons/vue'
 import { Button } from '@/components/ui/button'
 import {
@@ -73,4 +77,9 @@ import {
 } from '@/components/ui/dialog'
 
 const showTerms = ref(false)
+const appVersion = __APP_VERSION__
+const appVersionDisplay = computed(() => {
+  if (!appVersion) return 'unknown'
+  return appVersion.length > 12 ? appVersion.slice(0, 12) : appVersion
+})
 </script>
