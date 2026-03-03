@@ -829,16 +829,16 @@
       </Dialog>
 
       <Dialog :open="showRemoteFilePickerDialog" @update:open="showRemoteFilePickerDialog = $event">
-        <DialogContent class="w-[95vw] !max-w-[1120px]">
-          <DialogHeader>
+        <DialogContent class="flex max-h-[88vh] w-[95vw] !max-w-[1120px] flex-col overflow-hidden">
+          <DialogHeader class="shrink-0">
             <DialogTitle>{{ remotePickerTitle }}</DialogTitle>
             <DialogDescription>
               远程仓库：{{ remoteWorkspacePath || '未同步远程仓库' }}
             </DialogDescription>
           </DialogHeader>
-          <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_360px]">
-            <div class="space-y-3">
-              <div class="flex gap-2 max-sm:flex-col">
+          <div class="grid flex-1 gap-3 overflow-hidden md:grid-cols-[minmax(0,1fr)_360px]">
+            <div class="flex min-h-0 flex-col gap-3">
+              <div class="shrink-0 flex gap-2 max-sm:flex-col">
                 <Input v-model="remotePickerSearch" placeholder="搜索文件名或路径" />
                 <Button variant="outline" @click="openRemotePickerLocalUpload">本地上传</Button>
                 <input
@@ -850,12 +850,13 @@
                 >
               </div>
               <Input
+                class="shrink-0"
                 v-model="remotePickerUploadFolder"
                 placeholder="本地上传目标目录（GitHub相对路径），如 images/previews"
               />
-              <div class="max-h-[60vh] overflow-y-auto rounded-lg border border-border">
+              <div class="min-h-0 overflow-y-auto rounded-lg border border-border">
                 <div
-                  v-if="remotePickerTreeItems.length === 0"
+                  v-if="remotePickerTreeItems.length === 0 && remotePickerLocalItems.length === 0"
                   class="px-3 py-4 text-center text-xs text-muted-foreground"
                 >
                   暂无可选文件
@@ -898,23 +899,23 @@
                     </button>
                   </template>
                 </div>
-              </div>
-              <div v-if="remotePickerLocalItems.length > 0" class="space-y-1 rounded-lg border border-border bg-muted/20 p-2">
-                <p class="px-1 text-[11px] text-muted-foreground">本地上传（OPFS）</p>
-                <button
-                  v-for="path in remotePickerLocalItems"
-                  :key="`local-picker-${path}`"
-                  type="button"
-                  class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30"
-                  :class="remotePickerSelectedPaths.includes(path) ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'"
-                  @click="toggleRemotePickerPath(path)"
-                >
-                  <FileIcon :size="14" weight="duotone" class="shrink-0" />
-                  <span class="truncate">{{ path }}</span>
-                </button>
+                <div v-if="remotePickerLocalItems.length > 0" class="space-y-1 border-t border-border bg-muted/20 p-2">
+                  <p class="px-1 text-[11px] text-muted-foreground">本地上传（OPFS）</p>
+                  <button
+                    v-for="path in remotePickerLocalItems"
+                    :key="`local-picker-${path}`"
+                    type="button"
+                    class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30"
+                    :class="remotePickerSelectedPaths.includes(path) ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'"
+                    @click="toggleRemotePickerPath(path)"
+                  >
+                    <FileIcon :size="14" weight="duotone" class="shrink-0" />
+                    <span class="truncate">{{ path }}</span>
+                  </button>
+                </div>
               </div>
             </div>
-            <div class="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+            <div class="shrink-0 space-y-3 rounded-lg border border-border bg-muted/20 p-3">
               <div class="text-xs text-muted-foreground">图片预览</div>
               <a
                 v-if="remotePickerPreviewPath && isImagePath(remotePickerPreviewPath)"
@@ -938,7 +939,7 @@
               <p class="break-all text-[11px] text-muted-foreground">{{ remotePickerPreviewPath || '未选择文件' }}</p>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter class="shrink-0">
             <Button variant="outline" @click="showRemoteFilePickerDialog = false">取消</Button>
             <Button @click="applyRemotePickerSelection">确认选择</Button>
           </DialogFooter>
