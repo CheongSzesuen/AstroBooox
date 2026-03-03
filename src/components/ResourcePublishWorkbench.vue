@@ -1084,6 +1084,8 @@
       <div v-else class="space-y-4">
         <ReviewDetailHeader
           :title="selectedOwnedItem.name"
+          :leading-image-url="getOwnedItemIconUrl(selectedOwnedItem)"
+          :leading-image-alt="`${selectedOwnedItem.name} icon`"
           show-back
           @back="closeOwnedDetail"
         >
@@ -1124,29 +1126,14 @@
           </template>
         </ReviewDetailHeader>
 
-        <Card v-if="ownedSubmissionOverview.images.icon || ownedSubmissionOverview.images.cover">
+        <Card v-if="ownedSubmissionOverview.images.cover">
           <CardContent class="flex flex-wrap items-start gap-4 pt-4">
-            <a
-              v-if="ownedSubmissionOverview.images.icon"
-              :href="ownedSubmissionOverview.images.icon.url"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="group"
-            >
-              <div class="text-xs text-muted-foreground">Icon</div>
-              <img
-                :src="ownedSubmissionOverview.images.icon.url"
-                alt="Icon 预览"
-                class="mt-1 h-20 w-20 rounded-full border border-border object-cover transition-opacity group-hover:opacity-90"
-                loading="lazy"
-              />
-            </a>
             <a
               v-if="ownedSubmissionOverview.images.cover"
               :href="ownedSubmissionOverview.images.cover.url"
               target="_blank"
               rel="noopener noreferrer"
-              class="group min-w-0 flex-1"
+              class="group min-w-0 w-full"
             >
               <div class="text-xs text-muted-foreground">Cover</div>
               <img

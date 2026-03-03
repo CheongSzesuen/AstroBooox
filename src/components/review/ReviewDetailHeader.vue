@@ -14,6 +14,12 @@
         </Button>
 
         <div class="flex flex-wrap items-end gap-x-2 gap-y-1">
+          <img
+            v-if="leadingImageUrl"
+            :src="leadingImageUrl"
+            :alt="leadingImageAlt || 'header image'"
+            class="h-16 w-16 rounded-full border border-border bg-muted/30 object-cover md:h-20 md:w-20"
+          />
           <h1 class="min-w-0 break-words text-xl font-semibold leading-tight text-foreground md:text-2xl">
             {{ title }}
           </h1>
@@ -39,6 +45,8 @@ import { Button } from '@/components/ui/button'
 withDefaults(defineProps<{
   title: string
   number?: string | number
+  leadingImageUrl?: string
+  leadingImageAlt?: string
   showBack?: boolean
   backText?: string
 }>(), {
