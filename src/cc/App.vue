@@ -355,7 +355,10 @@
 
                 <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <div v-for="entry in aboutInfoEntries" :key="entry.label" class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-                    <div class="text-xs text-muted-foreground">{{ entry.label }}</div>
+                    <div class="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <component :is="entry.icon" :size="13" weight="duotone" />
+                      <span>{{ entry.label }}</span>
+                    </div>
                     <div class="mt-1 break-all font-medium text-foreground">{{ entry.value }}</div>
                   </div>
                 </div>
@@ -377,6 +380,50 @@
                     </a>
                   </div>
                 </div>
+
+                <div class="rounded-md border border-border bg-muted/20 p-3 text-sm">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div class="text-xs text-muted-foreground">最近 Commit</div>
+                      <div class="mt-1 text-sm font-medium text-foreground">展示当前构建分支最近提交（最多 50 条）</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs text-muted-foreground">数量</span>
+                      <Select v-model="aboutCommitLimit">
+                        <SelectTrigger class="h-8 w-[92px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10 条</SelectItem>
+                          <SelectItem value="20">20 条</SelectItem>
+                          <SelectItem value="30">30 条</SelectItem>
+                          <SelectItem value="50">50 条</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div v-if="aboutCommitLoading" class="mt-3 text-xs text-muted-foreground">正在加载提交记录...</div>
+                  <div v-else-if="aboutCommitError" class="mt-3 text-xs text-destructive">{{ aboutCommitError }}</div>
+                  <div v-else-if="aboutCommits.length === 0" class="mt-3 text-xs text-muted-foreground">暂无提交记录</div>
+                  <ul v-else class="mt-3 space-y-2">
+                    <li v-for="item in aboutCommits" :key="item.sha" class="rounded border border-border bg-background/60 p-2">
+                      <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <span class="font-mono text-foreground">{{ item.shortSha }}</span>
+                        <span class="text-muted-foreground">{{ item.author }}</span>
+                        <span class="text-muted-foreground">{{ item.dateUtc8 }}</span>
+                      </div>
+                      <a
+                        :href="item.url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="mt-1 block text-sm text-primary hover:underline"
+                      >
+                        {{ item.message }}
+                      </a>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </section>
           </div>
@@ -396,7 +443,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import {
   PhArchiveBox as ArchiveBox,
   PhBuildings as Buildings,
@@ -409,9 +456,11 @@ import {
   PhGlobeHemisphereWest as GlobeHemisphereWest,
   PhHash as Hash,
   PhInfo as Info,
+  PhGitBranch as GitBranch,
   PhLinkSimple as LinkSimple,
   PhMapPin as MapPin,
   PhMoon as Moon,
+  PhPackage as Package,
   PhEnvelopeSimple as EnvelopeSimple,
   PhSignOut as SignOut,
   PhSun as Sun,
@@ -474,6 +523,10 @@ const accountProfileLoading = ref(false)
 const accountProfileError = ref('')
 const accountProfile = ref<GitHubAuthenticatedProfile | null>(null)
 const settingsSection = ref<CcSettingsSection>('defaults')
+const aboutCommitLimit = ref<'10' | '20' | '30' | '50'>('20')
+const aboutCommitLoading = ref(false)
+const aboutCommitError = ref('')
+const aboutCommits = ref<Array<{ sha: string; shortSha: string; message: string; author: string; dateUtc8: string; url: string }>>([])
 const routeProgress = ref(0)
 const routeProgressVisible = ref(false)
 let routeProgressTimer: ReturnType<typeof setInterval> | null = null
@@ -503,50 +556,79 @@ const settingsOwnerAvatarUrl = computed(() => {
   if (!owner) return 'https://github.com/ghost.png'
   return `https://github.com/${owner}.png`
 })
-const aboutInfoEntries = computed<Array<{ label: string; value: string }>>(() => {
-  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '-'
-  const language = typeof navigator !== 'undefined' ? navigator.language : '-'
-  const languages = typeof navigator !== 'undefined' ? navigator.languages.join(', ') : '-'
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '-'
-  const online = typeof navigator !== 'undefined' ? (navigator.onLine ? 'online' : 'offline') : '-'
-  const platform = typeof navigator !== 'undefined' ? navigator.platform : '-'
-  const logicalCores = typeof navigator !== 'undefined' ? String(navigator.hardwareConcurrency || '-') : '-'
-  const memory = typeof navigator !== 'undefined' && typeof (navigator as { deviceMemory?: number }).deviceMemory === 'number'
-    ? `${(navigator as { deviceMemory?: number }).deviceMemory} GB`
-    : '-'
-  const host = typeof window !== 'undefined' ? window.location.host : '-'
-  const path = typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '-'
-  const routePath = typeof window !== 'undefined' ? buildCcPath(resolveRouteFromLocation()) : '-'
-  const tokenState = token.value.trim() ? '已登录' : '未登录'
-  const ghUser = currentUser.value || '-'
+const formatUtc8DateTime = (value?: string): string => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const shifted = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+  const y = shifted.getUTCFullYear()
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(shifted.getUTCDate()).padStart(2, '0')
+  const hh = String(shifted.getUTCHours()).padStart(2, '0')
+  const mm = String(shifted.getUTCMinutes()).padStart(2, '0')
+  const ss = String(shifted.getUTCSeconds()).padStart(2, '0')
+  return `${y}-${m}-${d} ${hh}:${mm}:${ss} (UTC+8)`
+}
 
+const loadAboutCommits = async (): Promise<void> => {
+  try {
+    aboutCommitLoading.value = true
+    aboutCommitError.value = ''
+    const branch = (__BUILD_BRANCH__ || '').trim()
+    const endpoint = new URL('https://api.github.com/repos/CheongSzesuen/AstroBooox/commits')
+    endpoint.searchParams.set('per_page', aboutCommitLimit.value)
+    if (branch && branch.toLowerCase() !== 'head' && branch.toLowerCase() !== 'unknown') {
+      endpoint.searchParams.set('sha', branch)
+    }
+    const authToken = token.value.trim()
+    const response = await fetch(endpoint.toString(), {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+      }
+    })
+    if (!response.ok) {
+      if (response.status === 403) {
+        throw new Error(authToken ? '请求被 GitHub 限流，请稍后重试' : '请求被 GitHub 限流，请先登录 Token 后重试')
+      }
+      throw new Error(`请求失败（${response.status}）`)
+    }
+    const payload = await response.json() as Array<{
+      sha?: string
+      html_url?: string
+      commit?: {
+        message?: string
+        author?: { name?: string; date?: string }
+      }
+    }>
+    aboutCommits.value = payload.slice(0, Number(aboutCommitLimit.value)).map(item => {
+      const sha = item.sha || ''
+      const messageRaw = item.commit?.message || ''
+      const firstLine = messageRaw.split('\n')[0]?.trim() || '(no message)'
+      return {
+        sha,
+        shortSha: sha.slice(0, 12),
+        message: firstLine,
+        author: item.commit?.author?.name || '-',
+        dateUtc8: formatUtc8DateTime(item.commit?.author?.date),
+        url: item.html_url || `https://github.com/CheongSzesuen/AstroBooox/commit/${sha}`
+      }
+    })
+  } catch (error: unknown) {
+    aboutCommits.value = []
+    aboutCommitError.value = error instanceof Error ? error.message : '加载提交记录失败'
+  } finally {
+    aboutCommitLoading.value = false
+  }
+}
+
+const aboutInfoEntries = computed<Array<{ label: string; value: string; icon: Component }>>(() => {
   return [
-    { label: '应用名称', value: __APP_NAME__ || 'AstroBooox' },
-    { label: '应用版本（package.json）', value: __APP_VERSION__ || '-' },
-    { label: '构建版本（Footer 同源）', value: __BUILD_VERSION__ || '-' },
-    { label: '构建 Commit', value: __BUILD_COMMIT_SHA__ || '-' },
-    { label: '构建时间戳', value: __BUILD_TIMESTAMP__ || '-' },
-    { label: '当前环境', value: import.meta.env.MODE },
-    { label: 'Base URL', value: import.meta.env.BASE_URL || '/' },
-    { label: '当前 Host', value: host },
-    { label: '当前路径', value: path },
-    { label: '解析路由', value: routePath },
-    { label: '登录状态', value: tokenState },
-    { label: 'GitHub 用户', value: ghUser },
-    { label: '默认目标仓库 Owner', value: defaultTargetOwner.value || '-' },
-    { label: '默认目标仓库 Repo', value: defaultTargetRepo.value || '-' },
-    { label: '默认 Catalog 路径', value: defaultCatalogPath.value || '-' },
-    { label: '资源管理优先版本', value: ownedDisplayPriority.value },
-    { label: '显示 v2 跟进标签', value: showV2FollowUpTag.value ? '开启' : '关闭' },
-    { label: '主题', value: theme.value },
-    { label: '浏览器语言', value: language },
-    { label: '语言列表', value: languages || '-' },
-    { label: '时区', value: timezone },
-    { label: '网络状态', value: online },
-    { label: '平台', value: platform || '-' },
-    { label: '逻辑 CPU 核心', value: logicalCores },
-    { label: '设备内存', value: memory },
-    { label: 'User Agent', value: userAgent }
+    { label: '应用名称', value: __APP_NAME__ || 'AstroBooox', icon: Package as Component },
+    { label: '应用版本（package.json）', value: __APP_VERSION__ || '-', icon: Hash as Component },
+    { label: '构建版本（Footer 同源）', value: __BUILD_VERSION__ || '-', icon: GearSix as Component },
+    { label: '当前构建分支', value: __BUILD_BRANCH__ || '-', icon: GitBranch as Component },
+    { label: '构建时间（UTC+8）', value: __BUILD_TIME_UTC8__ ? `${__BUILD_TIME_UTC8__} (UTC+8)` : '-', icon: CalendarBlank as Component }
   ]
 })
 const formatDateTime = (value?: string): string => {
@@ -887,10 +969,19 @@ watch(
   ([currentTab, currentSection]) => {
     if (currentTab === 'settings' && currentSection === 'account') {
       void loadAccountProfile()
+      return
+    }
+    if (currentTab === 'settings' && currentSection === 'about') {
+      void loadAboutCommits()
     }
   },
   { immediate: true }
 )
+
+watch(aboutCommitLimit, () => {
+  if (tab.value !== 'settings' || settingsSection.value !== 'about') return
+  void loadAboutCommits()
+})
 
 onBeforeUnmount(() => {
   if (routeProgressTimer) {

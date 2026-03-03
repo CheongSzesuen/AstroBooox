@@ -4,6 +4,8 @@ declare const __APP_VERSION__: string
 declare const __APP_NAME__: string
 declare const __BUILD_COMMIT_SHA__: string
 declare const __BUILD_TIMESTAMP__: string
+declare const __BUILD_BRANCH__: string
+declare const __BUILD_TIME_UTC8__: string
 
 declare module '*.vue' {
   import { DefineComponent } from 'vue'
