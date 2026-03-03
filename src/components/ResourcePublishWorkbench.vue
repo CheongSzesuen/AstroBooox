@@ -1288,7 +1288,7 @@
                     </div>
                     <div
                       ref="ownedPreviewScrollerRef"
-                      class="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory touch-pan-x"
+                      class="scrollbar-none flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory touch-pan-x"
                       @scroll="syncOwnedPreviewScrollState"
                       @wheel="onOwnedPreviewWheel"
                     >
@@ -1395,7 +1395,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, ref, watch, type Component } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch, type Component } from 'vue'
 import {
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
@@ -1927,6 +1927,8 @@ const ownedPreviewCanNext = ref(false)
 const ownedPreviewActiveIndex = ref(0)
 const ownedPreviewSnapCount = ref(0)
 const OWNED_PREVIEW_SCROLL_DISTANCE = 320
+const ownedPreviewWheelTargetLeft = ref(0)
+let ownedPreviewWheelRafId: number | null = null
 
 const syncOwnedPreviewScrollState = (): void => {
   const el = ownedPreviewScrollerRef.value
@@ -2005,7 +2007,27 @@ const onOwnedPreviewWheel = (event: WheelEvent): void => {
 
   if (Math.abs(horizontalDelta) < 0.5) return
   event.preventDefault()
-  el.scrollBy({ left: horizontalDelta, behavior: 'auto' })
+  const maxLeft = Math.max(el.scrollWidth - el.clientWidth, 0)
+  if (ownedPreviewWheelRafId === null) {
+    ownedPreviewWheelTargetLeft.value = el.scrollLeft
+  }
+  ownedPreviewWheelTargetLeft.value = Math.min(
+    maxLeft,
+    Math.max(0, ownedPreviewWheelTargetLeft.value + horizontalDelta * 1.15)
+  )
+  if (ownedPreviewWheelRafId !== null) return
+  const animate = (): void => {
+    const current = el.scrollLeft
+    const distance = ownedPreviewWheelTargetLeft.value - current
+    if (Math.abs(distance) < 0.6) {
+      el.scrollLeft = ownedPreviewWheelTargetLeft.value
+      ownedPreviewWheelRafId = null
+      return
+    }
+    el.scrollLeft = current + distance * 0.22
+    ownedPreviewWheelRafId = window.requestAnimationFrame(animate)
+  }
+  ownedPreviewWheelRafId = window.requestAnimationFrame(animate)
 }
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
@@ -4003,6 +4025,13 @@ watch(
     syncOwnedPreviewScrollState()
   }
 )
+
+onBeforeUnmount(() => {
+  if (ownedPreviewWheelRafId !== null) {
+    window.cancelAnimationFrame(ownedPreviewWheelRafId)
+    ownedPreviewWheelRafId = null
+  }
+})
 
 const reviewStateText = (state: PublishingResource['status']): string => {
   if (state === 'changes_requested') return '需要修改'
