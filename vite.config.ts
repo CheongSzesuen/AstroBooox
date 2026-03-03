@@ -2,6 +2,8 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 const appVersion =
   process.env.GITHUB_SHA ||
   process.env.VERCEL_GIT_COMMIT_SHA ||
@@ -9,7 +11,7 @@ const appVersion =
   `${Date.now()}`
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), cloudflare()],
   base: '/',
   define: {
     __APP_VERSION__: JSON.stringify(appVersion)
