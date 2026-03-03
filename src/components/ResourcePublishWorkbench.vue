@@ -2544,9 +2544,9 @@ const remotePickerFolderItems = computed(() => {
   for (const item of merged) {
     if (!dedup.has(item.path)) dedup.set(item.path, item)
   }
-  return [...dedup.values()]
+  const folderTree = [...dedup.values()]
     .sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'))
-    .map(item => ({ ...item, collapsed: collapsedRemoteFolders.value.includes(item.path) }))
+  return getVisibleTreeItems(folderTree, collapsedRemoteFolders.value)
 })
 
 const remotePickerTreeItems = computed(() => {
@@ -2597,6 +2597,10 @@ const createRemotePickerFolder = (parentPath?: string): void => {
   }
   const fullPath = parent ? `${parent}/${candidate}` : candidate
   remotePickerDraftFolders.value = [...remotePickerDraftFolders.value, fullPath]
+  const nextCollapsed = new Set(collapsedRemoteFolders.value)
+  if (parent) nextCollapsed.delete(parent)
+  nextCollapsed.delete(fullPath)
+  collapsedRemoteFolders.value = [...nextCollapsed]
   remotePickerTargetFolder.value = fullPath
   startRenameDraftFolder(fullPath)
 }
@@ -3507,6 +3511,9 @@ const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
   remotePickerStep.value = 1
   remotePickerDraftFolders.value = []
   cancelRenameDraftFolder()
+  collapsedRemoteFolders.value = remoteWorkspaceTree.value
+    .filter(item => item.type === 'folder')
+    .map(item => item.path)
   remotePickerTargetFolder.value = getDefaultUploadFolder(mode)
   showRemoteFilePickerDialog.value = true
 }
