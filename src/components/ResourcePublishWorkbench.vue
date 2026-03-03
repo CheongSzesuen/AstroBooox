@@ -2951,6 +2951,9 @@ const normalizeTextValue = (value: string): string => value.trim()
 const normalizeStringArray = (values: string[]): string[] =>
   values.map(item => item.trim()).filter(Boolean)
 
+const formatTagListForPr = (values: string[]): string =>
+  values.length > 0 ? values.map(tag => `\`${tag}\``).join(' ') : '--'
+
 const normalizeLinks = (values: Array<{ icon: string; title: string; url: string }>): string =>
   JSON.stringify(
     values
@@ -3031,9 +3034,13 @@ const collectUpdateChangeLines = (): string[] => {
     }
   }
 
-  const beforeTags = normalizeStringArray(baseline.tags).join('|')
-  const afterTags = normalizeStringArray(tags.value).join('|')
-  pushIfChanged('标签', beforeTags, afterTags)
+  const beforeTagList = normalizeStringArray(baseline.tags)
+  const afterTagList = normalizeStringArray(tags.value)
+  const beforeTags = beforeTagList.join('|')
+  const afterTags = afterTagList.join('|')
+  if (beforeTags !== afterTags) {
+    lines.push(`- 标签：${formatTagListForPr(beforeTagList)} -> ${formatTagListForPr(afterTagList)}`)
+  }
 
   const beforeLinks = normalizeLinks(baseline.links)
   const afterLinks = normalizeLinks(links.value)
@@ -3072,7 +3079,7 @@ const buildAutoPrBody = (): string => {
     `- 提交短哈希：\`${shortHash}\``,
     '',
     '---',
-    '此 PR 由 AstroBooox Cretor Console（https://astrobooox-ng.waijade.cn/cc/）生成，如有问题前往 https://github.com/CheongSzesuen/AstroBooox/issues 提交 issue。'
+    '此 PR 由 [AstroBooox Creator Console](https://astrobooox-ng.waijade.cn/cc/) 生成，如有问题前往 [AstroBooox 仓库](https://github.com/CheongSzesuen/AstroBooox) 提交 [Issue](https://github.com/CheongSzesuen/AstroBooox/issues)。'
   ].join('\n')
 }
 
