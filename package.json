@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "wrangler deploy --config wrangler.jsonc",
+    "preview:cf": "wrangler dev --config wrangler.jsonc"
   },
   "dependencies": {
     "@octokit/auth-token": "^6.0.0",

@@ -3,10 +3,13 @@ import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
 const appVersion =
+  process.env.CF_PAGES_COMMIT_SHA ||
   process.env.GITHUB_SHA ||
   process.env.VERCEL_GIT_COMMIT_SHA ||
   process.env.CI_COMMIT_SHA ||
-  `${Date.now()}`
+  process.env.SOURCE_VERSION ||
+  process.env.npm_package_version ||
+  'dev'
 
 export default defineConfig({
   plugins: [vue()],
