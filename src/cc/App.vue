@@ -43,7 +43,7 @@
               @click="navigateToTab('published')"
             >
               <ArchiveBox :size="15" weight="duotone" />
-              已发布资源
+              资源管理
             </Button>
             <Button
               size="sm"
@@ -182,7 +182,7 @@
               <div v-if="settingsSection === 'defaults'" class="space-y-5">
                 <div>
                   <h3 class="text-sm font-semibold text-foreground">默认目标仓库</h3>
-                  <p class="mt-1 text-xs text-muted-foreground">用于“等待审核 / 已发布资源 / 审核”页面的默认仓库配置。</p>
+                  <p class="mt-1 text-xs text-muted-foreground">用于“等待审核 / 资源管理 / 审核”页面的默认仓库配置。</p>
                 </div>
                 <div class="space-y-3">
                   <div class="space-y-1.5">
@@ -199,7 +199,7 @@
                     </div>
                   </div>
                   <div class="space-y-1.5">
-                    <Label for="cc-setting-owned-priority">已发布展示优先版本</Label>
+                    <Label for="cc-setting-owned-priority">资源管理展示优先版本</Label>
                     <Select v-model="settingsForm.ownedDisplayPriority">
                       <SelectTrigger id="cc-setting-owned-priority">
                         <SelectValue placeholder="选择优先版本" />

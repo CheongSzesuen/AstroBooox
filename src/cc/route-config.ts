@@ -12,7 +12,7 @@ export const CC_PATHS = {
   publish: '/cc/publish',
   pullRequest: '/cc/pullrequest',
   review: '/cc/review',
-  published: '/cc/published',
+  published: '/cc/resource',
   auditLegacy: '/cc/audit',
   settings: '/cc/settings',
   settingsAccount: '/cc/settings/account'
@@ -50,6 +50,7 @@ export const resolveCcRouteFromPath = (pathname: string): CcRouteState => {
   if (section === 'publish') return { tab: 'publish', settingsSection: 'defaults' }
   if (section === 'pullrequest') return { tab: 'review', settingsSection: 'defaults' }
   if (section === 'review') return { tab: 'audit', settingsSection: 'defaults' }
+  if (section === 'resource') return { tab: 'published', settingsSection: 'defaults' }
   if (section === 'published') return { tab: 'published', settingsSection: 'defaults' }
   if (section === 'audit') return { tab: 'audit', settingsSection: 'defaults' }
   if (section === 'settings') {

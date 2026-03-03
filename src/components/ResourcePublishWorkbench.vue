@@ -991,7 +991,7 @@
         <Card>
           <CardHeader class="pb-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle class="text-base">已发布资源</CardTitle>
+              <CardTitle class="text-base">资源管理</CardTitle>
               <div class="flex flex-wrap items-center justify-end gap-2">
                 <Select v-model="ownedTypeFilter">
                   <SelectTrigger class="h-8 w-[120px]">
@@ -1020,7 +1020,7 @@
                 </Button>
               </div>
             </div>
-            <CardDescription>查看当前账号已发布到目录的资源。</CardDescription>
+            <CardDescription>查看当前账号已发布到目录的资源并统一管理。</CardDescription>
           </CardHeader>
           <CardContent class="space-y-2 pt-0">
             <div
