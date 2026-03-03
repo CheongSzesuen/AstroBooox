@@ -385,44 +385,45 @@
                   <div class="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <div class="text-xs text-muted-foreground">最近 Commit</div>
-                      <div class="mt-1 text-sm font-medium text-foreground">展示当前构建分支最近提交（最多 50 条）</div>
+                      <div class="mt-1 text-sm font-medium text-foreground">展示当前构建分支最近提交</div>
                     </div>
-                    <div class="flex items-center gap-2">
-                      <span class="text-xs text-muted-foreground">数量</span>
-                      <Select v-model="aboutCommitLimit">
-                        <SelectTrigger class="h-8 w-[92px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="10">10 条</SelectItem>
-                          <SelectItem value="20">20 条</SelectItem>
-                          <SelectItem value="30">30 条</SelectItem>
-                          <SelectItem value="50">50 条</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <div class="text-xs text-muted-foreground">当前 {{ aboutCommits.length }} 条</div>
                   </div>
 
                   <div v-if="aboutCommitLoading" class="mt-3 text-xs text-muted-foreground">正在加载提交记录...</div>
                   <div v-else-if="aboutCommitError" class="mt-3 text-xs text-destructive">{{ aboutCommitError }}</div>
                   <div v-else-if="aboutCommits.length === 0" class="mt-3 text-xs text-muted-foreground">暂无提交记录</div>
-                  <ul v-else class="mt-3 space-y-2">
-                    <li v-for="item in aboutCommits" :key="item.sha" class="rounded border border-border bg-background/60 p-2">
-                      <div class="flex flex-wrap items-center gap-2 text-xs">
-                        <span class="font-mono text-foreground">{{ item.shortSha }}</span>
-                        <span class="text-muted-foreground">{{ item.author }}</span>
-                        <span class="text-muted-foreground">{{ item.dateUtc8 }}</span>
-                      </div>
-                      <a
-                        :href="item.url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="mt-1 block text-sm text-primary hover:underline"
-                      >
-                        {{ item.message }}
-                      </a>
-                    </li>
-                  </ul>
+                  <div
+                    v-else
+                    ref="aboutCommitScrollRef"
+                    class="mt-3 max-h-[420px] overflow-y-auto"
+                    @scroll="handleAboutCommitScroll"
+                  >
+                    <ul class="space-y-2">
+                      <li v-for="item in aboutCommits" :key="item.sha" class="rounded border border-border bg-background/60 p-2">
+                        <div class="flex flex-wrap items-center gap-2 text-xs">
+                          <span class="font-mono text-foreground">{{ item.shortSha }}</span>
+                          <span class="text-muted-foreground">{{ item.author }}</span>
+                          <span class="text-muted-foreground">{{ item.dateUtc8 }}</span>
+                        </div>
+                        <a
+                          :href="item.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="mt-1 block text-sm text-primary hover:underline"
+                        >
+                          {{ item.message }}
+                        </a>
+                      </li>
+                    </ul>
+                    <div v-if="aboutCommitShowLoadMore && aboutCommitHasMore" class="py-2 text-center">
+                      <Button size="sm" variant="outline" :disabled="aboutCommitLoadingMore" @click="loadMoreAboutCommits">
+                        {{ aboutCommitLoadingMore ? '加载中...' : '加载更多' }}
+                      </Button>
+                    </div>
+                    <div v-else-if="aboutCommitLoadingMore" class="py-2 text-center text-xs text-muted-foreground">加载中...</div>
+                    <div v-else-if="!aboutCommitHasMore" class="py-2 text-center text-xs text-muted-foreground">已加载完</div>
+                  </div>
                 </div>
               </div>
             </section>
@@ -523,9 +524,14 @@ const accountProfileLoading = ref(false)
 const accountProfileError = ref('')
 const accountProfile = ref<GitHubAuthenticatedProfile | null>(null)
 const settingsSection = ref<CcSettingsSection>('defaults')
-const aboutCommitLimit = ref<'10' | '20' | '30' | '50'>('20')
 const aboutCommitLoading = ref(false)
+const aboutCommitLoadingMore = ref(false)
 const aboutCommitError = ref('')
+const aboutCommitHasMore = ref(true)
+const aboutCommitPage = ref(1)
+const aboutCommitShowLoadMore = ref(false)
+const aboutCommitScrollRef = ref<HTMLElement | null>(null)
+const ABOUT_COMMIT_PAGE_SIZE = 20
 const aboutCommits = ref<Array<{ sha: string; shortSha: string; message: string; author: string; dateUtc8: string; url: string }>>([])
 const routeProgress = ref(0)
 const routeProgressVisible = ref(false)
@@ -570,13 +576,24 @@ const formatUtc8DateTime = (value?: string): string => {
   return `${y}-${m}-${d} ${hh}:${mm}:${ss} (UTC+8)`
 }
 
-const loadAboutCommits = async (): Promise<void> => {
+const loadAboutCommits = async (options: { append?: boolean } = {}): Promise<void> => {
+  const { append = false } = options
+  const loadingRef = append ? aboutCommitLoadingMore : aboutCommitLoading
+  if (loadingRef.value) return
+  if (append && !aboutCommitHasMore.value) return
   try {
-    aboutCommitLoading.value = true
-    aboutCommitError.value = ''
+    loadingRef.value = true
+    if (!append) {
+      aboutCommitError.value = ''
+      aboutCommitHasMore.value = true
+      aboutCommitPage.value = 1
+      aboutCommitShowLoadMore.value = false
+      aboutCommits.value = []
+    }
     const branch = (__BUILD_BRANCH__ || '').trim()
     const endpoint = new URL('https://api.github.com/repos/CheongSzesuen/AstroBooox/commits')
-    endpoint.searchParams.set('per_page', aboutCommitLimit.value)
+    endpoint.searchParams.set('per_page', String(ABOUT_COMMIT_PAGE_SIZE))
+    endpoint.searchParams.set('page', String(aboutCommitPage.value))
     if (branch && branch.toLowerCase() !== 'head' && branch.toLowerCase() !== 'unknown') {
       endpoint.searchParams.set('sha', branch)
     }
@@ -601,7 +618,7 @@ const loadAboutCommits = async (): Promise<void> => {
         author?: { name?: string; date?: string }
       }
     }>
-    aboutCommits.value = payload.slice(0, Number(aboutCommitLimit.value)).map(item => {
+    const next = payload.map(item => {
       const sha = item.sha || ''
       const messageRaw = item.commit?.message || ''
       const firstLine = messageRaw.split('\n')[0]?.trim() || '(no message)'
@@ -614,21 +631,42 @@ const loadAboutCommits = async (): Promise<void> => {
         url: item.html_url || `https://github.com/CheongSzesuen/AstroBooox/commit/${sha}`
       }
     })
+    aboutCommits.value = append ? [...aboutCommits.value, ...next] : next
+    aboutCommitPage.value += 1
+    aboutCommitHasMore.value = payload.length >= ABOUT_COMMIT_PAGE_SIZE
+    if (append) {
+      aboutCommitShowLoadMore.value = false
+    }
   } catch (error: unknown) {
-    aboutCommits.value = []
+    if (!append) {
+      aboutCommits.value = []
+    }
     aboutCommitError.value = error instanceof Error ? error.message : '加载提交记录失败'
   } finally {
-    aboutCommitLoading.value = false
+    loadingRef.value = false
   }
+}
+
+const handleAboutCommitScroll = (): void => {
+  const el = aboutCommitScrollRef.value
+  if (!el) return
+  const remain = el.scrollHeight - el.scrollTop - el.clientHeight
+  aboutCommitShowLoadMore.value = remain <= 140 && aboutCommitHasMore.value
+}
+
+const loadMoreAboutCommits = (): void => {
+  if (!aboutCommitHasMore.value || aboutCommitLoadingMore.value || aboutCommitLoading.value) return
+  void loadAboutCommits({ append: true })
 }
 
 const aboutInfoEntries = computed<Array<{ label: string; value: string; icon: Component }>>(() => {
   return [
     { label: '应用名称', value: __APP_NAME__ || 'AstroBooox', icon: Package as Component },
     { label: '应用版本（package.json）', value: __APP_VERSION__ || '-', icon: Hash as Component },
-    { label: '构建版本（Footer 同源）', value: __BUILD_VERSION__ || '-', icon: GearSix as Component },
+    { label: '构建版本', value: __BUILD_VERSION__ || '-', icon: GearSix as Component },
     { label: '当前构建分支', value: __BUILD_BRANCH__ || '-', icon: GitBranch as Component },
-    { label: '构建时间（UTC+8）', value: __BUILD_TIME_UTC8__ ? `${__BUILD_TIME_UTC8__} (UTC+8)` : '-', icon: CalendarBlank as Component }
+    { label: '构建时间（UTC+8）', value: __BUILD_TIME_UTC8__ ? `${__BUILD_TIME_UTC8__} (UTC+8)` : '-', icon: CalendarBlank as Component },
+    { label: 'Environment', value: String(import.meta.env.MODE || 'unknown'), icon: GlobeHemisphereWest as Component }
   ]
 })
 const formatDateTime = (value?: string): string => {
@@ -977,11 +1015,6 @@ watch(
   },
   { immediate: true }
 )
-
-watch(aboutCommitLimit, () => {
-  if (tab.value !== 'settings' || settingsSection.value !== 'about') return
-  void loadAboutCommits()
-})
 
 onBeforeUnmount(() => {
   if (routeProgressTimer) {
