@@ -1028,7 +1028,16 @@
                     <div class="truncate text-sm font-semibold text-foreground">{{ item.name }}</div>
                     <div class="mt-1 truncate text-xs text-muted-foreground">{{ item.repo_owner }}/{{ item.repo_name }}</div>
                   </div>
-                  <GithubLogo :size="16" weight="duotone" class="mt-0.5 shrink-0 text-muted-foreground" />
+                  <a
+                    :href="getOwnedItemRepoUrl(item)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label="打开仓库"
+                    title="打开仓库"
+                  >
+                    <GithubLogo :size="16" weight="duotone" />
+                  </a>
                 </div>
                 <div class="mt-1 line-clamp-2 text-xs text-muted-foreground">
                   {{ item.description || '暂无描述' }}
@@ -1037,8 +1046,8 @@
                   <Badge variant="outline">{{ item.sourceLabel }}</Badge>
                   <span class="text-xs text-muted-foreground">{{ item.restype }}</span>
                 </div>
-                <div v-if="item.commitDate || item.repo_commit_hash" class="mt-1 text-xs text-muted-foreground">
-                  index_v2 hash: {{ item.repo_commit_hash || '-' }} · 提交时间: {{ item.commitDate ? formatDate(item.commitDate) : '-' }}
+                <div v-if="item.commitDate" class="mt-1 text-xs text-muted-foreground">
+                  上次更新时间: {{ formatDate(item.commitDate) }}
                 </div>
               </div>
             </div>
@@ -3297,6 +3306,9 @@ const getOwnedItemIconUrl = (item: {
   }
   return value
 }
+
+const getOwnedItemRepoUrl = (item: { repo_owner: string; repo_name: string }): string =>
+  `https://github.com/${item.repo_owner}/${item.repo_name}`
 
 watch(
   () => [mode.value, canLoadList.value] as const,
