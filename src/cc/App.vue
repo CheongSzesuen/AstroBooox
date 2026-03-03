@@ -137,7 +137,11 @@
 
     <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
       <section class="min-w-0 flex justify-center">
-        <ResourcePublishWorkbench v-if="tab !== 'settings' && tab !== 'audit'" :mode="workbenchMode" />
+        <ResourcePublishWorkbench
+          v-if="tab !== 'settings' && tab !== 'audit'"
+          :mode="workbenchMode"
+          @request-tab="navigateToTab"
+        />
         <CcPrReviewWorkbench
           v-else-if="tab === 'audit'"
           :owner="defaultTargetOwner"

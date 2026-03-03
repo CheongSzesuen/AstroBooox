@@ -1098,6 +1098,16 @@
           <template #actions>
             <Button
               variant="outline"
+              size="sm"
+              class="h-9 gap-1.5 px-3"
+              :disabled="ownedDetailLoading"
+              @click="startEditOwnedResource"
+            >
+              <NotePencil :size="14" weight="duotone" />
+              编辑
+            </Button>
+            <Button
+              variant="outline"
               size="icon"
               class="h-9 w-9"
               :disabled="ownedDetailLoading"
@@ -1532,6 +1542,9 @@ type WorkbenchMode = 'publish' | 'review' | 'published'
 const props = withDefaults(defineProps<{ mode?: WorkbenchMode }>(), {
   mode: 'publish'
 })
+const emit = defineEmits<{
+  (event: 'request-tab', tab: WorkbenchMode | 'settings' | 'audit'): void
+}>()
 const mode = computed<WorkbenchMode>(() => props.mode)
 
 const { token, currentUser } = useCcSession()
@@ -2735,6 +2748,11 @@ const selectCoverFile = async (): Promise<void> => {
   coverPath.value = picked.path
 }
 
+const createPreviewItemFromPath = (path: string): { id: string; path: string } => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+  path
+})
+
 const selectMultiplePreviewFiles = async (): Promise<void> => {
   const workspace = await ensureWorkspaceHandle()
   if (!workspace) {
@@ -2774,10 +2792,7 @@ const selectMultiplePreviewFiles = async (): Promise<void> => {
     const uniqueNewPaths = pickedPaths.filter(path => !existing.has(path))
     previewItems.value = [
       ...previewItems.value,
-      ...uniqueNewPaths.map(path => ({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-        path
-      }))
+      ...uniqueNewPaths.map(path => createPreviewItemFromPath(path))
     ]
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') return
@@ -3944,6 +3959,113 @@ const loadOwnedItemDetail = async (item?: OwnedMergedItem): Promise<void> => {
 const triggerOwnedHashUpdate = (): void => {
   if (!selectedOwnedItem.value) return
   appendLog(`请求更新 hash：${selectedOwnedItem.value.repo_owner}/${selectedOwnedItem.value.repo_name}`)
+}
+
+const normalizeRestypeForForm = (value: string): string => {
+  const normalized = value.trim().toLowerCase()
+  if (normalized === 'quick_app' || normalized === 'quickapp') return 'quickapp'
+  if (normalized === 'watchface' || normalized === 'watch_face') return 'watchface'
+  return normalized || 'quickapp'
+}
+
+const extractTagList = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.map(item => String(item || '').trim()).filter(Boolean)
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(/[;；,，]/)
+      .map(item => item.trim())
+      .filter(Boolean)
+  }
+  return []
+}
+
+const startEditOwnedResource = (): void => {
+  const current = selectedOwnedItem.value
+  const detail = ownedDetail.value
+  if (!current || !detail) return
+
+  const sourceText = detail.v2ManifestText.trim() || detail.v1ManifestText.trim()
+  if (!sourceText) {
+    appendLog('编辑失败：未找到可解析的 manifest 内容')
+    return
+  }
+
+  let manifest: Record<string, any>
+  try {
+    manifest = JSON.parse(sourceText) as Record<string, any>
+  } catch {
+    appendLog('编辑失败：manifest 不是合法 JSON')
+    return
+  }
+
+  const item = manifest.item && typeof manifest.item === 'object' ? manifest.item as Record<string, any> : {}
+  const downloadsInput = manifest.downloads && typeof manifest.downloads === 'object'
+    ? manifest.downloads as Record<string, any>
+    : {}
+  const linksInput = Array.isArray(manifest.links) ? manifest.links as Array<Record<string, any>> : []
+  const authorsInput = Array.isArray(item.author) ? item.author as Array<Record<string, any>> : []
+
+  itemId.value = String(item.id || '').trim()
+  itemName.value = String(item.name || current.name || '').trim()
+  restype.value = normalizeRestypeForForm(String(item.restype || current.restype || ''))
+  paidType.value = String(item.paid_type || manifest.paid_type || '').trim()
+  itemDescription.value = String(item.description || current.description || '').trim()
+  tags.value = extractTagList(item.tags)
+  tagInput.value = ''
+  iconPath.value = String(item.icon || current.icon || '').trim()
+  coverPath.value = String(item.cover || '').trim()
+  previewItems.value = (Array.isArray(item.preview) ? item.preview : [])
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+    .map(path => createPreviewItemFromPath(path))
+
+  authors.value = authorsInput.length > 0
+    ? authorsInput.map(author => ({
+      name: String(author.name || '').trim(),
+      authorUrl: String(author.author_url || '').trim(),
+      bindABAccount: Boolean(author.bindABAccount)
+    }))
+    : [{ name: '', authorUrl: '', bindABAccount: true }]
+
+  links.value = linksInput.map(link => ({
+    icon: String(link.icon || '').trim(),
+    title: String(link.title || '').trim(),
+    url: String(link.url || '').trim()
+  }))
+
+  const nextDownloads: Record<string, { version: string; file_name: string }> = {}
+  const nextDeviceIds: string[] = []
+  for (const [rawId, download] of Object.entries(downloadsInput)) {
+    const normalizedId = normalizeDeviceToken(rawId)
+    if (!deviceOptions.some(device => device.id === normalizedId)) continue
+    const mapped = download && typeof download === 'object' ? download as Record<string, any> : {}
+    nextDeviceIds.push(normalizedId)
+    nextDownloads[normalizedId] = {
+      version: String(mapped.version || '1.0.0').trim() || '1.0.0',
+      file_name: String(mapped.file_name || '').trim()
+    }
+  }
+  selectedDeviceIds.value = [...new Set(nextDeviceIds)]
+  downloads.value = nextDownloads
+
+  repoName.value = current.repo_name
+  repoDescription.value = ''
+  uploadedRepoOwner.value = ''
+  uploadedRepoName.value = ''
+  uploadedRepoUrl.value = ''
+  uploadedCommitSha.value = ''
+  latestPrUrl.value = ''
+  submitMode.value = current.sources.includes('v1') && current.sources.includes('v2')
+    ? 'both'
+    : current.sources.includes('v1')
+      ? 'v1'
+      : 'v2'
+  activeStep.value = 1
+
+  closeOwnedDetail()
+  emit('request-tab', 'publish')
 }
 
 const getOwnedItemIconUrl = (item: {
