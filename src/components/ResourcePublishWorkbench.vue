@@ -2952,7 +2952,7 @@ const normalizeStringArray = (values: string[]): string[] =>
   values.map(item => item.trim()).filter(Boolean)
 
 const formatTagListForPr = (values: string[]): string =>
-  values.length > 0 ? values.map(tag => `\`${tag}\``).join(' ') : '--'
+  values.length > 0 ? values.map(tag => `\`${tag}\``).join('、') : '--'
 
 const normalizeLinks = (values: Array<{ icon: string; title: string; url: string }>): string =>
   JSON.stringify(
