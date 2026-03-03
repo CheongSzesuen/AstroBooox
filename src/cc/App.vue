@@ -190,6 +190,18 @@
                     <Label for="cc-setting-catalog">Catalog Path</Label>
                     <Input id="cc-setting-catalog" v-model="settingsForm.defaultCatalogPath" placeholder="index_v2.csv" />
                   </div>
+                  <div class="space-y-1.5">
+                    <Label for="cc-setting-owned-priority">已发布展示优先版本</Label>
+                    <Select v-model="settingsForm.ownedDisplayPriority">
+                      <SelectTrigger id="cc-setting-owned-priority">
+                        <SelectValue placeholder="选择优先版本" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="v2">V2 优先</SelectItem>
+                        <SelectItem value="v1">V1 优先</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div class="flex justify-end">
                   <Button @click="saveSettings">保存设置</Button>
@@ -237,6 +249,7 @@ import CcPrReviewWorkbench from '@/components/CcPrReviewWorkbench.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import CcTokenGate from '@/cc/CcTokenGate.vue'
 import { useCcSettings } from '@/composables/useCcSettings'
 import { useCcSession } from '@/composables/useCcSession'
@@ -247,13 +260,14 @@ const tab = ref<'publish' | 'review' | 'published' | 'audit' | 'settings'>('publ
 const { token, currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
 const { clearWorkspace, clearRemoteWorkspace } = useCcWorkspace()
 const { theme, toggleTheme } = useTheme()
-const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath, saveDefaults } = useCcSettings()
+const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath, ownedDisplayPriority, saveDefaults } = useCcSettings()
 const showUserMenu = ref(false)
 const userMenuRoot = ref<HTMLElement | null>(null)
 const settingsForm = ref({
   defaultTargetOwner: defaultTargetOwner.value,
   defaultTargetRepo: defaultTargetRepo.value,
-  defaultCatalogPath: defaultCatalogPath.value
+  defaultCatalogPath: defaultCatalogPath.value,
+  ownedDisplayPriority: ownedDisplayPriority.value
 })
 const settingsSection = ref<'defaults' | 'account'>('defaults')
 const workbenchMode = computed<'publish' | 'review' | 'published'>(() =>
@@ -282,7 +296,8 @@ const openSettingsPage = (): void => {
   settingsForm.value = {
     defaultTargetOwner: defaultTargetOwner.value,
     defaultTargetRepo: defaultTargetRepo.value,
-    defaultCatalogPath: defaultCatalogPath.value
+    defaultCatalogPath: defaultCatalogPath.value,
+    ownedDisplayPriority: ownedDisplayPriority.value
   }
   settingsSection.value = 'defaults'
   closeUserMenu()

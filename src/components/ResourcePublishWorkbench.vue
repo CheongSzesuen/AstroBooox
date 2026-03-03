@@ -999,20 +999,14 @@
           <CardDescription>查看当前账号已发布到目录的资源。</CardDescription>
         </CardHeader>
         <CardContent class="space-y-2 pt-0">
-          <Tabs v-model="ownedTab" class="space-y-2">
-            <TabsList class="grid w-full grid-cols-2">
-              <TabsTrigger value="v2">V2</TabsTrigger>
-              <TabsTrigger value="v1">V1</TabsTrigger>
-            </TabsList>
-          </Tabs>
           <div
-            v-if="displayedOwnedItems.length === 0"
+            v-if="ownedMergedItems.length === 0"
             class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
           >
             暂无数据
           </div>
           <div
-            v-for="item in displayedOwnedItems"
+            v-for="item in ownedMergedItems"
             :key="item.key"
             class="rounded-lg border border-border bg-card px-3 py-3"
           >
@@ -1235,7 +1229,7 @@ const {
   clearRemoteWorkspace
 } = useCcWorkspace()
 const { appendPublishLog: appendLog, publishLogsText, clearPublishLogs } = useCcPublishLogs()
-const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath } = useCcSettings()
+const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath, ownedDisplayPriority } = useCcSettings()
 const workspaceBusy = ref(false)
 const newWorkspaceName = ref('')
 const RELEASE_FOLDER_SUFFIX = '_AstroBox_Release'
@@ -1338,7 +1332,6 @@ const reviewReplyTargetComment = ref<{
 
 const ownedLoading = ref(false)
 const ownedItems = ref<OwnedResourceEntry[]>([])
-const ownedTab = ref<'v1' | 'v2'>('v2')
 
 interface OwnedMergedItem {
   key: string
@@ -1356,6 +1349,7 @@ interface OwnedMergedItem {
 
 const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
   const grouped = new Map<string, OwnedMergedItem>()
+  const preferredSource = ownedDisplayPriority.value === 'v1' ? 'v1' : 'v2'
   for (const item of ownedItems.value) {
     const key = [
       item.repo_owner.trim().toLowerCase(),
@@ -1373,9 +1367,9 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
         icon: item.icon,
         repo_owner: item.repo_owner,
         repo_name: item.repo_name,
-        repo_commit_hash: item.source === 'v2' ? item.repo_commit_hash : '',
+        repo_commit_hash: item.repo_commit_hash,
         description: item.description,
-        commitDate: item.source === 'v2' ? item.commitDate : '',
+        commitDate: item.commitDate,
         sources: [item.source],
         sourceLabel: item.source.toUpperCase()
       })
@@ -1385,22 +1379,33 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
     if (!existing.sources.includes(item.source)) {
       existing.sources.push(item.source)
     }
-    if (!existing.icon && item.icon) {
-      existing.icon = item.icon
-    }
-    if (item.source === 'v2') {
+    const shouldUseCurrent = item.source === preferredSource
+    if (shouldUseCurrent) {
+      existing.name = item.name || existing.name
+      existing.restype = item.restype || existing.restype
+      existing.icon = item.icon || existing.icon
+      existing.repo_owner = item.repo_owner || existing.repo_owner
+      existing.repo_name = item.repo_name || existing.repo_name
       existing.repo_commit_hash = item.repo_commit_hash || existing.repo_commit_hash
+      existing.description = item.description || existing.description
       existing.commitDate = item.commitDate || existing.commitDate
+    } else {
+      if (!existing.icon && item.icon) {
+        existing.icon = item.icon
+      }
+      if (!existing.commitDate && item.commitDate) {
+        existing.commitDate = item.commitDate
+      }
     }
     existing.sourceLabel = existing.sources.length > 1 ? 'V1 + V2' : existing.sources[0].toUpperCase()
   }
 
-  return Array.from(grouped.values())
+  return Array.from(grouped.values()).sort((a, b) => {
+    const at = a.commitDate || ''
+    const bt = b.commitDate || ''
+    return bt.localeCompare(at)
+  })
 })
-
-const displayedOwnedItems = computed<OwnedMergedItem[]>(() =>
-  ownedMergedItems.value.filter(item => item.sources.includes(ownedTab.value))
-)
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
