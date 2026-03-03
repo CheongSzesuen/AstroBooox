@@ -10,7 +10,7 @@ const appVersion =
 
 export default defineConfig({
   plugins: [vue()],
-  base: './',
+  base: '/',
   define: {
     __APP_VERSION__: JSON.stringify(appVersion)
   },

@@ -3,13 +3,13 @@ const appVersion = swUrl.searchParams.get('v') || 'dev'
 const cacheName = `astrobooox-cache-${appVersion}`
 
 const appShellPaths = [
-  './',
-  './index.html',
-  './cc/',
-  './cc/index.html',
-  './cc/help/',
-  './cc/help/index.html',
-  './favicon.svg'
+  '/',
+  '/index.html',
+  '/cc/',
+  '/cc/index.html',
+  '/cc/help/',
+  '/cc/help/index.html',
+  '/favicon.svg'
 ]
 
 const toAbsoluteUrl = (path) => new URL(path, self.registration.scope).toString()
@@ -62,7 +62,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse
       } catch {
         const cachedResponse = await caches.match(request)
-        return cachedResponse || caches.match(toAbsoluteUrl('./index.html'))
+        return cachedResponse || caches.match(toAbsoluteUrl('/index.html'))
       }
     })())
     return
