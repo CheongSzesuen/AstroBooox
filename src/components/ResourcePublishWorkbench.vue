@@ -4359,16 +4359,32 @@ const startEditOwnedResource = (): void => {
   const detail = ownedDetail.value
   if (!current || !detail) return
 
-  const sourceText = detail.v2ManifestText.trim() || detail.v1ManifestText.trim()
-  if (!sourceText) {
+  const v2SourceText = detail.v2ManifestText.trim()
+  const v1SourceText = detail.v1ManifestText.trim()
+  if (!v2SourceText && !v1SourceText) {
     appendLog('编辑失败：未找到可解析的 manifest 内容')
     return
   }
 
-  let manifest: Record<string, any>
-  try {
-    manifest = JSON.parse(sourceText) as Record<string, any>
-  } catch {
+  let v2Manifest: Record<string, any> | null = null
+  let v1Manifest: Record<string, any> | null = null
+  if (v2SourceText) {
+    try {
+      v2Manifest = JSON.parse(v2SourceText) as Record<string, any>
+    } catch {
+      appendLog('编辑提示：manifest_v2.json 解析失败，将回退到 v1 解析')
+    }
+  }
+  if (v1SourceText) {
+    try {
+      v1Manifest = JSON.parse(v1SourceText) as Record<string, any>
+    } catch {
+      appendLog('编辑提示：manifest.json 解析失败')
+    }
+  }
+
+  const manifest = v2Manifest || v1Manifest
+  if (!manifest) {
     appendLog('编辑失败：manifest 不是合法 JSON')
     return
   }
@@ -4378,7 +4394,10 @@ const startEditOwnedResource = (): void => {
     ? manifest.downloads as Record<string, any>
     : {}
   const linksInput = Array.isArray(manifest.links) ? manifest.links as Array<Record<string, any>> : []
-  const authorsInput = Array.isArray(item.author) ? item.author as Array<Record<string, any>> : []
+  const v2Item = v2Manifest?.item && typeof v2Manifest.item === 'object' ? v2Manifest.item as Record<string, any> : {}
+  const v1Item = v1Manifest?.item && typeof v1Manifest.item === 'object' ? v1Manifest.item as Record<string, any> : {}
+  const v2AuthorsInput = Array.isArray(v2Item.author) ? v2Item.author as Array<Record<string, any>> : []
+  const v1AuthorsInput = Array.isArray(v1Item.author) ? v1Item.author as Array<Record<string, any>> : []
 
   const previewPaths = (Array.isArray(item.preview) ? item.preview : [])
     .map(value => String(value || '').trim())
@@ -4387,12 +4406,38 @@ const startEditOwnedResource = (): void => {
   const normalizedRestype = normalizeOwnedRestype(parsedRestype)
   const restype = normalizedRestype === 'watchface' ? 'watchface' : 'quickapp'
   const catalogId = String(current.catalogId || item.id || '').trim()
-  const parsedAuthors = authorsInput
-    .map(author => ({
-      name: String(author.name || '').trim(),
-      authorUrl: String(author.author_url || '').trim(),
-      bindABAccount: author.bindABAccount !== false
-    }))
+  const authorUrlByName = new Map<string, string>()
+  for (const author of v1AuthorsInput) {
+    const name = String(author.name || '').trim()
+    if (!name) continue
+    authorUrlByName.set(name, String(author.author_url || '').trim())
+  }
+
+  const parsedAuthorsFromV2 = v2AuthorsInput
+    .map(author => {
+      const name = String(author.name || '').trim()
+      if (!name) return null
+      return {
+        name,
+        authorUrl: authorUrlByName.get(name) || '',
+        bindABAccount: author.bindABAccount === true
+      }
+    })
+    .filter((author): author is { name: string; authorUrl: string; bindABAccount: boolean } => Boolean(author))
+
+  const parsedAuthorsFromV1 = v1AuthorsInput
+    .map(author => {
+      const name = String(author.name || '').trim()
+      if (!name) return null
+      return {
+        name,
+        authorUrl: String(author.author_url || '').trim(),
+        bindABAccount: false
+      }
+    })
+    .filter((author): author is { name: string; authorUrl: string; bindABAccount: boolean } => Boolean(author))
+
+  const parsedAuthors = (parsedAuthorsFromV2.length > 0 ? parsedAuthorsFromV2 : parsedAuthorsFromV1)
     .filter(author => author.name)
 
   const parsedLinks = linksInput
