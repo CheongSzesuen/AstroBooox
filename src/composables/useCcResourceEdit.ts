@@ -16,6 +16,9 @@ export interface CcResourceEditDraft {
   icon: string
   cover: string
   previews: string[]
+  authors: Array<{ name: string; authorUrl: string; bindABAccount: boolean }>
+  links: Array<{ icon: string; title: string; url: string }>
+  downloads: Record<string, { version: string; file_name: string }>
 }
 
 const draft = ref<CcResourceEditDraft | null>(null)

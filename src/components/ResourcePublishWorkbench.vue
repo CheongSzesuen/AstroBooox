@@ -399,7 +399,12 @@
                       <Label for="icon-path">图标</Label>
                       <div class="flex gap-2 max-sm:flex-col">
                         <Input id="icon-path" v-model="iconPath" readonly placeholder="点击右侧按钮从工作区选择文件" />
-                        <Button variant="outline" @click="selectIconFile">选择文件</Button>
+                        <Button
+                          variant="outline"
+                          @click="isResourceUpdateMode ? openRemoteFilePicker('icon') : selectIconFile()"
+                        >
+                          选择文件
+                        </Button>
                       </div>
                       <p class="text-xs text-muted-foreground">宽高比 1:1，大小不超过 200px × 200px</p>
                     </div>
@@ -407,7 +412,12 @@
                       <Label for="cover-path">封面</Label>
                       <div class="flex gap-2 max-sm:flex-col">
                         <Input id="cover-path" v-model="coverPath" readonly placeholder="点击右侧按钮从工作区选择文件" />
-                        <Button variant="outline" @click="selectCoverFile">选择文件</Button>
+                        <Button
+                          variant="outline"
+                          @click="isResourceUpdateMode ? openRemoteFilePicker('cover') : selectCoverFile()"
+                        >
+                          选择文件
+                        </Button>
                       </div>
                       <p class="text-xs text-muted-foreground">宽高比 1.5，宽度不宜超过 2000px</p>
                     </div>
@@ -438,14 +448,13 @@
                         </div>
                       </template>
                     </draggable>
-                    <div v-if="isResourceUpdateMode" class="flex gap-2 max-sm:flex-col">
-                      <Input
-                        v-model="previewPathInput"
-                        placeholder="输入远程仓库中的相对路径，如 images/preview-1.png"
-                      />
-                      <Button variant="default" class="font-semibold" @click="addPreviewByPath">+ 添加路径</Button>
-                    </div>
-                    <Button v-else variant="default" class="font-semibold" @click="selectMultiplePreviewFiles">+ 添加预览图</Button>
+                    <Button
+                      variant="default"
+                      class="font-semibold"
+                      @click="isResourceUpdateMode ? openRemoteFilePicker('preview') : selectMultiplePreviewFiles()"
+                    >
+                      + 添加预览图
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -567,7 +576,12 @@
                             readonly
                             placeholder="点击右侧按钮从工作区选择文件"
                           />
-                          <Button variant="outline" @click="selectDownloadFile(deviceId)">选择文件</Button>
+                          <Button
+                            variant="outline"
+                            @click="isResourceUpdateMode ? openRemoteFilePicker('download', deviceId) : selectDownloadFile(deviceId)"
+                          >
+                            选择文件
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -810,6 +824,95 @@
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" @click="showFolderNameValidationDialog = false">我知道了</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog :open="showRemoteFilePickerDialog" @update:open="showRemoteFilePickerDialog = $event">
+        <DialogContent class="w-[95vw] !max-w-[1120px]">
+          <DialogHeader>
+            <DialogTitle>{{ remotePickerTitle }}</DialogTitle>
+            <DialogDescription>
+              远程仓库：{{ remoteWorkspacePath || '未同步远程仓库' }}
+            </DialogDescription>
+          </DialogHeader>
+          <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_360px]">
+            <div class="space-y-3">
+              <Input v-model="remotePickerSearch" placeholder="搜索文件名或路径" />
+              <div class="max-h-[60vh] overflow-y-auto rounded-lg border border-border">
+                <div
+                  v-if="remotePickerTreeItems.length === 0"
+                  class="px-3 py-4 text-center text-xs text-muted-foreground"
+                >
+                  暂无可选文件
+                </div>
+                <div v-else class="space-y-0.5 py-1">
+                  <template v-for="item in remotePickerTreeItems" :key="`picker-${item.path}`">
+                    <button
+                      v-if="item.type === 'folder'"
+                      type="button"
+                      class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted/30"
+                      :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                      @click="toggleRemoteFolder(item.path)"
+                    >
+                      <CaretRight
+                        v-if="item.collapsed"
+                        :size="12"
+                        weight="bold"
+                        class="shrink-0"
+                      />
+                      <CaretDown
+                        v-else
+                        :size="12"
+                        weight="bold"
+                        class="shrink-0"
+                      />
+                      <FolderIcon :size="14" weight="fill" class="shrink-0" />
+                      <span class="truncate">{{ item.label }}</span>
+                    </button>
+                    <button
+                      v-else
+                      type="button"
+                      class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30"
+                      :style="{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }"
+                      :class="remotePickerSelectedPaths.includes(item.path) ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'"
+                      @click="toggleRemotePickerPath(item.path)"
+                    >
+                      <span class="w-3 shrink-0" />
+                      <FileIcon :size="14" weight="duotone" class="shrink-0" />
+                      <span class="truncate">{{ item.label }}</span>
+                    </button>
+                  </template>
+                </div>
+              </div>
+            </div>
+            <div class="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+              <div class="text-xs text-muted-foreground">图片预览</div>
+              <a
+                v-if="remotePickerPreviewPath && isImagePath(remotePickerPreviewPath)"
+                :href="getRawUrl(remotePickerPreviewPath)"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="block overflow-hidden rounded-md border border-border bg-background"
+              >
+                <img
+                  :src="getRawUrl(remotePickerPreviewPath)"
+                  :alt="remotePickerPreviewPath"
+                  class="h-64 w-full object-contain"
+                >
+              </a>
+              <div
+                v-else
+                class="flex h-64 items-center justify-center rounded-md border border-dashed border-border bg-background text-xs text-muted-foreground"
+              >
+                选中文件后可预览图片
+              </div>
+              <p class="break-all text-[11px] text-muted-foreground">{{ remotePickerPreviewPath || '未选择文件' }}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="showRemoteFilePickerDialog = false">取消</Button>
+            <Button @click="applyRemotePickerSelection">确认选择</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1617,13 +1720,18 @@ const imageValidationMessage = ref('')
 const showFolderNameValidationDialog = ref(false)
 const folderNameValidationMessage = ref('')
 const showUploadCompleteDialog = ref(false)
+const showRemoteFilePickerDialog = ref(false)
 const showLinkIconPicker = ref(false)
 const linkIconPickerIndex = ref<number | null>(null)
 const linkPickerInitialQuery = ref('')
 const iconPath = ref('')
 const coverPath = ref('')
 const previewItems = ref<Array<{ id: string; path: string }>>([])
-const previewPathInput = ref('')
+type RemotePickerMode = 'icon' | 'cover' | 'preview' | 'download'
+const remotePickerMode = ref<RemotePickerMode>('preview')
+const remotePickerDeviceId = ref('')
+const remotePickerSearch = ref('')
+const remotePickerSelectedPaths = ref<string[]>([])
 
 const upstreamOwner = ref(defaultTargetOwner.value)
 const upstreamRepo = ref(defaultTargetRepo.value)
@@ -2225,6 +2333,37 @@ const visibleRemoteItems = computed(() =>
   getVisibleTreeItems(remoteWorkspaceTree.value, collapsedRemoteFolders.value)
 )
 
+const IMAGE_FILE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.avif']
+
+const isImagePath = (path: string): boolean => {
+  const normalized = path.trim().toLowerCase()
+  return IMAGE_FILE_EXTENSIONS.some(ext => normalized.endsWith(ext))
+}
+
+const remotePickerTitle = computed(() => {
+  if (remotePickerMode.value === 'icon') return '选择图标文件'
+  if (remotePickerMode.value === 'cover') return '选择封面文件'
+  if (remotePickerMode.value === 'download') return '选择下载文件'
+  return '选择预览图（可多选）'
+})
+
+const remotePickerTreeItems = computed(() => {
+  const keyword = remotePickerSearch.value.trim().toLowerCase()
+  return visibleRemoteItems.value.filter(item => {
+    if (item.type === 'folder') {
+      return !keyword || item.path.toLowerCase().includes(keyword) || item.label.toLowerCase().includes(keyword)
+    }
+    if (
+      (remotePickerMode.value === 'icon' || remotePickerMode.value === 'cover' || remotePickerMode.value === 'preview') &&
+      !isImagePath(item.path)
+    ) return false
+    if (!keyword) return true
+    return item.path.toLowerCase().includes(keyword) || item.label.toLowerCase().includes(keyword)
+  })
+})
+
+const remotePickerPreviewPath = computed(() => remotePickerSelectedPaths.value[0] || '')
+
 const toggleWorkspaceFolder = (path: string): void => {
   if (collapsedWorkspaceFolders.value.includes(path)) {
     collapsedWorkspaceFolders.value = collapsedWorkspaceFolders.value.filter(item => item !== path)
@@ -2696,15 +2835,40 @@ const applyResourceEditDraft = (): void => {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
       path
     }))
-  previewPathInput.value = ''
 
-  const normalizedDeviceIds = draft.devices
+  const draftAuthors = Array.isArray(draft.authors) ? draft.authors : []
+  authors.value = draftAuthors.length
+    ? draftAuthors.map(author => ({
+      name: author.name.trim(),
+      authorUrl: author.authorUrl.trim(),
+      bindABAccount: Boolean(author.bindABAccount)
+    }))
+    : [{ name: '', authorUrl: '', bindABAccount: true }]
+
+  const draftLinks = Array.isArray(draft.links) ? draft.links : []
+  links.value = draftLinks.map(link => ({
+    icon: link.icon.trim(),
+    title: link.title.trim(),
+    url: link.url.trim()
+  }))
+
+  const nextDownloads: Record<string, { version: string; file_name: string }> = {}
+  for (const [rawDeviceId, entry] of Object.entries(draft.downloads || {})) {
+    const deviceId = normalizeDeviceToken(rawDeviceId)
+    if (!deviceId) continue
+    nextDownloads[deviceId] = {
+      version: String(entry?.version || '').trim() || '1.0.0',
+      file_name: String(entry?.file_name || '').trim()
+    }
+  }
+  downloads.value = nextDownloads
+  const draftDeviceIds = Object.keys(nextDownloads)
+  const fallbackDeviceIds = draft.devices
     .split(/[;；,，]/)
     .map(token => normalizeDeviceToken(token))
     .filter(Boolean)
-  selectedDeviceIds.value = [...new Set(normalizedDeviceIds)]
-  downloads.value = {}
-  selectedDeviceIds.value.forEach((deviceId) => ensureDownload(deviceId))
+  selectedDeviceIds.value = [...new Set(draftDeviceIds.length > 0 ? draftDeviceIds : fallbackDeviceIds)]
+  selectedDeviceIds.value.forEach(deviceId => ensureDownload(deviceId))
 
   upstreamOwner.value = defaultTargetOwner.value.trim()
   upstreamRepo.value = defaultTargetRepo.value.trim()
@@ -2879,27 +3043,62 @@ const selectMultiplePreviewFiles = async (): Promise<void> => {
   }
 }
 
-const addPreviewByPath = (): void => {
-  const raw = previewPathInput.value.trim()
-  if (!raw) {
-    appendLog('请先输入预览图路径')
+const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
+  if (remoteWorkspaceTree.value.length === 0) {
+    appendLog('远程仓库文件树为空，请先同步远程仓库')
     return
   }
 
-  const normalizedPath = raw.replace(/\\/g, '/').replace(/^\/+/, '')
-  if (!normalizedPath) {
-    appendLog('预览图路径不能为空')
+  remotePickerMode.value = mode
+  remotePickerDeviceId.value = deviceId
+  remotePickerSearch.value = ''
+  remotePickerSelectedPaths.value = []
+  showRemoteFilePickerDialog.value = true
+}
+
+const toggleRemotePickerPath = (path: string): void => {
+  const normalizedPath = path.trim().replace(/\\/g, '/').replace(/^\/+/, '')
+  if (!normalizedPath) return
+
+  if (remotePickerMode.value === 'preview') {
+    const exists = remotePickerSelectedPaths.value.includes(normalizedPath)
+    remotePickerSelectedPaths.value = exists
+      ? remotePickerSelectedPaths.value.filter(item => item !== normalizedPath)
+      : [...remotePickerSelectedPaths.value, normalizedPath]
     return
   }
 
-  const exists = previewItems.value.some(item => item.path === normalizedPath)
-  if (exists) {
-    appendLog(`预览图已存在: ${normalizedPath}`)
+  remotePickerSelectedPaths.value = [normalizedPath]
+}
+
+const applyRemotePickerSelection = (): void => {
+  if (remotePickerSelectedPaths.value.length === 0) {
+    appendLog('请先选择文件')
     return
   }
 
-  previewItems.value = [...previewItems.value, createPreviewItemFromPath(normalizedPath)]
-  previewPathInput.value = ''
+  if (remotePickerMode.value === 'icon') {
+    iconPath.value = remotePickerSelectedPaths.value[0]
+  } else if (remotePickerMode.value === 'cover') {
+    coverPath.value = remotePickerSelectedPaths.value[0]
+  } else if (remotePickerMode.value === 'download') {
+    const deviceId = remotePickerDeviceId.value.trim()
+    if (!deviceId) {
+      appendLog('下载文件选择失败：缺少设备标识')
+      return
+    }
+    ensureDownload(deviceId)
+    downloads.value[deviceId].file_name = remotePickerSelectedPaths.value[0]
+  } else {
+    const existing = new Set(previewItems.value.map(item => item.path))
+    const nextPaths = remotePickerSelectedPaths.value.filter(path => !existing.has(path))
+    previewItems.value = [
+      ...previewItems.value,
+      ...nextPaths.map(path => createPreviewItemFromPath(path))
+    ]
+  }
+
+  showRemoteFilePickerDialog.value = false
 }
 
 const removePreview = (index: number): void => {
@@ -3248,7 +3447,6 @@ const resetResourceInfoFields = (): void => {
   iconPath.value = ''
   coverPath.value = ''
   previewItems.value = []
-  previewPathInput.value = ''
   selectedDeviceIds.value = []
   downloads.value = {}
   authors.value = [{ name: '', authorUrl: '', bindABAccount: true }]
@@ -4180,6 +4378,7 @@ const startEditOwnedResource = (): void => {
     ? manifest.downloads as Record<string, any>
     : {}
   const linksInput = Array.isArray(manifest.links) ? manifest.links as Array<Record<string, any>> : []
+  const authorsInput = Array.isArray(item.author) ? item.author as Array<Record<string, any>> : []
 
   const previewPaths = (Array.isArray(item.preview) ? item.preview : [])
     .map(value => String(value || '').trim())
@@ -4188,6 +4387,35 @@ const startEditOwnedResource = (): void => {
   const normalizedRestype = normalizeOwnedRestype(parsedRestype)
   const restype = normalizedRestype === 'watchface' ? 'watchface' : 'quickapp'
   const catalogId = String(current.catalogId || item.id || '').trim()
+  const parsedAuthors = authorsInput
+    .map(author => ({
+      name: String(author.name || '').trim(),
+      authorUrl: String(author.author_url || '').trim(),
+      bindABAccount: author.bindABAccount !== false
+    }))
+    .filter(author => author.name)
+
+  const parsedLinks = linksInput
+    .map(link => ({
+      icon: String(link.icon || '').trim(),
+      title: String(link.title || '').trim(),
+      url: String(link.url || '').trim()
+    }))
+    .filter(link => link.icon || link.title || link.url)
+
+  const parsedDownloads = Object.entries(downloadsInput).reduce<Record<string, { version: string; file_name: string }>>(
+    (acc, [rawDeviceId, meta]) => {
+      const deviceId = normalizeDeviceToken(rawDeviceId)
+      if (!deviceId) return acc
+      const mapped = meta && typeof meta === 'object' ? meta as Record<string, any> : {}
+      acc[deviceId] = {
+        version: String(mapped.version || '').trim() || '1.0.0',
+        file_name: String(mapped.file_name || '').trim()
+      }
+      return acc
+    },
+    {}
+  )
 
   setResourceEditDraft({
     key: current.key,
@@ -4204,7 +4432,10 @@ const startEditOwnedResource = (): void => {
     paidType: normalizeCatalogText(current.paid_type || item.paid_type),
     icon: String(item.icon || current.icon || '').trim(),
     cover: String(item.cover || '').trim(),
-    previews: previewPaths
+    previews: previewPaths,
+    authors: parsedAuthors,
+    links: parsedLinks,
+    downloads: parsedDownloads
   })
 
   closeOwnedDetail({ syncRoute: false })
