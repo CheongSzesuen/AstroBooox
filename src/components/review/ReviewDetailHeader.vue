@@ -18,7 +18,7 @@
             v-if="leadingImageUrl"
             :src="leadingImageUrl"
             :alt="leadingImageAlt || 'header image'"
-            class="h-12 w-12 shrink-0 rounded-full border border-border bg-muted/30 object-cover md:h-14 md:w-14"
+            class="h-14 w-14 shrink-0 rounded-full border border-border bg-muted/30 object-cover md:h-16 md:w-16"
           />
           <div class="min-w-0 space-y-2">
             <div class="flex flex-wrap items-end gap-x-2 gap-y-1">
