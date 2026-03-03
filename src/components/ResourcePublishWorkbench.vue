@@ -831,15 +831,8 @@
       <Dialog :open="showRemoteFilePickerDialog" @update:open="showRemoteFilePickerDialog = $event">
         <DialogContent class="flex h-[78vh] w-[95vw] !max-w-[1120px] flex-col overflow-hidden">
           <DialogHeader class="shrink-0">
-            <DialogTitle>{{ remotePickerTitle }}</DialogTitle>
-            <DialogDescription>
-              远程仓库：{{ remoteWorkspacePath || '未同步远程仓库' }}
-            </DialogDescription>
+            <DialogTitle>{{ remotePickerDialogTitle }}</DialogTitle>
           </DialogHeader>
-          <div class="shrink-0 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-            步骤 {{ remotePickerStep }} / 2：
-            {{ remotePickerStep === 1 ? '选择或新建目标文件夹' : '本地导入并选择文件' }}
-          </div>
           <div class="grid min-h-0 flex-1 gap-3 overflow-hidden md:grid-cols-[minmax(0,1fr)_360px]">
             <div class="flex min-h-0 flex-col gap-3">
               <div class="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
@@ -858,8 +851,6 @@
                 </div>
               </div>
               <div v-if="remotePickerStep === 1" class="flex gap-2 max-sm:flex-col">
-                <Input v-model="remotePickerSearch" placeholder="搜索文件夹" />
-                <Input v-model="remotePickerNewFolderName" placeholder="新建文件夹名称" />
                 <Button variant="outline" @click="createRemotePickerFolder">新建</Button>
               </div>
               <div v-else class="space-y-2">
@@ -1808,7 +1799,6 @@ const remotePickerSelectedPaths = ref<string[]>([])
 const remotePickerTargetFolder = ref('')
 const remotePickerUploadFileName = ref('')
 const remotePickerStep = ref<1 | 2>(1)
-const remotePickerNewFolderName = ref('')
 const remotePickerDraftFolders = ref<string[]>([])
 const opfsLocalPathSet = ref<Record<string, true>>({})
 const opfsLocalPreviewUrlMap = ref<Record<string, string>>({})
@@ -2423,12 +2413,11 @@ const isImagePath = (path: string): boolean => {
 const isImageSelectablePath = (path: string): boolean =>
   isImagePath(path) || Boolean(opfsLocalPreviewUrlMap.value[path])
 
-const remotePickerTitle = computed(() => {
-  if (remotePickerMode.value === 'icon') return '选择图标文件'
-  if (remotePickerMode.value === 'cover') return '选择封面文件'
-  if (remotePickerMode.value === 'download') return '选择下载文件'
-  return '选择预览图（可多选）'
-})
+const remotePickerDialogTitle = computed(() =>
+  remotePickerStep.value === 1
+    ? '步骤 1/2：选择或新建文件夹'
+    : '步骤 2/2：本地导入并选择文件'
+)
 
 const remotePickerFolderItems = computed(() => {
   const fromRemote = remoteWorkspaceTree.value.filter(item => item.type === 'folder')
@@ -2446,11 +2435,9 @@ const remotePickerFolderItems = computed(() => {
   for (const item of merged) {
     if (!dedup.has(item.path)) dedup.set(item.path, item)
   }
-  const keyword = remotePickerSearch.value.trim().toLowerCase()
   return [...dedup.values()]
     .sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'))
     .map(item => ({ ...item, collapsed: collapsedRemoteFolders.value.includes(item.path) }))
-    .filter(item => !keyword || item.path.toLowerCase().includes(keyword) || item.label.toLowerCase().includes(keyword))
 })
 
 const remotePickerTreeItems = computed(() => {
@@ -2485,25 +2472,23 @@ const remotePickerLocalItems = computed(() => {
 })
 
 const createRemotePickerFolder = (): void => {
-  const rawName = remotePickerNewFolderName.value.trim()
-  if (!rawName) {
-    appendLog('请输入新文件夹名称')
-    return
-  }
-  const folderName = sanitizeRepoFileName(rawName)
-  if (!folderName) {
-    appendLog('新文件夹名称不合法')
-    return
-  }
+  const folderNameBase = '新建文件夹'
   const parent = sanitizeRepoFolderPath(remotePickerTargetFolder.value)
-  const fullPath = parent ? `${parent}/${folderName}` : folderName
-  const existsInRemote = remoteWorkspaceTree.value.some(item => item.type === 'folder' && item.path === fullPath)
-  const existsInDraft = remotePickerDraftFolders.value.includes(fullPath)
-  if (!existsInRemote && !existsInDraft) {
-    remotePickerDraftFolders.value = [...remotePickerDraftFolders.value, fullPath]
+
+  const taken = new Set([
+    ...remoteWorkspaceTree.value.filter(item => item.type === 'folder').map(item => item.path),
+    ...remotePickerDraftFolders.value
+  ])
+
+  let suffix = 0
+  let candidate = folderNameBase
+  while (taken.has(parent ? `${parent}/${candidate}` : candidate)) {
+    suffix += 1
+    candidate = `${folderNameBase} ${suffix + 1}`
   }
+  const fullPath = parent ? `${parent}/${candidate}` : candidate
+  remotePickerDraftFolders.value = [...remotePickerDraftFolders.value, fullPath]
   remotePickerTargetFolder.value = fullPath
-  remotePickerNewFolderName.value = ''
 }
 
 const toggleWorkspaceFolder = (path: string): void => {
@@ -3336,7 +3321,6 @@ const openRemoteFilePicker = (mode: RemotePickerMode, deviceId = ''): void => {
   remotePickerSelectedPaths.value = []
   remotePickerUploadFileName.value = ''
   remotePickerStep.value = 1
-  remotePickerNewFolderName.value = ''
   remotePickerDraftFolders.value = []
   remotePickerTargetFolder.value = getDefaultUploadFolder(mode)
   showRemoteFilePickerDialog.value = true
