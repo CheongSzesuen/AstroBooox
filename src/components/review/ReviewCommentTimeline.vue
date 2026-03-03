@@ -139,6 +139,20 @@
       </div>
     </div>
   </div>
+
+  <Dialog :open="missingReplyDialogOpen" @update:open="missingReplyDialogOpen = $event">
+    <DialogContent class="max-w-[420px]">
+      <DialogHeader>
+        <DialogTitle>无法定位原评论</DialogTitle>
+        <DialogDescription>
+          {{ missingReplyDialogMessage }}
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button @click="missingReplyDialogOpen = false">我知道了</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -158,6 +172,15 @@ import {
   PhTrash as DeleteIcon,
   PhArrowBendUpLeft as ReplyIcon
 } from '@phosphor-icons/vue'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import {
   parseReviewCommentBody,
   renderCommentMarkdownHtml,
@@ -284,9 +307,16 @@ const highlightReviewCommentElement = (element: HTMLElement): void => {
   }, 1500)
 }
 
+const missingReplyDialogOpen = ref(false)
+const missingReplyDialogMessage = ref('原始消息内容不在了。')
+
 const scrollToReplyTarget = async (replyTarget: string): Promise<void> => {
   const id = getReplyTargetId(replyTarget)
-  if (!id) return
+  if (!id) {
+    missingReplyDialogMessage.value = '原始消息内容不在了。'
+    missingReplyDialogOpen.value = true
+    return
+  }
   const selector = `[data-review-comment-content-id="${id}"]`
   for (let i = 0; i < 8; i += 1) {
     const element = document.querySelector(selector)
@@ -297,6 +327,8 @@ const scrollToReplyTarget = async (replyTarget: string): Promise<void> => {
     }
     await new Promise(resolve => setTimeout(resolve, 80))
   }
+  missingReplyDialogMessage.value = `原始消息内容不在了（目标评论 #${id} 未找到）。`
+  missingReplyDialogOpen.value = true
 }
 
 const collapsedState = ref<Record<string, boolean>>({})
