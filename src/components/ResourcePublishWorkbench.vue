@@ -906,10 +906,23 @@
           </CardHeader>
           <CardContent class="space-y-3 pt-0">
             <div
-              v-if="selectedReviewItem.unresolvedTagCount > 0"
-              class="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-700"
+              v-if="reviewUnresolvedNeedfixAnchors.length > 0"
+              class="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2.5"
             >
-              检测到 NEEDFIX 标签且尚未出现对应 FIXED：{{ selectedReviewItem.unresolvedTagIds.join(' / ') }}
+              <div class="text-xs font-medium text-red-700">
+                需要修复的标签（点击可快速定位评论）
+              </div>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <button
+                  v-for="anchor in reviewUnresolvedNeedfixAnchors"
+                  :key="anchor.tagId"
+                  type="button"
+                  class="inline-flex items-center rounded-md border border-red-500/35 bg-red-500/15 px-2 py-0.5 text-[11px] font-medium text-red-800 hover:bg-red-500/20"
+                  @click="scrollToReviewCommentById(anchor.commentId)"
+                >
+                  {{ anchor.tagId }}
+                </button>
+              </div>
             </div>
             <div v-if="reviewCommentsError" class="text-xs text-destructive">{{ reviewCommentsError }}</div>
             <ReviewCommentComposer
@@ -1344,6 +1357,25 @@ const canSubmitReviewComment = computed(() => {
 const reviewSubmitButtonTitle = computed(() => {
   if (!canSubmitReviewComment.value) return reviewCommentTagEnabled.value ? '请填写id' : '请输入评论内容'
   return reviewEditingCommentTarget.value ? '更新现有评论' : ''
+})
+const reviewUnresolvedNeedfixAnchors = computed<Array<{ tagId: string; commentId: number }>>(() => {
+  const unresolved = new Map<string, number>()
+  for (const comment of selectedReviewComments.value) {
+    const parsed = parseReviewCommentBody(comment.body || '')
+    const tagId = parsed.tagId.trim()
+    if (!tagId) continue
+    if (parsed.tagType === 'NEEDFIX') {
+      unresolved.set(tagId, comment.id)
+      continue
+    }
+    if (parsed.tagType === 'FIXED') {
+      unresolved.delete(tagId)
+    }
+  }
+  return Array.from(unresolved.entries()).map(([tagId, commentId]) => ({
+    tagId,
+    commentId
+  }))
 })
 const paidTypeSelectValue = computed({
   get: () => paidType.value || 'free',
