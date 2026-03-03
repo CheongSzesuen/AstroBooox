@@ -613,15 +613,17 @@
 
           <Card v-if="activeStep === 2">
             <CardHeader class="pb-3">
-              <CardTitle class="text-base">步骤 3：上传资源仓库</CardTitle>
-              <CardDescription>创建或复用仓库，并上传所选版本需要的 manifest 与资源文件。</CardDescription>
+              <CardTitle class="text-base">{{ isResourceUpdateMode ? '步骤 3：更新资源仓库' : '步骤 3：上传资源仓库' }}</CardTitle>
+              <CardDescription>
+                {{ isResourceUpdateMode ? '使用现有仓库并更新所选版本需要的 manifest 与资源文件。' : '创建或复用仓库，并上传所选版本需要的 manifest 与资源文件。' }}
+              </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4 pt-0">
               <div class="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
                 当前提交流程：
                 <span class="font-semibold">{{ submitModeLabel }}</span>
               </div>
-              <div class="grid gap-3 md:grid-cols-2">
+              <div v-if="!isResourceUpdateMode" class="grid gap-3 md:grid-cols-2">
                 <div class="space-y-1.5">
                   <Label for="repo-name">资源仓库名（可选）</Label>
                   <Input id="repo-name" v-model="repoName" placeholder="留空时默认使用当前文件夹名" />
@@ -635,7 +637,7 @@
               <div class="flex flex-wrap items-center gap-2">
                 <Button :disabled="uploading || !canUpload" @click="handleUploadResources">
                   <UploadSimple :size="16" weight="duotone" />
-                  {{ uploading ? '上传中...' : '创建仓库并上传' }}
+                  {{ uploading ? (isResourceUpdateMode ? '更新中...' : '上传中...') : (isResourceUpdateMode ? '更新现有仓库' : '创建仓库并上传') }}
                 </Button>
               </div>
 
@@ -726,8 +728,10 @@
       <Dialog :open="showUploadCompleteDialog" @update:open="showUploadCompleteDialog = $event">
         <DialogContent class="max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>上传已完成</DialogTitle>
-            <DialogDescription>资源仓库已创建并上传完成，你可以继续下一步创建 PR。</DialogDescription>
+            <DialogTitle>{{ isResourceUpdateMode ? '更新已完成' : '上传已完成' }}</DialogTitle>
+            <DialogDescription>
+              {{ isResourceUpdateMode ? '资源仓库已更新完成，你可以继续下一步创建 PR。' : '资源仓库已创建并上传完成，你可以继续下一步创建 PR。' }}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button @click="showUploadCompleteDialog = false">我知道了</Button>
@@ -4320,14 +4324,27 @@ const handleUploadResources = async (): Promise<void> => {
       throw new Error('请先校验 Token')
     }
 
-    const repo = await ensureUserRepository({
-      token: accessToken,
-      owner: username,
-      repoName: resolveRepoNameForSubmit(),
-      description: repoDescription.value.trim()
-    })
+    const repo = isResourceUpdateMode.value
+      ? (() => {
+          const owner = uploadedRepoOwner.value.trim()
+          const name = uploadedRepoName.value.trim()
+          if (!owner || !name) {
+            throw new Error('更新模式缺少仓库信息，请重新选择要更新的资源')
+          }
+          return {
+            owner,
+            name,
+            htmlUrl: uploadedRepoUrl.value || `https://github.com/${owner}/${name}`
+          }
+        })()
+      : await ensureUserRepository({
+          token: accessToken,
+          owner: username,
+          repoName: resolveRepoNameForSubmit(),
+          description: repoDescription.value.trim()
+        })
 
-    appendLog(`资源仓库就绪: ${repo.owner}/${repo.name}`)
+    appendLog(`${isResourceUpdateMode.value ? '更新目标仓库' : '资源仓库就绪'}: ${repo.owner}/${repo.name}`)
 
     const uploadQueue: Array<{ path: string; file?: File; text?: string }> = []
     const repoUrl = repo.htmlUrl
