@@ -1627,6 +1627,7 @@ const latestPrUrl = ref('')
 
 const uploading = ref(false)
 const creatingPr = ref(false)
+const hasUploadedInCurrentFlow = ref(false)
 
 const uploadedRepoOwner = ref('')
 const uploadedRepoName = ref('')
@@ -2515,7 +2516,9 @@ const buildAutoPrBody = (): string => {
 
 const isWorkspaceStepDone = computed(() => Boolean(workspaceHandle.value || workspacePath.value))
 const isResourceInfoStepDone = computed(() => isResourceInfoValid.value)
-const isUploadStepDone = computed(() => Boolean(uploadedCommitSha.value))
+const isUploadStepDone = computed(() =>
+  isResourceUpdateMode.value ? hasUploadedInCurrentFlow.value : Boolean(uploadedCommitSha.value)
+)
 const isPrStepDone = computed(() => Boolean(latestPrUrl.value))
 
 const stepList = computed(() => {
@@ -2668,6 +2671,7 @@ const applyResourceEditDraft = (): void => {
   clearWorkspace()
   workspaceDisplayPath.value = ''
   workspaceName.value = ''
+  hasUploadedInCurrentFlow.value = false
 
   itemId.value = draft.catalogId.trim()
   itemName.value = draft.name.trim()
@@ -3201,6 +3205,7 @@ const syncRemoteWorkspaceForUpdate = async (repoOwner: string, repoName: string)
 
 const resetResourceInfoFields = (): void => {
   isResourceUpdateMode.value = false
+  hasUploadedInCurrentFlow.value = false
   itemId.value = ''
   itemName.value = ''
   restype.value = 'quickapp'
@@ -3314,6 +3319,7 @@ const scanWorkspace = async (options: { forceSync?: boolean } = {}): Promise<voi
     uploadedRepoName.value = ''
     uploadedRepoUrl.value = ''
     uploadedCommitSha.value = ''
+    hasUploadedInCurrentFlow.value = false
     latestPrUrl.value = ''
 
     appendLog('目录扫描完成')
@@ -3646,6 +3652,7 @@ const handleUploadResources = async (): Promise<void> => {
     uploadedRepoName.value = repo.name
     uploadedRepoUrl.value = repo.htmlUrl
     uploadedCommitSha.value = latestCommitSha
+    hasUploadedInCurrentFlow.value = true
     appendLog('上传步骤完成')
     showUploadCompleteDialog.value = true
 
@@ -3657,6 +3664,7 @@ const handleUploadResources = async (): Promise<void> => {
       appendLog(`远程文件树同步失败: ${remoteError instanceof Error ? remoteError.message : '未知错误'}`)
     }
   } catch (error: unknown) {
+    hasUploadedInCurrentFlow.value = false
     clearRemoteWorkspace()
     appendLog(`上传失败: ${error instanceof Error ? error.message : '未知错误'}`)
   } finally {
