@@ -13,7 +13,7 @@
           {{ backText }}
         </Button>
 
-        <div class="flex items-start gap-3">
+        <div class="flex items-end gap-3">
           <img
             v-if="leadingImageUrl"
             :src="leadingImageUrl"
