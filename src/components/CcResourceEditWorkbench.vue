@@ -4,15 +4,15 @@
       <CardHeader class="pb-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <CardTitle class="text-base">资源编辑</CardTitle>
-            <CardDescription>与资源发布分离的独立编辑入口（当前为编辑草稿页）。</CardDescription>
+            <CardTitle class="text-base">资源更新</CardTitle>
+            <CardDescription>与资源发布分离的独立更新入口（当前为更新草稿页）。</CardDescription>
           </div>
           <Button variant="outline" @click="emit('back')">返回资源管理</Button>
         </div>
       </CardHeader>
       <CardContent class="space-y-3 pt-0">
         <div v-if="!draft" class="rounded-md border border-dashed border-border px-3 py-6 text-sm text-muted-foreground">
-          暂无编辑上下文，请先从“资源管理”里选择资源并点击编辑。
+          暂无更新上下文，请先从“资源管理”里选择资源并点击更新。
         </div>
         <template v-else>
           <div class="grid gap-3 md:grid-cols-2">
@@ -38,7 +38,7 @@
             <div class="mt-1 text-sm text-foreground">{{ draft.tags.join(' / ') || '-' }}</div>
           </div>
           <div class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-            下一步会在这里接入与发布分离的“资源编辑提交流”（不复用发布步骤）。
+            下一步会在这里接入与发布分离的“资源更新提交流”（不复用发布步骤）。
           </div>
         </template>
       </CardContent>
@@ -57,4 +57,3 @@ const emit = defineEmits<{
 
 const { draft } = useCcResourceEdit()
 </script>
-

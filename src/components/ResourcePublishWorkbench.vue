@@ -1061,7 +1061,7 @@
               @click="startEditOwnedResource"
             >
               <NotePencil :size="14" weight="duotone" />
-              编辑
+              更新
             </Button>
             <Button
               variant="outline"
@@ -1073,9 +1073,6 @@
               @click="loadOwnedItemDetail"
             >
               <ArrowsClockwise :size="14" weight="duotone" />
-            </Button>
-            <Button variant="default" size="sm" class="h-9 gap-1.5 px-3" @click="triggerOwnedHashUpdate">
-              更新
             </Button>
             <Button
               as="a"
@@ -3934,11 +3931,6 @@ const loadOwnedItemDetail = async (item?: OwnedMergedItem): Promise<void> => {
       syncOwnedPreviewScrollState()
     })
   }
-}
-
-const triggerOwnedHashUpdate = (): void => {
-  if (!selectedOwnedItem.value) return
-  appendLog(`请求更新 hash：${selectedOwnedItem.value.repo_owner}/${selectedOwnedItem.value.repo_name}`)
 }
 
 const extractTagList = (value: unknown): string[] => {
