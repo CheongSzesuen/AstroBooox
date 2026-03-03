@@ -3,7 +3,7 @@
     <template v-if="mode === 'publish'">
       <div class="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
         <div class="space-y-4 xl:sticky xl:top-[72px] xl:self-start">
-          <Card>
+          <Card v-if="!isResourceUpdateMode">
             <CardHeader class="pb-3">
               <CardTitle class="text-base">步骤导航</CardTitle>
             </CardHeader>
