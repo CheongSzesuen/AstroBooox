@@ -1095,11 +1095,18 @@
             <Badge v-if="showV2FollowUpTag && selectedOwnedItem.v2NeedsFollowUp" variant="destructive">v2需要跟进</Badge>
           </template>
           <template #actions>
-            <Button variant="outline" size="sm" class="h-9 gap-1.5 px-3" @click="loadOwnedItemDetail">
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-9 w-9"
+              :disabled="ownedDetailLoading"
+              title="刷新详情"
+              aria-label="刷新详情"
+              @click="loadOwnedItemDetail"
+            >
               <ArrowsClockwise :size="14" weight="duotone" />
-              {{ ownedDetailLoading ? '刷新中...' : '刷新详情' }}
             </Button>
-            <Button variant="outline" size="sm" class="h-9 gap-1.5 px-3" @click="triggerOwnedHashUpdate">
+            <Button variant="default" size="sm" class="h-9 gap-1.5 px-3" @click="triggerOwnedHashUpdate">
               更新
             </Button>
             <Button
@@ -1108,82 +1115,247 @@
               target="_blank"
               rel="noopener noreferrer"
               variant="outline"
-              size="sm"
-              class="h-9 gap-1.5 px-3"
+              size="icon"
+              class="h-9 w-9"
+              title="打开仓库"
+              aria-label="打开仓库"
             >
               <GithubLogo :size="14" weight="duotone" />
-              打开仓库
             </Button>
           </template>
         </ReviewDetailHeader>
 
         <Card>
           <CardHeader class="pb-3">
-            <CardTitle class="text-base">Hash 状态</CardTitle>
-            <CardDescription>检查 index_v2 记录的 hash 是否为仓库默认分支最新提交。</CardDescription>
+            <CardTitle class="text-base">资源提交信息</CardTitle>
           </CardHeader>
-          <CardContent class="space-y-2 pt-0">
+          <CardContent class="space-y-3 pt-0 text-sm">
             <div v-if="ownedDetailError" class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
               {{ ownedDetailError }}
             </div>
             <div v-else-if="ownedDetailLoading" class="text-xs text-muted-foreground">
-              正在加载详情...
+              正在加载文件变更...
             </div>
-            <template v-else-if="ownedDetail">
-              <div class="text-xs text-muted-foreground">
-                默认分支：{{ ownedDetail.defaultBranch || '-' }} · 最新提交：{{ ownedDetail.latestCommitSha || '-' }}
-              </div>
-              <div v-if="ownedDetail.latestCommitDate" class="text-xs text-muted-foreground">
-                最新提交时间：{{ formatDate(ownedDetail.latestCommitDate) }}
-              </div>
-              <div
-                v-if="ownedDetail.v2Ref && ownedDetail.isV2HashLatest === false"
-                class="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-              >
-                index_v2 当前 hash（{{ ownedDetail.v2Ref }}）不是最新提交，请更新 hash。
-              </div>
-              <div
-                v-else-if="ownedDetail.v2Ref && ownedDetail.isV2HashLatest"
-                class="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700"
-              >
-                index_v2 当前 hash 已是最新。
-              </div>
-              <div v-else class="text-xs text-muted-foreground">
-                当前资源未检测到 v2 hash。
-              </div>
-            </template>
-          </CardContent>
-        </Card>
+            <div
+              v-else-if="!hasOwnedSubmissionOverview"
+              class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
+            >
+              未识别到结构化资源信息
+            </div>
+            <div v-else class="space-y-3">
+              <div class="grid gap-3 xl:grid-cols-2">
+                <div class="rounded-md border border-border p-3">
+                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <NotePencil :size="14" weight="duotone" />
+                    资源信息
+                  </div>
+                  <div class="space-y-2">
+                    <div
+                      v-for="item in ownedSubmissionOverview.resourceInfo"
+                      :key="item.key"
+                      class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between"
+                    >
+                      <span class="text-xs text-muted-foreground">{{ item.key }}</span>
+                      <span class="text-sm font-medium text-foreground">{{ item.value || '-' }}</span>
+                    </div>
+                    <div class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between">
+                      <span class="text-xs text-muted-foreground">仓库信息</span>
+                      <a
+                        :href="getOwnedItemRepoUrl(selectedOwnedItem)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="break-all text-sm font-medium text-primary hover:underline"
+                      >
+                        {{ getOwnedItemRepoUrl(selectedOwnedItem) }}
+                      </a>
+                    </div>
+                    <div class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                      <span class="text-xs text-muted-foreground">链接（manifest_v2.links）</span>
+                      <div v-if="ownedSubmissionOverview.links.length > 0" class="space-y-1 text-sm font-medium text-foreground">
+                        <a
+                          v-for="link in ownedSubmissionOverview.links"
+                          :key="`owned-links-${link.title}-${link.url}`"
+                          :href="link.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex w-full min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap text-primary hover:underline"
+                        >
+                          <component
+                            :is="FileIcon"
+                            :size="14"
+                            weight="duotone"
+                            class="shrink-0 text-muted-foreground"
+                          />
+                          <span class="shrink-0 text-foreground">{{ link.title || '-' }}</span>
+                          <span v-if="link.type" class="shrink-0 text-muted-foreground">{{ link.type }}</span>
+                          <span class="truncate">{{ link.url }}</span>
+                        </a>
+                      </div>
+                      <span v-else class="text-sm font-medium text-foreground">-</span>
+                    </div>
+                  </div>
+                </div>
 
-        <Card>
-          <CardHeader class="pb-3">
-            <CardTitle class="text-base">资源内容</CardTitle>
-            <CardDescription>展示当前资源 v1 / v2 清单内容。</CardDescription>
-          </CardHeader>
-          <CardContent class="pt-0">
-            <div v-if="ownedDetailLoading" class="text-xs text-muted-foreground">正在加载清单...</div>
-            <div v-else-if="!ownedDetail" class="text-xs text-muted-foreground">暂无详情数据</div>
-            <Tabs v-else-if="selectedOwnedItem.sources.includes('v1') && selectedOwnedItem.sources.includes('v2')" v-model="ownedDetailTab">
-              <TabsList class="mb-3">
-                <TabsTrigger value="v2">V2</TabsTrigger>
-                <TabsTrigger value="v1">V1</TabsTrigger>
-              </TabsList>
-              <TabsContent value="v2" class="mt-0">
-                <div class="mb-2 text-xs text-muted-foreground">{{ ownedDetail.v2ManifestPath }} @ {{ ownedDetail.v2Ref || '-' }}</div>
-                <pre class="max-h-[420px] overflow-auto rounded-md border border-border bg-muted/20 p-3 text-xs leading-5">{{ formatManifestText(ownedDetail.v2ManifestText) }}</pre>
-              </TabsContent>
-              <TabsContent value="v1" class="mt-0">
-                <div class="mb-2 text-xs text-muted-foreground">{{ ownedDetail.v1ManifestPath }} @ {{ ownedDetail.v1Ref || '-' }}</div>
-                <pre class="max-h-[420px] overflow-auto rounded-md border border-border bg-muted/20 p-3 text-xs leading-5">{{ formatManifestText(ownedDetail.v1ManifestText) }}</pre>
-              </TabsContent>
-            </Tabs>
-            <div v-else-if="selectedOwnedItem.sources.includes('v2')">
-              <div class="mb-2 text-xs text-muted-foreground">{{ ownedDetail.v2ManifestPath }} @ {{ ownedDetail.v2Ref || '-' }}</div>
-              <pre class="max-h-[420px] overflow-auto rounded-md border border-border bg-muted/20 p-3 text-xs leading-5">{{ formatManifestText(ownedDetail.v2ManifestText) }}</pre>
-            </div>
-            <div v-else>
-              <div class="mb-2 text-xs text-muted-foreground">{{ ownedDetail.v1ManifestPath }} @ {{ ownedDetail.v1Ref || '-' }}</div>
-              <pre class="max-h-[420px] overflow-auto rounded-md border border-border bg-muted/20 p-3 text-xs leading-5">{{ formatManifestText(ownedDetail.v1ManifestText) }}</pre>
+                <div class="rounded-md border border-border p-3">
+                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <GlobeHemisphereWest :size="14" weight="duotone" />
+                    支持设备
+                  </div>
+                  <div class="space-y-2">
+                    <div
+                      v-for="group in ownedGroupedDownloads"
+                      :key="`${group.file}-${group.version}-${group.devices.join('/')}`"
+                      class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
+                    >
+                      <div class="text-xs text-muted-foreground">支持设备：{{ group.devices.join(' / ') || '-' }}</div>
+                      <div class="mt-1 text-xs text-muted-foreground">版本：{{ group.version || '-' }}</div>
+                      <div class="mt-1 text-xs text-muted-foreground">文件：{{ group.file || '-' }}</div>
+                      <a
+                        v-if="group.raw"
+                        :href="group.raw"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="mt-1 block break-all text-xs text-primary hover:underline"
+                      >
+                        {{ group.raw }}
+                      </a>
+                    </div>
+                    <div
+                      v-if="ownedGroupedDownloads.length === 0"
+                      class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm text-foreground"
+                    >
+                      {{ ownedSubmissionOverview.supportedDevices.join(' / ') || '-' }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded-md border border-border p-3">
+                <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <ImageSquare :size="14" weight="duotone" />
+                  图片资源（Raw）
+                </div>
+                <div v-if="!ownedSubmissionOverview.images.icon && !ownedSubmissionOverview.images.cover && ownedSubmissionOverview.images.previews.length === 0" class="rounded-md border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
+                  未检测到图片资源
+                </div>
+                <div v-else class="space-y-3">
+                  <div class="grid gap-3 md:grid-cols-2">
+                    <div v-if="ownedSubmissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+                      <div class="text-xs text-muted-foreground">Icon · {{ ownedSubmissionOverview.images.icon.file }}</div>
+                      <a
+                        :href="ownedSubmissionOverview.images.icon.url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="mt-2 mx-auto flex h-[180px] w-[180px] items-center justify-center overflow-hidden rounded-full border border-border/60 bg-background/70"
+                      >
+                        <img
+                          :src="ownedSubmissionOverview.images.icon.url"
+                          alt="Icon 预览"
+                          class="h-full w-full rounded-full object-contain p-3"
+                          loading="lazy"
+                        />
+                      </a>
+                    </div>
+                    <div v-if="ownedSubmissionOverview.images.cover" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+                      <div class="text-xs text-muted-foreground">Cover · {{ ownedSubmissionOverview.images.cover.file }}</div>
+                      <a
+                        :href="ownedSubmissionOverview.images.cover.url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
+                      >
+                        <img
+                          :src="ownedSubmissionOverview.images.cover.url"
+                          alt="Cover 预览"
+                          class="max-h-[320px] w-full object-contain"
+                          loading="lazy"
+                        />
+                      </a>
+                    </div>
+                  </div>
+                  <div v-if="ownedSubmissionOverview.images.previews.length > 0" class="space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="text-xs text-muted-foreground">
+                        Preview · {{ ownedSubmissionOverview.images.previews.length }} 张
+                      </div>
+                      <div class="inline-flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          class="h-7 w-7"
+                          :disabled="!canOwnedPreviewPrev"
+                          @click="scrollOwnedPreviewPrev"
+                        >
+                          <CaretRight :size="14" weight="bold" class="rotate-180" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          class="h-7 w-7"
+                          :disabled="!canOwnedPreviewNext"
+                          @click="scrollOwnedPreviewNext"
+                        >
+                          <CaretRight :size="14" weight="bold" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div
+                      ref="ownedPreviewScrollerRef"
+                      class="flex gap-3 overflow-x-auto pb-1"
+                      @scroll="syncOwnedPreviewScrollState"
+                    >
+                      <div
+                        v-for="preview in ownedSubmissionOverview.images.previews"
+                        :key="preview.url"
+                        class="w-[220px] shrink-0 rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm"
+                      >
+                        <div class="truncate text-xs text-muted-foreground">Preview · {{ preview.file }}</div>
+                        <a
+                          :href="preview.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
+                        >
+                          <img
+                            :src="preview.url"
+                            :alt="`${preview.file} 预览`"
+                            class="h-40 w-full object-contain"
+                            loading="lazy"
+                          />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded-md border border-border p-3">
+                <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <CheckCircle :size="14" weight="duotone" />
+                  规范自动检查
+                </div>
+                <div class="space-y-2">
+                  <div
+                    v-for="item in ownedRuleChecks"
+                    :key="item.title"
+                    class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
+                  >
+                    <div class="flex items-start gap-2">
+                      <component
+                        :is="item.status === 'pass' ? CheckCircle : WarningCircle"
+                        :size="14"
+                        weight="fill"
+                        :class="item.status === 'pass' ? 'text-emerald-600' : item.status === 'fail' ? 'text-red-600' : 'text-amber-500'"
+                        class="mt-0.5 shrink-0"
+                      />
+                      <div class="min-w-0">
+                        <div class="text-sm font-medium text-foreground">{{ item.title }}</div>
+                        <div class="text-xs text-muted-foreground">{{ item.detail }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -1228,14 +1400,19 @@ import {
   PhArrowsClockwise as ArrowsClockwise,
   PhCaretDown as CaretDown,
   PhCaretRight as CaretRight,
+  PhCheckCircle as CheckCircle,
   PhDotsSixVertical as DragDots,
   PhFile as FileIcon,
   PhFolderOpen as FolderOpen,
   PhFolder as FolderIcon,
+  PhGlobeHemisphereWest as GlobeHemisphereWest,
   PhGithubLogo as GithubLogo,
   PhGitPullRequest as GitPullRequest,
+  PhImageSquare as ImageSquare,
   PhMinus as MinusIcon,
-  PhUploadSimple as UploadSimple
+  PhNotePencil as NotePencil,
+  PhUploadSimple as UploadSimple,
+  PhWarningCircle as WarningCircle
 } from '@phosphor-icons/vue'
 import { icons as phosphorCoreIcons } from '@phosphor-icons/core'
 import draggable from 'vuedraggable'
@@ -1595,7 +1772,192 @@ const selectedOwnedItem = ref<OwnedMergedItem | null>(null)
 const ownedDetailLoading = ref(false)
 const ownedDetailError = ref('')
 const ownedDetail = ref<OwnedResourceDetail | null>(null)
-const ownedDetailTab = ref<'v1' | 'v2'>('v2')
+
+type OwnedManifestLink = { title: string; url: string; type: string }
+type OwnedManifestImageAsset = { file: string; url: string }
+type OwnedSubmissionOverview = {
+  resourceInfo: Array<{ key: string; value: string }>
+  links: OwnedManifestLink[]
+  supportedDevices: string[]
+  downloads: Array<{ device: string; version: string; file: string; raw: string }>
+  images: {
+    icon: OwnedManifestImageAsset | null
+    cover: OwnedManifestImageAsset | null
+    previews: OwnedManifestImageAsset[]
+  }
+}
+
+const ownedManifestObject = computed<Record<string, any>>(() => {
+  const detail = ownedDetail.value
+  if (!detail) return {}
+  const sourceText = detail.v2ManifestText.trim() || detail.v1ManifestText.trim()
+  if (!sourceText) return {}
+  try {
+    return JSON.parse(sourceText) as Record<string, any>
+  } catch {
+    return {}
+  }
+})
+
+const buildOwnedAssetRawUrl = (relativePath: string): string => {
+  const item = selectedOwnedItem.value
+  if (!item) return ''
+  const raw = relativePath.trim()
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) return raw
+  const ref = item.v2RepoCommitHash || item.v1RepoCommitHash || item.repo_commit_hash
+  const normalizedPath = raw.replace(/^\/+/, '')
+  return `https://raw.githubusercontent.com/${item.repo_owner}/${item.repo_name}/${ref}/${normalizedPath}`
+}
+
+const ownedSubmissionOverview = computed<OwnedSubmissionOverview>(() => {
+  const manifest = ownedManifestObject.value
+  const item = (manifest.item && typeof manifest.item === 'object') ? manifest.item as Record<string, any> : {}
+  const downloads = (manifest.downloads && typeof manifest.downloads === 'object') ? manifest.downloads as Record<string, any> : {}
+  const linksInput = Array.isArray(manifest.links) ? manifest.links as Array<Record<string, any>> : []
+
+  const links = linksInput
+    .map(link => ({
+      title: typeof link.title === 'string' ? link.title.trim() : '',
+      url: typeof link.url === 'string' ? link.url.trim() : '',
+      type: typeof link.icon === 'string' ? link.icon.trim() : ''
+    }))
+    .filter(link => Boolean(link.url))
+
+  const resourceInfo = [
+    { key: '资源名称', value: String(item.name || selectedOwnedItem.value?.name || '').trim() },
+    { key: '资源类型', value: formatOwnedRestype(String(item.restype || selectedOwnedItem.value?.restype || '').trim()) },
+    { key: '资源描述', value: String(item.description || selectedOwnedItem.value?.description || '').trim() },
+    { key: 'V2 Hash', value: ownedDetail.value?.v2Ref || '-' },
+    { key: 'V1 Hash', value: ownedDetail.value?.v1Ref || '-' }
+  ]
+
+  const downloadList = Object.entries(downloads).map(([device, meta]) => {
+    const mapped = meta && typeof meta === 'object' ? meta as Record<string, any> : {}
+    const file = String(mapped.file_name || '').trim()
+    return {
+      device,
+      version: String(mapped.version || '').trim(),
+      file,
+      raw: file ? buildOwnedAssetRawUrl(file) : ''
+    }
+  })
+
+  const iconPath = String(item.icon || '').trim()
+  const coverPath = String(item.cover || '').trim()
+  const previewList = Array.isArray(item.preview) ? item.preview : []
+
+  return {
+    resourceInfo,
+    links,
+    supportedDevices: Object.keys(downloads),
+    downloads: downloadList,
+    images: {
+      icon: iconPath ? { file: iconPath, url: buildOwnedAssetRawUrl(iconPath) } : null,
+      cover: coverPath ? { file: coverPath, url: buildOwnedAssetRawUrl(coverPath) } : null,
+      previews: previewList
+        .map(value => String(value || '').trim())
+        .filter(Boolean)
+        .map(file => ({ file, url: buildOwnedAssetRawUrl(file) }))
+    }
+  }
+})
+
+const ownedGroupedDownloads = computed(() =>
+  ownedSubmissionOverview.value.downloads.map(item => ({
+    devices: [item.device],
+    version: item.version,
+    file: item.file,
+    raw: item.raw
+  }))
+)
+
+const hasOwnedSubmissionOverview = computed(() =>
+  ownedSubmissionOverview.value.resourceInfo.some(item => Boolean(item.value && item.value !== '-')) ||
+  ownedSubmissionOverview.value.supportedDevices.length > 0 ||
+  ownedSubmissionOverview.value.downloads.length > 0 ||
+  ownedSubmissionOverview.value.links.length > 0 ||
+  Boolean(ownedSubmissionOverview.value.images.icon) ||
+  Boolean(ownedSubmissionOverview.value.images.cover) ||
+  ownedSubmissionOverview.value.images.previews.length > 0
+)
+
+const ownedRuleChecks = computed<Array<{ title: string; status: 'pass' | 'warn' | 'fail'; detail: string }>>(() => {
+  const detail = ownedDetail.value
+  const manifest = ownedManifestObject.value
+  const checks: Array<{ title: string; status: 'pass' | 'warn' | 'fail'; detail: string }> = []
+  const hasManifest = Object.keys(manifest).length > 0
+  checks.push({
+    title: 'manifest 文件存在且 JSON 可解析',
+    status: hasManifest ? 'pass' : 'fail',
+    detail: hasManifest ? 'manifest 解析成功' : 'manifest 文件不存在或解析失败'
+  })
+
+  if (!detail?.v2Ref) {
+    checks.push({
+      title: 'index_v2 hash 最新性',
+      status: 'warn',
+      detail: '未检测到 v2 hash'
+    })
+  } else if (detail.isV2HashLatest) {
+    checks.push({
+      title: 'index_v2 hash 最新性',
+      status: 'pass',
+      detail: `当前 hash（${detail.v2Ref}）已是默认分支最新提交`
+    })
+  } else {
+    checks.push({
+      title: 'index_v2 hash 最新性',
+      status: 'fail',
+      detail: `当前 hash（${detail.v2Ref}）落后于最新提交（${detail.latestCommitSha || '-'})`
+    })
+  }
+
+  const hasDownloads = ownedSubmissionOverview.value.downloads.length > 0
+  checks.push({
+    title: 'manifest downloads 完整性',
+    status: hasDownloads ? 'pass' : 'warn',
+    detail: hasDownloads ? `已识别 ${ownedSubmissionOverview.value.downloads.length} 条下载配置` : '未识别到 downloads'
+  })
+  return checks
+})
+
+const ownedPreviewScrollerRef = ref<HTMLElement | null>(null)
+const ownedPreviewCanPrev = ref(false)
+const ownedPreviewCanNext = ref(false)
+const OWNED_PREVIEW_SCROLL_DISTANCE = 260
+
+const syncOwnedPreviewScrollState = (): void => {
+  const el = ownedPreviewScrollerRef.value
+  if (!el) {
+    ownedPreviewCanPrev.value = false
+    ownedPreviewCanNext.value = false
+    return
+  }
+  ownedPreviewCanPrev.value = el.scrollLeft > 4
+  ownedPreviewCanNext.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+}
+
+const canOwnedPreviewPrev = computed(() =>
+  ownedSubmissionOverview.value.images.previews.length > 0 && ownedPreviewCanPrev.value
+)
+const canOwnedPreviewNext = computed(() =>
+  ownedSubmissionOverview.value.images.previews.length > 0 && ownedPreviewCanNext.value
+)
+
+const scrollOwnedPreviewBy = (offset: number): void => {
+  const el = ownedPreviewScrollerRef.value
+  if (!el) return
+  el.scrollBy({ left: offset, behavior: 'smooth' })
+}
+
+const scrollOwnedPreviewPrev = (): void => {
+  scrollOwnedPreviewBy(-OWNED_PREVIEW_SCROLL_DISTANCE)
+}
+
+const scrollOwnedPreviewNext = (): void => {
+  scrollOwnedPreviewBy(OWNED_PREVIEW_SCROLL_DISTANCE)
+}
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
@@ -3488,7 +3850,8 @@ const loadOwnedList = async (): Promise<void> => {
 
 const openOwnedItemDetail = (item: OwnedMergedItem): void => {
   selectedOwnedItem.value = item
-  ownedDetailTab.value = item.sources.includes('v2') ? 'v2' : 'v1'
+  ownedPreviewCanPrev.value = false
+  ownedPreviewCanNext.value = false
   void loadOwnedItemDetail(item)
 }
 
@@ -3496,6 +3859,8 @@ const closeOwnedDetail = (): void => {
   selectedOwnedItem.value = null
   ownedDetail.value = null
   ownedDetailError.value = ''
+  ownedPreviewCanPrev.value = false
+  ownedPreviewCanNext.value = false
 }
 
 const loadOwnedItemDetail = async (item?: OwnedMergedItem): Promise<void> => {
@@ -3515,6 +3880,9 @@ const loadOwnedItemDetail = async (item?: OwnedMergedItem): Promise<void> => {
     ownedDetailError.value = `加载详情失败：${error instanceof Error ? error.message : '未知错误'}`
   } finally {
     ownedDetailLoading.value = false
+    void nextTick(() => {
+      syncOwnedPreviewScrollState()
+    })
   }
 }
 
@@ -3554,16 +3922,6 @@ const formatOwnedRestype = (value: string): string => {
   if (normalized === 'watchface') return '表盘'
   if (normalized === 'quickapp') return '快应用'
   return value
-}
-
-const formatManifestText = (value: string): string => {
-  if (!value?.trim()) return '（未找到对应清单）'
-  try {
-    const parsed = JSON.parse(value)
-    return JSON.stringify(parsed, null, 2)
-  } catch {
-    return value
-  }
 }
 
 watch(
