@@ -1,4 +1,4 @@
-export type CcTab = 'publish' | 'review' | 'published' | 'audit' | 'settings'
+export type CcTab = 'publish' | 'pullrequest' | 'published' | 'resource_edit' | 'review' | 'settings'
 export type CcSettingsSection = 'defaults' | 'account'
 
 export type CcRouteState = {
@@ -13,7 +13,7 @@ export const CC_PATHS = {
   pullRequest: '/cc/pullrequest',
   review: '/cc/review',
   published: '/cc/resource',
-  auditLegacy: '/cc/audit',
+  resourceEdit: '/cc/resource/edit',
   settings: '/cc/settings',
   settingsAccount: '/cc/settings/account'
 } as const
@@ -37,8 +37,9 @@ export const buildCcPath = (state: CcRouteState): string => {
     return state.settingsSection === 'account' ? CC_PATHS.settingsAccount : CC_PATHS.settings
   }
   if (state.tab === 'publish') return CC_PATHS.publish
-  if (state.tab === 'review') return CC_PATHS.pullRequest
+  if (state.tab === 'pullrequest') return CC_PATHS.pullRequest
   if (state.tab === 'published') return CC_PATHS.published
+  if (state.tab === 'resource_edit') return CC_PATHS.resourceEdit
   return CC_PATHS.review
 }
 
@@ -48,11 +49,11 @@ export const resolveCcRouteFromPath = (pathname: string): CcRouteState => {
   if (segments[0] !== 'cc') return CC_DEFAULT_ROUTE
   const section = segments[1] || 'publish'
   if (section === 'publish') return { tab: 'publish', settingsSection: 'defaults' }
-  if (section === 'pullrequest') return { tab: 'review', settingsSection: 'defaults' }
-  if (section === 'review') return { tab: 'audit', settingsSection: 'defaults' }
+  if (section === 'pullrequest') return { tab: 'pullrequest', settingsSection: 'defaults' }
+  if (section === 'review') return { tab: 'review', settingsSection: 'defaults' }
+  if (section === 'resource' && segments[2] === 'edit') return { tab: 'resource_edit', settingsSection: 'defaults' }
   if (section === 'resource') return { tab: 'published', settingsSection: 'defaults' }
   if (section === 'published') return { tab: 'published', settingsSection: 'defaults' }
-  if (section === 'audit') return { tab: 'audit', settingsSection: 'defaults' }
   if (section === 'settings') {
     return {
       tab: 'settings',

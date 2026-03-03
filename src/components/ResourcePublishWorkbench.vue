@@ -1459,6 +1459,7 @@ import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue
 import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
 import { parseReviewCommentBody, renderCommentMarkdownHtml, renderCommentMarkdownInlineHtml, escapeHtml } from '@/utils/reviewComment'
 import { useCcPublishLogs } from '@/composables/useCcPublishLogs'
+import { useCcResourceEdit } from '@/composables/useCcResourceEdit'
 import { useCcSettings } from '@/composables/useCcSettings'
 import { useCcSession } from '@/composables/useCcSession'
 import { type WorkspaceTreeItem, useCcWorkspace } from '@/composables/useCcWorkspace'
@@ -1543,9 +1544,10 @@ const props = withDefaults(defineProps<{ mode?: WorkbenchMode }>(), {
   mode: 'publish'
 })
 const emit = defineEmits<{
-  (event: 'request-tab', tab: WorkbenchMode | 'settings' | 'audit'): void
+  (event: 'request-tab', tab: WorkbenchMode | 'resource_edit' | 'settings' | 'review' | 'pullrequest'): void
 }>()
 const mode = computed<WorkbenchMode>(() => props.mode)
+const { setDraft: setResourceEditDraft } = useCcResourceEdit()
 
 const { token, currentUser } = useCcSession()
 const {
@@ -3961,13 +3963,6 @@ const triggerOwnedHashUpdate = (): void => {
   appendLog(`请求更新 hash：${selectedOwnedItem.value.repo_owner}/${selectedOwnedItem.value.repo_name}`)
 }
 
-const normalizeRestypeForForm = (value: string): string => {
-  const normalized = value.trim().toLowerCase()
-  if (normalized === 'quick_app' || normalized === 'quickapp') return 'quickapp'
-  if (normalized === 'watchface' || normalized === 'watch_face') return 'watchface'
-  return normalized || 'quickapp'
-}
-
 const extractTagList = (value: unknown): string[] => {
   if (Array.isArray(value)) {
     return value.map(item => String(item || '').trim()).filter(Boolean)
@@ -4005,67 +4000,32 @@ const startEditOwnedResource = (): void => {
     ? manifest.downloads as Record<string, any>
     : {}
   const linksInput = Array.isArray(manifest.links) ? manifest.links as Array<Record<string, any>> : []
-  const authorsInput = Array.isArray(item.author) ? item.author as Array<Record<string, any>> : []
 
-  itemId.value = String(item.id || '').trim()
-  itemName.value = String(item.name || current.name || '').trim()
-  restype.value = normalizeRestypeForForm(String(item.restype || current.restype || ''))
-  paidType.value = String(item.paid_type || manifest.paid_type || '').trim()
-  itemDescription.value = String(item.description || current.description || '').trim()
-  tags.value = extractTagList(item.tags)
-  tagInput.value = ''
-  iconPath.value = String(item.icon || current.icon || '').trim()
-  coverPath.value = String(item.cover || '').trim()
-  previewItems.value = (Array.isArray(item.preview) ? item.preview : [])
+  const previewPaths = (Array.isArray(item.preview) ? item.preview : [])
     .map(value => String(value || '').trim())
     .filter(Boolean)
-    .map(path => createPreviewItemFromPath(path))
+  const parsedRestype = String(item.restype || current.restype || '').trim()
+  const restype = normalizeOwnedRestype(parsedRestype) === 'quickapp'
+    ? '快应用'
+    : normalizeOwnedRestype(parsedRestype) === 'watchface'
+      ? '表盘'
+      : parsedRestype || '-'
 
-  authors.value = authorsInput.length > 0
-    ? authorsInput.map(author => ({
-      name: String(author.name || '').trim(),
-      authorUrl: String(author.author_url || '').trim(),
-      bindABAccount: Boolean(author.bindABAccount)
-    }))
-    : [{ name: '', authorUrl: '', bindABAccount: true }]
-
-  links.value = linksInput.map(link => ({
-    icon: String(link.icon || '').trim(),
-    title: String(link.title || '').trim(),
-    url: String(link.url || '').trim()
-  }))
-
-  const nextDownloads: Record<string, { version: string; file_name: string }> = {}
-  const nextDeviceIds: string[] = []
-  for (const [rawId, download] of Object.entries(downloadsInput)) {
-    const normalizedId = normalizeDeviceToken(rawId)
-    if (!deviceOptions.some(device => device.id === normalizedId)) continue
-    const mapped = download && typeof download === 'object' ? download as Record<string, any> : {}
-    nextDeviceIds.push(normalizedId)
-    nextDownloads[normalizedId] = {
-      version: String(mapped.version || '1.0.0').trim() || '1.0.0',
-      file_name: String(mapped.file_name || '').trim()
-    }
-  }
-  selectedDeviceIds.value = [...new Set(nextDeviceIds)]
-  downloads.value = nextDownloads
-
-  repoName.value = current.repo_name
-  repoDescription.value = ''
-  uploadedRepoOwner.value = ''
-  uploadedRepoName.value = ''
-  uploadedRepoUrl.value = ''
-  uploadedCommitSha.value = ''
-  latestPrUrl.value = ''
-  submitMode.value = current.sources.includes('v1') && current.sources.includes('v2')
-    ? 'both'
-    : current.sources.includes('v1')
-      ? 'v1'
-      : 'v2'
-  activeStep.value = 1
+  setResourceEditDraft({
+    key: current.key,
+    repoOwner: current.repo_owner,
+    repoName: current.repo_name,
+    name: String(item.name || current.name || '').trim(),
+    restype,
+    description: String(item.description || current.description || '').trim(),
+    tags: extractTagList(item.tags),
+    icon: String(item.icon || current.icon || '').trim(),
+    cover: String(item.cover || '').trim(),
+    previews: previewPaths
+  })
 
   closeOwnedDetail()
-  emit('request-tab', 'publish')
+  emit('request-tab', 'resource_edit')
 }
 
 const getOwnedItemIconUrl = (item: {

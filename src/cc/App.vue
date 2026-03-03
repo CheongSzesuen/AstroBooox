@@ -30,8 +30,8 @@
             <Button
               size="sm"
               class="h-8 shrink-0"
-              :variant="tab === 'review' ? 'default' : 'ghost'"
-              @click="navigateToTab('review')"
+              :variant="tab === 'pullrequest' ? 'default' : 'ghost'"
+              @click="navigateToTab('pullrequest')"
             >
               <ClockCounterClockwise :size="15" weight="duotone" />
               等待审核
@@ -48,8 +48,8 @@
             <Button
               size="sm"
               class="h-8 shrink-0"
-              :variant="tab === 'audit' ? 'default' : 'ghost'"
-              @click="navigateToTab('audit')"
+              :variant="tab === 'review' ? 'default' : 'ghost'"
+              @click="navigateToTab('review')"
             >
               <CheckCircle :size="15" weight="duotone" />
               审核
@@ -137,18 +137,17 @@
 
     <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
       <section class="min-w-0 flex justify-center">
-        <ResourcePublishWorkbench
-          v-if="tab !== 'settings' && tab !== 'audit'"
-          :mode="workbenchMode"
-          @request-tab="navigateToTab"
-        />
         <CcPrReviewWorkbench
-          v-else-if="tab === 'audit'"
+          v-if="tab === 'review'"
           :owner="defaultTargetOwner"
           :repo="defaultTargetRepo"
           :token="token"
         />
-        <div v-else class="w-full max-w-[1120px] space-y-4">
+        <CcResourceEditWorkbench
+          v-else-if="tab === 'resource_edit'"
+          @back="navigateToTab('published')"
+        />
+        <div v-else-if="tab === 'settings'" class="w-full max-w-[1120px] space-y-4">
           <div>
             <h2 class="text-base font-semibold text-foreground">Settings</h2>
             <p class="mt-1 text-sm text-muted-foreground">管理 Creator Console 的默认行为与偏好。</p>
@@ -335,6 +334,11 @@
             </section>
           </div>
         </div>
+        <ResourcePublishWorkbench
+          v-else
+          :mode="workbenchMode"
+          @request-tab="navigateToTab"
+        />
       </section>
     </main>
   </div>
@@ -366,6 +370,7 @@ import {
   PhUsers as Users
 } from '@phosphor-icons/vue'
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
+import CcResourceEditWorkbench from '@/components/CcResourceEditWorkbench.vue'
 import CcPrReviewWorkbench from '@/components/CcPrReviewWorkbench.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -421,8 +426,14 @@ const settingsSection = ref<CcSettingsSection>('defaults')
 const routeProgress = ref(0)
 const routeProgressVisible = ref(false)
 let routeProgressTimer: ReturnType<typeof setInterval> | null = null
+const pendingLoginRoute = ref<CcRouteState | null>(null)
+const pendingLoginUser = ref('')
 const workbenchMode = computed<'publish' | 'review' | 'published'>(() =>
-  tab.value === 'settings' || tab.value === 'audit' ? 'publish' : tab.value
+  tab.value === 'settings' || tab.value === 'review' || tab.value === 'resource_edit'
+    ? 'publish'
+    : tab.value === 'pullrequest'
+      ? 'review'
+      : tab.value
 )
 
 const profileUrl = computed(() =>
@@ -453,6 +464,25 @@ const resolveRouteFromLocation = (): CcRouteState => {
     return resolveCcRouteFromPath(redirectedPath)
   }
   return resolveCcRouteFromPath(window.location.pathname)
+}
+
+const resolveExpectedUserFromLocation = (): string => {
+  if (typeof window === 'undefined') return ''
+  const searchParams = new URLSearchParams(window.location.search)
+  return (
+    searchParams.get('cc_user') ||
+    searchParams.get('gh_user') ||
+    ''
+  ).trim().toLowerCase()
+}
+
+const buildCcUrlWithUser = (path: string): string => {
+  const normalizedPath = path || CC_PATHS.root
+  const login = currentUser.value.trim()
+  if (!login) return normalizedPath
+  const params = new URLSearchParams()
+  params.set('gh_user', login)
+  return `${normalizedPath}?${params.toString()}`
 }
 
 const startRouteProgress = (): void => {
@@ -495,9 +525,11 @@ const applyRouteState = (
 
   if (options?.syncUrl !== false && typeof window !== 'undefined') {
     const targetPath = buildCcPath(state)
-    if (window.location.pathname !== targetPath) {
+    const targetUrl = buildCcUrlWithUser(targetPath)
+    const currentUrl = `${window.location.pathname}${window.location.search}`
+    if (currentUrl !== targetUrl) {
       const method = options?.replace ? 'replaceState' : 'pushState'
-      window.history[method](null, '', targetPath)
+      window.history[method](null, '', targetUrl)
     }
   }
 
@@ -603,7 +635,16 @@ const handlePopState = (): void => {
 }
 
 const handleAuthenticated = (): void => {
-  navigateToTab('publish')
+  const expected = pendingLoginUser.value
+  const current = currentUser.value.trim().toLowerCase()
+  const target = pendingLoginRoute.value
+  pendingLoginRoute.value = null
+  pendingLoginUser.value = ''
+  if (target && (!expected || expected === current)) {
+    applyRouteState(target, { replace: true, withProgress: false })
+    return
+  }
+  applyRouteState(CC_DEFAULT_ROUTE, { replace: true, withProgress: false })
 }
 
 const handleSignOut = (): void => {
@@ -619,7 +660,17 @@ const handleSignOut = (): void => {
 onMounted(() => {
   if (!isAuthenticated.value) {
     if (!isCcLoginPath(window.location.pathname)) {
-      window.history.replaceState(null, '', CC_PATHS.login)
+      const targetPath = buildCcPath(resolveRouteFromLocation())
+      const expected = resolveExpectedUserFromLocation()
+      pendingLoginRoute.value = resolveRouteFromLocation()
+      pendingLoginUser.value = expected
+      const params = new URLSearchParams()
+      params.set('cc_path', targetPath)
+      if (expected) params.set('cc_user', expected)
+      window.history.replaceState(null, '', `${CC_PATHS.login}?${params.toString()}`)
+    } else {
+      pendingLoginRoute.value = resolveRouteFromLocation()
+      pendingLoginUser.value = resolveExpectedUserFromLocation()
     }
   } else {
     applyRouteState(resolveRouteFromLocation(), {
@@ -645,12 +696,19 @@ watch(
     if (typeof window === 'undefined') return
     if (!authed) {
       if (!isCcLoginPath(window.location.pathname)) {
-        window.history.replaceState(null, '', CC_PATHS.login)
+        const targetPath = buildCcPath(resolveRouteFromLocation())
+        const expected = resolveExpectedUserFromLocation() || currentUser.value.trim().toLowerCase()
+        pendingLoginRoute.value = resolveRouteFromLocation()
+        pendingLoginUser.value = expected
+        const params = new URLSearchParams()
+        params.set('cc_path', targetPath)
+        if (expected) params.set('cc_user', expected)
+        window.history.replaceState(null, '', `${CC_PATHS.login}?${params.toString()}`)
       }
       return
     }
     if (isCcLoginPath(window.location.pathname)) {
-      applyRouteState(CC_DEFAULT_ROUTE, { replace: true, withProgress: false })
+      handleAuthenticated()
     }
   }
 )
