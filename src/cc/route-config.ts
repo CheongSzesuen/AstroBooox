@@ -1,5 +1,5 @@
 export type CcTab = 'publish' | 'pullrequest' | 'published' | 'resource_edit' | 'review' | 'settings'
-export type CcSettingsSection = 'defaults' | 'account'
+export type CcSettingsSection = 'defaults' | 'account' | 'about'
 
 export type CcRouteState = {
   tab: CcTab
@@ -22,7 +22,8 @@ export const CC_PATHS = {
   published: '/cc/resource',
   resourceEdit: '/cc/resource/edit',
   settings: '/cc/settings',
-  settingsAccount: '/cc/settings/account'
+  settingsAccount: '/cc/settings/account',
+  settingsAbout: '/cc/settings/about'
 } as const
 
 export const CC_DEFAULT_ROUTE: CcRouteState = {
@@ -48,7 +49,9 @@ export const normalizeCcPath = (path?: string): string => {
 
 export const buildCcPath = (state: CcRouteState): string => {
   if (state.tab === 'settings') {
-    return state.settingsSection === 'account' ? CC_PATHS.settingsAccount : CC_PATHS.settings
+    if (state.settingsSection === 'account') return CC_PATHS.settingsAccount
+    if (state.settingsSection === 'about') return CC_PATHS.settingsAbout
+    return CC_PATHS.settings
   }
   if (state.tab === 'published') {
     const key = (state.resourceDetailKey || '').trim()
@@ -92,9 +95,10 @@ export const resolveCcRouteFromPath = (pathname: string): CcRouteState => {
   }
   if (section === 'published') return { tab: 'published', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'settings') {
+    const settingsSegment = segments[2]
     return {
       tab: 'settings',
-      settingsSection: segments[2] === 'account' ? 'account' : 'defaults',
+      settingsSection: settingsSegment === 'account' ? 'account' : settingsSegment === 'about' ? 'about' : 'defaults',
       resourceDetailKey: '',
       pullRequestNumber: 0,
       pullRequestTargetRepo: '',

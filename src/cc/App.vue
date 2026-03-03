@@ -150,28 +150,42 @@
           </div>
 
           <div class="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
-            <aside class="rounded-xl border border-border bg-card p-3 md:p-4">
-              <nav class="space-y-1">
+            <aside class="rounded-xl border border-border bg-card p-3 md:sticky md:top-[90px] md:h-[calc(100vh-140px)] md:p-4">
+              <nav class="flex h-full flex-col">
+                <div class="space-y-1">
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
+                    :class="settingsSection === 'defaults' ? 'border-border bg-accent text-foreground' : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/70 hover:text-foreground'"
+                    @click="openSettingsSection('defaults')"
+                  >
+                    <span class="inline-flex items-center gap-2">
+                      <GearSix :size="16" weight="duotone" />
+                      General
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
+                    :class="settingsSection === 'account' ? 'border-border bg-accent text-foreground' : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/70 hover:text-foreground'"
+                    @click="openSettingsSection('account')"
+                  >
+                    <span class="inline-flex items-center gap-2">
+                      <UserCircle :size="16" weight="duotone" />
+                      Account
+                    </span>
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  class="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
-                  :class="settingsSection === 'defaults' ? 'border-border bg-accent text-foreground' : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/70 hover:text-foreground'"
-                  @click="openSettingsSection('defaults')"
+                  class="mt-auto flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
+                  :class="settingsSection === 'about' ? 'border-border bg-accent text-foreground' : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/70 hover:text-foreground'"
+                  @click="openSettingsSection('about')"
                 >
                   <span class="inline-flex items-center gap-2">
-                    <GearSix :size="16" weight="duotone" />
-                    General
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  class="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
-                  :class="settingsSection === 'account' ? 'border-border bg-accent text-foreground' : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/70 hover:text-foreground'"
-                  @click="openSettingsSection('account')"
-                >
-                  <span class="inline-flex items-center gap-2">
-                    <UserCircle :size="16" weight="duotone" />
-                    Account
+                    <Info :size="16" weight="duotone" />
+                    About
                   </span>
                 </button>
               </nav>
@@ -232,7 +246,7 @@
                 </div>
               </div>
 
-              <div v-else class="space-y-4">
+              <div v-else-if="settingsSection === 'account'" class="space-y-4">
                 <div>
                   <h3 class="text-sm font-semibold text-foreground">账号信息</h3>
                   <p class="mt-1 text-xs text-muted-foreground">基于当前 Token 拉取并展示 GitHub /user 信息。</p>
@@ -332,6 +346,38 @@
                   账号的 Token 管理请通过右上角菜单执行退出后重新登录。
                 </div>
               </div>
+
+              <div v-else class="space-y-4">
+                <div>
+                  <h3 class="text-sm font-semibold text-foreground">关于工具</h3>
+                  <p class="mt-1 text-xs text-muted-foreground">展示当前 Creator Console 可识别到的运行、构建与环境信息。</p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div v-for="entry in aboutInfoEntries" :key="entry.label" class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                    <div class="text-xs text-muted-foreground">{{ entry.label }}</div>
+                    <div class="mt-1 break-all font-medium text-foreground">{{ entry.value }}</div>
+                  </div>
+                </div>
+
+                <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                  <div class="text-xs text-muted-foreground">链接</div>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    <a href="https://astrobooox-ng.waijade.cn/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-primary hover:underline">
+                      主站
+                    </a>
+                    <a href="https://astrobooox-ng.waijade.cn/cc/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-primary hover:underline">
+                      Creator Console
+                    </a>
+                    <a href="https://github.com/CheongSzesuen/AstroBooox" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-primary hover:underline">
+                      GitHub 仓库
+                    </a>
+                    <a href="https://github.com/CheongSzesuen/AstroBooox/issues" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-primary hover:underline">
+                      Issues
+                    </a>
+                  </div>
+                </div>
+              </div>
             </section>
           </div>
         </div>
@@ -362,6 +408,7 @@ import {
   PhGearSix as GearSix,
   PhGlobeHemisphereWest as GlobeHemisphereWest,
   PhHash as Hash,
+  PhInfo as Info,
   PhLinkSimple as LinkSimple,
   PhMapPin as MapPin,
   PhMoon as Moon,
@@ -455,6 +502,52 @@ const settingsOwnerAvatarUrl = computed(() => {
   const owner = settingsForm.value.defaultTargetOwner.trim()
   if (!owner) return 'https://github.com/ghost.png'
   return `https://github.com/${owner}.png`
+})
+const aboutInfoEntries = computed<Array<{ label: string; value: string }>>(() => {
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '-'
+  const language = typeof navigator !== 'undefined' ? navigator.language : '-'
+  const languages = typeof navigator !== 'undefined' ? navigator.languages.join(', ') : '-'
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '-'
+  const online = typeof navigator !== 'undefined' ? (navigator.onLine ? 'online' : 'offline') : '-'
+  const platform = typeof navigator !== 'undefined' ? navigator.platform : '-'
+  const logicalCores = typeof navigator !== 'undefined' ? String(navigator.hardwareConcurrency || '-') : '-'
+  const memory = typeof navigator !== 'undefined' && typeof (navigator as { deviceMemory?: number }).deviceMemory === 'number'
+    ? `${(navigator as { deviceMemory?: number }).deviceMemory} GB`
+    : '-'
+  const host = typeof window !== 'undefined' ? window.location.host : '-'
+  const path = typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '-'
+  const routePath = typeof window !== 'undefined' ? buildCcPath(resolveRouteFromLocation()) : '-'
+  const tokenState = token.value.trim() ? '已登录' : '未登录'
+  const ghUser = currentUser.value || '-'
+
+  return [
+    { label: '应用名称', value: __APP_NAME__ || 'AstroBooox' },
+    { label: '应用版本（package.json）', value: __APP_VERSION__ || '-' },
+    { label: '构建版本（Footer 同源）', value: __BUILD_VERSION__ || '-' },
+    { label: '构建 Commit', value: __BUILD_COMMIT_SHA__ || '-' },
+    { label: '构建时间戳', value: __BUILD_TIMESTAMP__ || '-' },
+    { label: '当前环境', value: import.meta.env.MODE },
+    { label: 'Base URL', value: import.meta.env.BASE_URL || '/' },
+    { label: '当前 Host', value: host },
+    { label: '当前路径', value: path },
+    { label: '解析路由', value: routePath },
+    { label: '登录状态', value: tokenState },
+    { label: 'GitHub 用户', value: ghUser },
+    { label: '默认目标仓库 Owner', value: defaultTargetOwner.value || '-' },
+    { label: '默认目标仓库 Repo', value: defaultTargetRepo.value || '-' },
+    { label: '默认 Catalog 路径', value: defaultCatalogPath.value || '-' },
+    { label: '资源管理优先版本', value: ownedDisplayPriority.value },
+    { label: '显示 v2 跟进标签', value: showV2FollowUpTag.value ? '开启' : '关闭' },
+    { label: '主题', value: theme.value },
+    { label: '浏览器语言', value: language },
+    { label: '语言列表', value: languages || '-' },
+    { label: '时区', value: timezone },
+    { label: '网络状态', value: online },
+    { label: '平台', value: platform || '-' },
+    { label: '逻辑 CPU 核心', value: logicalCores },
+    { label: '设备内存', value: memory },
+    { label: 'User Agent', value: userAgent }
+  ]
 })
 const formatDateTime = (value?: string): string => {
   if (!value) return '-'

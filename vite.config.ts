@@ -22,12 +22,18 @@ const commitSha =
   resolveGitCommitSha()
 const buildTimestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)
 const buildVersion = `${commitSha.slice(0, 12)}-${buildTimestamp}`
+const appVersion = process.env.npm_package_version || '0.0.0'
+const appName = process.env.npm_package_name || 'AstroBooox'
 
 export default defineConfig({
   plugins: [vue()],
   base: '/',
   define: {
-    __BUILD_VERSION__: JSON.stringify(buildVersion)
+    __BUILD_VERSION__: JSON.stringify(buildVersion),
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __APP_NAME__: JSON.stringify(appName),
+    __BUILD_COMMIT_SHA__: JSON.stringify(commitSha.slice(0, 12)),
+    __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp)
   },
   build: {
     rollupOptions: {
