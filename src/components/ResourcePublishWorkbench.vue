@@ -1290,6 +1290,7 @@
                       ref="ownedPreviewScrollerRef"
                       class="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory touch-pan-x"
                       @scroll="syncOwnedPreviewScrollState"
+                      @wheel="onOwnedPreviewWheel"
                     >
                       <div
                         v-for="preview in ownedSubmissionOverview.images.previews"
@@ -1991,6 +1992,20 @@ const scrollOwnedPreviewTo = (index: number): void => {
   const target = slides[index]
   if (!target) return
   el.scrollTo({ left: Math.max(target.offsetLeft - 8, 0), behavior: 'smooth' })
+}
+
+const onOwnedPreviewWheel = (event: WheelEvent): void => {
+  const el = ownedPreviewScrollerRef.value
+  if (!el) return
+  if (el.scrollWidth <= el.clientWidth + 1) return
+
+  const horizontalDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+    ? event.deltaX
+    : event.deltaY
+
+  if (Math.abs(horizontalDelta) < 0.5) return
+  event.preventDefault()
+  el.scrollBy({ left: horizontalDelta, behavior: 'auto' })
 }
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
