@@ -7,6 +7,22 @@ export interface GitHubUser {
   avatar_url: string
 }
 
+export interface GitHubAuthenticatedProfile extends GitHubUser {
+  id?: number
+  node_id?: string
+  company?: string | null
+  blog?: string | null
+  location?: string | null
+  email?: string | null
+  bio?: string | null
+  twitter_username?: string | null
+  public_repos?: number
+  followers?: number
+  following?: number
+  created_at?: string
+  updated_at?: string
+}
+
 export interface GitHubRepository {
   name: string
   full_name: string
@@ -105,6 +121,13 @@ export const verifyToken = async (token: string): Promise<GitHubUser> => {
     throw new Error('Token 不能为空')
   }
   return requestJson<GitHubUser>('/user', token)
+}
+
+export const getAuthenticatedProfile = async (token: string): Promise<GitHubAuthenticatedProfile> => {
+  if (!token.trim()) {
+    throw new Error('Token 不能为空')
+  }
+  return requestJson<GitHubAuthenticatedProfile>('/user', token)
 }
 
 export const getUserByLogin = async (token: string, login: string): Promise<GitHubUser> => {

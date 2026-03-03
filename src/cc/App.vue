@@ -67,17 +67,17 @@
               type="button"
               class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
               :class="{ 'bg-accent': showUserMenu }"
-              :title="currentUser ? `当前用户：${displayUserName}` : '未校验 Token'"
+              :title="currentUser ? `当前用户：${currentUser}` : '未校验 Token'"
               @click="toggleUserMenu"
             >
               <img
-                v-if="displayAvatarUrl"
-                :src="displayAvatarUrl"
+                v-if="avatarUrl"
+                :src="avatarUrl"
                 alt="User Avatar"
                 class="h-6 w-6 rounded-full border border-border object-cover"
               />
               <UserCircle v-else :size="18" weight="duotone" class="text-muted-foreground" />
-              <span class="hidden sm:inline">{{ displayUserName || '未校验 Token' }}</span>
+              <span class="hidden sm:inline">{{ currentUser || '未校验 Token' }}</span>
               <CaretDown :size="14" weight="bold" class="text-muted-foreground" />
             </button>
 
@@ -224,24 +224,29 @@
               <div v-else class="space-y-4">
                 <div>
                   <h3 class="text-sm font-semibold text-foreground">账号信息</h3>
-                  <p class="mt-1 text-xs text-muted-foreground">当前登录信息与本地展示资料配置（不修改 GitHub 真实资料）。</p>
+                  <p class="mt-1 text-xs text-muted-foreground">基于当前 Token 拉取并展示 GitHub /user 信息。</p>
                 </div>
-                <div class="rounded-md border border-border bg-muted/20 p-3 text-sm">
-                  <div class="text-xs text-muted-foreground">GitHub 账号</div>
-                  <div class="mt-1 font-medium text-foreground">{{ currentUser || '未登录' }}</div>
+                <div v-if="accountProfileLoading" class="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                  正在加载账号信息...
                 </div>
-                <div class="space-y-3">
-                  <div class="space-y-1.5">
-                    <Label for="cc-setting-custom-name">显示昵称（本地）</Label>
-                    <Input id="cc-setting-custom-name" v-model="settingsForm.customDisplayName" placeholder="例如：小王同学" />
+                <div v-else-if="accountProfileError" class="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                  {{ accountProfileError }}
+                </div>
+                <div v-else-if="accountProfile" class="space-y-3">
+                  <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div
+                      v-for="item in accountProfileEntries"
+                      :key="item.key"
+                      class="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm"
+                    >
+                      <div class="text-xs text-muted-foreground">{{ item.label }}</div>
+                      <div class="mt-1 break-all font-medium text-foreground">{{ item.value || '-' }}</div>
+                    </div>
                   </div>
-                  <div class="space-y-1.5">
-                    <Label for="cc-setting-custom-avatar">头像 URL（本地）</Label>
-                    <Input id="cc-setting-custom-avatar" v-model="settingsForm.customAvatarUrl" placeholder="https://example.com/avatar.png" />
+                  <div class="rounded-md border border-border bg-muted/20 p-3">
+                    <div class="mb-2 text-xs text-muted-foreground">原始返回（/user）</div>
+                    <pre class="max-h-[280px] overflow-auto whitespace-pre-wrap break-all text-xs text-foreground">{{ accountProfileRaw }}</pre>
                   </div>
-                </div>
-                <div class="flex justify-end">
-                  <Button @click="saveSettings">保存设置</Button>
                 </div>
                 <div class="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
                   账号的 Token 管理请通过右上角菜单执行退出后重新登录。
@@ -256,7 +261,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   PhArchiveBox as ArchiveBox,
   PhCaretDown as CaretDown,
@@ -281,6 +286,7 @@ import { useCcSettings } from '@/composables/useCcSettings'
 import { useCcSession } from '@/composables/useCcSession'
 import { useCcWorkspace } from '@/composables/useCcWorkspace'
 import { useTheme } from '@/composables/useTheme'
+import { getAuthenticatedProfile, type GitHubAuthenticatedProfile } from '@/utils/githubGitApi'
 
 const tab = ref<'publish' | 'review' | 'published' | 'audit' | 'settings'>('publish')
 const { token, currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
@@ -307,6 +313,9 @@ const settingsForm = ref({
   customDisplayName: customDisplayName.value,
   customAvatarUrl: customAvatarUrl.value
 })
+const accountProfileLoading = ref(false)
+const accountProfileError = ref('')
+const accountProfile = ref<GitHubAuthenticatedProfile | null>(null)
 const settingsSection = ref<'defaults' | 'account'>('defaults')
 const workbenchMode = computed<'publish' | 'review' | 'published'>(() =>
   tab.value === 'settings' || tab.value === 'audit' ? 'publish' : tab.value
@@ -325,8 +334,25 @@ const settingsOwnerAvatarUrl = computed(() => {
   if (!owner) return 'https://github.com/ghost.png'
   return `https://github.com/${owner}.png`
 })
-const displayUserName = computed(() => customDisplayName.value.trim() || currentUser.value)
-const displayAvatarUrl = computed(() => customAvatarUrl.value.trim() || avatarUrl.value)
+const accountProfileEntries = computed(() => {
+  const profile = accountProfile.value
+  if (!profile) return []
+  return [
+    { key: 'login', label: 'Login', value: profile.login || '' },
+    { key: 'name', label: 'Name', value: profile.name || '' },
+    { key: 'id', label: 'ID', value: String(profile.id ?? '') },
+    { key: 'company', label: 'Company', value: profile.company || '' },
+    { key: 'location', label: 'Location', value: profile.location || '' },
+    { key: 'email', label: 'Email', value: profile.email || '' },
+    { key: 'blog', label: 'Blog', value: profile.blog || '' },
+    { key: 'twitter', label: 'Twitter', value: profile.twitter_username || '' },
+    { key: 'repos', label: 'Public Repos', value: String(profile.public_repos ?? '') },
+    { key: 'followers', label: 'Followers', value: String(profile.followers ?? '') },
+    { key: 'following', label: 'Following', value: String(profile.following ?? '') },
+    { key: 'profile', label: 'Profile URL', value: profile.html_url || '' }
+  ]
+})
+const accountProfileRaw = computed(() => JSON.stringify(accountProfile.value || {}, null, 2))
 
 const closeUserMenu = (): void => {
   showUserMenu.value = false
@@ -347,6 +373,7 @@ const openSettingsPage = (): void => {
     customDisplayName: customDisplayName.value,
     customAvatarUrl: customAvatarUrl.value
   }
+  accountProfileError.value = ''
   settingsSection.value = 'defaults'
   closeUserMenu()
   tab.value = 'settings'
@@ -362,6 +389,23 @@ const saveSettings = (): void => {
     customDisplayName: settingsForm.value.customDisplayName,
     customAvatarUrl: settingsForm.value.customAvatarUrl
   })
+}
+
+const loadAccountProfile = async (): Promise<void> => {
+  try {
+    accountProfileLoading.value = true
+    accountProfileError.value = ''
+    accountProfile.value = null
+    const resolvedToken = token.value.trim()
+    if (!resolvedToken) {
+      throw new Error('请先登录 GitHub Token')
+    }
+    accountProfile.value = await getAuthenticatedProfile(resolvedToken)
+  } catch (error: unknown) {
+    accountProfileError.value = error instanceof Error ? error.message : '加载账号信息失败'
+  } finally {
+    accountProfileLoading.value = false
+  }
 }
 
 const handleGlobalPointerDown = (event: MouseEvent): void => {
@@ -395,6 +439,16 @@ onMounted(() => {
   document.addEventListener('mousedown', handleGlobalPointerDown)
   document.addEventListener('keydown', handleEscapeKey)
 })
+
+watch(
+  () => [tab.value, settingsSection.value, token.value] as const,
+  ([currentTab, currentSection]) => {
+    if (currentTab === 'settings' && currentSection === 'account') {
+      void loadAccountProfile()
+    }
+  },
+  { immediate: true }
+)
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleGlobalPointerDown)
