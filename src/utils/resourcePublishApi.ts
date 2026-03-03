@@ -74,6 +74,21 @@ export interface OwnedResourceEntry {
   v2NeedsFollowUp: boolean
 }
 
+export interface OwnedResourceDetail {
+  owner: string
+  repo: string
+  v1Ref: string
+  v2Ref: string
+  v1ManifestPath: string
+  v2ManifestPath: string
+  v1ManifestText: string
+  v2ManifestText: string
+  defaultBranch: string
+  latestCommitSha: string
+  latestCommitDate: string
+  isV2HashLatest: boolean | null
+}
+
 export interface RepoTreeItem {
   type: 'folder' | 'file'
   path: string
@@ -1278,4 +1293,65 @@ export const loadOwnedResources = async (params: {
   }
 
   return items
+}
+
+const isSameCommitHash = (indexHash: string, latestHash: string): boolean => {
+  const left = indexHash.trim().toLowerCase()
+  const right = latestHash.trim().toLowerCase()
+  if (!left || !right) return false
+  return left === right || left.startsWith(right) || right.startsWith(left)
+}
+
+export const loadOwnedResourceDetail = async (params: {
+  token: string
+  owner: string
+  repo: string
+  v1Ref?: string
+  v2Ref?: string
+}): Promise<OwnedResourceDetail> => {
+  const { token, owner, repo } = params
+  const v1Ref = params.v1Ref?.trim() || ''
+  const v2Ref = params.v2Ref?.trim() || ''
+
+  const repoInfo = await githubFetch<{ default_branch?: string }>(
+    `/repos/${owner}/${repo}`,
+    token
+  )
+  const defaultBranch = repoInfo.default_branch?.trim() || 'main'
+  const latestCommit = await githubFetch<{
+    sha?: string
+    commit?: {
+      committer?: { date?: string }
+      author?: { date?: string }
+    }
+  }>(`/repos/${owner}/${repo}/commits/${encodeURIComponent(defaultBranch)}`, token)
+  const latestCommitSha = latestCommit.sha?.trim() || ''
+  const latestCommitDate =
+    latestCommit.commit?.committer?.date?.trim() ||
+    latestCommit.commit?.author?.date?.trim() ||
+    ''
+
+  const [v1ManifestFile, v2ManifestFile] = await Promise.all([
+    v1Ref ? fetchRepoFileOrNull(token, owner, repo, 'manifest.json', v1Ref) : Promise.resolve(null),
+    v2Ref ? fetchRepoFileOrNull(token, owner, repo, 'manifest_v2.json', v2Ref) : Promise.resolve(null)
+  ])
+
+  const isV2HashLatest = v2Ref && latestCommitSha
+    ? isSameCommitHash(v2Ref, latestCommitSha)
+    : null
+
+  return {
+    owner,
+    repo,
+    v1Ref,
+    v2Ref,
+    v1ManifestPath: 'manifest.json',
+    v2ManifestPath: 'manifest_v2.json',
+    v1ManifestText: v1ManifestFile?.content ? base64ToText(v1ManifestFile.content) : '',
+    v2ManifestText: v2ManifestFile?.content ? base64ToText(v2ManifestFile.content) : '',
+    defaultBranch,
+    latestCommitSha,
+    latestCommitDate,
+    isV2HashLatest
+  }
 }

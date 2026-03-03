@@ -2,6 +2,13 @@
   <CcTokenGate v-if="!isAuthenticated" @authenticated="handleAuthenticated" />
 
   <div v-else class="min-h-screen bg-background">
+    <div class="pointer-events-none fixed inset-x-0 top-0 z-[70] h-0.5">
+      <div
+        class="h-full bg-primary transition-all duration-200"
+        :style="{ width: `${routeProgress}%`, opacity: routeProgressVisible ? 1 : 0 }"
+      />
+    </div>
+
     <header
       class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
     >
@@ -15,7 +22,7 @@
               size="sm"
               class="h-8 shrink-0"
               :variant="tab === 'publish' ? 'default' : 'ghost'"
-              @click="tab = 'publish'"
+              @click="navigateToTab('publish')"
             >
               <UploadSimple :size="15" weight="duotone" />
               资源发布
@@ -24,7 +31,7 @@
               size="sm"
               class="h-8 shrink-0"
               :variant="tab === 'review' ? 'default' : 'ghost'"
-              @click="tab = 'review'"
+              @click="navigateToTab('review')"
             >
               <ClockCounterClockwise :size="15" weight="duotone" />
               等待审核
@@ -33,7 +40,7 @@
               size="sm"
               class="h-8 shrink-0"
               :variant="tab === 'published' ? 'default' : 'ghost'"
-              @click="tab = 'published'"
+              @click="navigateToTab('published')"
             >
               <ArchiveBox :size="15" weight="duotone" />
               已发布资源
@@ -42,7 +49,7 @@
               size="sm"
               class="h-8 shrink-0"
               :variant="tab === 'audit' ? 'default' : 'ghost'"
-              @click="tab = 'audit'"
+              @click="navigateToTab('audit')"
             >
               <CheckCircle :size="15" weight="duotone" />
               审核
@@ -150,7 +157,7 @@
                   type="button"
                   class="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
                   :class="settingsSection === 'defaults' ? 'border-border bg-accent text-foreground' : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/70 hover:text-foreground'"
-                  @click="settingsSection = 'defaults'"
+                  @click="openSettingsSection('defaults')"
                 >
                   <span class="inline-flex items-center gap-2">
                     <GearSix :size="16" weight="duotone" />
@@ -161,7 +168,7 @@
                   type="button"
                   class="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
                   :class="settingsSection === 'account' ? 'border-border bg-accent text-foreground' : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/70 hover:text-foreground'"
-                  @click="settingsSection = 'account'"
+                  @click="openSettingsSection('account')"
                 >
                   <span class="inline-flex items-center gap-2">
                     <UserCircle :size="16" weight="duotone" />
@@ -367,7 +374,14 @@ import { useCcWorkspace } from '@/composables/useCcWorkspace'
 import { useTheme } from '@/composables/useTheme'
 import { getAuthenticatedProfile, type GitHubAuthenticatedProfile } from '@/utils/githubGitApi'
 
-const tab = ref<'publish' | 'review' | 'published' | 'audit' | 'settings'>('publish')
+type CcTab = 'publish' | 'review' | 'published' | 'audit' | 'settings'
+type SettingsSection = 'defaults' | 'account'
+type CcRouteState = {
+  tab: CcTab
+  settingsSection: SettingsSection
+}
+
+const tab = ref<CcTab>('publish')
 const { token, currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
 const { clearWorkspace, clearRemoteWorkspace } = useCcWorkspace()
 const { theme, toggleTheme } = useTheme()
@@ -395,7 +409,10 @@ const settingsForm = ref({
 const accountProfileLoading = ref(false)
 const accountProfileError = ref('')
 const accountProfile = ref<GitHubAuthenticatedProfile | null>(null)
-const settingsSection = ref<'defaults' | 'account'>('defaults')
+const settingsSection = ref<SettingsSection>('defaults')
+const routeProgress = ref(0)
+const routeProgressVisible = ref(false)
+let routeProgressTimer: ReturnType<typeof setInterval> | null = null
 const workbenchMode = computed<'publish' | 'review' | 'published'>(() =>
   tab.value === 'settings' || tab.value === 'audit' ? 'publish' : tab.value
 )
@@ -420,6 +437,110 @@ const formatDateTime = (value?: string): string => {
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
+const resolveRouteFromPath = (pathname: string): CcRouteState => {
+  const cleaned = pathname
+    .replace(/\/+$/, '')
+    .replace(/^\/+/, '')
+  const parts = cleaned.split('/').filter(Boolean)
+  if (parts[0] !== 'cc') {
+    return { tab: 'publish', settingsSection: 'defaults' }
+  }
+  const section = parts[1] || 'publish'
+  if (section === 'publish') return { tab: 'publish', settingsSection: 'defaults' }
+  if (section === 'review') return { tab: 'review', settingsSection: 'defaults' }
+  if (section === 'published') return { tab: 'published', settingsSection: 'defaults' }
+  if (section === 'audit') return { tab: 'audit', settingsSection: 'defaults' }
+  if (section === 'settings') {
+    return {
+      tab: 'settings',
+      settingsSection: parts[2] === 'account' ? 'account' : 'defaults'
+    }
+  }
+  return { tab: 'publish', settingsSection: 'defaults' }
+}
+
+const buildPathByState = (state: CcRouteState): string => {
+  if (state.tab === 'settings') {
+    if (state.settingsSection === 'account') return '/cc/settings/account'
+    return '/cc/settings'
+  }
+  if (state.tab === 'publish') return '/cc/publish'
+  if (state.tab === 'review') return '/cc/review'
+  if (state.tab === 'published') return '/cc/published'
+  return '/cc/audit'
+}
+
+const startRouteProgress = (): void => {
+  if (routeProgressTimer) {
+    clearInterval(routeProgressTimer)
+    routeProgressTimer = null
+  }
+  routeProgressVisible.value = true
+  routeProgress.value = 14
+  routeProgressTimer = setInterval(() => {
+    if (routeProgress.value < 82) {
+      routeProgress.value = Math.min(82, routeProgress.value + 7)
+    }
+  }, 80)
+}
+
+const finishRouteProgress = (): void => {
+  if (routeProgressTimer) {
+    clearInterval(routeProgressTimer)
+    routeProgressTimer = null
+  }
+  routeProgress.value = 100
+  window.setTimeout(() => {
+    routeProgressVisible.value = false
+    routeProgress.value = 0
+  }, 220)
+}
+
+const applyRouteState = (
+  state: CcRouteState,
+  options?: { replace?: boolean; syncUrl?: boolean; withProgress?: boolean }
+): void => {
+  const withProgress = Boolean(options?.withProgress)
+  if (withProgress) {
+    startRouteProgress()
+  }
+
+  tab.value = state.tab
+  settingsSection.value = state.settingsSection
+
+  if (options?.syncUrl !== false && typeof window !== 'undefined') {
+    const targetPath = buildPathByState(state)
+    if (window.location.pathname !== targetPath) {
+      const method = options?.replace ? 'replaceState' : 'pushState'
+      window.history[method](null, '', targetPath)
+    }
+  }
+
+  if (withProgress) {
+    window.setTimeout(() => {
+      finishRouteProgress()
+    }, 180)
+  }
+}
+
+const navigateToTab = (nextTab: CcTab): void => {
+  const nextState: CcRouteState = {
+    tab: nextTab,
+    settingsSection: nextTab === 'settings' ? settingsSection.value : 'defaults'
+  }
+  applyRouteState(nextState, { withProgress: true })
+}
+
+const openSettingsSection = (section: SettingsSection): void => {
+  applyRouteState(
+    {
+      tab: 'settings',
+      settingsSection: section
+    },
+    { withProgress: true }
+  )
+}
+
 const closeUserMenu = (): void => {
   showUserMenu.value = false
 }
@@ -440,9 +561,8 @@ const openSettingsPage = (): void => {
     customAvatarUrl: customAvatarUrl.value
   }
   accountProfileError.value = ''
-  settingsSection.value = 'defaults'
   closeUserMenu()
-  tab.value = 'settings'
+  openSettingsSection('defaults')
 }
 
 const saveSettings = (): void => {
@@ -489,8 +609,15 @@ const handleEscapeKey = (event: KeyboardEvent): void => {
   }
 }
 
+const handlePopState = (): void => {
+  applyRouteState(resolveRouteFromPath(window.location.pathname), {
+    syncUrl: false,
+    withProgress: true
+  })
+}
+
 const handleAuthenticated = (): void => {
-  tab.value = 'publish'
+  navigateToTab('publish')
 }
 
 const handleSignOut = (): void => {
@@ -498,10 +625,15 @@ const handleSignOut = (): void => {
   clearWorkspace()
   clearRemoteWorkspace()
   clearSession()
-  tab.value = 'publish'
+  applyRouteState({ tab: 'publish', settingsSection: 'defaults' }, { replace: true, withProgress: false })
 }
 
 onMounted(() => {
+  applyRouteState(resolveRouteFromPath(window.location.pathname), {
+    replace: true,
+    withProgress: false
+  })
+  window.addEventListener('popstate', handlePopState)
   document.addEventListener('mousedown', handleGlobalPointerDown)
   document.addEventListener('keydown', handleEscapeKey)
 })
@@ -517,6 +649,11 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  if (routeProgressTimer) {
+    clearInterval(routeProgressTimer)
+    routeProgressTimer = null
+  }
+  window.removeEventListener('popstate', handlePopState)
   document.removeEventListener('mousedown', handleGlobalPointerDown)
   document.removeEventListener('keydown', handleEscapeKey)
 })

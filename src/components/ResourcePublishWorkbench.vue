@@ -987,91 +987,207 @@
     </template>
 
     <template v-else>
-      <Card>
-        <CardHeader class="pb-3">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle class="text-base">已发布资源</CardTitle>
-            <div class="flex flex-wrap items-center justify-end gap-2">
-              <Select v-model="ownedTypeFilter">
-                <SelectTrigger class="h-8 w-[120px]">
-                  <SelectValue placeholder="资源类型" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部类型</SelectItem>
-                  <SelectItem value="quickapp">快应用</SelectItem>
-                  <SelectItem value="watchface">表盘</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select v-model="ownedSupportFilter">
-                <SelectTrigger class="h-8 w-[140px]">
-                  <SelectValue placeholder="支持版本" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部版本</SelectItem>
-                  <SelectItem value="v1_only">仅 V1</SelectItem>
-                  <SelectItem value="v2_only">仅 V2</SelectItem>
-                  <SelectItem value="both">V1 + V2</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button :disabled="ownedLoading || !canLoadList" @click="loadOwnedList">
-                <ArrowsClockwise :size="16" weight="duotone" />
-                {{ ownedLoading ? '加载中...' : '刷新' }}
-              </Button>
+      <div v-if="!selectedOwnedItem">
+        <Card>
+          <CardHeader class="pb-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle class="text-base">已发布资源</CardTitle>
+              <div class="flex flex-wrap items-center justify-end gap-2">
+                <Select v-model="ownedTypeFilter">
+                  <SelectTrigger class="h-8 w-[120px]">
+                    <SelectValue placeholder="资源类型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部类型</SelectItem>
+                    <SelectItem value="quickapp">快应用</SelectItem>
+                    <SelectItem value="watchface">表盘</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select v-model="ownedSupportFilter">
+                  <SelectTrigger class="h-8 w-[140px]">
+                    <SelectValue placeholder="支持版本" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部版本</SelectItem>
+                    <SelectItem value="v1_only">仅 V1</SelectItem>
+                    <SelectItem value="v2_only">仅 V2</SelectItem>
+                    <SelectItem value="both">V1 + V2</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button :disabled="ownedLoading || !canLoadList" @click="loadOwnedList">
+                  <ArrowsClockwise :size="16" weight="duotone" />
+                  {{ ownedLoading ? '加载中...' : '刷新' }}
+                </Button>
+              </div>
             </div>
-          </div>
-          <CardDescription>查看当前账号已发布到目录的资源。</CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-2 pt-0">
-          <div
-            v-if="filteredOwnedItems.length === 0"
-            class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
-          >
-            暂无数据
-          </div>
-          <div
-            v-for="item in filteredOwnedItems"
-            :key="item.key"
-            class="rounded-lg border border-border bg-card px-3 py-3"
-          >
-            <div class="flex items-start gap-3">
-              <img
-                :src="getOwnedItemIconUrl(item)"
-                :alt="`${item.name} icon`"
-                class="mt-0.5 h-10 w-10 shrink-0 rounded-full border border-border bg-muted/50 object-cover"
-              />
-              <div class="min-w-0 flex-1">
-                <div class="flex items-start justify-between gap-2">
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-1.5">
-                      <div class="truncate text-sm font-semibold text-foreground">{{ item.name }}</div>
-                      <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
-                      <Badge v-if="item.sources.includes('v1')" variant="outline">V1</Badge>
-                      <Badge v-if="item.sources.includes('v2')" variant="outline">V2</Badge>
-                      <Badge v-if="showV2FollowUpTag && item.v2NeedsFollowUp" variant="destructive">v2需要跟进</Badge>
+            <CardDescription>查看当前账号已发布到目录的资源。</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-2 pt-0">
+            <div
+              v-if="filteredOwnedItems.length === 0"
+              class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
+            >
+              暂无数据
+            </div>
+            <div
+              v-for="item in filteredOwnedItems"
+              :key="item.key"
+              role="button"
+              tabindex="0"
+              class="rounded-lg border border-border bg-card px-3 py-3 transition-colors hover:bg-accent/30"
+              @click="openOwnedItemDetail(item)"
+              @keydown.enter.prevent="openOwnedItemDetail(item)"
+              @keydown.space.prevent="openOwnedItemDetail(item)"
+            >
+              <div class="flex items-start gap-3">
+                <img
+                  :src="getOwnedItemIconUrl(item)"
+                  :alt="`${item.name} icon`"
+                  class="mt-0.5 h-10 w-10 shrink-0 rounded-full border border-border bg-muted/50 object-cover"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5">
+                        <div class="truncate text-sm font-semibold text-foreground">{{ item.name }}</div>
+                        <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
+                        <Badge v-if="item.sources.includes('v1')" variant="outline">V1</Badge>
+                        <Badge v-if="item.sources.includes('v2')" variant="outline">V2</Badge>
+                        <Badge v-if="showV2FollowUpTag && item.v2NeedsFollowUp" variant="destructive">v2需要跟进</Badge>
+                      </div>
                     </div>
+                    <a
+                      :href="getOwnedItemRepoUrl(item)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                      aria-label="打开仓库"
+                      title="打开仓库"
+                      @click.stop
+                    >
+                      <GithubLogo :size="16" weight="duotone" />
+                    </a>
                   </div>
-                  <a
-                    :href="getOwnedItemRepoUrl(item)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-                    aria-label="打开仓库"
-                    title="打开仓库"
-                  >
-                    <GithubLogo :size="16" weight="duotone" />
-                  </a>
-                </div>
-                <div class="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                  {{ item.description || '暂无描述' }}
-                </div>
-                <div v-if="item.commitDate" class="mt-1 text-xs text-muted-foreground">
-                  上次更新时间: {{ formatDate(item.commitDate) }}
+                  <div class="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                    {{ item.description || '暂无描述' }}
+                  </div>
+                  <div v-if="item.commitDate" class="mt-1 text-xs text-muted-foreground">
+                    上次更新时间: {{ formatDate(item.commitDate) }}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div v-else class="space-y-4">
+        <ReviewDetailHeader
+          :title="selectedOwnedItem.name"
+          :number="`${selectedOwnedItem.repo_owner}/${selectedOwnedItem.repo_name}`"
+          show-back
+          @back="closeOwnedDetail"
+        >
+          <template #meta>
+            <Badge variant="secondary">{{ formatOwnedRestype(selectedOwnedItem.restype) }}</Badge>
+            <Badge v-if="selectedOwnedItem.sources.includes('v1')" variant="outline">V1</Badge>
+            <Badge v-if="selectedOwnedItem.sources.includes('v2')" variant="outline">V2</Badge>
+            <Badge v-if="showV2FollowUpTag && selectedOwnedItem.v2NeedsFollowUp" variant="destructive">v2需要跟进</Badge>
+          </template>
+          <template #actions>
+            <Button variant="outline" size="sm" class="h-9 gap-1.5 px-3" @click="loadOwnedItemDetail">
+              <ArrowsClockwise :size="14" weight="duotone" />
+              {{ ownedDetailLoading ? '刷新中...' : '刷新详情' }}
+            </Button>
+            <Button variant="outline" size="sm" class="h-9 gap-1.5 px-3" @click="triggerOwnedHashUpdate">
+              更新
+            </Button>
+            <Button
+              as="a"
+              :href="getOwnedItemRepoUrl(selectedOwnedItem)"
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="outline"
+              size="sm"
+              class="h-9 gap-1.5 px-3"
+            >
+              <GithubLogo :size="14" weight="duotone" />
+              打开仓库
+            </Button>
+          </template>
+        </ReviewDetailHeader>
+
+        <Card>
+          <CardHeader class="pb-3">
+            <CardTitle class="text-base">Hash 状态</CardTitle>
+            <CardDescription>检查 index_v2 记录的 hash 是否为仓库默认分支最新提交。</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-2 pt-0">
+            <div v-if="ownedDetailError" class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {{ ownedDetailError }}
+            </div>
+            <div v-else-if="ownedDetailLoading" class="text-xs text-muted-foreground">
+              正在加载详情...
+            </div>
+            <template v-else-if="ownedDetail">
+              <div class="text-xs text-muted-foreground">
+                默认分支：{{ ownedDetail.defaultBranch || '-' }} · 最新提交：{{ ownedDetail.latestCommitSha || '-' }}
+              </div>
+              <div v-if="ownedDetail.latestCommitDate" class="text-xs text-muted-foreground">
+                最新提交时间：{{ formatDate(ownedDetail.latestCommitDate) }}
+              </div>
+              <div
+                v-if="ownedDetail.v2Ref && ownedDetail.isV2HashLatest === false"
+                class="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+              >
+                index_v2 当前 hash（{{ ownedDetail.v2Ref }}）不是最新提交，请更新 hash。
+              </div>
+              <div
+                v-else-if="ownedDetail.v2Ref && ownedDetail.isV2HashLatest"
+                class="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700"
+              >
+                index_v2 当前 hash 已是最新。
+              </div>
+              <div v-else class="text-xs text-muted-foreground">
+                当前资源未检测到 v2 hash。
+              </div>
+            </template>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader class="pb-3">
+            <CardTitle class="text-base">资源内容</CardTitle>
+            <CardDescription>展示当前资源 v1 / v2 清单内容。</CardDescription>
+          </CardHeader>
+          <CardContent class="pt-0">
+            <div v-if="ownedDetailLoading" class="text-xs text-muted-foreground">正在加载清单...</div>
+            <div v-else-if="!ownedDetail" class="text-xs text-muted-foreground">暂无详情数据</div>
+            <Tabs v-else-if="selectedOwnedItem.sources.includes('v1') && selectedOwnedItem.sources.includes('v2')" v-model="ownedDetailTab">
+              <TabsList class="mb-3">
+                <TabsTrigger value="v2">V2</TabsTrigger>
+                <TabsTrigger value="v1">V1</TabsTrigger>
+              </TabsList>
+              <TabsContent value="v2" class="mt-0">
+                <div class="mb-2 text-xs text-muted-foreground">{{ ownedDetail.v2ManifestPath }} @ {{ ownedDetail.v2Ref || '-' }}</div>
+                <pre class="max-h-[420px] overflow-auto rounded-md border border-border bg-muted/20 p-3 text-xs leading-5">{{ formatManifestText(ownedDetail.v2ManifestText) }}</pre>
+              </TabsContent>
+              <TabsContent value="v1" class="mt-0">
+                <div class="mb-2 text-xs text-muted-foreground">{{ ownedDetail.v1ManifestPath }} @ {{ ownedDetail.v1Ref || '-' }}</div>
+                <pre class="max-h-[420px] overflow-auto rounded-md border border-border bg-muted/20 p-3 text-xs leading-5">{{ formatManifestText(ownedDetail.v1ManifestText) }}</pre>
+              </TabsContent>
+            </Tabs>
+            <div v-else-if="selectedOwnedItem.sources.includes('v2')">
+              <div class="mb-2 text-xs text-muted-foreground">{{ ownedDetail.v2ManifestPath }} @ {{ ownedDetail.v2Ref || '-' }}</div>
+              <pre class="max-h-[420px] overflow-auto rounded-md border border-border bg-muted/20 p-3 text-xs leading-5">{{ formatManifestText(ownedDetail.v2ManifestText) }}</pre>
+            </div>
+            <div v-else>
+              <div class="mb-2 text-xs text-muted-foreground">{{ ownedDetail.v1ManifestPath }} @ {{ ownedDetail.v1Ref || '-' }}</div>
+              <pre class="max-h-[420px] overflow-auto rounded-md border border-border bg-muted/20 p-3 text-xs leading-5">{{ formatManifestText(ownedDetail.v1ManifestText) }}</pre>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </template>
 
     <Dialog :open="reviewCommentResultDialogOpen" @update:open="reviewCommentResultDialogOpen = $event">
@@ -1168,6 +1284,7 @@ import {
 import {
   createPullRequestIssueComment,
   type LegacyCatalogEntry,
+  type OwnedResourceDetail,
   type OwnedResourceEntry,
   type PullRequestIssueComment,
   type PublishingResource,
@@ -1180,6 +1297,7 @@ import {
   loadRepositoryTree,
   loadInProgressResources,
   loadPullRequestIssueComments,
+  loadOwnedResourceDetail,
   loadOwnedResources,
   putRepoFile,
   textToBase64,
@@ -1370,6 +1488,8 @@ interface OwnedMergedItem {
   description: string
   commitDate: string
   sources: Array<'v1' | 'v2'>
+  v1RepoCommitHash: string
+  v2RepoCommitHash: string
   v2NeedsFollowUp: boolean
 }
 
@@ -1399,6 +1519,8 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
         description: item.description,
         commitDate: item.commitDate,
         sources: [item.source],
+        v1RepoCommitHash: item.source === 'v1' ? item.repo_commit_hash : '',
+        v2RepoCommitHash: item.source === 'v2' ? item.repo_commit_hash : '',
         v2NeedsFollowUp: item.v2NeedsFollowUp
       })
       continue
@@ -1406,6 +1528,12 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
 
     if (!existing.sources.includes(item.source)) {
       existing.sources.push(item.source)
+    }
+    if (item.source === 'v1' && item.repo_commit_hash) {
+      existing.v1RepoCommitHash = item.repo_commit_hash
+    }
+    if (item.source === 'v2' && item.repo_commit_hash) {
+      existing.v2RepoCommitHash = item.repo_commit_hash
     }
     const shouldUseCurrent = item.source === preferredSource
     if (shouldUseCurrent) {
@@ -1462,6 +1590,12 @@ const filteredOwnedItems = computed<OwnedMergedItem[]>(() =>
     return typeOk && supportOk
   })
 )
+
+const selectedOwnedItem = ref<OwnedMergedItem | null>(null)
+const ownedDetailLoading = ref(false)
+const ownedDetailError = ref('')
+const ownedDetail = ref<OwnedResourceDetail | null>(null)
+const ownedDetailTab = ref<'v1' | 'v2'>('v2')
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
@@ -3352,6 +3486,43 @@ const loadOwnedList = async (): Promise<void> => {
   }
 }
 
+const openOwnedItemDetail = (item: OwnedMergedItem): void => {
+  selectedOwnedItem.value = item
+  ownedDetailTab.value = item.sources.includes('v2') ? 'v2' : 'v1'
+  void loadOwnedItemDetail(item)
+}
+
+const closeOwnedDetail = (): void => {
+  selectedOwnedItem.value = null
+  ownedDetail.value = null
+  ownedDetailError.value = ''
+}
+
+const loadOwnedItemDetail = async (item?: OwnedMergedItem): Promise<void> => {
+  const target = item || selectedOwnedItem.value
+  if (!target) return
+  try {
+    ownedDetailLoading.value = true
+    ownedDetailError.value = ''
+    ownedDetail.value = await loadOwnedResourceDetail({
+      token: requireToken(),
+      owner: target.repo_owner,
+      repo: target.repo_name,
+      v1Ref: target.v1RepoCommitHash,
+      v2Ref: target.v2RepoCommitHash
+    })
+  } catch (error: unknown) {
+    ownedDetailError.value = `加载详情失败：${error instanceof Error ? error.message : '未知错误'}`
+  } finally {
+    ownedDetailLoading.value = false
+  }
+}
+
+const triggerOwnedHashUpdate = (): void => {
+  if (!selectedOwnedItem.value) return
+  appendLog(`请求更新 hash：${selectedOwnedItem.value.repo_owner}/${selectedOwnedItem.value.repo_name}`)
+}
+
 const getOwnedItemIconUrl = (item: {
   icon: string
   repo_owner: string
@@ -3383,6 +3554,16 @@ const formatOwnedRestype = (value: string): string => {
   if (normalized === 'watchface') return '表盘'
   if (normalized === 'quickapp') return '快应用'
   return value
+}
+
+const formatManifestText = (value: string): string => {
+  if (!value?.trim()) return '（未找到对应清单）'
+  try {
+    const parsed = JSON.parse(value)
+    return JSON.stringify(parsed, null, 2)
+  } catch {
+    return value
+  }
 }
 
 watch(
