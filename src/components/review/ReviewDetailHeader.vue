@@ -13,21 +13,24 @@
           {{ backText }}
         </Button>
 
-        <div class="flex flex-wrap items-end gap-x-2 gap-y-1">
+        <div class="flex items-start gap-3">
           <img
             v-if="leadingImageUrl"
             :src="leadingImageUrl"
             :alt="leadingImageAlt || 'header image'"
-            class="h-16 w-16 rounded-full border border-border bg-muted/30 object-cover md:h-20 md:w-20"
+            class="h-16 w-16 shrink-0 rounded-full border border-border bg-muted/30 object-cover md:h-20 md:w-20"
           />
-          <h1 class="min-w-0 break-words text-xl font-semibold leading-tight text-foreground md:text-2xl">
-            {{ title }}
-          </h1>
-          <span v-if="number !== undefined && number !== null && String(number).trim() !== ''" class="text-sm font-medium text-muted-foreground md:text-base">#{{ number }}</span>
-        </div>
-
-        <div v-if="$slots.meta" class="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <slot name="meta" />
+          <div class="min-w-0 space-y-2">
+            <div class="flex flex-wrap items-end gap-x-2 gap-y-1">
+              <h1 class="min-w-0 break-words text-xl font-semibold leading-tight text-foreground md:text-2xl">
+                {{ title }}
+              </h1>
+              <span v-if="number !== undefined && number !== null && String(number).trim() !== ''" class="text-sm font-medium text-muted-foreground md:text-base">#{{ number }}</span>
+            </div>
+            <div v-if="$slots.meta" class="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <slot name="meta" />
+            </div>
+          </div>
         </div>
       </div>
 
