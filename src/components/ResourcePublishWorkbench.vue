@@ -3341,13 +3341,15 @@ const createPreviewItemFromPath = (path: string): { id: string; path: string } =
   path
 })
 
-const sanitizeRepoFileName = (name: string): string =>
-  name
+const sanitizeRepoFileName = (name: string, fallback = ''): string => {
+  const normalized = name
     .trim()
     .replace(/[\\/]/g, '_')
     .replace(/[\u0000-\u001F]+/g, '')
     .replace(/^\.+/, '')
-    .replace(/\.+$/, '') || 'file'
+    .replace(/\.+$/, '')
+  return normalized || fallback
+}
 
 const sanitizeRepoFolderPath = (folderPath: string): string =>
   folderPath
@@ -3359,8 +3361,8 @@ const sanitizeRepoFolderPath = (folderPath: string): string =>
 const buildUploadedFileName = (originalName: string, index: number, total: number): string => {
   const customRaw = remotePickerUploadFileName.value.trim()
   const custom = sanitizeRepoFileName(customRaw)
-  if (!customRaw) return sanitizeRepoFileName(originalName)
-  if (!custom) return sanitizeRepoFileName(originalName)
+  if (!customRaw) return sanitizeRepoFileName(originalName, `upload_${index + 1}`)
+  if (!custom) return sanitizeRepoFileName(originalName, `upload_${index + 1}`)
   const originDot = originalName.lastIndexOf('.')
   const originExt = originDot > 0 && originDot < originalName.length - 1 ? originalName.slice(originDot) : ''
   const customDot = custom.lastIndexOf('.')
@@ -3380,11 +3382,9 @@ const getDefaultUploadFolder = (mode: RemotePickerMode): string => {
 }
 
 const buildOpfsRepoPath = (mode: RemotePickerMode, fileName: string, folderPath: string, index = 0): string => {
-  const safeName = sanitizeRepoFileName(fileName)
+  const safeName = sanitizeRepoFileName(fileName, mode === 'preview' ? `preview_${index + 1}` : `upload_${index + 1}`)
   const safeFolder = sanitizeRepoFolderPath(folderPath)
-  const fallbackName = mode === 'preview' ? `${index + 1}_${safeName}` : safeName
-  const finalName = safeName || fallbackName
-  return safeFolder ? `${safeFolder}/${finalName}` : finalName
+  return safeFolder ? `${safeFolder}/${safeName}` : safeName
 }
 
 const writeFileToOpfs = async (repoPath: string, file: File): Promise<void> => {
