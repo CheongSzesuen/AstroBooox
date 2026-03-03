@@ -989,24 +989,47 @@
     <template v-else>
       <Card>
         <CardHeader class="pb-3">
-          <div class="flex items-center justify-between gap-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <CardTitle class="text-base">已发布资源</CardTitle>
-            <Button :disabled="ownedLoading || !canLoadList" @click="loadOwnedList">
-              <ArrowsClockwise :size="16" weight="duotone" />
-              {{ ownedLoading ? '加载中...' : '刷新' }}
-            </Button>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <Select v-model="ownedTypeFilter">
+                <SelectTrigger class="h-8 w-[120px]">
+                  <SelectValue placeholder="资源类型" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部类型</SelectItem>
+                  <SelectItem value="quickapp">快应用</SelectItem>
+                  <SelectItem value="watchface">表盘</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select v-model="ownedSupportFilter">
+                <SelectTrigger class="h-8 w-[140px]">
+                  <SelectValue placeholder="支持版本" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部版本</SelectItem>
+                  <SelectItem value="v1_only">仅 V1</SelectItem>
+                  <SelectItem value="v2_only">仅 V2</SelectItem>
+                  <SelectItem value="both">V1 + V2</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button :disabled="ownedLoading || !canLoadList" @click="loadOwnedList">
+                <ArrowsClockwise :size="16" weight="duotone" />
+                {{ ownedLoading ? '加载中...' : '刷新' }}
+              </Button>
+            </div>
           </div>
           <CardDescription>查看当前账号已发布到目录的资源。</CardDescription>
         </CardHeader>
         <CardContent class="space-y-2 pt-0">
           <div
-            v-if="ownedMergedItems.length === 0"
+            v-if="filteredOwnedItems.length === 0"
             class="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
           >
             暂无数据
           </div>
           <div
-            v-for="item in ownedMergedItems"
+            v-for="item in filteredOwnedItems"
             :key="item.key"
             class="rounded-lg border border-border bg-card px-3 py-3"
           >
@@ -1040,7 +1063,7 @@
                   {{ item.description || '暂无描述' }}
                 </div>
                 <div class="mt-1 flex items-center gap-2">
-                  <span class="text-xs text-muted-foreground">{{ formatOwnedRestype(item.restype) }}</span>
+                  <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
                 </div>
                 <div v-if="item.commitDate" class="mt-1 text-xs text-muted-foreground">
                   上次更新时间: {{ formatDate(item.commitDate) }}
@@ -1334,6 +1357,8 @@ const reviewReplyTargetComment = ref<{
 
 const ownedLoading = ref(false)
 const ownedItems = ref<OwnedResourceEntry[]>([])
+const ownedTypeFilter = ref<'all' | 'quickapp' | 'watchface'>('all')
+const ownedSupportFilter = ref<'all' | 'v1_only' | 'v2_only' | 'both'>('all')
 
 interface OwnedMergedItem {
   key: string
@@ -1412,6 +1437,27 @@ const ownedMergedItems = computed<OwnedMergedItem[]>(() => {
     return bt.localeCompare(at)
   })
 })
+
+const filteredOwnedItems = computed<OwnedMergedItem[]>(() =>
+  ownedMergedItems.value.filter(item => {
+    const restypeKey = normalizeOwnedRestype(item.restype)
+    const typeOk =
+      ownedTypeFilter.value === 'all' ||
+      (ownedTypeFilter.value === 'quickapp' && restypeKey === 'quickapp') ||
+      (ownedTypeFilter.value === 'watchface' && restypeKey === 'watchface')
+
+    let supportOk = true
+    if (ownedSupportFilter.value === 'v1_only') {
+      supportOk = item.sources.length === 1 && item.sources.includes('v1')
+    } else if (ownedSupportFilter.value === 'v2_only') {
+      supportOk = item.sources.length === 1 && item.sources.includes('v2')
+    } else if (ownedSupportFilter.value === 'both') {
+      supportOk = item.sources.includes('v1') && item.sources.includes('v2')
+    }
+
+    return typeOk && supportOk
+  })
+)
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
@@ -3321,10 +3367,17 @@ const getOwnedItemIconUrl = (item: {
 const getOwnedItemRepoUrl = (item: { repo_owner: string; repo_name: string }): string =>
   `https://github.com/${item.repo_owner}/${item.repo_name}`
 
-const formatOwnedRestype = (value: string): string => {
+const normalizeOwnedRestype = (value: string): 'quickapp' | 'watchface' | 'other' => {
   const normalized = value.trim().toLowerCase()
-  if (normalized === 'watchface' || normalized === 'watch_face') return '表盘'
-  if (normalized === 'quickapp' || normalized === 'quick_app') return '快应用'
+  if (normalized === 'watchface' || normalized === 'watch_face') return 'watchface'
+  if (normalized === 'quickapp' || normalized === 'quick_app') return 'quickapp'
+  return 'other'
+}
+
+const formatOwnedRestype = (value: string): string => {
+  const normalized = normalizeOwnedRestype(value)
+  if (normalized === 'watchface') return '表盘'
+  if (normalized === 'quickapp') return '快应用'
   return value
 }
 
