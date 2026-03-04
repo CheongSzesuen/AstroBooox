@@ -60,6 +60,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(appVersion),
     __APP_NAME__: JSON.stringify(appName),
     __BUILD_COMMIT_SHA__: JSON.stringify(commitSha.slice(0, 12)),
+    __BUILD_COMMIT_REF__: JSON.stringify(commitSha),
     __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
     __BUILD_BRANCH__: JSON.stringify(buildBranch),
     __BUILD_TIME_UTC8__: JSON.stringify(buildTimeUtc8)

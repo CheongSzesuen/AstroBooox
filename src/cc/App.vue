@@ -591,11 +591,14 @@ const loadAboutCommits = async (options: { append?: boolean } = {}): Promise<voi
       aboutCommits.value = []
     }
     const branch = (__BUILD_BRANCH__ || '').trim()
+    const commitRef = (__BUILD_COMMIT_REF__ || '').trim()
     const endpoint = new URL('https://api.github.com/repos/CheongSzesuen/AstroBooox/commits')
     endpoint.searchParams.set('per_page', String(ABOUT_COMMIT_PAGE_SIZE))
     endpoint.searchParams.set('page', String(aboutCommitPage.value))
     if (branch && branch.toLowerCase() !== 'head' && branch.toLowerCase() !== 'unknown') {
       endpoint.searchParams.set('sha', branch)
+    } else if (commitRef && commitRef.toLowerCase() !== 'local') {
+      endpoint.searchParams.set('sha', commitRef)
     }
     const authToken = token.value.trim()
     const response = await fetch(endpoint.toString(), {
