@@ -69,6 +69,12 @@ export interface RepositoryCollaborator {
   htmlUrl: string
 }
 
+export interface GitHubUserSearchResult {
+  login: string
+  avatarUrl: string
+  htmlUrl: string
+}
+
 interface GitHubApiError extends Error {
   status?: number
 }
@@ -236,6 +242,37 @@ export const listRepositoryCollaborators = async (params: {
       token
     )
     return response
+      .map(item => ({
+        login: item.login || '',
+        avatarUrl: item.avatar_url || 'https://github.com/ghost.png',
+        htmlUrl: item.html_url || (item.login ? `https://github.com/${item.login}` : '')
+      }))
+      .filter(item => !!item.login)
+  } catch (error: unknown) {
+    const normalized = normalizeGitHubError(error)
+    throw makeApiError(normalized.status || 500, normalized.message)
+  }
+}
+
+export const searchGitHubUsers = async (params: {
+  token: string
+  query: string
+  perPage?: number
+}): Promise<GitHubUserSearchResult[]> => {
+  const { token, query, perPage = 8 } = params
+  const normalizedQuery = query.trim()
+  if (!token.trim()) throw new Error('Token 不能为空')
+  if (!normalizedQuery) return []
+  const resolvedPerPage = Math.min(Math.max(perPage, 1), 20)
+
+  try {
+    const payload = await requestJson<{
+      items?: Array<{ login?: string; avatar_url?: string; html_url?: string }>
+    }>(
+      `/search/users?q=${encodeURIComponent(normalizedQuery)}&per_page=${resolvedPerPage}`,
+      token
+    )
+    return (payload.items || [])
       .map(item => ({
         login: item.login || '',
         avatarUrl: item.avatar_url || 'https://github.com/ghost.png',

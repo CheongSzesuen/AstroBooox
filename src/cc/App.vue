@@ -524,19 +524,18 @@
         </DialogHeader>
         <div class="space-y-3 py-1">
           <div class="space-y-1.5">
-            <Label for="invite-username">GitHub 用户名</Label>
-            <Input
-              id="invite-username"
-              v-model.trim="inviteForm.username"
-              placeholder="例如：octocat"
-              :disabled="inviteSubmitting"
-            />
-          </div>
-          <div class="space-y-1.5">
-            <Label for="invite-permission">仓库权限</Label>
+            <Label for="invite-username">GitHub 用户名 / 邮箱 / 主页链接</Label>
+            <div class="flex items-center gap-2">
+              <Input
+                id="invite-username"
+                v-model.trim="inviteForm.username"
+                placeholder="例如：octocat 或 octocat@example.com"
+                :disabled="inviteSubmitting"
+                class="flex-1"
+              />
               <Select v-model="inviteForm.permission" :disabled="inviteSubmitting">
-                <SelectTrigger id="invite-permission">
-                  <SelectValue placeholder="选择权限" />
+                <SelectTrigger class="w-[150px]">
+                  <SelectValue placeholder="权限" />
                 </SelectTrigger>
                 <SelectContent>
                 <SelectItem value="pull">只读（pull）</SelectItem>
@@ -546,10 +545,28 @@
                 <SelectItem value="admin">管理员（admin）</SelectItem>
                 </SelectContent>
               </Select>
-              <div class="text-[11px] leading-5 text-muted-foreground">
-                pull：只读；push：读写；triage：可管理 issue/pr 标签；maintain：仓库维护（不含敏感设置）；admin：管理员（完整权限）。
-              </div>
             </div>
+          </div>
+          <div class="rounded-md border border-border bg-muted/20">
+            <div v-if="inviteSearchLoading" class="px-3 py-2 text-xs text-muted-foreground">搜索中...</div>
+            <div v-else-if="inviteSearchError" class="px-3 py-2 text-xs text-destructive">{{ inviteSearchError }}</div>
+            <div v-else-if="inviteForm.username.trim() && inviteSearchResults.length === 0" class="px-3 py-2 text-xs text-muted-foreground">
+              没有找到匹配用户
+            </div>
+            <ul v-else-if="inviteSearchResults.length > 0" class="max-h-[220px] overflow-y-auto py-1">
+              <li v-for="user in inviteSearchResults" :key="user.login">
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-accent"
+                  @click="selectInviteCandidate(user)"
+                >
+                  <img :src="user.avatarUrl" :alt="user.login" class="h-6 w-6 rounded-full border border-border object-cover" />
+                  <span class="text-sm font-medium text-foreground">{{ user.login }}</span>
+                </button>
+              </li>
+            </ul>
+            <div v-else class="px-3 py-2 text-xs text-muted-foreground">输入用户名或邮箱后显示候选结果</div>
+          </div>
           <div v-if="inviteError" class="text-xs text-destructive">{{ inviteError }}</div>
           <div v-else-if="inviteSuccess" class="text-xs text-emerald-600 dark:text-emerald-400">{{ inviteSuccess }}</div>
         </div>
@@ -616,7 +633,9 @@ import {
   getAuthenticatedProfile,
   inviteRepositoryCollaborator,
   listRepositoryCollaborators,
+  searchGitHubUsers,
   type GitHubAuthenticatedProfile,
+  type GitHubUserSearchResult,
   type RepositoryCollaborator,
   type RepositoryCollaboratorPermission
 } from '@/utils/githubGitApi'
@@ -678,6 +697,9 @@ const inviteDialogOpen = ref(false)
 const inviteSubmitting = ref(false)
 const inviteError = ref('')
 const inviteSuccess = ref('')
+const inviteSearchLoading = ref(false)
+const inviteSearchError = ref('')
+const inviteSearchResults = ref<GitHubUserSearchResult[]>([])
 const inviteTargetRepo = ref<{ owner: string; name: string } | null>(null)
 const inviteForm = ref<{
   username: string
@@ -699,6 +721,8 @@ const aboutCommits = ref<Array<{ sha: string; shortSha: string; message: string;
 const routeProgress = ref(0)
 const routeProgressVisible = ref(false)
 let routeProgressTimer: ReturnType<typeof setInterval> | null = null
+let inviteSearchTimer: ReturnType<typeof setTimeout> | null = null
+let inviteSearchRequestId = 0
 const pendingLoginRoute = ref<CcRouteState | null>(null)
 const pendingLoginUser = ref('')
 const publishedResourceDetailKey = ref('')
@@ -1061,6 +1085,8 @@ const openInviteDialog = (repo: { owner: string; name: string }): void => {
   }
   inviteError.value = ''
   inviteSuccess.value = ''
+  inviteSearchError.value = ''
+  inviteSearchResults.value = []
   inviteDialogOpen.value = true
 }
 
@@ -1070,6 +1096,69 @@ const handleInviteDialogOpenChange = (open: boolean): void => {
     inviteSubmitting.value = false
     inviteError.value = ''
     inviteSuccess.value = ''
+    inviteSearchLoading.value = false
+    inviteSearchError.value = ''
+    inviteSearchResults.value = []
+    if (inviteSearchTimer) {
+      clearTimeout(inviteSearchTimer)
+      inviteSearchTimer = null
+    }
+  }
+}
+
+const normalizeInviteQuery = (value: string): string => {
+  const raw = value.trim().replace(/^@+/, '')
+  if (!raw) return ''
+  if (raw.includes('://github.com/')) {
+    const matched = raw.match(/github\.com\/([^/?#]+)/i)
+    return (matched?.[1] || '').trim()
+  }
+  if (raw.includes('@')) {
+    const local = raw.split('@')[0]?.trim() || ''
+    return local || raw
+  }
+  return raw
+}
+
+const searchInviteCandidates = async (keyword: string): Promise<void> => {
+  const normalizedToken = token.value.trim()
+  const normalized = normalizeInviteQuery(keyword)
+  if (!inviteDialogOpen.value || !normalizedToken || !normalized) {
+    inviteSearchLoading.value = false
+    inviteSearchError.value = ''
+    inviteSearchResults.value = []
+    return
+  }
+  const requestId = ++inviteSearchRequestId
+  try {
+    inviteSearchLoading.value = true
+    inviteSearchError.value = ''
+    const results = await searchGitHubUsers({
+      token: normalizedToken,
+      query: normalized,
+      perPage: 8
+    })
+    if (requestId !== inviteSearchRequestId) return
+    inviteSearchResults.value = results
+  } catch (error: unknown) {
+    if (requestId !== inviteSearchRequestId) return
+    inviteSearchResults.value = []
+    inviteSearchError.value = error instanceof Error ? error.message : '搜索用户失败'
+  } finally {
+    if (requestId === inviteSearchRequestId) {
+      inviteSearchLoading.value = false
+    }
+  }
+}
+
+const selectInviteCandidate = (user: GitHubUserSearchResult): void => {
+  inviteForm.value.username = user.login
+  inviteError.value = ''
+  inviteSearchError.value = ''
+  inviteSearchResults.value = []
+  if (inviteSearchTimer) {
+    clearTimeout(inviteSearchTimer)
+    inviteSearchTimer = null
   }
 }
 
@@ -1085,7 +1174,7 @@ const submitInvite = async (): Promise<void> => {
     inviteError.value = '请先登录 GitHub Token'
     return
   }
-  const username = inviteForm.value.username.trim()
+  const username = normalizeInviteQuery(inviteForm.value.username)
   if (!username) {
     inviteError.value = '请先填写协作者用户名'
     return
@@ -1401,6 +1490,10 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  if (inviteSearchTimer) {
+    clearTimeout(inviteSearchTimer)
+    inviteSearchTimer = null
+  }
   if (routeProgressTimer) {
     clearInterval(routeProgressTimer)
     routeProgressTimer = null
@@ -1409,4 +1502,18 @@ onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleGlobalPointerDown)
   document.removeEventListener('keydown', handleEscapeKey)
 })
+
+watch(
+  () => [inviteDialogOpen.value, inviteForm.value.username, token.value] as const,
+  ([open, keyword]) => {
+    if (!open) return
+    if (inviteSearchTimer) {
+      clearTimeout(inviteSearchTimer)
+      inviteSearchTimer = null
+    }
+    inviteSearchTimer = setTimeout(() => {
+      void searchInviteCandidates(keyword)
+    }, 220)
+  }
+)
 </script>
