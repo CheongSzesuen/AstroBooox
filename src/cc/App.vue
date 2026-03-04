@@ -107,7 +107,7 @@
                 class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
                 @click="openRepositoriesPage"
               >
-                <GitFork :size="16" weight="duotone" />
+                <RepoIcon :size="16" weight="duotone" />
                 仓库
               </button>
               <button
@@ -166,14 +166,13 @@
                     rel="noopener noreferrer"
                     class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
                   >
-                    <GitFork :size="16" weight="duotone" />
+                    <RepoIcon :size="16" weight="duotone" />
                     {{ repo.fullName }}
                   </a>
                   <div class="mt-1 text-xs text-muted-foreground">
                     默认分支：{{ repo.defaultBranch || '-' }} · 来源版本：{{ repo.sources.join(' + ') }}
                   </div>
                 </div>
-                <Badge variant="outline">{{ repo.resourceCount }} 个资源</Badge>
               </div>
               <div class="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
                 <div class="rounded border border-border bg-muted/20 px-2 py-1.5">
@@ -185,8 +184,8 @@
                   <div class="mt-0.5 text-foreground">{{ repo.restypes.join('、') || '-' }}</div>
                 </div>
                 <div class="rounded border border-border bg-muted/20 px-2 py-1.5">
-                  <span class="text-muted-foreground">Catalog ID</span>
-                  <div class="mt-0.5 text-foreground">{{ repo.catalogIds.join('、') || '-' }}</div>
+                  <span class="text-muted-foreground">资源名称</span>
+                  <div class="mt-0.5 text-foreground">{{ repo.resourceNames.join('、') || '-' }}</div>
                 </div>
               </div>
             </article>
@@ -501,7 +500,7 @@ import {
   PhCaretDown as CaretDown,
   PhCheckCircle as CheckCircle,
   PhClockCounterClockwise as ClockCounterClockwise,
-  PhGitFork as GitFork,
+  PhFolderNotchOpen as RepoIcon,
   PhGearSix as GearSix,
   PhGlobeHemisphereWest as GlobeHemisphereWest,
   PhHash as Hash,
@@ -582,10 +581,9 @@ const repositoriesList = ref<Array<{
   htmlUrl: string
   defaultBranch: string
   latestCommitDate: string
-  resourceCount: number
   sources: string[]
   restypes: string[]
-  catalogIds: string[]
+  resourceNames: string[]
 }>>([])
 const settingsSection = ref<CcSettingsSection>('defaults')
 const aboutCommitLoading = ref(false)
@@ -981,10 +979,9 @@ const loadRepositories = async (): Promise<void> => {
       htmlUrl: string
       defaultBranch: string
       latestCommitDate: string
-      resourceCount: number
       sources: Set<string>
       restypes: Set<string>
-      catalogIds: Set<string>
+      resourceNames: Set<string>
     }>()
 
     for (const item of items) {
@@ -1002,17 +999,15 @@ const loadRepositories = async (): Promise<void> => {
           htmlUrl: `https://github.com/${owner}/${repo}`,
           defaultBranch: item.repo_commit_hash?.trim() || 'main',
           latestCommitDate: item.commitDate || '',
-          resourceCount: 1,
           sources: new Set([item.source]),
           restypes: new Set([item.restype]),
-          catalogIds: new Set(item.catalogId ? [item.catalogId] : [])
+          resourceNames: new Set(item.name ? [item.name] : [])
         })
         continue
       }
-      existing.resourceCount += 1
       if (item.source) existing.sources.add(item.source)
       if (item.restype) existing.restypes.add(item.restype)
-      if (item.catalogId) existing.catalogIds.add(item.catalogId)
+      if (item.name) existing.resourceNames.add(item.name)
       if (item.commitDate && (!existing.latestCommitDate || item.commitDate > existing.latestCommitDate)) {
         existing.latestCommitDate = item.commitDate
         existing.defaultBranch = item.repo_commit_hash?.trim() || existing.defaultBranch
@@ -1027,10 +1022,9 @@ const loadRepositories = async (): Promise<void> => {
         htmlUrl: item.htmlUrl,
         defaultBranch: item.defaultBranch,
         latestCommitDate: item.latestCommitDate,
-        resourceCount: item.resourceCount,
         sources: Array.from(item.sources).sort((a, b) => a.localeCompare(b, 'zh-CN')),
         restypes: Array.from(item.restypes).sort((a, b) => a.localeCompare(b, 'zh-CN')),
-        catalogIds: Array.from(item.catalogIds).sort((a, b) => a.localeCompare(b, 'zh-CN'))
+        resourceNames: Array.from(item.resourceNames).sort((a, b) => a.localeCompare(b, 'zh-CN'))
       }))
       .sort((a, b) => (b.latestCommitDate || '').localeCompare(a.latestCommitDate || ''))
   } catch (error: unknown) {
