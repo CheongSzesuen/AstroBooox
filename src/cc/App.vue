@@ -13,10 +13,10 @@
       class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
     >
       <div class="mx-auto flex h-14 w-full max-w-[1440px] items-center gap-2 px-4 md:px-6">
-        <a href="/" class="text-sm text-muted-foreground hover:text-foreground">返回主站</a>
-        <div class="h-4 w-px bg-border" />
-        <h1 class="text-sm font-semibold text-foreground md:text-base">Creator Console</h1>
-        <div class="ml-2 min-w-0 flex-1 overflow-x-auto">
+        <a href="/" class="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">返回主站</a>
+        <div class="hidden h-4 w-px bg-border sm:block" />
+        <h1 class="hidden text-sm font-semibold text-foreground md:text-base sm:block">Creator Console</h1>
+        <div class="min-w-0 flex-1 overflow-x-auto sm:ml-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div class="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
             <Button
               size="sm"
@@ -25,7 +25,8 @@
               @click="navigateToTab('publish')"
             >
               <UploadSimple :size="15" weight="duotone" />
-              资源发布
+              <span class="hidden sm:inline">资源发布</span>
+              <span class="sm:hidden">发布</span>
             </Button>
             <Button
               size="sm"
@@ -34,7 +35,8 @@
               @click="navigateToTab('pullrequest')"
             >
               <ClockCounterClockwise :size="15" weight="duotone" />
-              等待审核
+              <span class="hidden sm:inline">等待审核</span>
+              <span class="sm:hidden">待审</span>
             </Button>
             <Button
               size="sm"
@@ -43,7 +45,8 @@
               @click="navigateToTab('published')"
             >
               <ArchiveBox :size="15" weight="duotone" />
-              资源管理
+              <span class="hidden sm:inline">资源管理</span>
+              <span class="sm:hidden">管理</span>
             </Button>
             <Button
               size="sm"
@@ -52,7 +55,8 @@
               @click="navigateToTab('review')"
             >
               <CheckCircle :size="15" weight="duotone" />
-              审核
+              <span class="hidden sm:inline">审核</span>
+              <span class="sm:hidden">审</span>
             </Button>
           </div>
         </div>
