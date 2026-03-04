@@ -173,6 +173,15 @@
                     默认分支：{{ repo.defaultBranch || '-' }} · 来源版本：{{ repo.sources.join(' + ') }}
                   </div>
                 </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  class="h-8"
+                  @click="openInviteDialog(repo)"
+                >
+                  <UserPlus :size="14" weight="duotone" />
+                  邀请协作者
+                </Button>
               </div>
               <div class="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
                 <div class="rounded border border-border bg-muted/20 px-2 py-1.5">
@@ -181,11 +190,27 @@
                 </div>
                 <div class="rounded border border-border bg-muted/20 px-2 py-1.5">
                   <span class="text-muted-foreground">资源类型</span>
-                  <div class="mt-0.5 text-foreground">{{ repo.restypes.join('、') || '-' }}</div>
+                  <div class="mt-0.5 text-foreground">{{ formatRestypeLabels(repo.restypes) }}</div>
                 </div>
                 <div class="rounded border border-border bg-muted/20 px-2 py-1.5">
                   <span class="text-muted-foreground">资源名称</span>
                   <div class="mt-0.5 text-foreground">{{ repo.resourceNames.join('、') || '-' }}</div>
+                </div>
+              </div>
+              <div v-if="repo.collaborators.length > 0" class="mt-3 rounded border border-border bg-muted/20 px-3 py-2">
+                <div class="text-xs text-muted-foreground">协作者</div>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <a
+                    v-for="user in repo.collaborators"
+                    :key="`${repo.fullName}-${user.login}`"
+                    :href="user.htmlUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-2 rounded-full border border-border bg-background px-2 py-1 text-xs hover:bg-accent"
+                  >
+                    <img :src="user.avatarUrl" :alt="user.login" class="h-5 w-5 rounded-full border border-border object-cover" />
+                    <span class="font-medium text-foreground">{{ user.login }}</span>
+                  </a>
                 </div>
               </div>
             </article>
@@ -488,6 +513,54 @@
         />
       </section>
     </main>
+
+    <Dialog :open="inviteDialogOpen" @update:open="handleInviteDialogOpenChange">
+      <DialogContent class="max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>邀请协作者</DialogTitle>
+          <DialogDescription>
+            目标仓库：{{ inviteTargetRepo ? `${inviteTargetRepo.owner}/${inviteTargetRepo.name}` : '-' }}
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-3 py-1">
+          <div class="space-y-1.5">
+            <Label for="invite-username">GitHub 用户名</Label>
+            <Input
+              id="invite-username"
+              v-model.trim="inviteForm.username"
+              placeholder="例如：octocat"
+              :disabled="inviteSubmitting"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="invite-permission">仓库权限</Label>
+              <Select v-model="inviteForm.permission" :disabled="inviteSubmitting">
+                <SelectTrigger id="invite-permission">
+                  <SelectValue placeholder="选择权限" />
+                </SelectTrigger>
+                <SelectContent>
+                <SelectItem value="pull">只读（pull）</SelectItem>
+                <SelectItem value="push">读写（push）</SelectItem>
+                <SelectItem value="triage">分流（triage）</SelectItem>
+                <SelectItem value="maintain">维护（maintain）</SelectItem>
+                <SelectItem value="admin">管理员（admin）</SelectItem>
+                </SelectContent>
+              </Select>
+              <div class="text-[11px] leading-5 text-muted-foreground">
+                pull：只读；push：读写；triage：可管理 issue/pr 标签；maintain：仓库维护（不含敏感设置）；admin：管理员（完整权限）。
+              </div>
+            </div>
+          <div v-if="inviteError" class="text-xs text-destructive">{{ inviteError }}</div>
+          <div v-else-if="inviteSuccess" class="text-xs text-emerald-600 dark:text-emerald-400">{{ inviteSuccess }}</div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" :disabled="inviteSubmitting" @click="inviteDialogOpen = false">取消</Button>
+          <Button :disabled="inviteSubmitting" @click="submitInvite">
+            {{ inviteSubmitting ? '邀请中...' : '发送邀请' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -523,6 +596,14 @@ import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
 import CcPrReviewWorkbench from '@/components/CcPrReviewWorkbench.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -531,7 +612,14 @@ import { useCcSettings } from '@/composables/useCcSettings'
 import { useCcSession } from '@/composables/useCcSession'
 import { useCcWorkspace } from '@/composables/useCcWorkspace'
 import { useTheme } from '@/composables/useTheme'
-import { getAuthenticatedProfile, type GitHubAuthenticatedProfile } from '@/utils/githubGitApi'
+import {
+  getAuthenticatedProfile,
+  inviteRepositoryCollaborator,
+  listRepositoryCollaborators,
+  type GitHubAuthenticatedProfile,
+  type RepositoryCollaborator,
+  type RepositoryCollaboratorPermission
+} from '@/utils/githubGitApi'
 import { loadOwnedResources, type OwnedResourceEntry } from '@/utils/resourcePublishApi'
 import {
   CC_DEFAULT_ROUTE,
@@ -584,7 +672,20 @@ const repositoriesList = ref<Array<{
   sources: string[]
   restypes: string[]
   resourceNames: string[]
+  collaborators: RepositoryCollaborator[]
 }>>([])
+const inviteDialogOpen = ref(false)
+const inviteSubmitting = ref(false)
+const inviteError = ref('')
+const inviteSuccess = ref('')
+const inviteTargetRepo = ref<{ owner: string; name: string } | null>(null)
+const inviteForm = ref<{
+  username: string
+  permission: RepositoryCollaboratorPermission
+}>({
+  username: '',
+  permission: 'admin'
+})
 const settingsSection = ref<CcSettingsSection>('defaults')
 const aboutCommitLoading = ref(false)
 const aboutCommitLoadingMore = ref(false)
@@ -734,6 +835,18 @@ const formatDateTime = (value?: string): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('zh-CN', { hour12: false })
+}
+
+const formatRestypeLabel = (value: string): string => {
+  const normalized = value.trim().toLowerCase()
+  if (normalized === 'quickapp') return '快应用'
+  if (normalized === 'watchface') return '表盘'
+  return value || '-'
+}
+
+const formatRestypeLabels = (values: string[]): string => {
+  const labels = values.map(item => formatRestypeLabel(item)).filter(Boolean)
+  return labels.length ? labels.join('、') : '-'
 }
 
 const sanitizeCcRedirectPath = (rawPath: string | null): string => {
@@ -940,6 +1053,92 @@ const openRepositoriesPage = (): void => {
   navigateToTab('repositories')
 }
 
+const openInviteDialog = (repo: { owner: string; name: string }): void => {
+  inviteTargetRepo.value = { owner: repo.owner, name: repo.name }
+  inviteForm.value = {
+    username: '',
+    permission: 'admin'
+  }
+  inviteError.value = ''
+  inviteSuccess.value = ''
+  inviteDialogOpen.value = true
+}
+
+const handleInviteDialogOpenChange = (open: boolean): void => {
+  inviteDialogOpen.value = open
+  if (!open) {
+    inviteSubmitting.value = false
+    inviteError.value = ''
+    inviteSuccess.value = ''
+  }
+}
+
+const submitInvite = async (): Promise<void> => {
+  if (inviteSubmitting.value) return
+  const targetRepo = inviteTargetRepo.value
+  if (!targetRepo) {
+    inviteError.value = '未找到目标仓库'
+    return
+  }
+  const resolvedToken = token.value.trim()
+  if (!resolvedToken) {
+    inviteError.value = '请先登录 GitHub Token'
+    return
+  }
+  const username = inviteForm.value.username.trim()
+  if (!username) {
+    inviteError.value = '请先填写协作者用户名'
+    return
+  }
+  try {
+    inviteSubmitting.value = true
+    inviteError.value = ''
+    inviteSuccess.value = ''
+    const result = await inviteRepositoryCollaborator({
+      token: resolvedToken,
+      owner: targetRepo.owner,
+      repo: targetRepo.name,
+      username,
+      permission: inviteForm.value.permission
+    })
+    if (result.status === 204) {
+      inviteSuccess.value = `@${username} 已经是协作者`
+      await refreshRepositoryCollaborators(targetRepo.owner, targetRepo.name)
+      return
+    }
+    inviteSuccess.value = result.invitationUrl
+      ? `邀请已发送：${result.invitationUrl}`
+      : `已向 @${username} 发送邀请`
+    await refreshRepositoryCollaborators(targetRepo.owner, targetRepo.name)
+  } catch (error: unknown) {
+    inviteError.value = error instanceof Error ? error.message : '邀请失败'
+  } finally {
+    inviteSubmitting.value = false
+  }
+}
+
+const refreshRepositoryCollaborators = async (owner: string, repoName: string): Promise<void> => {
+  const resolvedToken = token.value.trim()
+  if (!resolvedToken) return
+  try {
+    const list = await listRepositoryCollaborators({
+      token: resolvedToken,
+      owner,
+      repo: repoName
+    })
+    const ownerLower = owner.toLowerCase()
+    const filtered = list.filter(item => item.login.toLowerCase() !== ownerLower)
+    repositoriesList.value = repositoriesList.value.map(item => {
+      if (item.owner === owner && item.name === repoName) {
+        return { ...item, collaborators: filtered }
+      }
+      return item
+    })
+  } catch {
+    // 协作者信息仅用于展示，不阻塞主流程
+  }
+}
+
 const saveSettings = (): void => {
   saveDefaults({
     defaultTargetOwner: defaultTargetOwner.value,
@@ -982,6 +1181,7 @@ const loadRepositories = async (): Promise<void> => {
       sources: Set<string>
       restypes: Set<string>
       resourceNames: Set<string>
+      collaborators: RepositoryCollaborator[]
     }>()
 
     for (const item of items) {
@@ -1001,7 +1201,8 @@ const loadRepositories = async (): Promise<void> => {
           latestCommitDate: item.commitDate || '',
           sources: new Set([item.source]),
           restypes: new Set([item.restype]),
-          resourceNames: new Set(item.name ? [item.name] : [])
+          resourceNames: new Set(item.name ? [item.name] : []),
+          collaborators: []
         })
         continue
       }
@@ -1024,9 +1225,41 @@ const loadRepositories = async (): Promise<void> => {
         latestCommitDate: item.latestCommitDate,
         sources: Array.from(item.sources).sort((a, b) => a.localeCompare(b, 'zh-CN')),
         restypes: Array.from(item.restypes).sort((a, b) => a.localeCompare(b, 'zh-CN')),
-        resourceNames: Array.from(item.resourceNames).sort((a, b) => a.localeCompare(b, 'zh-CN'))
+        resourceNames: Array.from(item.resourceNames).sort((a, b) => a.localeCompare(b, 'zh-CN')),
+        collaborators: item.collaborators
       }))
       .sort((a, b) => (b.latestCommitDate || '').localeCompare(a.latestCommitDate || ''))
+
+    const resolvedToken = token.value.trim()
+    if (!resolvedToken || repositoriesList.value.length === 0) {
+      return
+    }
+
+    const collaboratorEntries = await Promise.all(
+      repositoriesList.value.map(async repo => {
+        try {
+          const list = await listRepositoryCollaborators({
+            token: resolvedToken,
+            owner: repo.owner,
+            repo: repo.name
+          })
+          return {
+            fullName: repo.fullName,
+            collaborators: list.filter(item => item.login.toLowerCase() !== repo.owner.toLowerCase())
+          }
+        } catch {
+          return {
+            fullName: repo.fullName,
+            collaborators: [] as RepositoryCollaborator[]
+          }
+        }
+      })
+    )
+    const collaboratorMap = new Map(collaboratorEntries.map(item => [item.fullName, item.collaborators]))
+    repositoriesList.value = repositoriesList.value.map(repo => ({
+      ...repo,
+      collaborators: collaboratorMap.get(repo.fullName) || []
+    }))
   } catch (error: unknown) {
     repositoriesError.value = error instanceof Error ? error.message : '加载仓库失败'
   } finally {

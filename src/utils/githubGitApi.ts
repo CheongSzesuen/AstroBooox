@@ -55,6 +55,20 @@ export interface PullRequestResult {
   title: string
 }
 
+export type RepositoryCollaboratorPermission = 'pull' | 'push' | 'admin' | 'maintain' | 'triage'
+
+export interface InviteCollaboratorResult {
+  status: number
+  invitationId: number | null
+  invitationUrl: string | null
+}
+
+export interface RepositoryCollaborator {
+  login: string
+  avatarUrl: string
+  htmlUrl: string
+}
+
 interface GitHubApiError extends Error {
   status?: number
 }
@@ -156,6 +170,82 @@ export const createRepository = async (
       auto_init: true
     })
   })
+}
+
+export const inviteRepositoryCollaborator = async (params: {
+  token: string
+  owner: string
+  repo: string
+  username: string
+  permission?: RepositoryCollaboratorPermission
+}): Promise<InviteCollaboratorResult> => {
+  const { token, owner, repo, username, permission = 'push' } = params
+  const resolvedOwner = owner.trim()
+  const resolvedRepo = repo.trim()
+  const resolvedUsername = username.trim()
+
+  if (!token.trim()) throw new Error('Token 不能为空')
+  if (!resolvedOwner) throw new Error('仓库 Owner 不能为空')
+  if (!resolvedRepo) throw new Error('仓库名不能为空')
+  if (!resolvedUsername) throw new Error('协作者用户名不能为空')
+
+  const { rest } = createGitHubClient(token)
+  try {
+    const response = await rest.request(
+      'PUT /repos/{owner}/{repo}/collaborators/{username}',
+      {
+        owner: resolvedOwner,
+        repo: resolvedRepo,
+        username: resolvedUsername,
+        permission
+      }
+    )
+    const payload = (response.data && typeof response.data === 'object')
+      ? (response.data as { id?: number; html_url?: string })
+      : null
+    return {
+      status: response.status,
+      invitationId: payload?.id ?? null,
+      invitationUrl: payload?.html_url ?? null
+    }
+  } catch (error: unknown) {
+    const normalized = normalizeGitHubError(error)
+    throw makeApiError(normalized.status || 500, normalized.message)
+  }
+}
+
+export const listRepositoryCollaborators = async (params: {
+  token: string
+  owner: string
+  repo: string
+}): Promise<RepositoryCollaborator[]> => {
+  const { token, owner, repo } = params
+  const resolvedOwner = owner.trim()
+  const resolvedRepo = repo.trim()
+  if (!token.trim()) throw new Error('Token 不能为空')
+  if (!resolvedOwner) throw new Error('仓库 Owner 不能为空')
+  if (!resolvedRepo) throw new Error('仓库名不能为空')
+
+  try {
+    const response = await requestJson<Array<{
+      login?: string
+      avatar_url?: string
+      html_url?: string
+    }>>(
+      `/repos/${resolvedOwner}/${resolvedRepo}/collaborators?per_page=100`,
+      token
+    )
+    return response
+      .map(item => ({
+        login: item.login || '',
+        avatarUrl: item.avatar_url || 'https://github.com/ghost.png',
+        htmlUrl: item.html_url || (item.login ? `https://github.com/${item.login}` : '')
+      }))
+      .filter(item => !!item.login)
+  } catch (error: unknown) {
+    const normalized = normalizeGitHubError(error)
+    throw makeApiError(normalized.status || 500, normalized.message)
+  }
 }
 
 export const readRepositoryFile = async (
