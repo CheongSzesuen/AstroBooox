@@ -102,16 +102,14 @@
                 <UserCircle :size="16" weight="duotone" />
                 Profile
               </a>
-              <a
-                :href="repositoriesUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
-                @click="closeUserMenu"
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                @click="openRepositoriesPage"
               >
-                <Folders :size="16" weight="duotone" />
-                Repositories
-              </a>
+                <GitFork :size="16" weight="duotone" />
+                仓库
+              </button>
               <button
                 type="button"
                 class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
@@ -143,6 +141,57 @@
           :repo="defaultTargetRepo"
           :token="token"
         />
+        <div v-else-if="tab === 'repositories'" class="w-full max-w-[1120px] space-y-4">
+          <div>
+            <h2 class="text-base font-semibold text-foreground">仓库</h2>
+            <p class="mt-1 text-sm text-muted-foreground">展示当前账号在发布目录中出现过的资源仓库。</p>
+          </div>
+
+          <div v-if="repositoriesLoading" class="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+            正在加载仓库列表...
+          </div>
+          <div v-else-if="repositoriesError" class="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+            {{ repositoriesError }}
+          </div>
+          <div v-else-if="repositoriesList.length === 0" class="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+            暂无可展示仓库
+          </div>
+          <div v-else class="space-y-3">
+            <article v-for="repo in repositoriesList" :key="repo.fullName" class="rounded-xl border border-border bg-card p-4">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <a
+                    :href="repo.htmlUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+                  >
+                    <GitFork :size="16" weight="duotone" />
+                    {{ repo.fullName }}
+                  </a>
+                  <div class="mt-1 text-xs text-muted-foreground">
+                    默认分支：{{ repo.defaultBranch || '-' }} · 来源版本：{{ repo.sources.join(' + ') }}
+                  </div>
+                </div>
+                <Badge variant="outline">{{ repo.resourceCount }} 个资源</Badge>
+              </div>
+              <div class="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+                <div class="rounded border border-border bg-muted/20 px-2 py-1.5">
+                  <span class="text-muted-foreground">最近更新时间</span>
+                  <div class="mt-0.5 text-foreground">{{ formatDateTime(repo.latestCommitDate) }}</div>
+                </div>
+                <div class="rounded border border-border bg-muted/20 px-2 py-1.5">
+                  <span class="text-muted-foreground">资源类型</span>
+                  <div class="mt-0.5 text-foreground">{{ repo.restypes.join('、') || '-' }}</div>
+                </div>
+                <div class="rounded border border-border bg-muted/20 px-2 py-1.5">
+                  <span class="text-muted-foreground">Catalog ID</span>
+                  <div class="mt-0.5 text-foreground">{{ repo.catalogIds.join('、') || '-' }}</div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
         <div v-else-if="tab === 'settings'" class="w-full max-w-[1120px] space-y-4">
           <div>
             <h2 class="text-base font-semibold text-foreground">Settings</h2>
@@ -452,7 +501,7 @@ import {
   PhCaretDown as CaretDown,
   PhCheckCircle as CheckCircle,
   PhClockCounterClockwise as ClockCounterClockwise,
-  PhFolders as Folders,
+  PhGitFork as GitFork,
   PhGearSix as GearSix,
   PhGlobeHemisphereWest as GlobeHemisphereWest,
   PhHash as Hash,
@@ -484,6 +533,7 @@ import { useCcSession } from '@/composables/useCcSession'
 import { useCcWorkspace } from '@/composables/useCcWorkspace'
 import { useTheme } from '@/composables/useTheme'
 import { getAuthenticatedProfile, type GitHubAuthenticatedProfile } from '@/utils/githubGitApi'
+import { loadOwnedResources, type OwnedResourceEntry } from '@/utils/resourcePublishApi'
 import {
   CC_DEFAULT_ROUTE,
   CC_PATHS,
@@ -523,6 +573,20 @@ const settingsForm = ref({
 const accountProfileLoading = ref(false)
 const accountProfileError = ref('')
 const accountProfile = ref<GitHubAuthenticatedProfile | null>(null)
+const repositoriesLoading = ref(false)
+const repositoriesError = ref('')
+const repositoriesList = ref<Array<{
+  fullName: string
+  owner: string
+  name: string
+  htmlUrl: string
+  defaultBranch: string
+  latestCommitDate: string
+  resourceCount: number
+  sources: string[]
+  restypes: string[]
+  catalogIds: string[]
+}>>([])
 const settingsSection = ref<CcSettingsSection>('defaults')
 const aboutCommitLoading = ref(false)
 const aboutCommitLoadingMore = ref(false)
@@ -542,7 +606,7 @@ const publishedResourceDetailKey = ref('')
 const pullRequestRouteNumber = ref(0)
 const pullRequestRouteTargetRepo = ref('')
 const workbenchMode = computed<'publish' | 'review' | 'published'>(() =>
-  tab.value === 'settings' || tab.value === 'review' || tab.value === 'resource_edit'
+  tab.value === 'settings' || tab.value === 'review' || tab.value === 'resource_edit' || tab.value === 'repositories'
     ? 'publish'
     : tab.value === 'pullrequest'
       ? 'review'
@@ -551,11 +615,6 @@ const workbenchMode = computed<'publish' | 'review' | 'published'>(() =>
 
 const profileUrl = computed(() =>
   currentUser.value ? `https://github.com/${currentUser.value}` : 'https://github.com'
-)
-const repositoriesUrl = computed(() =>
-  currentUser.value
-    ? `https://github.com/${currentUser.value}?tab=repositories`
-    : 'https://github.com'
 )
 const settingsOwnerAvatarUrl = computed(() => {
   const owner = settingsForm.value.defaultTargetOwner.trim()
@@ -878,6 +937,11 @@ const openSettingsPage = (): void => {
   openSettingsSection('defaults')
 }
 
+const openRepositoriesPage = (): void => {
+  closeUserMenu()
+  navigateToTab('repositories')
+}
+
 const saveSettings = (): void => {
   saveDefaults({
     defaultTargetOwner: defaultTargetOwner.value,
@@ -888,6 +952,92 @@ const saveSettings = (): void => {
     customDisplayName: settingsForm.value.customDisplayName,
     customAvatarUrl: settingsForm.value.customAvatarUrl
   })
+}
+
+const loadRepositories = async (): Promise<void> => {
+  try {
+    repositoriesLoading.value = true
+    repositoriesError.value = ''
+    repositoriesList.value = []
+
+    const username = currentUser.value.trim()
+    if (!username) {
+      throw new Error('请先校验 Token')
+    }
+
+    const items: OwnedResourceEntry[] = await loadOwnedResources({
+      token: token.value.trim(),
+      username,
+      upstreamOwner: defaultTargetOwner.value.trim(),
+      upstreamRepo: defaultTargetRepo.value.trim(),
+      upstreamBranch: 'main',
+      catalogPath: defaultCatalogPath.value.trim()
+    })
+
+    const grouped = new Map<string, {
+      fullName: string
+      owner: string
+      name: string
+      htmlUrl: string
+      defaultBranch: string
+      latestCommitDate: string
+      resourceCount: number
+      sources: Set<string>
+      restypes: Set<string>
+      catalogIds: Set<string>
+    }>()
+
+    for (const item of items) {
+      const owner = item.repo_owner.trim()
+      const repo = item.repo_name.trim()
+      if (!owner || !repo) continue
+      if (owner.toLowerCase() !== username.toLowerCase()) continue
+      const key = `${owner.toLowerCase()}/${repo.toLowerCase()}`
+      const existing = grouped.get(key)
+      if (!existing) {
+        grouped.set(key, {
+          fullName: `${owner}/${repo}`,
+          owner,
+          name: repo,
+          htmlUrl: `https://github.com/${owner}/${repo}`,
+          defaultBranch: item.repo_commit_hash?.trim() || 'main',
+          latestCommitDate: item.commitDate || '',
+          resourceCount: 1,
+          sources: new Set([item.source]),
+          restypes: new Set([item.restype]),
+          catalogIds: new Set(item.catalogId ? [item.catalogId] : [])
+        })
+        continue
+      }
+      existing.resourceCount += 1
+      if (item.source) existing.sources.add(item.source)
+      if (item.restype) existing.restypes.add(item.restype)
+      if (item.catalogId) existing.catalogIds.add(item.catalogId)
+      if (item.commitDate && (!existing.latestCommitDate || item.commitDate > existing.latestCommitDate)) {
+        existing.latestCommitDate = item.commitDate
+        existing.defaultBranch = item.repo_commit_hash?.trim() || existing.defaultBranch
+      }
+    }
+
+    repositoriesList.value = Array.from(grouped.values())
+      .map(item => ({
+        fullName: item.fullName,
+        owner: item.owner,
+        name: item.name,
+        htmlUrl: item.htmlUrl,
+        defaultBranch: item.defaultBranch,
+        latestCommitDate: item.latestCommitDate,
+        resourceCount: item.resourceCount,
+        sources: Array.from(item.sources).sort((a, b) => a.localeCompare(b, 'zh-CN')),
+        restypes: Array.from(item.restypes).sort((a, b) => a.localeCompare(b, 'zh-CN')),
+        catalogIds: Array.from(item.catalogIds).sort((a, b) => a.localeCompare(b, 'zh-CN'))
+      }))
+      .sort((a, b) => (b.latestCommitDate || '').localeCompare(a.latestCommitDate || ''))
+  } catch (error: unknown) {
+    repositoriesError.value = error instanceof Error ? error.message : '加载仓库失败'
+  } finally {
+    repositoriesLoading.value = false
+  }
 }
 
 const loadAccountProfile = async (): Promise<void> => {
@@ -1008,6 +1158,10 @@ watch(
 watch(
   () => [tab.value, settingsSection.value, token.value] as const,
   ([currentTab, currentSection]) => {
+    if (currentTab === 'repositories') {
+      void loadRepositories()
+      return
+    }
     if (currentTab === 'settings' && currentSection === 'account') {
       void loadAccountProfile()
       return

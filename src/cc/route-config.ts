@@ -1,4 +1,4 @@
-export type CcTab = 'publish' | 'pullrequest' | 'published' | 'resource_edit' | 'review' | 'settings'
+export type CcTab = 'publish' | 'pullrequest' | 'published' | 'resource_edit' | 'review' | 'repositories' | 'settings'
 export type CcSettingsSection = 'defaults' | 'account' | 'about'
 
 export type CcRouteState = {
@@ -20,6 +20,7 @@ export const CC_PATHS = {
   pullRequest: '/cc/pullrequest',
   review: '/cc/review',
   published: '/cc/resource',
+  repositories: '/cc/repositories',
   resourceEdit: '/cc/resource/edit',
   settings: '/cc/settings',
   settingsAccount: '/cc/settings/account',
@@ -58,6 +59,7 @@ export const buildCcPath = (state: CcRouteState): string => {
     if (key) return `${CC_PATHS.published}/${encodeURIComponent(key)}`
     return CC_PATHS.published
   }
+  if (state.tab === 'repositories') return CC_PATHS.repositories
   if (state.tab === 'publish') return CC_PATHS.publish
   if (state.tab === 'pullrequest') {
     const prNumber = Number(state.pullRequestNumber || 0)
@@ -88,6 +90,7 @@ export const resolveCcRouteFromPath = (pathname: string): CcRouteState => {
     }
   }
   if (section === 'review') return { tab: 'review', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
+  if (section === 'repositories') return { tab: 'repositories', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'resource' && segments[2] === 'edit') return { tab: 'resource_edit', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'resource') {
     const detailKey = segments[2] ? decodeURIComponent(segments[2]) : ''
