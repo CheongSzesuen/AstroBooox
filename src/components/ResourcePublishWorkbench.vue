@@ -1358,13 +1358,21 @@
                 />
                 <div class="min-w-0 flex-1">
                   <div class="flex items-start justify-between gap-2">
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-1.5">
-                        <div class="truncate text-sm font-semibold text-foreground">{{ item.name }}</div>
-                        <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
-                        <Badge v-if="item.sources.includes('v1')" variant="outline">V1</Badge>
-                        <Badge v-if="item.sources.includes('v2')" variant="outline">V2</Badge>
-                        <Badge v-if="showV2FollowUpTag && item.v2NeedsFollowUp" variant="destructive">v2需要跟进</Badge>
+                    <div class="min-w-0 flex-1">
+                      <div class="text-sm font-semibold leading-5 text-foreground break-words">
+                        {{ item.name }}
+                      </div>
+                      <div class="mt-1 space-y-1">
+                        <div class="flex max-w-full justify-end">
+                          <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
+                        </div>
+                        <div v-if="item.sources.includes('v1') || item.sources.includes('v2')" class="flex max-w-full flex-wrap justify-end gap-1">
+                          <Badge v-if="item.sources.includes('v1')" variant="outline">V1</Badge>
+                          <Badge v-if="item.sources.includes('v2')" variant="outline">V2</Badge>
+                        </div>
+                        <div v-if="showV2FollowUpTag && item.v2NeedsFollowUp" class="flex max-w-full justify-end">
+                          <Badge variant="destructive">v2需要跟进</Badge>
+                        </div>
                       </div>
                     </div>
                     <a
