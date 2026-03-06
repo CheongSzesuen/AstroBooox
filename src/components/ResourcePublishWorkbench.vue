@@ -1501,7 +1501,7 @@
               <img
                 :src="ownedSubmissionOverview.images.cover.url"
                 alt="Cover 预览"
-                class="mt-1 max-h-24 w-full rounded-md border border-border object-contain transition-opacity group-hover:opacity-90"
+                class="mt-1 h-auto w-full rounded-md border border-border object-contain transition-opacity group-hover:opacity-90 sm:max-h-24"
                 loading="lazy"
               />
             </a>
