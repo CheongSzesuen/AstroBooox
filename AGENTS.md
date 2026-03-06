@@ -9,6 +9,23 @@
 - 每次完成代码修改后，需**主动执行** `git commit`（提交信息遵循既有前缀规范）。
 - 所有与 Git 相关的信息（提交说明、提交摘要、变更说明、PR 文案）统一使用中文描述。
 
+## 2026-03-07 追加强制规则（CC React 全量重构）
+- 当前阶段**只优先做 `cc` 页面**的 React 重构，主站页面优先级降低。
+- 每次开始改动前，必须先阅读并对照：
+  - `docs/cc-react-refactor-roadmap.md`
+- 当不确定 Vue 版功能时，必须先查阅参考工程（功能真值）：
+  - `/home/WaiJade/Documents/GitHub/AstroBooox/AstroBooox-AstroBooox-NG`
+- `cc` 重构必须使用 **shadcn** 组件体系，不得回退到旧 Vue UI 模式。
+- 图标仅允许沿用原有两套图标库：**phosphor + lucide**，禁止新增第三方图标库。
+- 以下目录属于参考目录，**只读不可修改**：
+  - `homepage/`
+  - `ui/`
+  - `vue/`
+  - `ui-thing/`
+  - `secret/`
+  - `next-shadcn-dashboard-starter/`
+  - `AstroBooox-AstroBooox-NG/`
+
 ## 当前重构状态（强制）
 - 本项目正在进行**完全重构**，旧 UI 方案逐步废弃。
 - UI 组件体系统一迁移到 **shadcn** 思路与组件规范。

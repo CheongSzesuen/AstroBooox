@@ -5,10 +5,10 @@ export function ResLinkPage() {
     <Card>
       <CardHeader>
         <CardTitle>资源链接生成</CardTitle>
-        <CardDescription>React 路由与样式体系已切换。</CardDescription>
+        <CardDescription>主站页面迁移暂缓，当前优先完成 CC 全量重构。</CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground">后续提交将迁移链接解析、批量处理与导出交互。</p>
+        <p className="text-sm text-muted-foreground">该页面会在 CC 完整迁移后继续补齐 React 功能等效实现。</p>
       </CardContent>
     </Card>
   )
