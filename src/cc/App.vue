@@ -30,9 +30,13 @@
         <a href="/" class="hidden h-8 w-8 items-center justify-center sm:inline-flex" aria-label="返回主站">
           <img src="/icon-candidates/secret-icon.png" alt="AstroBooox" class="h-6 w-6" />
         </a>
-        <h1 class="hidden text-sm font-semibold text-foreground md:text-base sm:block">Creator Console</h1>
-        <div class="hidden min-w-0 flex-1 overflow-x-auto sm:ml-2 sm:block [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div class="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
+        <h1 v-if="!hideHeaderTitleForNav" class="hidden text-sm font-semibold text-foreground md:text-base sm:block">Creator Console</h1>
+        <div
+          ref="headerNavViewportRef"
+          class="hidden min-w-0 flex-1 overflow-x-auto sm:block [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          :class="hideHeaderTitleForNav ? 'sm:ml-0' : 'sm:ml-2'"
+        >
+          <div ref="headerNavInnerRef" class="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
             <Button
               size="sm"
               class="h-8 shrink-0"
@@ -698,7 +702,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import {
   PhArchiveBox as ArchiveBox,
   PhBuildings as Buildings,
@@ -790,6 +794,9 @@ const {
 const showUserMenu = ref(false)
 const showMobileNavSheet = ref(false)
 const userMenuRoot = ref<HTMLElement | null>(null)
+const headerNavViewportRef = ref<HTMLElement | null>(null)
+const headerNavInnerRef = ref<HTMLElement | null>(null)
+const hideHeaderTitleForNav = ref(true)
 const settingsForm = ref({
   defaultTargetOwner: defaultTargetOwner.value,
   defaultTargetRepo: defaultTargetRepo.value,
@@ -973,6 +980,29 @@ const handleAboutCommitScroll = (): void => {
 const loadMoreAboutCommits = (): void => {
   if (!aboutCommitHasMore.value || aboutCommitLoadingMore.value || aboutCommitLoading.value) return
   void loadAboutCommits({ append: true })
+}
+
+const HEADER_TITLE_RESERVED_WIDTH = 136
+const HEADER_TITLE_SHOW_BUFFER = 12
+
+const syncHeaderNavOverflow = (): void => {
+  if (typeof window === 'undefined') return
+  const viewport = headerNavViewportRef.value
+  const inner = headerNavInnerRef.value
+  if (!viewport || !inner) {
+    hideHeaderTitleForNav.value = true
+    return
+  }
+  if (window.innerWidth < 640) {
+    hideHeaderTitleForNav.value = false
+    return
+  }
+  if (!hideHeaderTitleForNav.value) {
+    hideHeaderTitleForNav.value = inner.scrollWidth > viewport.clientWidth + 1
+    return
+  }
+  hideHeaderTitleForNav.value =
+    inner.scrollWidth + HEADER_TITLE_RESERVED_WIDTH + HEADER_TITLE_SHOW_BUFFER > viewport.clientWidth
 }
 
 const aboutInfoEntries = computed<Array<{ label: string; value: string; icon: Component }>>(() => {
@@ -1591,8 +1621,12 @@ onMounted(() => {
     }
   }
   window.addEventListener('popstate', handlePopState)
+  window.addEventListener('resize', syncHeaderNavOverflow)
   document.addEventListener('mousedown', handleGlobalPointerDown)
   document.addEventListener('keydown', handleEscapeKey)
+  void nextTick(() => {
+    syncHeaderNavOverflow()
+  })
 })
 
 watch(
@@ -1630,6 +1664,9 @@ watch(
     if (currentTab === 'settings' && currentSection === 'about') {
       void loadAboutCommits()
     }
+    void nextTick(() => {
+      syncHeaderNavOverflow()
+    })
   },
   { immediate: true }
 )
@@ -1644,6 +1681,7 @@ onBeforeUnmount(() => {
     routeProgressTimer = null
   }
   window.removeEventListener('popstate', handlePopState)
+  window.removeEventListener('resize', syncHeaderNavOverflow)
   document.removeEventListener('mousedown', handleGlobalPointerDown)
   document.removeEventListener('keydown', handleEscapeKey)
 })

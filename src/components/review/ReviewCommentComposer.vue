@@ -69,16 +69,12 @@
                   />
                   <span class="shrink-0 px-3 text-xs text-muted-foreground">]</span>
                 </div>
-                <div v-if="showTagToggle" class="inline-flex shrink-0 self-end items-center gap-2 rounded-md border border-border bg-muted/20 px-2.5 py-1.5 sm:self-auto">
-                  <span class="text-xs text-muted-foreground">带标签</span>
-                  <Button
-                    size="sm"
-                    :variant="tagEnabled ? 'default' : 'outline'"
-                    class="h-6 px-2 text-xs"
-                    @click="emit('update:tagEnabled', !tagEnabled)"
-                  >
-                    {{ tagEnabled ? '开' : '关' }}
-                  </Button>
+                <div v-if="showTagToggle" class="inline-flex shrink-0 self-end items-center rounded-md border border-border bg-muted/20 px-2 py-1.5 sm:self-auto">
+                  <Switch
+                    :model-value="tagEnabled"
+                    aria-label="带标签"
+                    @update:model-value="(value) => emit('update:tagEnabled', Boolean(value))"
+                  />
                 </div>
               </div>
               <div v-if="!tagEnabled" class="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
@@ -132,6 +128,7 @@ import {
 } from '@phosphor-icons/vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 
