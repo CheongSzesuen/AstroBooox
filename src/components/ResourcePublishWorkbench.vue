@@ -1561,16 +1561,18 @@
                           :href="link.url"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="inline-flex w-full min-w-0 items-start gap-1.5 text-primary hover:underline"
+                          class="flex w-full min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-primary hover:underline"
                         >
-                          <component
-                            :is="FileIcon"
-                            :size="14"
-                            weight="duotone"
-                            class="shrink-0 text-muted-foreground"
-                          />
-                          <span class="shrink-0 text-foreground">{{ link.title || '-' }}</span>
-                          <span v-if="link.type" class="shrink-0 text-muted-foreground">{{ link.type }}</span>
+                          <span class="inline-flex min-w-0 shrink-0 items-center gap-1.5">
+                            <component
+                              :is="FileIcon"
+                              :size="14"
+                              weight="duotone"
+                              class="shrink-0 text-muted-foreground"
+                            />
+                            <span class="shrink-0 text-foreground">{{ link.title || '-' }}</span>
+                            <span v-if="link.type" class="shrink-0 text-muted-foreground">{{ link.type }}</span>
+                          </span>
                           <span class="min-w-0 break-all">{{ link.url }}</span>
                         </a>
                       </div>

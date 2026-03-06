@@ -3,7 +3,7 @@
     <img
       v-if="avatarUrl"
       :src="avatarUrl"
-      class="h-8 w-8 shrink-0 rounded-full object-cover"
+      class="hidden h-8 w-8 shrink-0 rounded-full object-cover sm:block"
       loading="lazy"
     />
     <div class="min-w-0 flex-1 overflow-hidden rounded-md border border-border">
