@@ -1511,7 +1511,7 @@
                       class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between"
                     >
                       <span class="text-xs text-muted-foreground">{{ item.key }}</span>
-                      <span class="text-sm font-medium text-foreground">{{ item.value || '-' }}</span>
+                      <span class="min-w-0 break-all text-sm font-medium text-foreground">{{ item.value || '-' }}</span>
                     </div>
                     <div class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between">
                       <span class="text-xs text-muted-foreground">仓库信息</span>
@@ -1533,7 +1533,7 @@
                           :href="link.url"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="inline-flex w-full min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap text-primary hover:underline"
+                          class="inline-flex w-full min-w-0 items-start gap-1.5 text-primary hover:underline"
                         >
                           <component
                             :is="FileIcon"
@@ -1543,7 +1543,7 @@
                           />
                           <span class="shrink-0 text-foreground">{{ link.title || '-' }}</span>
                           <span v-if="link.type" class="shrink-0 text-muted-foreground">{{ link.type }}</span>
-                          <span class="truncate">{{ link.url }}</span>
+                          <span class="min-w-0 break-all">{{ link.url }}</span>
                         </a>
                       </div>
                       <span v-else class="text-sm font-medium text-foreground">-</span>
@@ -1564,7 +1564,7 @@
                     >
                       <div class="text-xs text-muted-foreground">支持设备：{{ group.devices.join(' / ') || '-' }}</div>
                       <div class="mt-1 text-xs text-muted-foreground">版本：{{ group.version || '-' }}</div>
-                      <div class="mt-1 text-xs text-muted-foreground">文件：{{ group.file || '-' }}</div>
+                      <div class="mt-1 break-all text-xs text-muted-foreground">文件：{{ group.file || '-' }}</div>
                       <a
                         v-if="group.raw"
                         :href="group.raw"
@@ -1684,7 +1684,7 @@
                       />
                       <div class="min-w-0">
                         <div class="text-sm font-medium text-foreground">{{ item.title }}</div>
-                        <div class="text-xs text-muted-foreground">{{ item.detail }}</div>
+                        <div class="break-words text-xs text-muted-foreground">{{ item.detail }}</div>
                       </div>
                     </div>
                   </div>
