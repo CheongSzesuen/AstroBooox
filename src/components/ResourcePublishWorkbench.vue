@@ -1627,7 +1627,7 @@
                     <div v-if="ownedSubmissionOverview.images.previews.length > 0" class="space-y-2">
                       <div class="flex items-center justify-between gap-1.5 sm:gap-2">
                         <div class="text-xs text-muted-foreground">
-                          Preview · {{ ownedSubmissionOverview.images.previews.length }} 张
+                          共 {{ ownedSubmissionOverview.images.previews.length }} 张
                         </div>
                       <div class="inline-flex items-center gap-0.5 sm:gap-1">
                         <Button
@@ -1652,7 +1652,7 @@
                     </div>
                     <div
                       ref="ownedPreviewScrollerRef"
-                      class="scrollbar-none flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory touch-pan-x"
+                      class="scrollbar-none flex flex-nowrap gap-3 overflow-x-auto pb-1 snap-x snap-mandatory touch-pan-x"
                       @scroll="syncOwnedPreviewScrollState"
                       @wheel="onOwnedPreviewWheel"
                     >
@@ -1660,7 +1660,7 @@
                         v-for="preview in ownedSubmissionOverview.images.previews"
                         :key="preview.url"
                         data-owned-preview-slide="1"
-                        class="w-[260px] shrink-0 snap-start rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm sm:w-[320px]"
+                        class="w-full max-w-full shrink-0 snap-start rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm sm:w-[320px] sm:max-w-[320px]"
                       >
                         <a
                           :href="preview.url"
@@ -1675,7 +1675,7 @@
                             loading="lazy"
                           />
                         </a>
-                        <div class="mt-2 break-all text-xs text-muted-foreground">Preview · {{ preview.file }}</div>
+                        <div class="mt-2 break-all text-xs text-muted-foreground">{{ preview.file }}</div>
                       </div>
                     </div>
                     <div v-if="ownedPreviewSnapCount > 1" class="flex items-center justify-center gap-1.5">
