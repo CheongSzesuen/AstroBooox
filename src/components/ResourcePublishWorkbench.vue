@@ -1162,7 +1162,7 @@
         </Card>
       </div>
 
-      <div v-else class="space-y-4">
+      <div v-else class="space-y-3 sm:space-y-4">
         <ReviewDetailHeader
           :title="selectedReviewItem.prTitle"
           :number="selectedReviewItem.prNumber"
@@ -1489,7 +1489,7 @@
         </ReviewDetailHeader>
 
         <Card v-if="ownedSubmissionOverview.images.cover">
-          <CardContent class="flex flex-wrap items-start gap-4 pt-4">
+          <CardContent class="flex flex-wrap items-start gap-2.5 px-3 pb-3 pt-3 sm:gap-4 sm:p-6 sm:pt-4">
             <a
               v-if="ownedSubmissionOverview.images.cover"
               :href="ownedSubmissionOverview.images.cover.url"
@@ -1509,11 +1509,11 @@
         </Card>
 
         <Card>
-          <CardHeader class="pb-3">
+          <CardHeader class="gap-y-1 px-3 pb-1.5 pt-3 sm:gap-y-1.5 sm:px-6 sm:pb-3 sm:pt-6">
             <CardTitle class="text-base">资源提交信息</CardTitle>
           </CardHeader>
-          <CardContent class="space-y-3 pt-0 text-sm">
-            <div v-if="ownedDetailError" class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <CardContent class="space-y-2 px-3 pb-3 pt-0 text-sm sm:space-y-3 sm:p-6 sm:pt-0">
+            <div v-if="ownedDetailError" class="rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-2 text-xs text-destructive sm:px-3">
               {{ ownedDetailError }}
             </div>
             <div v-else-if="ownedDetailLoading" class="text-xs text-muted-foreground">
@@ -1521,27 +1521,27 @@
             </div>
             <div
               v-else-if="!hasOwnedSubmissionOverview"
-              class="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground"
+              class="rounded-md border border-dashed border-border px-2.5 py-2.5 text-sm text-muted-foreground sm:px-3 sm:py-3"
             >
               未识别到结构化资源信息
             </div>
-            <div v-else class="space-y-3">
-              <div class="grid gap-3 xl:grid-cols-2">
-                <div class="rounded-md border border-border p-3">
-                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <div v-else class="space-y-2 sm:space-y-3">
+              <div class="grid gap-2 sm:gap-3 xl:grid-cols-2">
+                <div class="rounded-md border border-border p-2.5 sm:p-3">
+                  <div class="mb-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground sm:mb-2">
                     <NotePencil :size="14" weight="duotone" />
                     资源信息
                   </div>
-                  <div class="space-y-2">
+                  <div class="space-y-1.5 sm:space-y-2">
                     <div
                       v-for="item in ownedSubmissionOverview.resourceInfo"
                       :key="item.key"
-                      class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between"
+                      class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-2.5 py-1.5 sm:px-3 sm:py-2 md:flex-row md:items-center md:justify-between"
                     >
                       <span class="text-xs text-muted-foreground">{{ item.key }}</span>
                       <span class="min-w-0 break-all text-sm font-medium text-foreground">{{ item.value || '-' }}</span>
                     </div>
-                    <div class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between">
+                    <div class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-2.5 py-1.5 sm:px-3 sm:py-2 md:flex-row md:items-center md:justify-between">
                       <span class="text-xs text-muted-foreground">仓库信息</span>
                       <a
                         :href="getOwnedItemRepoUrl(selectedOwnedItem)"
@@ -1552,7 +1552,7 @@
                         {{ getOwnedItemRepoUrl(selectedOwnedItem) }}
                       </a>
                     </div>
-                    <div class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                    <div class="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-2.5 py-1.5 sm:px-3 sm:py-2">
                       <span class="text-xs text-muted-foreground">链接（manifest_v2.links）</span>
                       <div v-if="ownedSubmissionOverview.links.length > 0" class="space-y-1 text-sm font-medium text-foreground">
                         <a
@@ -1581,16 +1581,16 @@
                   </div>
                 </div>
 
-                <div class="rounded-md border border-border p-3">
-                  <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <div class="rounded-md border border-border p-2.5 sm:p-3">
+                  <div class="mb-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground sm:mb-2">
                     <GlobeHemisphereWest :size="14" weight="duotone" />
                     支持设备
                   </div>
-                  <div class="space-y-2">
+                  <div class="space-y-1.5 sm:space-y-2">
                     <div
                       v-for="group in ownedGroupedDownloads"
                       :key="`${group.file}-${group.version}-${group.devices.join('/')}`"
-                      class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
+                      class="rounded-md border border-border/70 bg-muted/20 px-2.5 py-1.5 sm:px-3 sm:py-2"
                     >
                       <div class="text-xs text-muted-foreground">支持设备：{{ group.devices.join(' / ') || '-' }}</div>
                       <div class="mt-1 text-xs text-muted-foreground">版本：{{ group.version || '-' }}</div>
@@ -1607,7 +1607,7 @@
                     </div>
                     <div
                       v-if="ownedGroupedDownloads.length === 0"
-                      class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm text-foreground"
+                      class="rounded-md border border-border/70 bg-muted/20 px-2.5 py-1.5 text-sm text-foreground sm:px-3 sm:py-2"
                     >
                       {{ ownedSubmissionOverview.supportedDevices.join(' / ') || '-' }}
                     </div>
@@ -1615,16 +1615,16 @@
                 </div>
               </div>
 
-              <div class="rounded-md border border-border p-3">
-                <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <div class="rounded-md border border-border p-2.5 sm:p-3">
+                <div class="mb-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground sm:mb-2">
                   <ImageSquare :size="14" weight="duotone" />
                   图片资源（Raw）
                 </div>
-                <div v-if="ownedSubmissionOverview.images.previews.length === 0" class="rounded-md border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
+                <div v-if="ownedSubmissionOverview.images.previews.length === 0" class="rounded-md border border-dashed border-border px-2.5 py-3 text-xs text-muted-foreground sm:px-3 sm:py-4">
                   未检测到图片资源
                 </div>
-                <div v-else class="space-y-3">
-                    <div v-if="ownedSubmissionOverview.images.previews.length > 0" class="space-y-2">
+                <div v-else class="space-y-2 sm:space-y-3">
+                    <div v-if="ownedSubmissionOverview.images.previews.length > 0" class="space-y-1.5 sm:space-y-2">
                       <div class="flex items-center justify-between gap-1.5 sm:gap-2">
                         <div class="text-xs text-muted-foreground">
                           共 {{ ownedSubmissionOverview.images.previews.length }} 张
@@ -1652,7 +1652,7 @@
                     </div>
                     <div
                       ref="ownedPreviewScrollerRef"
-                      class="scrollbar-none flex flex-nowrap gap-3 overflow-x-auto pb-1 snap-x snap-mandatory touch-pan-x"
+                      class="scrollbar-none flex flex-nowrap gap-2 overflow-x-auto pb-1 snap-x snap-mandatory touch-pan-x sm:gap-3"
                       @scroll="syncOwnedPreviewScrollState"
                       @wheel="onOwnedPreviewWheel"
                     >
@@ -1660,7 +1660,7 @@
                         v-for="preview in ownedSubmissionOverview.images.previews"
                         :key="preview.url"
                         data-owned-preview-slide="1"
-                        class="w-full max-w-full shrink-0 snap-start rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm sm:w-[320px] sm:max-w-[320px]"
+                        class="w-full max-w-full shrink-0 snap-start rounded-md border border-border/70 bg-muted/20 px-2.5 py-1.5 text-sm sm:w-[320px] sm:max-w-[320px] sm:px-3 sm:py-2"
                       >
                         <a
                           :href="preview.url"
@@ -1693,18 +1693,18 @@
                 </div>
               </div>
 
-              <div class="rounded-md border border-border p-3">
-                <div class="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <div class="rounded-md border border-border p-2.5 sm:p-3">
+                <div class="mb-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground sm:mb-2">
                   <CheckCircle :size="14" weight="duotone" />
                   规范自动检查
                 </div>
-                <div class="space-y-2">
+                <div class="space-y-1.5 sm:space-y-2">
                   <div
                     v-for="item in ownedRuleChecks"
                     :key="item.title"
-                    class="rounded-md border border-border/70 bg-muted/20 px-3 py-2"
+                    class="rounded-md border border-border/70 bg-muted/20 px-2.5 py-1.5 sm:px-3 sm:py-2"
                   >
-                    <div class="flex items-start gap-2">
+                    <div class="flex items-start gap-1.5 sm:gap-2">
                       <component
                         :is="item.status === 'pass' ? CheckCircle : WarningCircle"
                         :size="14"
