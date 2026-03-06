@@ -92,14 +92,16 @@
       </div>
     </div>
 
-    <Dialog :open="showMobileNavSheet" @update:open="showMobileNavSheet = $event">
-      <DialogContent
-        class="!left-0 !right-auto !top-0 !bottom-0 !inset-x-auto z-50 !h-dvh !max-h-none !w-[86vw] !max-w-[320px] !translate-x-0 !translate-y-0 !rounded-none !rounded-r-xl !p-0 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:hidden"
-      >
-        <DialogHeader class="border-b border-border px-4 py-3">
-          <DialogTitle class="text-base">导航</DialogTitle>
-          <DialogDescription>AstroBooox</DialogDescription>
-        </DialogHeader>
+    <Sheet :open="showMobileNavSheet" @update:open="showMobileNavSheet = $event">
+      <SheetContent side="left" :hide-close="true" class="w-[72vw] max-w-[280px] p-0 sm:hidden">
+        <div class="flex items-center justify-between border-b border-border px-4 py-3">
+          <img src="/favicon.svg" alt="AstroBooox" class="h-5 w-5" />
+          <SheetClose as-child>
+            <Button variant="ghost" size="icon" class="h-8 w-8" aria-label="关闭导航菜单">
+              <X :size="16" weight="bold" />
+            </Button>
+          </SheetClose>
+        </div>
         <nav class="space-y-1 px-3 py-3">
           <Button
             v-for="item in navItems"
@@ -111,8 +113,8 @@
             {{ item.label }}
           </Button>
         </nav>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   </nav>
 </template>
 
@@ -125,10 +127,11 @@ import {
   PhList as List,
   PhMoon as Moon,
   PhStar as Star,
-  PhSun as Sun
+  PhSun as Sun,
+  PhX as X
 } from '@phosphor-icons/vue'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Sheet, SheetClose, SheetContent } from '@/components/ui/sheet'
 import { useTheme } from '@/composables/useTheme'
 import type { AppMode } from '@/type/manifest'
 

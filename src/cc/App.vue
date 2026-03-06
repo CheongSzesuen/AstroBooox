@@ -151,14 +151,16 @@
       </div>
     </header>
 
-    <Dialog :open="showMobileNavSheet" @update:open="showMobileNavSheet = $event">
-      <DialogContent
-        class="!left-0 !right-auto !top-0 !bottom-0 !inset-x-auto z-50 !h-dvh !max-h-none !w-[86vw] !max-w-[320px] !translate-x-0 !translate-y-0 !rounded-none !rounded-r-xl !p-0 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:hidden"
-      >
-        <DialogHeader class="border-b border-border px-4 py-3">
-          <DialogTitle class="text-base">导航</DialogTitle>
-          <DialogDescription>Creator Console</DialogDescription>
-        </DialogHeader>
+    <Sheet :open="showMobileNavSheet" @update:open="showMobileNavSheet = $event">
+      <SheetContent side="left" :hide-close="true" class="w-[72vw] max-w-[280px] p-0 sm:hidden">
+        <div class="flex items-center justify-between border-b border-border px-4 py-3">
+          <img src="/favicon.svg" alt="AstroBooox" class="h-5 w-5" />
+          <SheetClose as-child>
+            <Button variant="ghost" size="icon" class="h-8 w-8" aria-label="关闭导航菜单">
+              <X :size="16" weight="bold" />
+            </Button>
+          </SheetClose>
+        </div>
         <nav class="space-y-1 px-3 py-3">
           <Button
             class="h-9 w-full justify-start"
@@ -202,8 +204,8 @@
             设置
           </Button>
         </nav>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
 
     <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
       <section class="min-w-0 flex justify-center">
@@ -680,7 +682,8 @@ import {
   PhUploadSimple as UploadSimple,
   PhUserCircle as UserCircle,
   PhUserPlus as UserPlus,
-  PhUsers as Users
+  PhUsers as Users,
+  PhX as X
 } from '@phosphor-icons/vue'
 import ResourcePublishWorkbench from '@/components/ResourcePublishWorkbench.vue'
 import CcPrReviewWorkbench from '@/components/CcPrReviewWorkbench.vue'
@@ -696,6 +699,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Sheet, SheetClose, SheetContent } from '@/components/ui/sheet'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import CcTokenGate from '@/cc/CcTokenGate.vue'
 import { useCcSettings } from '@/composables/useCcSettings'
