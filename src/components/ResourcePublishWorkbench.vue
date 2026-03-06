@@ -1620,77 +1620,7 @@
                   <ImageSquare :size="14" weight="duotone" />
                   图片资源（Raw）
                 </div>
-                <div v-if="ownedSubmissionOverview.images.previews.length === 0" class="rounded-md border border-dashed border-border px-2.5 py-3 text-xs text-muted-foreground sm:px-3 sm:py-4">
-                  未检测到图片资源
-                </div>
-                <div v-else class="space-y-2 sm:space-y-3">
-                    <div v-if="ownedSubmissionOverview.images.previews.length > 0" class="space-y-1.5 sm:space-y-2">
-                      <div class="flex items-center justify-between gap-1.5 sm:gap-2">
-                        <div class="text-xs text-muted-foreground">
-                          共 {{ ownedSubmissionOverview.images.previews.length }} 张
-                        </div>
-                      <div class="inline-flex items-center gap-0.5 sm:gap-1">
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          class="h-7 w-7"
-                          :disabled="!canOwnedPreviewPrev"
-                          @click="scrollOwnedPreviewPrev"
-                        >
-                          <CaretRight :size="14" weight="bold" class="rotate-180" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          class="h-7 w-7"
-                          :disabled="!canOwnedPreviewNext"
-                          @click="scrollOwnedPreviewNext"
-                        >
-                          <CaretRight :size="14" weight="bold" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div
-                      ref="ownedPreviewScrollerRef"
-                      class="scrollbar-none flex flex-nowrap gap-2 overflow-x-auto pb-1 snap-x snap-mandatory touch-pan-x sm:gap-3"
-                      @scroll="syncOwnedPreviewScrollState"
-                      @wheel="onOwnedPreviewWheel"
-                    >
-                      <div
-                        v-for="preview in ownedSubmissionOverview.images.previews"
-                        :key="preview.url"
-                        data-owned-preview-slide="1"
-                        class="w-full max-w-full shrink-0 snap-start rounded-md border border-border/70 bg-muted/20 px-2.5 py-1.5 text-sm sm:w-[320px] sm:max-w-[320px] sm:px-3 sm:py-2"
-                      >
-                        <a
-                          :href="preview.url"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="block overflow-hidden rounded-md border border-border/60 bg-background/70"
-                        >
-                          <img
-                            :src="preview.url"
-                            :alt="`${preview.file} 预览`"
-                            class="h-40 w-full object-contain sm:h-52"
-                            loading="lazy"
-                          />
-                        </a>
-                        <div class="mt-2 break-all text-xs text-muted-foreground">{{ preview.file }}</div>
-                      </div>
-                    </div>
-                    <div v-if="ownedPreviewSnapCount > 1" class="flex items-center justify-center gap-1.5">
-                      <button
-                        v-for="index in ownedPreviewSnapCount"
-                        :key="`owned-preview-dot-${index}`"
-                        type="button"
-                        class="h-1.5 rounded-full transition-all"
-                        :class="index - 1 === ownedPreviewActiveIndex ? 'w-5 bg-foreground/80' : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'"
-                        :aria-label="`跳转到第 ${index} 张预览图`"
-                        @click="scrollOwnedPreviewTo(index - 1)"
-                      />
-                    </div>
-                  </div>
-                </div>
+                <PreviewImageCarousel :items="ownedSubmissionOverview.images.previews" />
               </div>
 
               <div class="rounded-md border border-border p-2.5 sm:p-3">
@@ -1822,6 +1752,7 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import PreviewImageCarousel from '@/components/PreviewImageCarousel.vue'
 import ReviewCommentComposer from '@/components/review/ReviewCommentComposer.vue'
 import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue'
 import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
@@ -2372,93 +2303,6 @@ const ownedRuleChecks = computed<Array<{ title: string; status: 'pass' | 'warn' 
   })
   return checks
 })
-
-const ownedPreviewScrollerRef = ref<HTMLElement | null>(null)
-const ownedPreviewCanPrev = ref(false)
-const ownedPreviewCanNext = ref(false)
-const ownedPreviewActiveIndex = ref(0)
-const ownedPreviewSnapCount = ref(0)
-const OWNED_PREVIEW_SCROLL_DISTANCE = 320
-
-const syncOwnedPreviewScrollState = (): void => {
-  const el = ownedPreviewScrollerRef.value
-  if (!el) {
-    ownedPreviewCanPrev.value = false
-    ownedPreviewCanNext.value = false
-    ownedPreviewActiveIndex.value = 0
-    ownedPreviewSnapCount.value = ownedSubmissionOverview.value.images.previews.length
-    return
-  }
-  ownedPreviewCanPrev.value = el.scrollLeft > 4
-  ownedPreviewCanNext.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
-  ownedPreviewSnapCount.value = ownedSubmissionOverview.value.images.previews.length
-
-  const slides = Array.from(el.querySelectorAll<HTMLElement>('[data-owned-preview-slide="1"]'))
-  if (slides.length === 0) {
-    ownedPreviewActiveIndex.value = 0
-    return
-  }
-  const viewportCenter = el.scrollLeft + el.clientWidth / 2
-  let matchedIndex = 0
-  let minDistance = Number.POSITIVE_INFINITY
-  slides.forEach((slide, index) => {
-    const slideCenter = slide.offsetLeft + slide.offsetWidth / 2
-    const distance = Math.abs(slideCenter - viewportCenter)
-    if (distance < minDistance) {
-      minDistance = distance
-      matchedIndex = index
-    }
-  })
-  ownedPreviewActiveIndex.value = matchedIndex
-}
-
-const canOwnedPreviewPrev = computed(() =>
-  ownedSubmissionOverview.value.images.previews.length > 0 && ownedPreviewCanPrev.value
-)
-const canOwnedPreviewNext = computed(() =>
-  ownedSubmissionOverview.value.images.previews.length > 0 && ownedPreviewCanNext.value
-)
-
-const scrollOwnedPreviewPrev = (): void => {
-  const el = ownedPreviewScrollerRef.value
-  if (!el) return
-  el.scrollBy({
-    left: -Math.max(el.clientWidth * 0.82, OWNED_PREVIEW_SCROLL_DISTANCE),
-    behavior: 'smooth'
-  })
-}
-
-const scrollOwnedPreviewNext = (): void => {
-  const el = ownedPreviewScrollerRef.value
-  if (!el) return
-  el.scrollBy({
-    left: Math.max(el.clientWidth * 0.82, OWNED_PREVIEW_SCROLL_DISTANCE),
-    behavior: 'smooth'
-  })
-}
-
-const scrollOwnedPreviewTo = (index: number): void => {
-  const el = ownedPreviewScrollerRef.value
-  if (!el) return
-  const slides = Array.from(el.querySelectorAll<HTMLElement>('[data-owned-preview-slide="1"]'))
-  const target = slides[index]
-  if (!target) return
-  el.scrollTo({ left: Math.max(target.offsetLeft - 8, 0), behavior: 'smooth' })
-}
-
-const onOwnedPreviewWheel = (event: WheelEvent): void => {
-  const el = ownedPreviewScrollerRef.value
-  if (!el) return
-  if (el.scrollWidth <= el.clientWidth + 1) return
-
-  const horizontalDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
-    ? event.deltaX
-    : event.deltaY
-
-  if (Math.abs(horizontalDelta) < 0.5) return
-  event.preventDefault()
-  el.scrollBy({ left: horizontalDelta, behavior: 'auto' })
-}
 
 const isBusy = computed(() => workspaceBusy.value || uploading.value || creatingPr.value)
 const canLoadList = computed(() => Boolean(token.value.trim() && currentUser.value))
@@ -4987,10 +4831,6 @@ const loadOwnedList = async (): Promise<void> => {
 const openOwnedItemDetail = (item: OwnedMergedItem, options: { syncRoute?: boolean } = {}): void => {
   const { syncRoute = true } = options
   selectedOwnedItem.value = item
-  ownedPreviewActiveIndex.value = 0
-  ownedPreviewSnapCount.value = 0
-  ownedPreviewCanPrev.value = false
-  ownedPreviewCanNext.value = false
   if (syncRoute) {
     emit('request-route', {
       tab: 'published',
@@ -5007,10 +4847,6 @@ const closeOwnedDetail = (options: { syncRoute?: boolean } = {}): void => {
   selectedOwnedItem.value = null
   ownedDetail.value = null
   ownedDetailError.value = ''
-  ownedPreviewCanPrev.value = false
-  ownedPreviewCanNext.value = false
-  ownedPreviewActiveIndex.value = 0
-  ownedPreviewSnapCount.value = 0
   if (syncRoute) {
     emit('request-route', {
       tab: 'published',
@@ -5038,11 +4874,6 @@ const loadOwnedItemDetail = async (item?: OwnedMergedItem): Promise<void> => {
     ownedDetailError.value = `加载详情失败：${error instanceof Error ? error.message : '未知错误'}`
   } finally {
     ownedDetailLoading.value = false
-    void nextTick(() => {
-      const el = ownedPreviewScrollerRef.value
-      if (el) el.scrollTo({ left: 0, behavior: 'auto' })
-      syncOwnedPreviewScrollState()
-    })
   }
 }
 
@@ -5319,16 +5150,6 @@ watch(
     openOwnedItemDetail(matched, { syncRoute: false })
   },
   { immediate: true }
-)
-
-watch(
-  () => ownedSubmissionOverview.value.images.previews.map(item => item.url).join('|'),
-  async () => {
-    await nextTick()
-    const el = ownedPreviewScrollerRef.value
-    if (el) el.scrollTo({ left: 0, behavior: 'auto' })
-    syncOwnedPreviewScrollState()
-  }
 )
 
 const reviewStateText = (state: PublishingResource['status']): string => {

@@ -534,11 +534,11 @@
                       图片资源（Raw）
                     </div>
                   </div>
-                  <div v-if="imageSlides.length === 0" class="rounded-md border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
-                    未检测到图片资源
-                  </div>
-                  <div v-else class="space-y-3">
-                    <div class="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
+                  <div class="space-y-3">
+                    <div
+                      v-if="submissionOverview.images.icon || submissionOverview.images.cover"
+                      class="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:items-start"
+                    >
                       <div v-if="submissionOverview.images.icon" class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
                         <div class="text-xs text-muted-foreground">Icon · {{ submissionOverview.images.icon.file }}</div>
                         <div class="mt-1 text-xs text-muted-foreground">
@@ -586,44 +586,11 @@
                         </a>
                       </div>
                     </div>
-                    <div v-if="currentImageSlide" class="sm:pr-2">
-                      <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
-                        <div class="space-y-1.5">
-                          <div class="min-w-0 break-all text-xs text-muted-foreground">
-                            {{ currentImageSlide.file }}
-                          </div>
-                          <div v-if="imageSlides.length > 1" class="inline-flex items-center gap-0.5 sm:gap-1">
-                            <span class="text-xs text-muted-foreground">
-                              {{ currentImageSlideIndex + 1 }}/{{ imageSlides.length }}
-                            </span>
-                            <Button size="icon" variant="outline" class="h-7 w-7" :disabled="!canImagePrev" @click="scrollImagePrev">
-                              <CaretLeft :size="14" weight="bold" />
-                            </Button>
-                            <Button size="icon" variant="outline" class="h-7 w-7" :disabled="!canImageNext" @click="scrollImageNext">
-                              <CaretRight :size="14" weight="bold" />
-                            </Button>
-                          </div>
-                        </div>
-                        <a
-                          :href="currentImageSlide.url"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="mt-2 inline-flex max-w-full overflow-hidden rounded-md border border-border/60 bg-background/70"
-                        >
-                          <img
-                            :src="getDisplayImageUrl(currentImageSlide.url)"
-                            :alt="`${currentImageSlide.file} 预览`"
-                            class="max-h-64 w-auto max-w-full object-contain"
-                            loading="lazy"
-                          />
-                        </a>
-                        <div class="mt-2 break-all text-xs text-muted-foreground">
-                          <a :href="currentImageSlide.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
-                            {{ currentImageSlide.url }}
-                          </a>
-                        </div>
-                      </div>
-                    </div>
+                    <PreviewImageCarousel
+                      :items="submissionOverview.images.previews"
+                      :image-url-resolver="getDisplayImageUrl"
+                      @image-load="handlePreviewImageLoad"
+                    />
                   </div>
                 </div>
 
@@ -674,7 +641,6 @@ import {
   PhArrowUp as ArrowUp,
   PhArrowsClockwise as ArrowsClockwise,
   PhAddressBook as AddressBookIcon,
-  PhCaretLeft as CaretLeft,
   PhCaretDown as CaretDown,
   PhCaretDoubleRight as CaretDoubleRight,
   PhCaretRight as CaretRight,
@@ -703,6 +669,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import PreviewImageCarousel from '@/components/PreviewImageCarousel.vue'
 import ReviewCommentComposer from '@/components/review/ReviewCommentComposer.vue'
 import ReviewCommentTimeline from '@/components/review/ReviewCommentTimeline.vue'
 import ReviewDetailHeader from '@/components/review/ReviewDetailHeader.vue'
@@ -1078,9 +1045,6 @@ const pickerLineRowRefs = new Map<number, HTMLElement>()
 const imageBlobUrlMap = ref<Record<string, string>>({})
 const imageMetaMap = ref<Record<string, { width?: number; height?: number }>>({})
 const loadingImageSet = new Set<string>()
-const currentImageSlideIndex = ref(0)
-const canImagePrev = computed(() => currentImageSlideIndex.value > 0)
-const canImageNext = computed(() => currentImageSlideIndex.value < imageSlides.value.length - 1)
 const ccDebugEnabled = true
 
 const ccDebugLog = (label: string, payload?: unknown): void => {
@@ -1090,16 +1054,6 @@ const ccDebugLog = (label: string, payload?: unknown): void => {
     return
   }
   console.log(`[CC-DEBUG] ${label}`, payload)
-}
-
-const scrollImagePrev = (): void => {
-  if (!canImagePrev.value) return
-  currentImageSlideIndex.value -= 1
-}
-
-const scrollImageNext = (): void => {
-  if (!canImageNext.value) return
-  currentImageSlideIndex.value += 1
 }
 
 const setPickerLineRowRef = (lineNumber: number, element: Element | null): void => {
@@ -1383,6 +1337,10 @@ const handleImageLoad = (url: string, event: Event): void => {
   setImageMeta(url, { width, height })
 }
 
+const handlePreviewImageLoad = (payload: { url: string; event: Event }): void => {
+  handleImageLoad(payload.url, payload.event)
+}
+
 const ensureImageDisplayUrl = async (url: string): Promise<void> => {
   if (!url || imageBlobUrlMap.value[url] || loadingImageSet.has(url)) return
   const parsed = parseRawGithubUrl(url)
@@ -1561,24 +1519,6 @@ const groupedDownloads = computed<Array<{ raw: string; file: string; version: st
   }
   return Array.from(map.values())
 })
-const imageSlides = computed<Array<{ key: string; label: string; file: string; url: string }>>(() => {
-  const slides: Array<{ key: string; label: string; file: string; url: string }> = []
-  for (const preview of submissionOverview.value.images.previews) {
-    slides.push({
-      key: `preview-${preview.file}-${preview.url}`,
-      label: 'Preview',
-      file: preview.file,
-      url: preview.url
-    })
-  }
-  ccDebugLog('imageSlides:结果', {
-    count: slides.length,
-    sample: slides.slice(0, 5).map(item => ({ file: item.file, url: item.url }))
-  })
-  return slides
-})
-const currentImageSlide = computed(() => imageSlides.value[currentImageSlideIndex.value] || null)
-
 watch(
   () => [
     submissionOverview.value.images.icon?.url || '',
@@ -1593,19 +1533,6 @@ watch(
       })
   },
   { immediate: true }
-)
-
-watch(
-  () => imageSlides.value.length,
-  () => {
-    if (imageSlides.value.length === 0) {
-      currentImageSlideIndex.value = 0
-      return
-    }
-    if (currentImageSlideIndex.value >= imageSlides.value.length) {
-      currentImageSlideIndex.value = imageSlides.value.length - 1
-    }
-  }
 )
 
 const knownDeviceIds = new Set([
