@@ -9,12 +9,14 @@ import {
   UploadSimple,
   UserCircle
 } from '@phosphor-icons/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  CC_DEFAULT_ROUTE,
+  CC_PATHS,
   buildCcPath,
+  isCcLoginPath,
   resolveCcRouteFromPath,
   type CcRouteState,
-  type CcSettingsSection,
   type CcTab
 } from '@/cc/route-config'
 import { CcTokenGate } from '@/react/cc/CcTokenGate'
@@ -63,55 +65,88 @@ const placeholderByTab: Record<CcTab, { title: string; description: string }> = 
   }
 }
 
-const resolveInitialCcPath = (): string => {
-  const url = new URL(window.location.href)
-  const encoded = url.searchParams.get('cc_path')
-  if (!encoded) return window.location.pathname
-  const decoded = decodeURIComponent(encoded)
-  if (!decoded.startsWith('/cc')) return window.location.pathname
+const sanitizeCcRedirectPath = (rawPath: string | null): string => {
+  if (!rawPath) return ''
+  const value = rawPath.trim()
+  if (!value) return ''
+  if (value.startsWith('/cc')) return value
+  if (!/^https?:\/\//i.test(value)) return ''
+  try {
+    const parsed = new URL(value)
+    return parsed.pathname.startsWith('/cc') ? parsed.pathname : ''
+  } catch {
+    return ''
+  }
+}
 
-  const nextSearch = new URLSearchParams(url.search)
-  nextSearch.delete('cc_path')
-  const nextQuery = nextSearch.toString()
-  const nextUrl = `${decoded}${nextQuery ? `?${nextQuery}` : ''}${url.hash}`
-  window.history.replaceState({}, '', nextUrl)
-  return decoded
+const buildLoginUrl = (targetPath: string, expectedUser: string): string => {
+  const params = new URLSearchParams()
+  const normalizedPath = targetPath.trim()
+  if (normalizedPath && normalizedPath !== CC_PATHS.publish) {
+    params.set('cc_path', normalizedPath)
+  }
+  if (expectedUser) {
+    params.set('cc_user', expectedUser)
+  }
+  return params.size > 0 ? `${CC_PATHS.login}?${params.toString()}` : CC_PATHS.login
+}
+
+const resolveExpectedUserFromLocation = (): string => {
+  const searchParams = new URLSearchParams(window.location.search)
+  return (searchParams.get('cc_user') || searchParams.get('gh_user') || '').trim().toLowerCase()
+}
+
+const resolveRouteFromLocation = (currentUser: string): CcRouteState => {
+  const searchParams = new URLSearchParams(window.location.search)
+  const redirectedPath = sanitizeCcRedirectPath(searchParams.get('cc_path'))
+  const route = redirectedPath && redirectedPath.startsWith('/cc') ? resolveCcRouteFromPath(redirectedPath) : resolveCcRouteFromPath(window.location.pathname)
+
+  const expected = resolveExpectedUserFromLocation()
+  const current = currentUser.trim().toLowerCase()
+  if (expected && current && expected !== current) {
+    return {
+      ...CC_DEFAULT_ROUTE,
+      resourceDetailKey: '',
+      requireGhUser: false
+    }
+  }
+  return route
 }
 
 function CcAuthenticatedApp() {
-  const [routeState, setRouteState] = useState<CcRouteState>(() => resolveCcRouteFromPath(resolveInitialCcPath()))
   const { theme, toggleTheme } = useTheme()
   const { currentUser, avatarUrl, clearSession } = useCcSession()
   const { defaultTargetOwner, defaultTargetRepo } = useCcSettings()
   const [showUserMenu, setShowUserMenu] = useState(false)
-
-  const workbenchMode = routeState.tab === 'published' ? 'published' : routeState.tab === 'pullrequest' ? 'pullrequest' : 'publish'
-
-  const applyRouteState = (next: CcRouteState, options?: { replace?: boolean }) => {
-    const nextPath = buildCcPath(next)
-    if (options?.replace) {
-      window.history.replaceState({}, '', nextPath)
-    } else {
-      window.history.pushState({}, '', nextPath)
-    }
-    setRouteState(resolveCcRouteFromPath(nextPath))
-  }
+  const [routeState, setRouteState] = useState<CcRouteState>(() => resolveRouteFromLocation(currentUser))
 
   useEffect(() => {
     const handlePopState = () => {
-      setRouteState(resolveCcRouteFromPath(window.location.pathname))
+      setRouteState(resolveRouteFromLocation(currentUser))
     }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
+  }, [currentUser])
 
-  const profileUrl = useMemo(() => (currentUser ? `https://github.com/${currentUser}` : '#'), [currentUser])
+  const profileUrl = useMemo(() => (currentUser ? `https://github.com/${currentUser}` : 'https://github.com'), [currentUser])
 
-  const navigateToTab = (tab: CcTab) => {
-    const nextSettings: CcSettingsSection = tab === 'settings' ? routeState.settingsSection || 'defaults' : 'defaults'
-    applyRouteState({
-      tab,
-      settingsSection: nextSettings,
+  const applyRouteState = (state: CcRouteState, options?: { replace?: boolean; syncUrl?: boolean }) => {
+    setRouteState(state)
+    if (options?.syncUrl === false) return
+    const targetPath = buildCcPath(state)
+    const current = `${window.location.pathname}${window.location.search}`
+    if (current === targetPath) return
+    if (options?.replace) {
+      window.history.replaceState(null, '', targetPath)
+      return
+    }
+    window.history.pushState(null, '', targetPath)
+  }
+
+  const navigateToTab = (nextTab: CcTab) => {
+    const nextState: CcRouteState = {
+      tab: nextTab,
+      settingsSection: nextTab === 'settings' ? routeState.settingsSection : 'defaults',
       resourceDetailKey: '',
       pullRequestNumber: 0,
       pullRequestTargetRepo: '',
@@ -119,8 +154,11 @@ function CcAuthenticatedApp() {
       editResourceId: '',
       editTargetRepo: '',
       editUser: ''
-    })
+    }
+    applyRouteState(nextState)
   }
+
+  const workbenchMode = routeState.tab === 'published' ? 'published' : routeState.tab === 'pullrequest' ? 'review' : 'publish'
 
   return (
     <div className="min-h-screen bg-background">
@@ -195,6 +233,7 @@ function CcAuthenticatedApp() {
                     onClick={() => {
                       clearSession()
                       setShowUserMenu(false)
+                      window.history.replaceState(null, '', CC_PATHS.login)
                     }}
                   >
                     <SignOut size={16} weight="duotone" />
@@ -233,12 +272,43 @@ function CcAuthenticatedApp() {
 }
 
 function CcAppContent() {
-  const { isAuthenticated } = useCcSession()
+  const { isAuthenticated, currentUser } = useCcSession()
+  const pendingLoginRouteRef = useRef<CcRouteState | null>(null)
+  const pendingLoginUserRef = useRef('')
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      if (!isCcLoginPath(window.location.pathname)) {
+        const routeFromLocation = resolveRouteFromLocation(currentUser)
+        const targetPath = buildCcPath(routeFromLocation)
+        const expected = resolveExpectedUserFromLocation()
+        pendingLoginRouteRef.current = routeFromLocation
+        pendingLoginUserRef.current = expected
+        window.history.replaceState(null, '', buildLoginUrl(targetPath, expected))
+      } else {
+        pendingLoginRouteRef.current = resolveRouteFromLocation(currentUser)
+        pendingLoginUserRef.current = resolveExpectedUserFromLocation()
+      }
+      return
+    }
+
+    if (isCcLoginPath(window.location.pathname)) {
+      const expected = pendingLoginUserRef.current
+      const current = currentUser.trim().toLowerCase()
+      const target = pendingLoginRouteRef.current
+      pendingLoginRouteRef.current = null
+      pendingLoginUserRef.current = ''
+      if (target && (!expected || expected === current)) {
+        window.history.replaceState(null, '', buildCcPath(target))
+        return
+      }
+      window.history.replaceState(null, '', buildCcPath(CC_DEFAULT_ROUTE))
+    }
+  }, [currentUser, isAuthenticated])
 
   if (!isAuthenticated) {
     return <CcTokenGate />
   }
-
   return <CcAuthenticatedApp />
 }
 
