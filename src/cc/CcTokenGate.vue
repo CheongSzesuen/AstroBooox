@@ -53,7 +53,7 @@
         <Card
           class="cc-login-card cc-login-light border-zinc-200 bg-white/95 text-zinc-900 shadow-xl backdrop-blur lg:border-zinc-700 lg:bg-zinc-900/90 lg:text-zinc-100"
         >
-          <CardContent class="cc-signup-card-content flex items-start gap-3">
+          <CardContent class="flex items-start gap-3">
             <div
               class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50"
             >
@@ -231,15 +231,5 @@ const handleSignIn = async (): Promise<void> => {
     color: rgba(228, 228, 231, 0.9);
   }
 
-}
-
-.cc-signup-card-content {
-  padding: 1.25rem 1rem 1rem;
-}
-
-@media (min-width: 640px) {
-  .cc-signup-card-content {
-    padding: 1.5rem 1.25rem 1.25rem;
-  }
 }
 </style>
