@@ -37,7 +37,7 @@
               <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
               <span class="hidden shrink-0 sm:inline">{{ formatCommentRelativeTime(comment.created_at || '') }}</span>
             </span>
-            <DropdownMenuRoot>
+            <DropdownMenuRoot :modal="false">
               <DropdownMenuTrigger as-child>
                 <button
                   type="button"
