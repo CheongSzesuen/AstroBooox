@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-interface CcSettingsPayload {
+export interface CcSettingsPayload {
   defaultTargetOwner: string
   defaultTargetRepo: string
   defaultCatalogPath: string
@@ -8,6 +8,10 @@ interface CcSettingsPayload {
   showV2FollowUpTag: boolean
   customDisplayName: string
   customAvatarUrl: string
+}
+
+export interface CcSettingsState extends CcSettingsPayload {
+  saveDefaults: (payload: CcSettingsPayload) => void
 }
 
 const STORAGE_KEY = 'cc.settings.v1'
@@ -60,11 +64,5 @@ export function useCcSettings() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
   }
 
-  return useMemo(
-    () => ({
-      ...settings,
-      saveDefaults
-    }),
-    [settings]
-  )
+  return useMemo<CcSettingsState>(() => ({ ...settings, saveDefaults }), [settings])
 }

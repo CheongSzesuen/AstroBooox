@@ -26,6 +26,7 @@ import { CcRepositoriesPanel } from '@/react/apps/cc/CcRepositoriesPanel'
 import { CcSettingsPanel } from '@/react/apps/cc/CcSettingsPanel'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
+import { useCcTheme } from '@/react/hooks/useCcTheme'
 import { CcSessionProvider, useCcSession } from '@/react/hooks/useCcSession'
 import { useCcSettings } from '@/react/hooks/useCcSettings'
 import { useTheme } from '@/react/hooks/useTheme'
@@ -119,8 +120,10 @@ const resolveRouteFromLocation = (currentUser: string): CcRouteState => {
 
 function CcAuthenticatedApp() {
   const { theme, toggleTheme } = useTheme()
+  useCcTheme()
   const { token, currentUser, avatarUrl, clearSession } = useCcSession()
-  const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath } = useCcSettings()
+  const ccSettings = useCcSettings()
+  const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath } = ccSettings
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [routeState, setRouteState] = useState<CcRouteState>(() => resolveRouteFromLocation(currentUser))
 
@@ -190,7 +193,7 @@ function CcAuthenticatedApp() {
     }
 
     if (routeState.tab === 'settings') {
-      return <CcSettingsPanel token={token} section={routeState.settingsSection} onSectionChange={openSettingsSection} />
+      return <CcSettingsPanel token={token} section={routeState.settingsSection} settings={ccSettings} onSectionChange={openSettingsSection} />
     }
 
     return (

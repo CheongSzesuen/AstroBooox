@@ -1,5 +1,23 @@
-import { CalendarBlank, GearSix, GlobeHemisphereWest, Hash, Info, Package, UserCircle } from '@phosphor-icons/react'
-import { useEffect, useMemo, useState } from 'react'
+import {
+  Archive,
+  Buildings,
+  CalendarBlank,
+  ClockCounterClockwise,
+  EnvelopeSimple,
+  GearSix,
+  GitBranch,
+  GlobeHemisphereWest,
+  Hash,
+  Info,
+  LinkSimple,
+  MapPin,
+  Package,
+  TwitterLogo,
+  UserCircle,
+  UserPlus,
+  Users
+} from '@phosphor-icons/react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { type CcSettingsSection } from '@/cc/route-config'
 import { Badge } from '@/react/components/ui/badge'
 import { Button } from '@/react/components/ui/button'
@@ -7,7 +25,8 @@ import { Input } from '@/react/components/ui/input'
 import { Label } from '@/react/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react/components/ui/select'
 import { Switch } from '@/react/components/ui/switch'
-import { useCcSettings } from '@/react/hooks/useCcSettings'
+import { CC_THEMES, useCcTheme, type CcTheme } from '@/react/hooks/useCcTheme'
+import { type CcSettingsState } from '@/react/hooks/useCcSettings'
 import { useTheme } from '@/react/hooks/useTheme'
 import { getAuthenticatedProfile, type GitHubAuthenticatedProfile } from '@/utils/githubGitApi'
 
@@ -20,6 +39,17 @@ type SettingsFormState = {
   customAvatarUrl: string
 }
 
+type AboutCommitItem = {
+  sha: string
+  shortSha: string
+  message: string
+  author: string
+  dateUtc8: string
+  url: string
+}
+
+const ABOUT_COMMIT_PAGE_SIZE = 20
+
 const formatDateTime = (value?: string): string => {
   if (!value) return '-'
   const date = new Date(value)
@@ -27,17 +57,42 @@ const formatDateTime = (value?: string): string => {
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
+const formatUtc8DateTime = (value?: string): string => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const shifted = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+  const y = shifted.getUTCFullYear()
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(shifted.getUTCDate()).padStart(2, '0')
+  const hh = String(shifted.getUTCHours()).padStart(2, '0')
+  const mm = String(shifted.getUTCMinutes()).padStart(2, '0')
+  const ss = String(shifted.getUTCSeconds()).padStart(2, '0')
+  return `${y}-${m}-${d} ${hh}:${mm}:${ss} (UTC+8)`
+}
+
 export function CcSettingsPanel(props: {
   token: string
   section: CcSettingsSection
+  settings: CcSettingsState
   onSectionChange: (section: CcSettingsSection) => void
 }) {
-  const { token, section, onSectionChange } = props
-  const settings = useCcSettings()
+  const { token, section, settings, onSectionChange } = props
   const { themeMode, isFollowingSystem, setThemeMode, setFollowSystem } = useTheme()
+  const { activeCcTheme, setCcTheme } = useCcTheme()
+
   const [accountProfileLoading, setAccountProfileLoading] = useState(false)
   const [accountProfileError, setAccountProfileError] = useState('')
   const [accountProfile, setAccountProfile] = useState<GitHubAuthenticatedProfile | null>(null)
+
+  const [aboutCommitLoading, setAboutCommitLoading] = useState(false)
+  const [aboutCommitLoadingMore, setAboutCommitLoadingMore] = useState(false)
+  const [aboutCommitError, setAboutCommitError] = useState('')
+  const [aboutCommitHasMore, setAboutCommitHasMore] = useState(true)
+  const [aboutCommitPage, setAboutCommitPage] = useState(1)
+  const [aboutCommitShowLoadMore, setAboutCommitShowLoadMore] = useState(false)
+  const [aboutCommits, setAboutCommits] = useState<AboutCommitItem[]>([])
+
   const [savedHint, setSavedHint] = useState('')
   const [form, setForm] = useState<SettingsFormState>({
     defaultTargetRepo: settings.defaultTargetRepo,
@@ -74,6 +129,7 @@ export function CcSettingsPanel(props: {
       setAccountProfile(null)
       return
     }
+
     const run = async () => {
       try {
         setAccountProfileLoading(true)
@@ -87,8 +143,113 @@ export function CcSettingsPanel(props: {
         setAccountProfileLoading(false)
       }
     }
+
     void run()
   }, [section, token])
+
+  const loadAboutCommits = useCallback(
+    async (options: { append?: boolean } = {}) => {
+      const { append = false } = options
+      if (append) {
+        if (aboutCommitLoading || aboutCommitLoadingMore || !aboutCommitHasMore) return
+        setAboutCommitLoadingMore(true)
+      } else {
+        if (aboutCommitLoading) return
+        setAboutCommitLoading(true)
+        setAboutCommitError('')
+        setAboutCommitHasMore(true)
+        setAboutCommitPage(1)
+        setAboutCommitShowLoadMore(false)
+        setAboutCommits([])
+      }
+
+      const currentPage = append ? aboutCommitPage : 1
+      try {
+        const branch = (__BUILD_BRANCH__ || '').trim()
+        const commitRef = (__BUILD_COMMIT_REF__ || '').trim()
+        const endpoint = new URL('https://api.github.com/repos/CheongSzesuen/AstroBooox/commits')
+        endpoint.searchParams.set('per_page', String(ABOUT_COMMIT_PAGE_SIZE))
+        endpoint.searchParams.set('page', String(currentPage))
+        if (branch && branch.toLowerCase() !== 'head' && branch.toLowerCase() !== 'unknown') {
+          endpoint.searchParams.set('sha', branch)
+        } else if (commitRef && commitRef.toLowerCase() !== 'local') {
+          endpoint.searchParams.set('sha', commitRef)
+        }
+
+        const resolvedToken = token.trim()
+        const response = await fetch(endpoint.toString(), {
+          headers: {
+            Accept: 'application/vnd.github+json',
+            ...(resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {})
+          }
+        })
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            throw new Error(resolvedToken ? '请求被 GitHub 限流，请稍后重试' : '请求被 GitHub 限流，请先登录 Token 后重试')
+          }
+          throw new Error(`请求失败（${response.status}）`)
+        }
+
+        const payload = (await response.json()) as Array<{
+          sha?: string
+          html_url?: string
+          commit?: {
+            message?: string
+            author?: { name?: string; date?: string }
+          }
+        }>
+
+        const next = payload.map((item) => {
+          const sha = item.sha || ''
+          const firstLine = item.commit?.message?.split('\n')[0]?.trim() || '(no message)'
+          return {
+            sha,
+            shortSha: sha.slice(0, 12),
+            message: firstLine,
+            author: item.commit?.author?.name || '-',
+            dateUtc8: formatUtc8DateTime(item.commit?.author?.date),
+            url: item.html_url || `https://github.com/CheongSzesuen/AstroBooox/commit/${sha}`
+          }
+        })
+
+        setAboutCommits((prev) => (append ? [...prev, ...next] : next))
+        setAboutCommitPage(currentPage + 1)
+        setAboutCommitHasMore(payload.length >= ABOUT_COMMIT_PAGE_SIZE)
+        if (append) {
+          setAboutCommitShowLoadMore(false)
+        }
+      } catch (cause: unknown) {
+        if (!append) {
+          setAboutCommits([])
+        }
+        setAboutCommitError(cause instanceof Error ? cause.message : '加载提交记录失败')
+      } finally {
+        if (append) {
+          setAboutCommitLoadingMore(false)
+          return
+        }
+        setAboutCommitLoading(false)
+      }
+    },
+    [aboutCommitHasMore, aboutCommitLoading, aboutCommitLoadingMore, aboutCommitPage, token]
+  )
+
+  useEffect(() => {
+    if (section !== 'about') return
+    void loadAboutCommits()
+  }, [section, token, loadAboutCommits])
+
+  const handleAboutCommitScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const el = event.currentTarget
+    const remain = el.scrollHeight - el.scrollTop - el.clientHeight
+    setAboutCommitShowLoadMore(remain <= 140 && aboutCommitHasMore)
+  }
+
+  const loadMoreAboutCommits = () => {
+    if (!aboutCommitHasMore || aboutCommitLoadingMore || aboutCommitLoading) return
+    void loadAboutCommits({ append: true })
+  }
 
   const saveSettings = () => {
     settings.saveDefaults({
@@ -109,6 +270,7 @@ export function CcSettingsPanel(props: {
       { label: '应用名称', value: __APP_NAME__ || 'AstroBooox', icon: Package },
       { label: '应用版本（package.json）', value: __APP_VERSION__ || '-', icon: Hash },
       { label: '构建版本', value: __BUILD_VERSION__ || '-', icon: GearSix },
+      { label: '当前构建分支', value: __BUILD_BRANCH__ || '-', icon: GitBranch },
       { label: '构建时间（UTC+8）', value: __BUILD_TIME_UTC8__ ? `${__BUILD_TIME_UTC8__} (UTC+8)` : '-', icon: CalendarBlank },
       { label: 'Environment', value: String(import.meta.env.MODE || 'unknown'), icon: GlobeHemisphereWest }
     ],
@@ -195,6 +357,7 @@ export function CcSettingsPanel(props: {
                     />
                   </div>
                 </div>
+
                 <div className="space-y-1.5">
                   <Label htmlFor="cc-setting-owned-priority">资源管理展示优先版本</Label>
                   <Select
@@ -210,6 +373,7 @@ export function CcSettingsPanel(props: {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-1.5">
                   <Label htmlFor="cc-setting-v2-followup-tag">显示“v2需要跟进”标签</Label>
                   <Select
@@ -225,6 +389,23 @@ export function CcSettingsPanel(props: {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="cc-setting-theme-style">CC 主题风格</Label>
+                  <Select value={activeCcTheme} onValueChange={(value: CcTheme) => setCcTheme(value)}>
+                    <SelectTrigger id="cc-setting-theme-style">
+                      <SelectValue placeholder="选择主题风格" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CC_THEMES.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
                   <div className="flex items-center justify-between gap-4">
                     <div>
@@ -275,38 +456,79 @@ export function CcSettingsPanel(props: {
                           <Badge variant="outline">@{accountProfile.login}</Badge>
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">{accountProfile.bio || '暂无简介'}</div>
+                        <a
+                          href={accountProfile.html_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                        >
+                          <LinkSimple size={14} weight="duotone" />
+                          打开 GitHub 主页
+                        </a>
+                        <div className="mt-3 flex flex-nowrap gap-2">
+                          <div className="min-w-0 flex-1 rounded-md border border-border bg-background/60 p-2 text-center">
+                            <div className="inline-flex items-center gap-1 text-muted-foreground">
+                              <Archive size={13} weight="duotone" />
+                              <span className="text-[11px]">仓库</span>
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-foreground">{accountProfile.public_repos ?? '-'}</div>
+                          </div>
+                          <div className="min-w-0 flex-1 rounded-md border border-border bg-background/60 p-2 text-center">
+                            <div className="inline-flex items-center gap-1 text-muted-foreground">
+                              <Users size={13} weight="duotone" />
+                              <span className="text-[11px]">粉丝</span>
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-foreground">{accountProfile.followers ?? '-'}</div>
+                          </div>
+                          <div className="min-w-0 flex-1 rounded-md border border-border bg-background/60 p-2 text-center">
+                            <div className="inline-flex items-center gap-1 text-muted-foreground">
+                              <UserPlus size={13} weight="duotone" />
+                              <span className="text-[11px]">关注</span>
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-foreground">{accountProfile.following ?? '-'}</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-                      <div className="text-xs text-muted-foreground">ID</div>
+                      <div className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Hash size={13} weight="duotone" /> ID</div>
                       <div className="mt-1 break-all font-medium text-foreground">{accountProfile.id ?? '-'}</div>
                     </div>
                     <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-                      <div className="text-xs text-muted-foreground">公司</div>
+                      <div className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Buildings size={13} weight="duotone" /> 公司</div>
                       <div className="mt-1 break-all font-medium text-foreground">{accountProfile.company || '-'}</div>
                     </div>
                     <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-                      <div className="text-xs text-muted-foreground">地区</div>
+                      <div className="inline-flex items-center gap-1 text-xs text-muted-foreground"><MapPin size={13} weight="duotone" /> 地区</div>
                       <div className="mt-1 break-all font-medium text-foreground">{accountProfile.location || '-'}</div>
                     </div>
                     <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-                      <div className="text-xs text-muted-foreground">邮箱</div>
+                      <div className="inline-flex items-center gap-1 text-xs text-muted-foreground"><EnvelopeSimple size={13} weight="duotone" /> 邮箱</div>
                       <div className="mt-1 break-all font-medium text-foreground">{accountProfile.email || '-'}</div>
                     </div>
                     <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-                      <div className="text-xs text-muted-foreground">创建时间</div>
+                      <div className="inline-flex items-center gap-1 text-xs text-muted-foreground"><GlobeHemisphereWest size={13} weight="duotone" /> 博客</div>
+                      <div className="mt-1 break-all font-medium text-foreground">{accountProfile.blog || '-'}</div>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                      <div className="inline-flex items-center gap-1 text-xs text-muted-foreground"><TwitterLogo size={13} weight="duotone" /> Twitter</div>
+                      <div className="mt-1 break-all font-medium text-foreground">{accountProfile.twitter_username || '-'}</div>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                      <div className="inline-flex items-center gap-1 text-xs text-muted-foreground"><CalendarBlank size={13} weight="duotone" /> 创建时间</div>
                       <div className="mt-1 break-all font-medium text-foreground">{formatDateTime(accountProfile.created_at)}</div>
                     </div>
                     <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-                      <div className="text-xs text-muted-foreground">更新时间</div>
+                      <div className="inline-flex items-center gap-1 text-xs text-muted-foreground"><ClockCounterClockwise size={13} weight="duotone" /> 更新时间</div>
                       <div className="mt-1 break-all font-medium text-foreground">{formatDateTime(accountProfile.updated_at)}</div>
                     </div>
                   </div>
                 </div>
               ) : null}
+              <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">账号的 Token 管理请通过右上角菜单执行退出后重新登录。</div>
             </div>
           ) : null}
 
@@ -316,6 +538,7 @@ export function CcSettingsPanel(props: {
                 <h3 className="text-sm font-semibold text-foreground">关于工具</h3>
                 <p className="mt-1 text-xs text-muted-foreground">展示当前 Creator Console 可识别到的运行、构建与环境信息。</p>
               </div>
+
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {aboutInfoEntries.map((entry) => (
                   <div key={entry.label} className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
@@ -326,6 +549,65 @@ export function CcSettingsPanel(props: {
                     <div className="mt-1 break-all font-medium text-foreground">{entry.value}</div>
                   </div>
                 ))}
+              </div>
+
+              <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                <div className="text-xs text-muted-foreground">链接</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <a href="https://astrobooox-ng.waijade.cn/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    主站
+                  </a>
+                  <a href="https://astrobooox-ng.waijade.cn/cc/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    Creator Console
+                  </a>
+                  <a href="https://github.com/CheongSzesuen/AstroBooox" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    GitHub 仓库
+                  </a>
+                  <a href="https://github.com/CheongSzesuen/AstroBooox/issues" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    Issues
+                  </a>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-border bg-muted/20 p-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs text-muted-foreground">最近 Commit</div>
+                    <div className="mt-1 text-sm font-medium text-foreground">展示当前构建分支最近提交</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground">当前 {aboutCommits.length} 条</div>
+                </div>
+
+                {aboutCommitLoading ? <div className="mt-3 text-xs text-muted-foreground">正在加载提交记录...</div> : null}
+                {!aboutCommitLoading && aboutCommitError ? <div className="mt-3 text-xs text-destructive">{aboutCommitError}</div> : null}
+                {!aboutCommitLoading && !aboutCommitError && aboutCommits.length === 0 ? <div className="mt-3 text-xs text-muted-foreground">暂无提交记录</div> : null}
+                {!aboutCommitLoading && !aboutCommitError && aboutCommits.length > 0 ? (
+                  <div className="mt-3 max-h-[420px] overflow-y-auto" onScroll={handleAboutCommitScroll}>
+                    <ul className="space-y-2">
+                      {aboutCommits.map((item) => (
+                        <li key={item.sha} className="rounded border border-border bg-background/60 p-2">
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <span className="font-mono text-foreground">{item.shortSha}</span>
+                            <span className="text-muted-foreground">{item.author}</span>
+                            <span className="text-muted-foreground">{item.dateUtc8}</span>
+                          </div>
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="mt-1 block text-sm text-primary hover:underline">
+                            {item.message}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                    {aboutCommitShowLoadMore && aboutCommitHasMore ? (
+                      <div className="py-2 text-center">
+                        <Button size="sm" variant="outline" disabled={aboutCommitLoadingMore} onClick={loadMoreAboutCommits}>
+                          {aboutCommitLoadingMore ? '加载中...' : '加载更多'}
+                        </Button>
+                      </div>
+                    ) : null}
+                    {!aboutCommitShowLoadMore && aboutCommitLoadingMore ? <div className="py-2 text-center text-xs text-muted-foreground">加载中...</div> : null}
+                    {!aboutCommitHasMore ? <div className="py-2 text-center text-xs text-muted-foreground">已加载完</div> : null}
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}
