@@ -579,7 +579,7 @@
                           <img
                             :src="getDisplayImageUrl(submissionOverview.images.cover.url)"
                             alt="Cover 预览"
-                            class="max-h-[50vh] w-full object-contain"
+                            class="max-h-[30vh] w-full object-contain"
                             loading="lazy"
                             @load="(event) => handleImageLoad(submissionOverview.images.cover!.url, event)"
                           />
