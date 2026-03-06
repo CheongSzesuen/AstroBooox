@@ -216,7 +216,7 @@
       </SheetContent>
     </Sheet>
 
-    <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
+    <main class="mx-auto w-full max-w-[1440px] p-3 sm:p-4 md:p-6">
       <section class="min-w-0 flex justify-center">
         <CcPrReviewWorkbench
           v-if="tab === 'review'"

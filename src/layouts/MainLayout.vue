@@ -62,7 +62,7 @@
       </DialogContent>
     </Dialog>
 
-    <main class="flex-1 p-4 md:p-6">
+    <main class="flex-1 p-3 sm:p-4 md:p-6">
       <component
         :is="currentComponent"
         :project-directory="projectDirectory"

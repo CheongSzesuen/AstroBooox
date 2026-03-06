@@ -10,7 +10,7 @@
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-[1120px] p-4 md:p-6">
+    <main class="mx-auto w-full max-w-[1120px] p-3 sm:p-4 md:p-6">
       <div class="grid gap-4 md:grid-cols-[250px_minmax(0,1fr)] md:gap-6">
         <aside class="hidden rounded-xl border border-border bg-card p-3 md:block">
           <p class="px-2 pb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
