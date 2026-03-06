@@ -1,8 +1,8 @@
 <template>
-  <div class="mx-auto w-full max-w-[1320px] space-y-4">
+  <div class="mx-auto w-full min-w-0 max-w-[1320px] space-y-4">
     <template v-if="mode === 'publish'">
-      <div class="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <div class="space-y-4 xl:sticky xl:top-[72px] xl:self-start">
+      <div class="min-w-0 grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div class="min-w-0 space-y-4 xl:sticky xl:top-[72px] xl:self-start">
           <Card>
             <CardHeader class="pb-3">
               <CardTitle class="text-base">步骤导航</CardTitle>
@@ -244,7 +244,7 @@
           </Card>
         </div>
 
-        <div class="space-y-4">
+        <div class="min-w-0 space-y-4">
           <Card v-if="!isResourceUpdateMode">
             <CardHeader class="pb-3">
               <CardTitle class="text-base">当前文件夹路径</CardTitle>
@@ -1624,12 +1624,12 @@
                   未检测到图片资源
                 </div>
                 <div v-else class="space-y-3">
-                  <div v-if="ownedSubmissionOverview.images.previews.length > 0" class="space-y-2">
-                    <div class="flex items-center justify-between gap-2">
-                      <div class="text-xs text-muted-foreground">
-                        Preview · {{ ownedSubmissionOverview.images.previews.length }} 张
-                      </div>
-                      <div class="inline-flex items-center gap-1">
+                    <div v-if="ownedSubmissionOverview.images.previews.length > 0" class="space-y-2">
+                      <div class="flex items-center justify-between gap-1.5 sm:gap-2">
+                        <div class="text-xs text-muted-foreground">
+                          Preview · {{ ownedSubmissionOverview.images.previews.length }} 张
+                        </div>
+                      <div class="inline-flex items-center gap-0.5 sm:gap-1">
                         <Button
                           size="icon"
                           variant="outline"
@@ -1675,7 +1675,7 @@
                             loading="lazy"
                           />
                         </a>
-                        <div class="mt-2 truncate text-xs text-muted-foreground">Preview · {{ preview.file }}</div>
+                        <div class="mt-2 break-all text-xs text-muted-foreground">Preview · {{ preview.file }}</div>
                       </div>
                     </div>
                     <div v-if="ownedPreviewSnapCount > 1" class="flex items-center justify-center gap-1.5">

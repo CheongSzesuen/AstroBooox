@@ -586,14 +586,14 @@
                         </a>
                       </div>
                     </div>
-                    <div v-if="currentImageSlide" class="pr-2">
+                    <div v-if="currentImageSlide" class="sm:pr-2">
                       <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
-                        <div class="flex items-center justify-between gap-2">
-                          <div class="text-xs text-muted-foreground">
+                        <div class="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
+                          <div class="min-w-0 break-all text-xs text-muted-foreground">
                             Preview · {{ currentImageSlide.file }}
                           </div>
-                          <div v-if="imageSlides.length > 1" class="inline-flex items-center gap-1">
-                            <span class="mr-1 text-xs text-muted-foreground">
+                          <div v-if="imageSlides.length > 1" class="inline-flex items-center gap-0.5 sm:gap-1">
+                            <span class="text-xs text-muted-foreground">
                               {{ currentImageSlideIndex + 1 }}/{{ imageSlides.length }}
                             </span>
                             <Button size="icon" variant="outline" class="h-7 w-7" :disabled="!canImagePrev" @click="scrollImagePrev">

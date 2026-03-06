@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto w-full max-w-[1320px] space-y-4">
+  <div class="mx-auto w-full min-w-0 max-w-[1320px] space-y-4">
     <Card>
       <CardHeader class="pb-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
