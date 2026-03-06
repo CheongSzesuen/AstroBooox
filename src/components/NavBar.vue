@@ -93,7 +93,7 @@
     </div>
 
     <Sheet :open="showMobileNavSheet" @update:open="showMobileNavSheet = $event">
-      <SheetContent side="left" :hide-close="true" class="w-[72vw] max-w-[280px] p-0 sm:hidden">
+      <SheetContent side="left" :hide-close="true" class="!w-auto max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">
         <div class="flex items-center justify-between border-b border-border px-4 py-3">
           <img src="/favicon.svg" alt="AstroBooox" class="h-5 w-5" />
           <SheetClose as-child>
@@ -102,11 +102,11 @@
             </Button>
           </SheetClose>
         </div>
-        <nav class="space-y-1 px-3 py-3">
+        <nav class="w-max space-y-1 px-3 py-3">
           <Button
             v-for="item in navItems"
             :key="`mobile-${item.mode}`"
-            class="h-9 w-full justify-start"
+            class="h-9 w-full min-w-max justify-start"
             :variant="mode === item.mode ? 'default' : 'ghost'"
             @click="setModeFromMobile(item.mode)"
           >
