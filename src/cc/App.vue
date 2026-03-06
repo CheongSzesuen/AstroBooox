@@ -77,6 +77,16 @@
         </div>
 
         <div class="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            class="h-8 w-8"
+            :aria-label="theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'"
+            @click="toggleHeaderThemeMode"
+          >
+            <Moon v-if="theme === 'light'" :size="16" weight="duotone" />
+            <Sun v-else :size="16" weight="duotone" />
+          </Button>
           <div ref="userMenuRoot" class="relative">
             <button
               type="button"
@@ -402,9 +412,8 @@
                         <p class="mt-1 text-xs text-muted-foreground">开启后将根据系统外观自动切换亮暗模式。</p>
                       </div>
                       <Switch
-                        :checked="isFollowingSystem"
+                        v-model="followSystemEnabled"
                         aria-label="亮暗色跟随系统"
-                        @update:checked="handleFollowSystemChange"
                       />
                     </div>
                     <div v-if="!isFollowingSystem" class="space-y-1.5">
@@ -706,9 +715,11 @@ import {
   PhLinkSimple as LinkSimple,
   PhList as List,
   PhMapPin as MapPin,
+  PhMoon as Moon,
   PhPackage as Package,
   PhEnvelopeSimple as EnvelopeSimple,
   PhSignOut as SignOut,
+  PhSun as Sun,
   PhTwitterLogo as TwitterLogo,
   PhUploadSimple as UploadSimple,
   PhUserCircle as UserCircle,
@@ -764,7 +775,7 @@ import {
 const tab = ref<CcTab>('publish')
 const { token, currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
 const { clearWorkspace, clearRemoteWorkspace } = useCcWorkspace()
-const { themeMode, isFollowingSystem, setThemeMode, setFollowSystem } = useTheme()
+const { theme, themeMode, isFollowingSystem, setThemeMode, setFollowSystem } = useTheme()
 const { activeCcTheme } = useCcTheme()
 const {
   defaultTargetOwner,
@@ -860,9 +871,10 @@ const manualThemeMode = computed<'light' | 'dark'>({
   get: () => (themeMode.value === 'dark' ? 'dark' : 'light'),
   set: (next) => setThemeMode(next)
 })
-const handleFollowSystemChange = (checked: boolean): void => {
-  setFollowSystem(Boolean(checked))
-}
+const followSystemEnabled = computed<boolean>({
+  get: () => isFollowingSystem.value,
+  set: (next) => setFollowSystem(Boolean(next))
+})
 const formatUtc8DateTime = (value?: string): string => {
   if (!value) return '-'
   const date = new Date(value)
@@ -1179,6 +1191,13 @@ const closeUserMenu = (): void => {
 const toggleUserMenu = (): void => {
   if (!currentUser.value) return
   showUserMenu.value = !showUserMenu.value
+}
+
+const toggleHeaderThemeMode = (): void => {
+  if (isFollowingSystem.value) {
+    setFollowSystem(false)
+  }
+  setThemeMode(theme.value === 'dark' ? 'light' : 'dark')
 }
 
 const openSettingsPage = (): void => {
