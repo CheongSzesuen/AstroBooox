@@ -2,6 +2,7 @@ import {
   Archive,
   CheckCircle,
   ClockCounterClockwise,
+  FolderNotchOpenIcon,
   GearSix,
   Moon,
   SignOut,
@@ -17,9 +18,12 @@ import {
   isCcLoginPath,
   resolveCcRouteFromPath,
   type CcRouteState,
+  type CcSettingsSection,
   type CcTab
 } from '@/cc/route-config'
 import { CcTokenGate } from '@/react/cc/CcTokenGate'
+import { CcRepositoriesPanel } from '@/react/apps/cc/CcRepositoriesPanel'
+import { CcSettingsPanel } from '@/react/apps/cc/CcSettingsPanel'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
 import { CcSessionProvider, useCcSession } from '@/react/hooks/useCcSession'
@@ -115,8 +119,8 @@ const resolveRouteFromLocation = (currentUser: string): CcRouteState => {
 
 function CcAuthenticatedApp() {
   const { theme, toggleTheme } = useTheme()
-  const { currentUser, avatarUrl, clearSession } = useCcSession()
-  const { defaultTargetOwner, defaultTargetRepo } = useCcSettings()
+  const { token, currentUser, avatarUrl, clearSession } = useCcSession()
+  const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath } = useCcSettings()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [routeState, setRouteState] = useState<CcRouteState>(() => resolveRouteFromLocation(currentUser))
 
@@ -156,6 +160,56 @@ function CcAuthenticatedApp() {
       editUser: ''
     }
     applyRouteState(nextState)
+  }
+
+  const openSettingsSection = (section: CcSettingsSection) => {
+    applyRouteState({
+      tab: 'settings',
+      settingsSection: section,
+      resourceDetailKey: '',
+      pullRequestNumber: 0,
+      pullRequestTargetRepo: '',
+      requireGhUser: false,
+      editResourceId: '',
+      editTargetRepo: '',
+      editUser: ''
+    })
+  }
+
+  const renderContent = () => {
+    if (routeState.tab === 'repositories') {
+      return (
+        <CcRepositoriesPanel
+          token={token}
+          currentUser={currentUser}
+          defaultTargetOwner={defaultTargetOwner}
+          defaultTargetRepo={defaultTargetRepo}
+          defaultCatalogPath={defaultCatalogPath}
+        />
+      )
+    }
+
+    if (routeState.tab === 'settings') {
+      return <CcSettingsPanel token={token} section={routeState.settingsSection} onSectionChange={openSettingsSection} />
+    }
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{placeholderByTab[routeState.tab].title}</CardTitle>
+          <CardDescription>{placeholderByTab[routeState.tab].description}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">当前路径：{window.location.pathname}</div>
+          <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+            默认目标仓库：{defaultTargetOwner}/{defaultTargetRepo}
+          </div>
+          <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+            当前模式：{workbenchMode}
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   const workbenchMode = routeState.tab === 'published' ? 'published' : routeState.tab === 'pullrequest' ? 'review' : 'publish'
@@ -221,6 +275,17 @@ function CcAuthenticatedApp() {
                     className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
                     onClick={() => {
                       setShowUserMenu(false)
+                      navigateToTab('repositories')
+                    }}
+                  >
+                    <FolderNotchOpenIcon size={16} weight="duotone" />
+                    仓库
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                    onClick={() => {
+                      setShowUserMenu(false)
                       navigateToTab('settings')
                     }}
                   >
@@ -249,21 +314,7 @@ function CcAuthenticatedApp() {
       <main className="mx-auto w-full max-w-[1440px] p-3 sm:p-4 md:p-6">
         <section className="min-w-0 flex justify-center">
           <div className="w-full max-w-[1320px] space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>{placeholderByTab[routeState.tab].title}</CardTitle>
-                <CardDescription>{placeholderByTab[routeState.tab].description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">当前路径：{window.location.pathname}</div>
-                <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  默认目标仓库：{defaultTargetOwner}/{defaultTargetRepo}
-                </div>
-                <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  当前模式：{workbenchMode}
-                </div>
-              </CardContent>
-            </Card>
+            {renderContent()}
           </div>
         </section>
       </main>
