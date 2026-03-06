@@ -77,29 +77,6 @@
         </div>
 
         <div class="ml-auto flex items-center gap-2">
-          <div class="hidden sm:block">
-            <Select v-model="activeCcTheme">
-              <SelectTrigger class="h-8 w-[132px]">
-                <SelectValue placeholder="选择主题" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="item in CC_THEMES" :key="item.value" :value="item.value">
-                  {{ item.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            variant="outline"
-            size="icon"
-            class="h-8 w-8"
-            :aria-label="theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'"
-            @click="toggleTheme"
-          >
-            <Moon v-if="theme === 'light'" :size="16" weight="duotone" />
-            <Sun v-else :size="16" weight="duotone" />
-          </Button>
-
           <div ref="userMenuRoot" class="relative">
             <button
               type="button"
@@ -405,6 +382,44 @@
                       </SelectContent>
                     </Select>
                   </div>
+                  <div class="space-y-1.5">
+                    <Label for="cc-setting-theme-style">CC 主题风格</Label>
+                    <Select v-model="activeCcTheme">
+                      <SelectTrigger id="cc-setting-theme-style">
+                        <SelectValue placeholder="选择主题风格" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem v-for="item in CC_THEMES" :key="item.value" :value="item.value">
+                          {{ item.label }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div class="space-y-2 rounded-md border border-border bg-muted/20 p-3">
+                    <div class="flex items-center justify-between gap-4">
+                      <div>
+                        <div class="text-sm font-medium text-foreground">亮暗色跟随系统</div>
+                        <p class="mt-1 text-xs text-muted-foreground">开启后将根据系统外观自动切换亮暗模式。</p>
+                      </div>
+                      <Switch
+                        :checked="isFollowingSystem"
+                        aria-label="亮暗色跟随系统"
+                        @update:checked="handleFollowSystemChange"
+                      />
+                    </div>
+                    <div v-if="!isFollowingSystem" class="space-y-1.5">
+                      <Label for="cc-setting-theme-mode">手动亮暗模式</Label>
+                      <Select v-model="manualThemeMode">
+                        <SelectTrigger id="cc-setting-theme-mode">
+                          <SelectValue placeholder="选择亮暗模式" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="light">浅色</SelectItem>
+                          <SelectItem value="dark">深色</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
                 <div class="flex justify-end">
                   <Button @click="saveSettings">保存设置</Button>
@@ -691,11 +706,9 @@ import {
   PhLinkSimple as LinkSimple,
   PhList as List,
   PhMapPin as MapPin,
-  PhMoon as Moon,
   PhPackage as Package,
   PhEnvelopeSimple as EnvelopeSimple,
   PhSignOut as SignOut,
-  PhSun as Sun,
   PhTwitterLogo as TwitterLogo,
   PhUploadSimple as UploadSimple,
   PhUserCircle as UserCircle,
@@ -718,6 +731,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Sheet, SheetClose, SheetContent } from '@/components/ui/sheet'
+import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import CcTokenGate from '@/cc/CcTokenGate.vue'
 import { CC_THEMES, useCcTheme } from '@/composables/useCcTheme'
@@ -750,7 +764,7 @@ import {
 const tab = ref<CcTab>('publish')
 const { token, currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
 const { clearWorkspace, clearRemoteWorkspace } = useCcWorkspace()
-const { theme, toggleTheme } = useTheme()
+const { themeMode, isFollowingSystem, setThemeMode, setFollowSystem } = useTheme()
 const { activeCcTheme } = useCcTheme()
 const {
   defaultTargetOwner,
@@ -842,6 +856,13 @@ const settingsOwnerAvatarUrl = computed(() => {
   if (!owner) return 'https://github.com/ghost.png'
   return `https://github.com/${owner}.png`
 })
+const manualThemeMode = computed<'light' | 'dark'>({
+  get: () => (themeMode.value === 'dark' ? 'dark' : 'light'),
+  set: (next) => setThemeMode(next)
+})
+const handleFollowSystemChange = (checked: boolean): void => {
+  setFollowSystem(Boolean(checked))
+}
 const formatUtc8DateTime = (value?: string): string => {
   if (!value) return '-'
   const date = new Date(value)
