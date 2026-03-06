@@ -474,7 +474,7 @@
                               rel="noopener noreferrer"
                               class="flex w-full min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-primary hover:underline"
                           >
-                              <span class="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                              <span class="flex min-w-0 max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5">
                                 <component
                                   :is="resolvePhosphorLinkIcon(link.type)"
                                   :size="14"
