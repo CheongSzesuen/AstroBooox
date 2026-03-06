@@ -1,0 +1,61 @@
+html[data-cc-theme='vercel'] {
+  --primary: 0 0% 10%;
+  --primary-foreground: 0 0% 98%;
+  --accent: 0 0% 95%;
+  --accent-foreground: 0 0% 10%;
+}
+
+html.dark[data-cc-theme='vercel'] {
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 10%;
+  --accent: 0 0% 18%;
+  --accent-foreground: 0 0% 96%;
+}
+
+html[data-cc-theme='supabase'] {
+  --primary: 142 72% 38%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 142 72% 38%;
+  --accent: 141 45% 94%;
+  --accent-foreground: 142 68% 22%;
+}
+
+html.dark[data-cc-theme='supabase'] {
+  --primary: 142 70% 45%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 142 70% 45%;
+  --accent: 142 30% 18%;
+  --accent-foreground: 141 60% 88%;
+}
+
+html[data-cc-theme='claude'] {
+  --primary: 24 88% 46%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 24 88% 46%;
+  --accent: 30 75% 94%;
+  --accent-foreground: 24 72% 30%;
+}
+
+html.dark[data-cc-theme='claude'] {
+  --primary: 24 86% 56%;
+  --primary-foreground: 20 14% 10%;
+  --ring: 24 86% 56%;
+  --accent: 24 30% 20%;
+  --accent-foreground: 34 70% 88%;
+}
+
+html[data-cc-theme='mono'] {
+  --primary: 0 0% 18%;
+  --primary-foreground: 0 0% 98%;
+  --ring: 0 0% 28%;
+  --accent: 0 0% 92%;
+  --accent-foreground: 0 0% 18%;
+}
+
+html.dark[data-cc-theme='mono'] {
+  --primary: 0 0% 92%;
+  --primary-foreground: 0 0% 12%;
+  --ring: 0 0% 70%;
+  --accent: 0 0% 20%;
+  --accent-foreground: 0 0% 92%;
+}

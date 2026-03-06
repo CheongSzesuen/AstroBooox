@@ -77,6 +77,18 @@
         </div>
 
         <div class="ml-auto flex items-center gap-2">
+          <div class="hidden sm:block">
+            <Select v-model="activeCcTheme">
+              <SelectTrigger class="h-8 w-[132px]">
+                <SelectValue placeholder="选择主题" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="item in CC_THEMES" :key="item.value" :value="item.value">
+                  {{ item.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Button
             variant="outline"
             size="icon"
@@ -708,6 +720,7 @@ import { Label } from '@/components/ui/label'
 import { Sheet, SheetClose, SheetContent } from '@/components/ui/sheet'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import CcTokenGate from '@/cc/CcTokenGate.vue'
+import { CC_THEMES, useCcTheme } from '@/composables/useCcTheme'
 import { useCcSettings } from '@/composables/useCcSettings'
 import { useCcSession } from '@/composables/useCcSession'
 import { useCcWorkspace } from '@/composables/useCcWorkspace'
@@ -738,6 +751,7 @@ const tab = ref<CcTab>('publish')
 const { token, currentUser, avatarUrl, isAuthenticated, clearSession } = useCcSession()
 const { clearWorkspace, clearRemoteWorkspace } = useCcWorkspace()
 const { theme, toggleTheme } = useTheme()
+const { activeCcTheme } = useCcTheme()
 const {
   defaultTargetOwner,
   defaultTargetRepo,
