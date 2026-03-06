@@ -91,7 +91,7 @@
           </div>
         </div>
 
-        <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+        <div class="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground break-all">
           提交目标：{{ defaultTargetOwner }}/{{ defaultTargetRepo }} · {{ defaultCatalogPath }}
         </div>
 
@@ -103,7 +103,7 @@
           class="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300"
         >
           更新 PR 已创建：
-          <a :href="submitPrUrl" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">
+          <a :href="submitPrUrl" target="_blank" rel="noopener noreferrer" class="break-all underline underline-offset-2">
             {{ submitPrUrl }}
           </a>
         </div>
