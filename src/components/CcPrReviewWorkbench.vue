@@ -588,9 +588,9 @@
                     </div>
                     <div v-if="currentImageSlide" class="sm:pr-2">
                       <div class="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
-                        <div class="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
+                        <div class="space-y-1.5">
                           <div class="min-w-0 break-all text-xs text-muted-foreground">
-                            Preview · {{ currentImageSlide.file }}
+                            {{ currentImageSlide.file }}
                           </div>
                           <div v-if="imageSlides.length > 1" class="inline-flex items-center gap-0.5 sm:gap-1">
                             <span class="text-xs text-muted-foreground">
@@ -608,20 +608,20 @@
                           :href="currentImageSlide.url"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70"
+                          class="mt-2 inline-flex max-w-full overflow-hidden rounded-md border border-border/60 bg-background/70"
                         >
                           <img
                             :src="getDisplayImageUrl(currentImageSlide.url)"
                             :alt="`${currentImageSlide.file} 预览`"
-                            class="max-h-64 w-full object-contain"
+                            class="max-h-64 w-auto max-w-full object-contain"
                             loading="lazy"
                           />
                         </a>
-                        <span class="mt-2 inline-flex items-center gap-1.5">
+                        <div class="mt-2 break-all text-xs text-muted-foreground">
                           <a :href="currentImageSlide.url" target="_blank" rel="noopener noreferrer" class="break-all text-primary hover:underline">
                             {{ currentImageSlide.url }}
                           </a>
-                        </span>
+                        </div>
                       </div>
                     </div>
                   </div>
