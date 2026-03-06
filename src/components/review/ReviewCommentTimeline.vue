@@ -19,72 +19,84 @@
       <img
         v-if="comment.user?.avatar_url && comment.user?.login"
         :src="resolveAvatarUrl(comment.user.login, comment.user.avatar_url)"
-        :class="avatarClass"
+        :class="[avatarClass, 'hidden sm:block']"
         loading="lazy"
         @load="handleAvatarLoad(comment.user.login, comment.user.avatar_url)"
       />
       <div class="relative z-10 min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-2.5 text-sm">
-        <div class="mb-3 flex items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground">
-          <span class="inline-flex min-w-0 items-center gap-2">
-            <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
-            <span class="shrink-0">{{ formatCommentRelativeTime(comment.created_at || '') }}</span>
-          </span>
-          <DropdownMenuRoot>
-            <DropdownMenuTrigger as-child>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 rounded border border-border bg-background px-2 py-1 text-xs text-foreground hover:bg-accent"
-              >
-                <DetailIcon :size="12" />
-                详情
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuContent
-                side="bottom"
-                align="end"
-                :side-offset="6"
-                class="z-50 min-w-[150px] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
-              >
-                <DropdownMenuItem
-                  v-if="showReplyAction"
-                  class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
-                  @select="emit('reply', comment)"
+        <div class="mb-3 border-b border-border pb-2 text-xs text-muted-foreground">
+          <div class="flex items-center justify-between gap-2">
+            <span class="inline-flex min-w-0 items-center gap-2">
+              <img
+                v-if="comment.user?.avatar_url && comment.user?.login"
+                :src="resolveAvatarUrl(comment.user.login, comment.user.avatar_url)"
+                :class="[avatarClass, 'sm:hidden']"
+                loading="lazy"
+                @load="handleAvatarLoad(comment.user.login, comment.user.avatar_url)"
+              />
+              <span class="truncate font-medium text-foreground">{{ comment.user?.login || 'unknown' }}</span>
+              <span class="hidden shrink-0 sm:inline">{{ formatCommentRelativeTime(comment.created_at || '') }}</span>
+            </span>
+            <DropdownMenuRoot>
+              <DropdownMenuTrigger as-child>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded border border-border bg-background px-2 py-1 text-xs text-foreground hover:bg-accent"
                 >
-                  <ReplyIcon :size="14" />
-                  回复
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  v-if="showEditAction"
-                  class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
-                  @select="emit('edit', comment)"
+                  <DetailIcon :size="12" />
+                  详情
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuContent
+                  side="bottom"
+                  align="end"
+                  :side-offset="6"
+                  class="z-50 min-w-[150px] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
                 >
-                  <EditIcon :size="14" />
-                  编辑
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  v-if="showDeleteAction"
-                  class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-destructive outline-none hover:bg-accent"
-                  @select="emit('delete', comment)"
-                >
-                  <DeleteIcon :size="14" />
-                  删除
-                </DropdownMenuItem>
-                <DropdownMenuSeparator
-                  v-if="showOpenLink && comment.html_url"
-                  class="my-1 h-px bg-border"
-                />
-                <DropdownMenuItem
-                  v-if="showOpenLink && comment.html_url"
-                  class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
-                  @select="openCommentLink(comment.html_url)"
-                >
-                  <OpenIcon :size="14" />
-                  打开评论
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenuPortal>
-          </DropdownMenuRoot>
+                  <DropdownMenuItem
+                    v-if="showReplyAction"
+                    class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
+                    @select="emit('reply', comment)"
+                  >
+                    <ReplyIcon :size="14" />
+                    回复
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    v-if="showEditAction"
+                    class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
+                    @select="emit('edit', comment)"
+                  >
+                    <EditIcon :size="14" />
+                    编辑
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    v-if="showDeleteAction"
+                    class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-destructive outline-none hover:bg-accent"
+                    @select="emit('delete', comment)"
+                  >
+                    <DeleteIcon :size="14" />
+                    删除
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator
+                    v-if="showOpenLink && comment.html_url"
+                    class="my-1 h-px bg-border"
+                  />
+                  <DropdownMenuItem
+                    v-if="showOpenLink && comment.html_url"
+                    class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none hover:bg-accent"
+                    @select="openCommentLink(comment.html_url)"
+                  >
+                    <OpenIcon :size="14" />
+                    打开评论
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenuPortal>
+            </DropdownMenuRoot>
+          </div>
+          <div class="mt-1 pl-10 text-muted-foreground sm:hidden">
+            {{ formatCommentRelativeTime(comment.created_at || '') }}
+          </div>
         </div>
         <div
           v-if="parsedOf(comment).replyTarget"
