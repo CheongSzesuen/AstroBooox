@@ -23,8 +23,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-const cellWidth = 64
-const cellHeight = 64
+const props = withDefaults(
+  defineProps<{
+    cellSize?: number
+  }>(),
+  {
+    cellSize: 64
+  }
+)
+
+const cellWidth = computed(() => props.cellSize)
+const cellHeight = computed(() => props.cellSize)
 const columns = 16
 const rows = 16
 const hoveredIndex = ref(-1)
@@ -33,8 +42,8 @@ const cells = computed(() => {
   const result: Array<{ index: number; x: number; y: number }> = []
   const total = columns * rows
   for (let index = 0; index < total; index++) {
-    const x = (index % columns) * cellWidth
-    const y = Math.floor(index / columns) * cellHeight
+    const x = (index % columns) * cellWidth.value
+    const y = Math.floor(index / columns) * cellHeight.value
     result.push({ index, x, y })
   }
   return result

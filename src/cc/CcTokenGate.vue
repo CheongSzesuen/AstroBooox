@@ -2,8 +2,8 @@
   <div class="relative min-h-screen overflow-hidden bg-background lg:grid lg:min-h-[100dvh] lg:grid-cols-[1.18fr_0.82fr]">
     <div class="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex lg:min-h-[100dvh]">
       <div class="absolute inset-0 bg-zinc-900" />
-      <div class="relative z-20 flex items-center text-lg font-medium">
-        <Code :size="22" weight="duotone" class="mr-2" />
+      <div class="relative z-20 flex items-center text-lg font-bold">
+        <img src="/icon-candidates/secret-icon.png" alt="AstroBooox" class="mr-2 h-6 w-6" />
         AstroBooox Creator Console
       </div>
 
@@ -26,18 +26,15 @@
 
     <div class="relative min-h-screen overflow-hidden p-6 text-white sm:p-8 lg:hidden">
       <div class="absolute inset-0 bg-zinc-900" />
-      <div class="relative z-20 flex items-center text-lg font-medium">
-        <Code :size="22" weight="duotone" class="mr-2" />
+      <div class="relative z-20 flex items-center text-lg font-bold">
+        <img src="/icon-candidates/secret-icon.png" alt="AstroBooox" class="mr-2 h-6 w-6" />
         AstroBooox Creator Console
       </div>
 
       <CcInteractiveGrid
+        :cell-size="48"
         class="absolute inset-x-0 inset-y-0 h-full w-full skew-y-12 [mask-image:radial-gradient(420px_circle_at_center,white,transparent)]"
       />
-
-      <div class="relative z-20 mt-auto space-y-2 pb-2">
-        <p class="text-base leading-7">“请先完成 Token 验证后再进入控制台。”</p>
-      </div>
     </div>
 
     <div
@@ -132,7 +129,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import {
-  PhCode as Code,
   PhEye as Eye,
   PhGithubLogo as GithubLogo,
   PhSignIn as SignIn
