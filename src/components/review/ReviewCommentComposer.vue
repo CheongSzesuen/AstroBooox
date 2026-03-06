@@ -47,7 +47,7 @@
             v-if="showFilePickerButton"
             size="sm"
             variant="outline"
-            class="ml-auto h-7 gap-1.5 px-2 text-xs"
+            class="h-7 gap-1.5 px-2 text-xs max-sm:w-full sm:ml-auto"
             @click="emit('openFilePicker')"
           >
             <LinkSimple :size="14" weight="bold" />
@@ -57,8 +57,8 @@
         <div class="px-3 py-3">
           <TabsContent value="edit" class="mt-0">
             <div class="grid gap-2">
-              <div class="flex items-center gap-2">
-                <div class="flex min-w-0 flex-1 items-center rounded-md border border-input bg-background" :class="!tagEnabled ? 'opacity-70' : ''">
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div class="flex min-w-0 w-full flex-1 items-center rounded-md border border-input bg-background" :class="!tagEnabled ? 'opacity-70' : ''">
                   <span class="shrink-0 border-r border-border px-3 text-xs text-muted-foreground">{{ idPrefix }}</span>
                   <Input
                     :model-value="commentId"
@@ -69,7 +69,7 @@
                   />
                   <span class="shrink-0 px-3 text-xs text-muted-foreground">]</span>
                 </div>
-                <div v-if="showTagToggle" class="inline-flex shrink-0 items-center gap-2 rounded-md border border-border bg-muted/20 px-2.5 py-1.5">
+                <div v-if="showTagToggle" class="inline-flex shrink-0 self-end items-center gap-2 rounded-md border border-border bg-muted/20 px-2.5 py-1.5 sm:self-auto">
                   <span class="text-xs text-muted-foreground">带标签</span>
                   <Button
                     size="sm"
@@ -104,7 +104,7 @@
           </TabsContent>
         </div>
       </Tabs>
-      <div class="flex items-center justify-end border-t border-border bg-muted/20 px-3 py-2">
+      <div class="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-muted/20 px-3 py-2">
         <span :title="submitButtonTitle" class="inline-flex">
           <Button
             size="sm"
