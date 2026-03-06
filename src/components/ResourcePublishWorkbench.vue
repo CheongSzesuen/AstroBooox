@@ -432,6 +432,27 @@
                       removable
                       @remove="removePreview"
                     />
+                    <div
+                      v-if="previewRemoveUndoStack.length > 0"
+                      class="space-y-1.5 rounded-md border border-border/70 bg-muted/20 px-2.5 py-2 text-xs sm:px-3"
+                    >
+                      <div class="font-medium text-foreground">最近删除（可撤销）</div>
+                      <div
+                        v-for="entry in previewRemoveUndoStack.slice(0, 3)"
+                        :key="entry.id"
+                        class="flex items-center justify-between gap-2"
+                      >
+                        <div class="min-w-0 break-all text-muted-foreground">{{ entry.item.path }}</div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          class="h-6 shrink-0 px-2 text-xs"
+                          @click="undoRemovePreview(entry.id)"
+                        >
+                          撤销
+                        </Button>
+                      </div>
+                    </div>
                     <Button
                       variant="default"
                       class="font-semibold"
@@ -1062,7 +1083,10 @@
                 </div>
               </div>
             </div>
-            <div class="shrink-0 space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+            <div
+              class="shrink-0 space-y-3 rounded-lg border border-border bg-muted/20 p-3"
+              :class="remotePickerMode === 'preview' && remotePickerStep === 1 ? 'hidden sm:block' : ''"
+            >
               <div class="text-xs text-muted-foreground">图片预览</div>
               <a
                 v-if="remotePickerPreviewPath && isImageSelectablePath(remotePickerPreviewPath)"
@@ -1673,7 +1697,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, ref, watch, type Component } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch, type Component } from 'vue'
 import {
   ContextMenuContent,
   ContextMenuItem,
@@ -1899,6 +1923,13 @@ const linkPickerInitialQuery = ref('')
 const iconPath = ref('')
 const coverPath = ref('')
 const previewItems = ref<Array<{ id: string; path: string }>>([])
+type RemovedPreviewStackItem = {
+  id: string
+  index: number
+  item: { id: string; path: string }
+}
+const previewRemoveUndoStack = ref<RemovedPreviewStackItem[]>([])
+const PREVIEW_UNDO_STACK_LIMIT = 20
 const editablePreviewCarouselItems = computed(() =>
   previewItems.value.map(item => ({
     file: item.path,
@@ -3595,19 +3626,59 @@ const applyRemotePickerSelection = (): void => {
   showRemoteFilePickerDialog.value = false
 }
 
+const finalizeRemovedPreview = async (entry: RemovedPreviewStackItem): Promise<void> => {
+  const path = entry.item.path
+  if (!opfsLocalPathSet.value[path]) return
+  await removeFileFromOpfs(path)
+  delete opfsLocalPathSet.value[path]
+  const previewUrl = opfsLocalPreviewUrlMap.value[path]
+  if (previewUrl) {
+    URL.revokeObjectURL(previewUrl)
+    delete opfsLocalPreviewUrlMap.value[path]
+  }
+}
+
+const trimPreviewUndoStack = (): void => {
+  if (previewRemoveUndoStack.value.length <= PREVIEW_UNDO_STACK_LIMIT) return
+  const overflowEntries = previewRemoveUndoStack.value.slice(PREVIEW_UNDO_STACK_LIMIT)
+  previewRemoveUndoStack.value = previewRemoveUndoStack.value.slice(0, PREVIEW_UNDO_STACK_LIMIT)
+  overflowEntries.forEach((entry) => {
+    void finalizeRemovedPreview(entry)
+  })
+}
+
+const pushRemovedPreviewStack = (entry: RemovedPreviewStackItem): void => {
+  previewRemoveUndoStack.value = [entry, ...previewRemoveUndoStack.value]
+  trimPreviewUndoStack()
+}
+
+const undoRemovePreview = (entryId: string): void => {
+  const index = previewRemoveUndoStack.value.findIndex(entry => entry.id === entryId)
+  if (index < 0) return
+  const [entry] = previewRemoveUndoStack.value.splice(index, 1)
+  if (!entry) return
+  if (previewItems.value.some(item => item.path === entry.item.path)) return
+  const insertIndex = Math.min(Math.max(entry.index, 0), previewItems.value.length)
+  previewItems.value.splice(insertIndex, 0, entry.item)
+}
+
+const flushPreviewUndoStack = (): void => {
+  const entries = [...previewRemoveUndoStack.value]
+  previewRemoveUndoStack.value = []
+  entries.forEach((entry) => {
+    void finalizeRemovedPreview(entry)
+  })
+}
+
 const removePreview = async (index: number): Promise<void> => {
   const target = previewItems.value[index]
   if (!target) return
   previewItems.value.splice(index, 1)
-
-  if (!opfsLocalPathSet.value[target.path]) return
-  await removeFileFromOpfs(target.path)
-  delete opfsLocalPathSet.value[target.path]
-  const previewUrl = opfsLocalPreviewUrlMap.value[target.path]
-  if (previewUrl) {
-    URL.revokeObjectURL(previewUrl)
-    delete opfsLocalPreviewUrlMap.value[target.path]
-  }
+  pushRemovedPreviewStack({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    index,
+    item: target
+  })
 }
 
 const getWorkspaceFolderNameFromPath = (path: string): string => {
@@ -3952,6 +4023,7 @@ const resetResourceInfoFields = (): void => {
   tagInput.value = ''
   iconPath.value = ''
   coverPath.value = ''
+  flushPreviewUndoStack()
   previewItems.value = []
   selectedDeviceIds.value = []
   downloads.value = {}
@@ -4000,6 +4072,9 @@ const scanWorkspace = async (options: { forceSync?: boolean } = {}): Promise<voi
         iconPath.value = forceSync ? parsed.item?.icon || '' : iconPath.value || parsed.item?.icon || ''
         coverPath.value = forceSync ? parsed.item?.cover || '' : coverPath.value || parsed.item?.cover || ''
         if ((forceSync || previewItems.value.length === 0) && Array.isArray(parsed.item?.preview)) {
+          if (forceSync || previewItems.value.length > 0) {
+            flushPreviewUndoStack()
+          }
           previewItems.value = parsed.item.preview
             .filter(Boolean)
             .map(path => ({
@@ -5151,5 +5226,9 @@ const formatDate = (value: string): string => {
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('zh-CN', { hour12: false })
 }
+
+onBeforeUnmount(() => {
+  flushPreviewUndoStack()
+})
 
 </script>
