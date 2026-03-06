@@ -93,7 +93,7 @@
     </div>
 
     <Sheet :open="showMobileNavSheet" @update:open="showMobileNavSheet = $event">
-      <SheetContent side="left" :hide-close="true" class="!w-fit max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">
+      <SheetContent side="left" :hide-close="true" class="!w-[max(61.8vw,max-content)] max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">
         <div class="relative border-b border-border px-3 py-3.5">
           <img :src="mainSiteIcon" alt="AstroBooox" class="h-6 w-6" />
           <SheetClose as-child>

@@ -27,8 +27,9 @@
             <img src="/icon-candidates/secret-icon.png" alt="AstroBooox" class="h-6 w-6" />
           </a>
         </div>
-        <a href="/" class="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">返回主站</a>
-        <div class="hidden h-4 w-px bg-border sm:block" />
+        <a href="/" class="hidden h-8 w-8 items-center justify-center sm:inline-flex" aria-label="返回主站">
+          <img src="/icon-candidates/secret-icon.png" alt="AstroBooox" class="h-6 w-6" />
+        </a>
         <h1 class="hidden text-sm font-semibold text-foreground md:text-base sm:block">Creator Console</h1>
         <div class="hidden min-w-0 flex-1 overflow-x-auto sm:ml-2 sm:block [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div class="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
@@ -152,7 +153,7 @@
     </header>
 
     <Sheet :open="showMobileNavSheet" @update:open="showMobileNavSheet = $event">
-      <SheetContent side="left" :hide-close="true" class="!w-fit min-w-[50vw] max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">
+      <SheetContent side="left" :hide-close="true" class="!w-[max(61.8vw,max-content)] max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">
         <div class="relative border-b border-border px-3 py-3.5">
           <img src="/icon-candidates/secret-icon.png" alt="AstroBooox" class="h-6 w-6" />
           <SheetClose as-child>
