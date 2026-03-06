@@ -1,12 +1,11 @@
 import { computed, ref } from 'vue'
 
-export type CcTheme = 'claude' | 'supabase' | 'vercel' | 'mono'
+export type CcTheme = 'claude' | 'supabase' | 'vercel'
 
 export const CC_THEMES: Array<{ label: string; value: CcTheme }> = [
   { label: 'Claude', value: 'claude' },
   { label: 'Supabase', value: 'supabase' },
-  { label: 'Vercel', value: 'vercel' },
-  { label: 'Mono', value: 'mono' }
+  { label: 'Vercel', value: 'vercel' }
 ]
 
 const STORAGE_KEY = 'astrobooox-cc-theme'
@@ -22,7 +21,7 @@ const applyCcTheme = (theme: CcTheme): void => {
 const resolveSavedTheme = (): CcTheme => {
   if (typeof window === 'undefined') return DEFAULT_THEME
   const saved = window.localStorage.getItem(STORAGE_KEY)
-  if (saved === 'claude' || saved === 'supabase' || saved === 'vercel' || saved === 'mono') {
+  if (saved === 'claude' || saved === 'supabase' || saved === 'vercel') {
     return saved
   }
   return DEFAULT_THEME
