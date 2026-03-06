@@ -23,8 +23,8 @@
           >
             <List :size="16" weight="duotone" />
           </Button>
-          <a href="/" class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card" aria-label="返回主站">
-            <img src="/favicon.svg" alt="AstroBooox" class="h-5 w-5" />
+          <a href="/" class="inline-flex h-8 w-8 items-center justify-center" aria-label="返回主站">
+            <img src="/icon-candidates/secret-icon.png" alt="AstroBooox" class="h-6 w-6" />
           </a>
         </div>
         <a href="/" class="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">返回主站</a>
@@ -152,21 +152,21 @@
     </header>
 
     <Sheet :open="showMobileNavSheet" @update:open="showMobileNavSheet = $event">
-      <SheetContent side="left" :hide-close="true" class="!w-fit max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">
-        <div class="relative border-b border-border px-3 py-2.5">
-          <img src="/favicon.svg" alt="AstroBooox" class="h-5 w-5" />
+      <SheetContent side="left" :hide-close="true" class="!w-fit min-w-[50vw] max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">
+        <div class="relative border-b border-border px-3 py-3.5">
+          <img src="/icon-candidates/secret-icon.png" alt="AstroBooox" class="h-6 w-6" />
           <SheetClose as-child>
             <Button
               variant="ghost"
               size="icon"
-              class="absolute right-1.5 top-1/2 h-8 w-8 -translate-y-1/2"
+              class="absolute right-1.5 top-1/2 h-9 w-9 -translate-y-1/2"
               aria-label="关闭导航菜单"
             >
-              <X :size="16" weight="bold" />
+              <X :size="18" weight="bold" />
             </Button>
           </SheetClose>
         </div>
-        <nav class="grid grid-cols-[max-content] gap-1 px-3 py-3">
+        <nav class="w-full space-y-1 px-3 py-3">
           <Button
             class="h-9 w-full justify-start whitespace-nowrap"
             :variant="tab === 'publish' ? 'default' : 'ghost'"
@@ -199,7 +199,7 @@
             <CheckCircle :size="15" weight="duotone" />
             审核
           </Button>
-          <div class="my-2 h-px bg-border" />
+          <div class="my-2 h-px w-full bg-border" />
           <Button class="h-9 w-full justify-start whitespace-nowrap" variant="ghost" @click="openRepositoriesPage">
             <RepoIcon :size="15" weight="duotone" />
             仓库
