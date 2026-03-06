@@ -1350,7 +1350,51 @@
               @keydown.enter.prevent="openOwnedItemDetail(item)"
               @keydown.space.prevent="openOwnedItemDetail(item)"
             >
-              <div class="flex items-start gap-3">
+              <div class="space-y-1.5 sm:hidden">
+                <div class="flex items-center gap-3">
+                  <img
+                    :src="getOwnedItemIconUrl(item)"
+                    :alt="`${item.name} icon`"
+                    class="h-10 w-10 shrink-0 rounded-full border border-border bg-muted/50 object-cover"
+                  />
+                  <div class="flex min-w-0 flex-1 items-center">
+                    <div class="line-clamp-2 text-sm font-semibold leading-5 text-foreground break-words">
+                      {{ item.name }}
+                    </div>
+                  </div>
+                  <a
+                    :href="getOwnedItemRepoUrl(item)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label="打开仓库"
+                    title="打开仓库"
+                    @click.stop
+                  >
+                    <GithubLogo :size="16" weight="duotone" />
+                  </a>
+                </div>
+                <div class="space-y-1">
+                  <div class="flex max-w-full justify-end">
+                    <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
+                  </div>
+                  <div v-if="item.sources.includes('v1') || item.sources.includes('v2')" class="flex max-w-full flex-wrap justify-end gap-1">
+                    <Badge v-if="item.sources.includes('v1')" variant="outline">V1</Badge>
+                    <Badge v-if="item.sources.includes('v2')" variant="outline">V2</Badge>
+                  </div>
+                  <div v-if="showV2FollowUpTag && item.v2NeedsFollowUp" class="flex max-w-full justify-end">
+                    <Badge variant="destructive">v2需要跟进</Badge>
+                  </div>
+                </div>
+                <div class="w-full break-all text-xs text-muted-foreground">
+                  {{ item.description || '暂无描述' }}
+                </div>
+                <div v-if="item.commitDate" class="w-full text-xs text-muted-foreground">
+                  上次更新时间: {{ formatDate(item.commitDate) }}
+                </div>
+              </div>
+
+              <div class="hidden items-start gap-3 sm:flex">
                 <img
                   :src="getOwnedItemIconUrl(item)"
                   :alt="`${item.name} icon`"
@@ -1359,23 +1403,7 @@
                 <div class="min-w-0 flex-1">
                   <div class="flex items-start justify-between gap-2">
                     <div class="min-w-0 flex-1">
-                      <div class="text-sm font-semibold leading-5 text-foreground break-words sm:hidden">
-                        {{ item.name }}
-                      </div>
-                      <div class="mt-1 space-y-1 sm:hidden">
-                        <div class="flex max-w-full justify-end">
-                          <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
-                        </div>
-                        <div v-if="item.sources.includes('v1') || item.sources.includes('v2')" class="flex max-w-full flex-wrap justify-end gap-1">
-                          <Badge v-if="item.sources.includes('v1')" variant="outline">V1</Badge>
-                          <Badge v-if="item.sources.includes('v2')" variant="outline">V2</Badge>
-                        </div>
-                        <div v-if="showV2FollowUpTag && item.v2NeedsFollowUp" class="flex max-w-full justify-end">
-                          <Badge variant="destructive">v2需要跟进</Badge>
-                        </div>
-                      </div>
-
-                      <div class="hidden min-w-0 flex-wrap items-center gap-1.5 sm:flex">
+                      <div class="min-w-0 flex-wrap items-center gap-1.5 sm:flex">
                         <div class="min-w-0 text-sm font-semibold text-foreground">{{ item.name }}</div>
                         <Badge variant="secondary">{{ formatOwnedRestype(item.restype) }}</Badge>
                         <Badge v-if="item.sources.includes('v1')" variant="outline">V1</Badge>
