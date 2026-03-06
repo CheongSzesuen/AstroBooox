@@ -13,10 +13,24 @@
       class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
     >
       <div class="mx-auto flex h-14 w-full max-w-[1440px] items-center gap-2 px-4 md:px-6">
+        <div class="flex items-center gap-2 sm:hidden">
+          <Button
+            variant="outline"
+            size="icon"
+            class="h-8 w-8"
+            aria-label="打开导航菜单"
+            @click="showMobileNavSheet = true"
+          >
+            <List :size="16" weight="duotone" />
+          </Button>
+          <a href="/" class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card" aria-label="返回主站">
+            <img src="/favicon.svg" alt="AstroBooox" class="h-5 w-5" />
+          </a>
+        </div>
         <a href="/" class="hidden text-sm text-muted-foreground hover:text-foreground sm:inline">返回主站</a>
         <div class="hidden h-4 w-px bg-border sm:block" />
         <h1 class="hidden text-sm font-semibold text-foreground md:text-base sm:block">Creator Console</h1>
-        <div class="min-w-0 flex-1 overflow-x-auto sm:ml-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div class="hidden min-w-0 flex-1 overflow-x-auto sm:ml-2 sm:block [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div class="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
             <Button
               size="sm"
@@ -136,6 +150,60 @@
         </div>
       </div>
     </header>
+
+    <Dialog :open="showMobileNavSheet" @update:open="showMobileNavSheet = $event">
+      <DialogContent
+        class="!left-0 !right-auto !top-0 !bottom-0 !inset-x-auto z-50 !h-dvh !max-h-none !w-[86vw] !max-w-[320px] !translate-x-0 !translate-y-0 !rounded-none !rounded-r-xl !p-0 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:hidden"
+      >
+        <DialogHeader class="border-b border-border px-4 py-3">
+          <DialogTitle class="text-base">导航</DialogTitle>
+          <DialogDescription>Creator Console</DialogDescription>
+        </DialogHeader>
+        <nav class="space-y-1 px-3 py-3">
+          <Button
+            class="h-9 w-full justify-start"
+            :variant="tab === 'publish' ? 'default' : 'ghost'"
+            @click="navigateToTabFromMobile('publish')"
+          >
+            <UploadSimple :size="15" weight="duotone" />
+            资源发布
+          </Button>
+          <Button
+            class="h-9 w-full justify-start"
+            :variant="tab === 'pullrequest' ? 'default' : 'ghost'"
+            @click="navigateToTabFromMobile('pullrequest')"
+          >
+            <ClockCounterClockwise :size="15" weight="duotone" />
+            等待审核
+          </Button>
+          <Button
+            class="h-9 w-full justify-start"
+            :variant="tab === 'published' ? 'default' : 'ghost'"
+            @click="navigateToTabFromMobile('published')"
+          >
+            <ArchiveBox :size="15" weight="duotone" />
+            资源管理
+          </Button>
+          <Button
+            class="h-9 w-full justify-start"
+            :variant="tab === 'review' ? 'default' : 'ghost'"
+            @click="navigateToTabFromMobile('review')"
+          >
+            <CheckCircle :size="15" weight="duotone" />
+            审核
+          </Button>
+          <div class="my-2 h-px bg-border" />
+          <Button class="h-9 w-full justify-start" variant="ghost" @click="openRepositoriesPage">
+            <RepoIcon :size="15" weight="duotone" />
+            仓库
+          </Button>
+          <Button class="h-9 w-full justify-start" variant="ghost" @click="openSettingsPage">
+            <GearSix :size="15" weight="duotone" />
+            设置
+          </Button>
+        </nav>
+      </DialogContent>
+    </Dialog>
 
     <main class="mx-auto w-full max-w-[1440px] p-4 md:p-6">
       <section class="min-w-0 flex justify-center">
@@ -601,6 +669,7 @@ import {
   PhInfo as Info,
   PhGitBranch as GitBranch,
   PhLinkSimple as LinkSimple,
+  PhList as List,
   PhMapPin as MapPin,
   PhMoon as Moon,
   PhPackage as Package,
@@ -670,6 +739,7 @@ const {
   saveDefaults
 } = useCcSettings()
 const showUserMenu = ref(false)
+const showMobileNavSheet = ref(false)
 const userMenuRoot = ref<HTMLElement | null>(null)
 const settingsForm = ref({
   defaultTargetOwner: defaultTargetOwner.value,
@@ -1042,6 +1112,11 @@ const navigateToTab = (nextTab: CcTab): void => {
   applyRouteState(nextState, { withProgress: true })
 }
 
+const navigateToTabFromMobile = (nextTab: CcTab): void => {
+  showMobileNavSheet.value = false
+  navigateToTab(nextTab)
+}
+
 const openSettingsSection = (section: CcSettingsSection): void => {
   applyRouteState(
     {
@@ -1072,11 +1147,13 @@ const openSettingsPage = (): void => {
     customAvatarUrl: customAvatarUrl.value
   }
   accountProfileError.value = ''
+  showMobileNavSheet.value = false
   closeUserMenu()
   openSettingsSection('defaults')
 }
 
 const openRepositoriesPage = (): void => {
+  showMobileNavSheet.value = false
   closeUserMenu()
   navigateToTab('repositories')
 }
