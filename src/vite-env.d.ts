@@ -8,31 +8,25 @@ declare const __BUILD_TIMESTAMP__: string
 declare const __BUILD_BRANCH__: string
 declare const __BUILD_TIME_UTC8__: string
 
-declare module '*.vue' {
-  import { DefineComponent } from 'vue'
-  const component: DefineComponent<{}, {}, any>
-  export default component
-}
-
 // 添加FileSystem API类型声明
 interface FileSystemFileHandle {
-  getFile(): Promise<File>;
-  name: string;
+  getFile(): Promise<File>
+  name: string
 }
 
 interface FileSystemDirectoryHandle {
-  getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle>;
-  name: string;
+  getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle>
+  name: string
 }
 
 interface Window {
-  showDirectoryPicker(options?: { id?: string; mode?: 'read' | 'readwrite' }): Promise<FileSystemDirectoryHandle>;
+  showDirectoryPicker(options?: { id?: string; mode?: 'read' | 'readwrite' }): Promise<FileSystemDirectoryHandle>
   showOpenFilePicker(options?: {
-    multiple?: boolean;
-    excludeAcceptAllOption?: boolean;
+    multiple?: boolean
+    excludeAcceptAllOption?: boolean
     types?: Array<{
-      description?: string;
-      accept: Record<string, string[]>;
-    }>;
-  }): Promise<FileSystemFileHandle[]>;
+      description?: string
+      accept: Record<string, string[]>
+    }>
+  }): Promise<FileSystemFileHandle[]>
 }

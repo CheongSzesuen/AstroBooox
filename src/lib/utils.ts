@@ -1,5 +1,4 @@
 import type { ClassValue } from "clsx"
-import type { Ref } from "vue"
 import { clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -13,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function valueUpdater<T>(updaterOrValue: Updater<T>, ref: Ref<T>) {
+export function valueUpdater<T>(updaterOrValue: Updater<T>, ref: { value: T }) {
   ref.value
     = isUpdaterFn(updaterOrValue)
       ? updaterOrValue(ref.value)

@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import react from '@vitejs/plugin-react'
 import path from 'path'
 import { execSync } from 'node:child_process'
 
@@ -53,7 +53,7 @@ const appVersion = process.env.npm_package_version || '0.0.0'
 const appName = process.env.npm_package_name || 'AstroBooox'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [react()],
   base: '/',
   define: {
     __BUILD_VERSION__: JSON.stringify(buildVersion),

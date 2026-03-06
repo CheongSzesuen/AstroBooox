@@ -1,7 +1,8 @@
 {
-  "$schema": "https://shadcn-vue.com/schema.json",
+  "$schema": "https://ui.shadcn.com/schema.json",
   "style": "new-york",
   "typescript": true,
+  "tsx": true,
   "tailwind": {
     "config": "tailwind.config.js",
     "css": "src/style.css",
@@ -9,13 +10,13 @@
     "cssVariables": true,
     "prefix": ""
   },
-  "iconLibrary": "lucide",
+  "iconLibrary": "phosphor",
   "aliases": {
-    "components": "@/components",
+    "components": "@/react/components",
     "utils": "@/lib/utils",
-    "ui": "@/components/ui",
+    "ui": "@/react/components/ui",
     "lib": "@/lib",
-    "composables": "@/composables"
+    "hooks": "@/react/hooks"
   },
   "registries": {}
 }
