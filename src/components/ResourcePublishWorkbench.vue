@@ -425,29 +425,13 @@
 
                   <div class="space-y-1.5">
                     <Label>预览图（支持多选）</Label>
-                    <draggable
-                      v-model="previewItems"
-                      item-key="id"
-                      handle=".preview-drag-handle"
-                      class="space-y-2"
-                    >
-                      <template #item="{ element, index }">
-                        <div class="flex min-h-10 items-center gap-2 rounded-lg border border-border bg-background p-2">
-                          <div class="preview-drag-handle flex h-8 w-6 cursor-move items-center justify-center rounded-md bg-muted text-muted-foreground">
-                            <DragDots :size="16" weight="bold" />
-                          </div>
-                          <Input :model-value="element.path" readonly class="min-w-0 flex-1" />
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            class="h-8 w-8 rounded-full"
-                            @click="removePreview(index)"
-                          >
-                            <MinusIcon :size="16" weight="bold" />
-                          </Button>
-                        </div>
-                      </template>
-                    </draggable>
+                    <PreviewImageCarousel
+                      :items="editablePreviewCarouselItems"
+                      empty-text="暂无预览图"
+                      :image-url-resolver="getPickerPreviewUrl"
+                      removable
+                      @remove="removePreview"
+                    />
                     <Button
                       variant="default"
                       class="font-semibold"
@@ -1708,7 +1692,6 @@ import {
   PhCaretRight as CaretRight,
   PhCheckCircle as CheckCircle,
   PhDotsThreeVertical as DotsThreeVertical,
-  PhDotsSixVertical as DragDots,
   PhFile as FileIcon,
   PhFolderPlus as FolderPlus,
   PhFolderOpen as FolderOpen,
@@ -1723,7 +1706,6 @@ import {
   PhUploadSimple as UploadSimple,
   PhWarningCircle as WarningCircle
 } from '@phosphor-icons/vue'
-import draggable from 'vuedraggable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -1917,6 +1899,12 @@ const linkPickerInitialQuery = ref('')
 const iconPath = ref('')
 const coverPath = ref('')
 const previewItems = ref<Array<{ id: string; path: string }>>([])
+const editablePreviewCarouselItems = computed(() =>
+  previewItems.value.map(item => ({
+    file: item.path,
+    url: item.path
+  }))
+)
 interface UpdateChangeBaseline {
   name: string
   description: string

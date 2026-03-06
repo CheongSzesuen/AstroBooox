@@ -39,13 +39,24 @@
         @wheel="onPreviewWheel"
       >
         <div
-          v-for="item in items"
+          v-for="(item, index) in items"
           :key="item.url"
           data-preview-slide="1"
           class="w-full max-w-full shrink-0 snap-start rounded-md border border-border/70 bg-muted/20 px-2.5 py-1.5 text-sm sm:w-[320px] sm:max-w-[320px] sm:px-3 sm:py-2"
         >
+          <div v-if="removable" class="mb-1 flex justify-end">
+            <Button
+              size="icon"
+              variant="outline"
+              class="h-7 w-7"
+              :aria-label="`删除第 ${index + 1} 张预览图`"
+              @click="emit('remove', index)"
+            >
+              <XIcon :size="14" weight="bold" />
+            </Button>
+          </div>
           <a
-            :href="item.url"
+            :href="resolveImageUrl(item.url)"
             target="_blank"
             rel="noopener noreferrer"
             class="block overflow-hidden rounded-md border border-border/60 bg-background/70"
@@ -78,7 +89,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { PhCaretRight as CaretRight } from '@phosphor-icons/vue'
+import { PhCaretRight as CaretRight, PhX as XIcon } from '@phosphor-icons/vue'
 import { Button } from '@/components/ui/button'
 
 type PreviewImageItem = {
@@ -90,12 +101,15 @@ const props = withDefaults(defineProps<{
   items: PreviewImageItem[]
   emptyText?: string
   imageUrlResolver?: (url: string) => string
+  removable?: boolean
 }>(), {
-  emptyText: '未检测到图片资源'
+  emptyText: '未检测到图片资源',
+  removable: false
 })
 
 const emit = defineEmits<{
   (event: 'image-load', payload: { url: string; event: Event }): void
+  (event: 'remove', index: number): void
 }>()
 
 const previewScrollerRef = ref<HTMLElement | null>(null)
