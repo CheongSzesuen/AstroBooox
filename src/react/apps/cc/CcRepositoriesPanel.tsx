@@ -1,7 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { FolderNotchOpenIcon, UserPlus, Users } from '@phosphor-icons/react'
 import { Button } from '@/react/components/ui/button'
-import { listRepositoryCollaborators, type RepositoryCollaborator } from '@/utils/githubGitApi'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/react/components/ui/dialog'
+import { Input } from '@/react/components/ui/input'
+import { Label } from '@/react/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react/components/ui/select'
+import {
+  inviteRepositoryCollaborator,
+  listRepositoryCollaborators,
+  searchGitHubUsers,
+  type GitHubUserSearchResult,
+  type RepositoryCollaborator,
+  type RepositoryCollaboratorPermission
+} from '@/utils/githubGitApi'
 import { loadOwnedResources, type OwnedResourceEntry } from '@/utils/resourcePublishApi'
 
 type RepositoryListItem = {
@@ -15,6 +33,11 @@ type RepositoryListItem = {
   restypes: string[]
   resourceNames: string[]
   collaborators: RepositoryCollaborator[]
+}
+
+type InviteTargetRepo = {
+  owner: string
+  name: string
 }
 
 const formatRestypeLabel = (value: string): string => {
@@ -35,6 +58,20 @@ const formatDate = (value: string): string => {
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
+const normalizeInviteQuery = (value: string): string => {
+  const raw = value.trim().replace(/^@+/, '')
+  if (!raw) return ''
+  if (raw.includes('://github.com/')) {
+    const matched = raw.match(/github\.com\/([^/?#]+)/i)
+    return (matched?.[1] || '').trim()
+  }
+  if (raw.includes('@')) {
+    const local = raw.split('@')[0]?.trim() || ''
+    return local || raw
+  }
+  return raw
+}
+
 export function CcRepositoriesPanel(props: {
   token: string
   currentUser: string
@@ -46,6 +83,30 @@ export function CcRepositoriesPanel(props: {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [repositories, setRepositories] = useState<RepositoryListItem[]>([])
+
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
+  const [inviteSubmitting, setInviteSubmitting] = useState(false)
+  const [inviteError, setInviteError] = useState('')
+  const [inviteSuccess, setInviteSuccess] = useState('')
+  const [inviteSearchLoading, setInviteSearchLoading] = useState(false)
+  const [inviteSearchError, setInviteSearchError] = useState('')
+  const [inviteSearchResults, setInviteSearchResults] = useState<GitHubUserSearchResult[]>([])
+  const [inviteTargetRepo, setInviteTargetRepo] = useState<InviteTargetRepo | null>(null)
+  const [inviteForm, setInviteForm] = useState<{ username: string; permission: RepositoryCollaboratorPermission }>({
+    username: '',
+    permission: 'admin'
+  })
+
+  const inviteSearchRequestIdRef = useRef(0)
+  const inviteSearchTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (inviteSearchTimerRef.current) {
+        window.clearTimeout(inviteSearchTimerRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const run = async () => {
@@ -174,6 +235,161 @@ export function CcRepositoriesPanel(props: {
     void run()
   }, [currentUser, defaultCatalogPath, defaultTargetOwner, defaultTargetRepo, token])
 
+  const inviteDialogTitle = useMemo(() => {
+    if (!inviteTargetRepo) return '-'
+    return `${inviteTargetRepo.owner}/${inviteTargetRepo.name}`
+  }, [inviteTargetRepo])
+
+  const refreshRepositoryCollaborators = async (owner: string, repoName: string): Promise<void> => {
+    const resolvedToken = token.trim()
+    if (!resolvedToken) return
+    try {
+      const list = await listRepositoryCollaborators({
+        token: resolvedToken,
+        owner,
+        repo: repoName
+      })
+      const ownerLower = owner.toLowerCase()
+      const filtered = list.filter((item) => item.login.toLowerCase() !== ownerLower)
+      setRepositories((prev) =>
+        prev.map((item) => {
+          if (item.owner === owner && item.name === repoName) {
+            return { ...item, collaborators: filtered }
+          }
+          return item
+        })
+      )
+    } catch {
+      // 协作者信息仅用于展示，不阻塞主流程
+    }
+  }
+
+  const openInviteDialog = (repo: InviteTargetRepo) => {
+    setInviteTargetRepo({ owner: repo.owner, name: repo.name })
+    setInviteForm({ username: '', permission: 'admin' })
+    setInviteError('')
+    setInviteSuccess('')
+    setInviteSearchError('')
+    setInviteSearchResults([])
+    setInviteDialogOpen(true)
+  }
+
+  const handleInviteDialogOpenChange = (open: boolean) => {
+    setInviteDialogOpen(open)
+    if (open) return
+    setInviteSubmitting(false)
+    setInviteError('')
+    setInviteSuccess('')
+    setInviteSearchLoading(false)
+    setInviteSearchError('')
+    setInviteSearchResults([])
+    if (inviteSearchTimerRef.current) {
+      window.clearTimeout(inviteSearchTimerRef.current)
+      inviteSearchTimerRef.current = null
+    }
+  }
+
+  const searchInviteCandidates = async (keyword: string): Promise<void> => {
+    const normalizedToken = token.trim()
+    const normalized = normalizeInviteQuery(keyword)
+    if (!inviteDialogOpen || !normalizedToken || !normalized) {
+      setInviteSearchLoading(false)
+      setInviteSearchError('')
+      setInviteSearchResults([])
+      return
+    }
+
+    const requestId = inviteSearchRequestIdRef.current + 1
+    inviteSearchRequestIdRef.current = requestId
+
+    try {
+      setInviteSearchLoading(true)
+      setInviteSearchError('')
+      const results = await searchGitHubUsers({
+        token: normalizedToken,
+        query: normalized,
+        perPage: 8
+      })
+      if (requestId !== inviteSearchRequestIdRef.current) return
+      setInviteSearchResults(results)
+    } catch (cause: unknown) {
+      if (requestId !== inviteSearchRequestIdRef.current) return
+      setInviteSearchResults([])
+      setInviteSearchError(cause instanceof Error ? cause.message : '搜索用户失败')
+    } finally {
+      if (requestId === inviteSearchRequestIdRef.current) {
+        setInviteSearchLoading(false)
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!inviteDialogOpen) return
+    if (inviteSearchTimerRef.current) {
+      window.clearTimeout(inviteSearchTimerRef.current)
+      inviteSearchTimerRef.current = null
+    }
+    inviteSearchTimerRef.current = window.setTimeout(() => {
+      void searchInviteCandidates(inviteForm.username)
+    }, 220)
+  }, [inviteDialogOpen, inviteForm.username, token])
+
+  const selectInviteCandidate = (user: GitHubUserSearchResult) => {
+    setInviteForm((prev) => ({ ...prev, username: user.login }))
+    setInviteError('')
+    setInviteSearchError('')
+    setInviteSearchResults([])
+    if (inviteSearchTimerRef.current) {
+      window.clearTimeout(inviteSearchTimerRef.current)
+      inviteSearchTimerRef.current = null
+    }
+  }
+
+  const submitInvite = async (): Promise<void> => {
+    if (inviteSubmitting) return
+    const targetRepo = inviteTargetRepo
+    if (!targetRepo) {
+      setInviteError('未找到目标仓库')
+      return
+    }
+
+    const resolvedToken = token.trim()
+    if (!resolvedToken) {
+      setInviteError('请先登录 GitHub Token')
+      return
+    }
+
+    const username = normalizeInviteQuery(inviteForm.username)
+    if (!username) {
+      setInviteError('请先填写协作者用户名')
+      return
+    }
+
+    try {
+      setInviteSubmitting(true)
+      setInviteError('')
+      setInviteSuccess('')
+      const result = await inviteRepositoryCollaborator({
+        token: resolvedToken,
+        owner: targetRepo.owner,
+        repo: targetRepo.name,
+        username,
+        permission: inviteForm.permission
+      })
+      if (result.status === 204) {
+        setInviteSuccess(`@${username} 已经是协作者`)
+        await refreshRepositoryCollaborators(targetRepo.owner, targetRepo.name)
+        return
+      }
+      setInviteSuccess(result.invitationUrl ? `邀请已发送：${result.invitationUrl}` : `已向 @${username} 发送邀请`)
+      await refreshRepositoryCollaborators(targetRepo.owner, targetRepo.name)
+    } catch (cause: unknown) {
+      setInviteError(cause instanceof Error ? cause.message : '邀请失败')
+    } finally {
+      setInviteSubmitting(false)
+    }
+  }
+
   return (
     <div className="w-full max-w-[1120px] space-y-4">
       <div>
@@ -197,9 +413,9 @@ export function CcRepositoriesPanel(props: {
                   </a>
                   <div className="mt-1 text-xs text-muted-foreground">默认分支：{repo.defaultBranch || '-'} · 来源版本：{repo.sources.join(' + ')}</div>
                 </div>
-                <Button size="sm" variant="outline" className="h-8" disabled>
+                <Button size="sm" variant="outline" className="h-8" onClick={() => openInviteDialog({ owner: repo.owner, name: repo.name })}>
                   <UserPlus size={14} weight="duotone" />
-                  邀请协作者（下一批）
+                  邀请协作者
                 </Button>
               </div>
 
@@ -244,6 +460,86 @@ export function CcRepositoriesPanel(props: {
           ))}
         </div>
       ) : null}
+
+      <Dialog open={inviteDialogOpen} onOpenChange={handleInviteDialogOpenChange}>
+        <DialogContent className="max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>邀请协作者</DialogTitle>
+            <DialogDescription>目标仓库：{inviteDialogTitle}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="invite-username">GitHub 用户名 / 邮箱 / 主页链接</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="invite-username"
+                  value={inviteForm.username}
+                  onChange={(event) => setInviteForm((prev) => ({ ...prev, username: event.target.value }))}
+                  placeholder="例如：octocat 或 octocat@example.com"
+                  disabled={inviteSubmitting}
+                  className="flex-1"
+                />
+                <Select
+                  value={inviteForm.permission}
+                  disabled={inviteSubmitting}
+                  onValueChange={(value: RepositoryCollaboratorPermission) => setInviteForm((prev) => ({ ...prev, permission: value }))}
+                >
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="权限" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pull">只读（pull）</SelectItem>
+                    <SelectItem value="push">读写（push）</SelectItem>
+                    <SelectItem value="triage">分流（triage）</SelectItem>
+                    <SelectItem value="maintain">维护（maintain）</SelectItem>
+                    <SelectItem value="admin">管理员（admin）</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-border bg-muted/20">
+              {inviteSearchLoading ? <div className="px-3 py-2 text-xs text-muted-foreground">搜索中...</div> : null}
+              {!inviteSearchLoading && inviteSearchError ? <div className="px-3 py-2 text-xs text-destructive">{inviteSearchError}</div> : null}
+              {!inviteSearchLoading && !inviteSearchError && inviteForm.username.trim() && inviteSearchResults.length === 0 ? (
+                <div className="px-3 py-2 text-xs text-muted-foreground">没有找到匹配用户</div>
+              ) : null}
+              {!inviteSearchLoading && !inviteSearchError && inviteSearchResults.length > 0 ? (
+                <ul className="max-h-[220px] overflow-y-auto py-1">
+                  {inviteSearchResults.map((user) => (
+                    <li key={user.login}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-accent"
+                        onClick={() => selectInviteCandidate(user)}
+                      >
+                        <img src={user.avatarUrl} alt={user.login} className="h-6 w-6 rounded-full border border-border object-cover" />
+                        <span className="text-sm font-medium text-foreground">{user.login}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {!inviteSearchLoading && !inviteSearchError && !inviteForm.username.trim() && inviteSearchResults.length === 0 ? (
+                <div className="px-3 py-2 text-xs text-muted-foreground">输入用户名或邮箱后显示候选结果</div>
+              ) : null}
+            </div>
+
+            {inviteError ? <div className="text-xs text-destructive">{inviteError}</div> : null}
+            {!inviteError && inviteSuccess ? <div className="text-xs text-emerald-600 dark:text-emerald-400">{inviteSuccess}</div> : null}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" disabled={inviteSubmitting} onClick={() => setInviteDialogOpen(false)}>
+              取消
+            </Button>
+            <Button disabled={inviteSubmitting} onClick={() => void submitInvite()}>
+              {inviteSubmitting ? '邀请中...' : '发送邀请'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
