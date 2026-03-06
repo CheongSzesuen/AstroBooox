@@ -93,20 +93,25 @@
     </div>
 
     <Sheet :open="showMobileNavSheet" @update:open="showMobileNavSheet = $event">
-      <SheetContent side="left" :hide-close="true" class="!w-auto max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">
-        <div class="flex items-center justify-between border-b border-border px-4 py-3">
+      <SheetContent side="left" :hide-close="true" class="!w-fit max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">
+        <div class="relative border-b border-border px-3 py-2.5">
           <img src="/favicon.svg" alt="AstroBooox" class="h-5 w-5" />
           <SheetClose as-child>
-            <Button variant="ghost" size="icon" class="h-8 w-8" aria-label="关闭导航菜单">
+            <Button
+              variant="ghost"
+              size="icon"
+              class="absolute right-1.5 top-1/2 h-8 w-8 -translate-y-1/2"
+              aria-label="关闭导航菜单"
+            >
               <X :size="16" weight="bold" />
             </Button>
           </SheetClose>
         </div>
-        <nav class="w-max space-y-1 px-3 py-3">
+        <nav class="grid grid-cols-[max-content] gap-1 px-3 py-3">
           <Button
             v-for="item in navItems"
             :key="`mobile-${item.mode}`"
-            class="h-9 w-full min-w-max justify-start"
+            class="h-9 w-full justify-start whitespace-nowrap"
             :variant="mode === item.mode ? 'default' : 'ghost'"
             @click="setModeFromMobile(item.mode)"
           >

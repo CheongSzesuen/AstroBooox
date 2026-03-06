@@ -152,18 +152,23 @@
     </header>
 
     <Sheet :open="showMobileNavSheet" @update:open="showMobileNavSheet = $event">
-      <SheetContent side="left" :hide-close="true" class="!w-auto max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">
-        <div class="flex items-center justify-between border-b border-border px-4 py-3">
+      <SheetContent side="left" :hide-close="true" class="!w-fit max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">
+        <div class="relative border-b border-border px-3 py-2.5">
           <img src="/favicon.svg" alt="AstroBooox" class="h-5 w-5" />
           <SheetClose as-child>
-            <Button variant="ghost" size="icon" class="h-8 w-8" aria-label="关闭导航菜单">
+            <Button
+              variant="ghost"
+              size="icon"
+              class="absolute right-1.5 top-1/2 h-8 w-8 -translate-y-1/2"
+              aria-label="关闭导航菜单"
+            >
               <X :size="16" weight="bold" />
             </Button>
           </SheetClose>
         </div>
-        <nav class="w-max space-y-1 px-3 py-3">
+        <nav class="grid grid-cols-[max-content] gap-1 px-3 py-3">
           <Button
-            class="h-9 w-full min-w-max justify-start"
+            class="h-9 w-full justify-start whitespace-nowrap"
             :variant="tab === 'publish' ? 'default' : 'ghost'"
             @click="navigateToTabFromMobile('publish')"
           >
@@ -171,7 +176,7 @@
             资源发布
           </Button>
           <Button
-            class="h-9 w-full min-w-max justify-start"
+            class="h-9 w-full justify-start whitespace-nowrap"
             :variant="tab === 'pullrequest' ? 'default' : 'ghost'"
             @click="navigateToTabFromMobile('pullrequest')"
           >
@@ -179,7 +184,7 @@
             等待审核
           </Button>
           <Button
-            class="h-9 w-full min-w-max justify-start"
+            class="h-9 w-full justify-start whitespace-nowrap"
             :variant="tab === 'published' ? 'default' : 'ghost'"
             @click="navigateToTabFromMobile('published')"
           >
@@ -187,7 +192,7 @@
             资源管理
           </Button>
           <Button
-            class="h-9 w-full min-w-max justify-start"
+            class="h-9 w-full justify-start whitespace-nowrap"
             :variant="tab === 'review' ? 'default' : 'ghost'"
             @click="navigateToTabFromMobile('review')"
           >
@@ -195,11 +200,11 @@
             审核
           </Button>
           <div class="my-2 h-px bg-border" />
-          <Button class="h-9 w-full min-w-max justify-start" variant="ghost" @click="openRepositoriesPage">
+          <Button class="h-9 w-full justify-start whitespace-nowrap" variant="ghost" @click="openRepositoriesPage">
             <RepoIcon :size="15" weight="duotone" />
             仓库
           </Button>
-          <Button class="h-9 w-full min-w-max justify-start" variant="ghost" @click="openSettingsPage">
+          <Button class="h-9 w-full justify-start whitespace-nowrap" variant="ghost" @click="openSettingsPage">
             <GearSix :size="15" weight="duotone" />
             设置
           </Button>
