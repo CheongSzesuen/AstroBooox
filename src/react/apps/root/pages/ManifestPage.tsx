@@ -907,7 +907,7 @@ export function ManifestPage() {
                   </div>
 
                   <div className="w-full space-y-1.5">
-                    <label className="block text-sm font-medium text-foreground">预览图（可排序）</label>
+                    <label className="block text-sm font-medium text-foreground">预览图（支持多选）</label>
                     <div className="space-y-2">
                       {manifest.item.preview.map((previewPath, index) => (
                         <div
