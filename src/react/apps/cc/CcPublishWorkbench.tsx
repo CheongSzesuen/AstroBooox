@@ -2964,8 +2964,8 @@ export function CcPublishWorkbench(props: {
 
   const remotePickerDialogBody = (
     <>
-      <div className="grid min-h-0 flex-1 gap-3 overflow-hidden md:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex min-h-0 flex-col gap-3">
+      <div className={isMobileViewport ? 'grid gap-3 overflow-hidden' : 'grid min-h-0 flex-1 gap-3 overflow-hidden md:grid-cols-[minmax(0,1fr)_360px]'}>
+        <div className={isMobileViewport ? 'flex flex-col gap-3' : 'flex min-h-0 flex-col gap-3'}>
           {remotePickerStep === 1 ? (
             <div className="flex gap-2 max-sm:flex-col">
               <Button variant="outline" onClick={() => createRemotePickerFolder()}>
@@ -2993,7 +2993,7 @@ export function CcPublishWorkbench(props: {
             </div>
           )}
 
-          <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
+          <div className={isMobileViewport ? 'max-h-[min(56vh,460px)] overflow-y-auto rounded-lg border border-border' : 'min-h-0 flex-1 overflow-y-auto rounded-lg border border-border'}>
             {remotePickerStep === 1 && remotePickerFolderItems.length === 0 ? (
               <div className="px-3 py-4 text-center text-xs text-muted-foreground">
                 暂无可选文件夹
@@ -3984,7 +3984,7 @@ export function CcPublishWorkbench(props: {
 
       {isMobileViewport ? (
         <Sheet open={showRemoteFilePickerDialog} onOpenChange={setShowRemoteFilePickerDialog}>
-          <SheetContent side="bottom" className="flex h-[88vh] w-full flex-col overflow-hidden rounded-t-2xl p-4 sm:hidden">
+          <SheetContent side="bottom" className="flex h-auto max-h-[88vh] w-full flex-col overflow-hidden rounded-t-2xl p-4 sm:hidden">
             <SheetHeader className="shrink-0 gap-1 text-left">
               <SheetTitle className="text-base">{remotePickerDialogTitle}</SheetTitle>
               <SheetDescription>{remotePickerDialogDescription}</SheetDescription>
