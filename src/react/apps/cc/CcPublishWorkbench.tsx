@@ -2505,7 +2505,7 @@ export function CcPublishWorkbench(props: {
         ...linkLines,
         '',
         '---',
-        '此 PR 由 AstroBooox Cretor Console（https://astrobooox-ng.waijade.cn/cc/）生成，如有问题前往 https://github.com/CheongSzesuen/AstroBooox/issues 提交 issue。'
+        '此 PR 由 [AstroBooox Creator Console](https://astrobooox-ng.waijade.cn/cc/) 生成，如有问题前往 [AstroBooox 仓库](https://github.com/CheongSzesuen/AstroBooox) 提交 [Issue](https://github.com/CheongSzesuen/AstroBooox/issues)。'
       ].join('\n')
     }
 
