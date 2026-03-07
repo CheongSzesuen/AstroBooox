@@ -172,7 +172,13 @@ export function MainLayout() {
               </a>
             </Button>
 
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={toggleTheme}>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              aria-label={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+              onClick={toggleTheme}
+            >
               {theme === 'light' ? <Moon size={16} weight="duotone" /> : <Sun size={16} weight="duotone" />}
             </Button>
           </div>
