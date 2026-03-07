@@ -39,7 +39,7 @@
 
 ### P0：发布工作台（最重）
 - [x] 步骤导航、文件树、日志区迁移（首版）
-- [ ] 本地 workspace / 远程 repo 文件选择与同步迁移
+- [x] 本地 workspace / 远程 repo 文件选择与同步迁移（首版：远程回填）
 - [x] 资源信息表单迁移（首版：名称/描述）
 - [x] icon/cover/preview 上传与预览迁移（首版：preview）
 - [x] preview 轮播、删除、toast 撤销栈迁移（sonner）
@@ -85,6 +85,6 @@
 
 ## 当前遗留差异（必须补齐）
 - 发布工作台仍是首版：缺少 workspace 目录读写、远程仓库文件树同步、实际提交 PR 流程。
-- review 仍缺文件定位器（按文件/行插入引用）与资源提交信息规则检查区块。
+- review 二期已补文件定位器与资源提交信息规则检查区块，但细节交互与 Vue 仍有差异（搜索/自动滚动/数据命中率需继续对齐）。
 - pullrequest 当前复用 review 工作台，尚未做与 Vue `ResourcePublishWorkbench(mode=review)` 的行为差异对齐。
 - resource/edit 当前为首版结构，尚未完成旧版完整“更新资源向导”字段与提交策略。
