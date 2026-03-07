@@ -1459,24 +1459,28 @@ export function CodeReviewPage() {
         let nextManifestData: ManifestData | null = null
 
         for (const file of dataFiles) {
-          const analyzed = await analyzeFile(file, githubGet)
-          if (analyzed.csvChange) {
-            nextAnalyzedData.csvChange = analyzed.csvChange
-          }
-          if (analyzed.resourceChange) {
-            nextAnalyzedData.resourceChange = analyzed.resourceChange
-            nextRepoData = {
-              repo_url: analyzed.resourceChange.repo_url
+          try {
+            const analyzed = await analyzeFile(file, githubGet)
+            if (analyzed.csvChange) {
+              nextAnalyzedData.csvChange = analyzed.csvChange
             }
+            if (analyzed.resourceChange) {
+              nextAnalyzedData.resourceChange = analyzed.resourceChange
+              nextRepoData = {
+                repo_url: analyzed.resourceChange.repo_url
+              }
 
-            if (analyzed.resourceChange.repo_url) {
-              try {
-                nextManifestData = await fetchRepoManifestData(analyzed.resourceChange.repo_url, githubGet)
-              } catch (error) {
-                setErrorMessage(`获取manifest.json失败: ${getErrorMessage(error)}`)
-                nextManifestData = createDefaultManifest()
+              if (analyzed.resourceChange.repo_url) {
+                try {
+                  nextManifestData = await fetchRepoManifestData(analyzed.resourceChange.repo_url, githubGet)
+                } catch (error) {
+                  setErrorMessage(`获取manifest.json失败: ${getErrorMessage(error)}`)
+                  nextManifestData = createDefaultManifest()
+                }
               }
             }
+          } catch (error) {
+            setErrorMessage(`分析文件失败: ${getErrorMessage(error)}`)
           }
         }
 
