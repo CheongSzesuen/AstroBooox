@@ -41,6 +41,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/react/components/ui/input'
 import { Label } from '@/react/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react/components/ui/select'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/react/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger } from '@/react/components/ui/tabs'
 import { Textarea } from '@/react/components/ui/textarea'
 
@@ -413,6 +414,10 @@ export function CcPublishWorkbench(props: {
   const [remotePickerRenamingName, setRemotePickerRenamingName] = useState('')
   const [opfsLocalPathSet, setOpfsLocalPathSet] = useState<Record<string, true>>({})
   const [opfsLocalPreviewUrlMap, setOpfsLocalPreviewUrlMap] = useState<Record<string, string>>({})
+  const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(max-width: 767px)').matches
+  })
   const remotePickerLocalInputRef = useRef<HTMLInputElement | null>(null)
   const remotePickerRenameInputRef = useRef<HTMLInputElement | null>(null)
   const previewItemsRef = useRef<PublishPreviewItem[]>([])
@@ -431,6 +436,19 @@ export function CcPublishWorkbench(props: {
   useEffect(() => {
     opfsLocalPreviewUrlMapRef.current = opfsLocalPreviewUrlMap
   }, [opfsLocalPreviewUrlMap])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const media = window.matchMedia('(max-width: 767px)')
+    const handleChange = (event: MediaQueryListEvent): void => {
+      setIsMobileViewport(event.matches)
+    }
+    setIsMobileViewport(media.matches)
+    media.addEventListener('change', handleChange)
+    return () => {
+      media.removeEventListener('change', handleChange)
+    }
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -817,6 +835,15 @@ export function CcPublishWorkbench(props: {
   const remotePickerDialogTitle = useMemo(
     () => (remotePickerStep === 1 ? '步骤 1/2：选择或新建文件夹' : '步骤 2/2：本地导入并选择文件'),
     [remotePickerStep]
+  )
+
+  const remotePickerDialogDescription = useMemo(
+    () => (remotePickerStep === 1
+      ? '先选择目标文件夹，再进入下一步选择文件'
+      : remotePickerMode === 'preview'
+        ? '支持多选，已上传到 OPFS 的文件也可直接选择'
+        : '请选择一个文件路径'),
+    [remotePickerMode, remotePickerStep]
   )
 
   const remotePickerFolderItems = useMemo(() => {
@@ -2935,6 +2962,261 @@ export function CcPublishWorkbench(props: {
     }
   }, [fileTreeTab, remoteWorkspaceTree.length, workspaceTree.length])
 
+  const remotePickerDialogBody = (
+    <>
+      <div className="grid min-h-0 flex-1 gap-3 overflow-hidden md:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="flex min-h-0 flex-col gap-3">
+          {remotePickerStep === 1 ? (
+            <div className="flex gap-2 max-sm:flex-col">
+              <Button variant="outline" onClick={() => createRemotePickerFolder()}>
+                <FolderPlus size={14} weight="duotone" />
+                新建文件夹
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-2 max-sm:flex-col">
+                <Button variant="outline" onClick={openRemotePickerLocalUpload}>本地上传</Button>
+                <input
+                  ref={remotePickerLocalInputRef}
+                  type="file"
+                  className="hidden"
+                  multiple={remotePickerMode === 'preview'}
+                  onChange={(event) => void handleRemotePickerLocalUpload(event)}
+                />
+              </div>
+              <Input
+                value={remotePickerUploadFileName}
+                onChange={(event) => setRemotePickerUploadFileName(event.target.value)}
+                placeholder="本地导入文件名（可选，含扩展名）"
+              />
+            </div>
+          )}
+
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
+            {remotePickerStep === 1 && remotePickerFolderItems.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                暂无可选文件夹
+              </div>
+            ) : null}
+            {remotePickerStep === 2 && remotePickerTreeItems.length === 0 && remotePickerLocalItems.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                暂无可选文件
+              </div>
+            ) : null}
+            <div className="space-y-0.5 py-1">
+              {(remotePickerStep === 1 ? remotePickerFolderItems : remotePickerTreeItems).map((item) => (
+                <div key={`picker-${item.path}`}>
+                  {item.type === 'folder' ? (
+                    remotePickerStep === 1 ? (
+                      <ContextMenu>
+                        <ContextMenuTrigger asChild>
+                          <div
+                            className="flex w-full items-center gap-1 pr-1"
+                            style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
+                          >
+                            <button
+                              type="button"
+                              className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
+                                remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
+                              }`}
+                              onClick={() => selectRemotePickerFolder(item.path)}
+                              onDoubleClick={() => toggleRemoteFolder(item.path)}
+                            >
+                              {item.collapsed ? (
+                                <CaretRight size={12} weight="bold" className="shrink-0" />
+                              ) : (
+                                <CaretDown size={12} weight="bold" className="shrink-0" />
+                              )}
+                              <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0" />
+                              {remotePickerRenamingPath === item.path ? (
+                                <Input
+                                  ref={remotePickerRenameInputRef}
+                                  value={remotePickerRenamingName}
+                                  onChange={(event) => setRemotePickerRenamingName(event.target.value)}
+                                  className="h-6 min-w-0 flex-1 px-1 text-xs"
+                                  onClick={(event) => event.stopPropagation()}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                      event.preventDefault()
+                                      commitRenameDraftFolder()
+                                    } else if (event.key === 'Escape') {
+                                      event.preventDefault()
+                                      cancelRenameDraftFolder()
+                                    }
+                                  }}
+                                  onBlur={commitRenameDraftFolder}
+                                />
+                              ) : (
+                                <span className="truncate">{item.label}</span>
+                              )}
+                              {remotePickerTargetFolder === item.path ? (
+                                <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
+                                  目标文件夹
+                                </span>
+                              ) : null}
+                            </button>
+                            <DropdownMenu modal={false}>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 w-6 px-0 sm:hidden"
+                                  aria-label="详情菜单"
+                                >
+                                  <DotsThreeVertical size={12} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent side="bottom" align="end" sideOffset={6} className="min-w-[150px]">
+                                <DropdownMenuItem className="gap-2" onSelect={() => createRemotePickerFolder(item.path)}>
+                                  <FolderPlus size={14} weight="duotone" />
+                                  新建子文件夹
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="gap-2" disabled={!isDraftFolder(item.path)} onSelect={() => startRenameDraftFolder(item.path)}>
+                                  <NotePencil size={14} weight="duotone" />
+                                  重命名
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="gap-2 text-destructive" disabled={!isDraftFolder(item.path)} onSelect={() => deleteDraftFolder(item.path)}>
+                                  <Trash size={14} weight="duotone" />
+                                  删除
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent className="min-w-[150px]">
+                          <ContextMenuItem className="gap-2" onSelect={() => createRemotePickerFolder(item.path)}>
+                            <FolderPlus size={14} weight="duotone" />
+                            新建子文件夹
+                          </ContextMenuItem>
+                          <ContextMenuItem className="gap-2" disabled={!isDraftFolder(item.path)} onSelect={() => startRenameDraftFolder(item.path)}>
+                            <NotePencil size={14} weight="duotone" />
+                            重命名
+                          </ContextMenuItem>
+                          <ContextMenuItem className="gap-2 text-destructive" disabled={!isDraftFolder(item.path)} onSelect={() => deleteDraftFolder(item.path)}>
+                            <Trash size={14} weight="duotone" />
+                            删除
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    ) : (
+                      <div
+                        className="flex w-full items-center gap-1 pr-1"
+                        style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
+                      >
+                        <button
+                          type="button"
+                          className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
+                            remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
+                          }`}
+                          onClick={() => selectRemotePickerFolder(item.path)}
+                          onDoubleClick={() => toggleRemoteFolder(item.path)}
+                        >
+                          {item.collapsed ? (
+                            <CaretRight size={12} weight="bold" className="shrink-0" />
+                          ) : (
+                            <CaretDown size={12} weight="bold" className="shrink-0" />
+                          )}
+                          <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0" />
+                          <span className="truncate">{item.label}</span>
+                          {remotePickerTargetFolder === item.path ? (
+                            <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
+                              目标文件夹
+                            </span>
+                          ) : null}
+                        </button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-6 w-6 px-0"
+                          onClick={() => toggleRemoteFolder(item.path)}
+                        >
+                          <DotsThreeVertical size={12} />
+                        </Button>
+                      </div>
+                    )
+                  ) : (
+                    <button
+                      type="button"
+                      className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 pr-3 text-left text-xs hover:bg-muted/30 ${
+                        remotePickerSelectedPaths.includes(item.path) ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
+                      }`}
+                      style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
+                      onClick={() => toggleRemotePickerPath(item.path)}
+                    >
+                      <span className="w-3 shrink-0" />
+                      <File size={14} weight="duotone" className="shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {remotePickerStep === 2 && remotePickerLocalItems.length > 0 ? (
+              <div className="space-y-1 border-t border-border bg-muted/20 p-2">
+                <p className="px-1 text-[11px] text-muted-foreground">本地上传（OPFS）</p>
+                {remotePickerLocalItems.map((path) => (
+                  <button
+                    key={`local-picker-${path}`}
+                    type="button"
+                    className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
+                      remotePickerSelectedPaths.includes(path) ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
+                    }`}
+                    onClick={() => toggleRemotePickerPath(path)}
+                  >
+                    <File size={14} weight="duotone" className="shrink-0" />
+                    <span className="truncate">{path}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div
+          className={`shrink-0 space-y-3 rounded-lg border border-border bg-muted/20 p-3 ${
+            remotePickerStep === 1 ? 'hidden sm:block' : ''
+          }`}
+        >
+          <div className="text-xs text-muted-foreground">图片预览</div>
+          {remotePickerPreviewPath && (isImagePath(remotePickerPreviewPath) || Boolean(opfsLocalPreviewUrlMap[remotePickerPreviewPath])) ? (
+            <a
+              href={getPickerPreviewUrl(remotePickerPreviewPath)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block overflow-hidden rounded-md border border-border bg-background"
+            >
+              <img
+                src={getPickerPreviewUrl(remotePickerPreviewPath)}
+                alt={remotePickerPreviewPath}
+                className="h-64 w-full object-contain"
+              />
+            </a>
+          ) : (
+            <div className="flex h-64 items-center justify-center rounded-md border border-dashed border-border bg-background text-xs text-muted-foreground">
+              选中文件后可预览图片
+            </div>
+          )}
+          <p className="break-all text-[11px] text-muted-foreground">{remotePickerPreviewPath || '未选择文件'}</p>
+        </div>
+      </div>
+      <div className="mt-3 flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
+        <Button variant="outline" onClick={() => setShowRemoteFilePickerDialog(false)}>取消</Button>
+        {remotePickerStep === 1 ? (
+          <Button onClick={() => setRemotePickerStep(2)}>下一步</Button>
+        ) : (
+          <Button variant="outline" onClick={() => setRemotePickerStep(1)}>上一步</Button>
+        )}
+        {remotePickerStep === 2 ? (
+          <Button onClick={applyRemotePickerSelection}>确认选择</Button>
+        ) : null}
+      </div>
+    </>
+  )
+
   return (
     <div className="min-w-0 grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
       <div className="min-w-0 space-y-4 xl:sticky xl:top-[72px] xl:self-start">
@@ -3700,270 +3982,27 @@ export function CcPublishWorkbench(props: {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showRemoteFilePickerDialog} onOpenChange={setShowRemoteFilePickerDialog}>
-        <DialogContent className="flex h-[78vh] w-[95vw] !max-w-[1120px] flex-col overflow-hidden">
-          <DialogHeader className="shrink-0">
-            <DialogTitle>{remotePickerDialogTitle}</DialogTitle>
-            <DialogDescription>
-              {remotePickerStep === 1
-                ? '先选择目标文件夹，再进入下一步选择文件'
-                : remotePickerMode === 'preview'
-                  ? '支持多选，已上传到 OPFS 的文件也可直接选择'
-                  : '请选择一个文件路径'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid min-h-0 flex-1 gap-3 overflow-hidden md:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="flex min-h-0 flex-col gap-3">
-              {remotePickerStep === 1 ? (
-                <div className="flex gap-2 max-sm:flex-col">
-                  <Button variant="outline" onClick={() => createRemotePickerFolder()}>
-                    <FolderPlus size={14} weight="duotone" />
-                    新建文件夹
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex gap-2 max-sm:flex-col">
-                    <Button variant="outline" onClick={openRemotePickerLocalUpload}>本地上传</Button>
-                    <input
-                      ref={remotePickerLocalInputRef}
-                      type="file"
-                      className="hidden"
-                      multiple={remotePickerMode === 'preview'}
-                      onChange={(event) => void handleRemotePickerLocalUpload(event)}
-                    />
-                  </div>
-                  <Input
-                    value={remotePickerUploadFileName}
-                    onChange={(event) => setRemotePickerUploadFileName(event.target.value)}
-                    placeholder="本地导入文件名（可选，含扩展名）"
-                  />
-                </div>
-              )}
-
-              <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
-                {remotePickerStep === 1 && remotePickerFolderItems.length === 0 ? (
-                  <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                    暂无可选文件夹
-                  </div>
-                ) : null}
-                {remotePickerStep === 2 && remotePickerTreeItems.length === 0 && remotePickerLocalItems.length === 0 ? (
-                  <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                    暂无可选文件
-                  </div>
-                ) : null}
-                <div className="space-y-0.5 py-1">
-                  {(remotePickerStep === 1 ? remotePickerFolderItems : remotePickerTreeItems).map((item) => (
-                    <div key={`picker-${item.path}`}>
-                      {item.type === 'folder' ? (
-                        remotePickerStep === 1 ? (
-                          <ContextMenu>
-                            <ContextMenuTrigger asChild>
-                              <div
-                                className="flex w-full items-center gap-1 pr-1"
-                                style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
-                              >
-                                <button
-                                  type="button"
-                                  className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
-                                    remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                                  }`}
-                                  onClick={() => selectRemotePickerFolder(item.path)}
-                                  onDoubleClick={() => toggleRemoteFolder(item.path)}
-                                >
-                                  {item.collapsed ? (
-                                    <CaretRight size={12} weight="bold" className="shrink-0" />
-                                  ) : (
-                                    <CaretDown size={12} weight="bold" className="shrink-0" />
-                                  )}
-                                  <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0" />
-                                  {remotePickerRenamingPath === item.path ? (
-                                    <Input
-                                      ref={remotePickerRenameInputRef}
-                                      value={remotePickerRenamingName}
-                                      onChange={(event) => setRemotePickerRenamingName(event.target.value)}
-                                      className="h-6 min-w-0 flex-1 px-1 text-xs"
-                                      onClick={(event) => event.stopPropagation()}
-                                      onKeyDown={(event) => {
-                                        if (event.key === 'Enter') {
-                                          event.preventDefault()
-                                          commitRenameDraftFolder()
-                                        } else if (event.key === 'Escape') {
-                                          event.preventDefault()
-                                          cancelRenameDraftFolder()
-                                        }
-                                      }}
-                                      onBlur={commitRenameDraftFolder}
-                                    />
-                                  ) : (
-                                    <span className="truncate">{item.label}</span>
-                                  )}
-                                  {remotePickerTargetFolder === item.path ? (
-                                    <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
-                                      目标文件夹
-                                    </span>
-                                  ) : null}
-                                </button>
-                                <DropdownMenu modal={false}>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-6 w-6 px-0 sm:hidden"
-                                      aria-label="详情菜单"
-                                    >
-                                      <DotsThreeVertical size={12} />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent side="bottom" align="end" sideOffset={6} className="min-w-[150px]">
-                                    <DropdownMenuItem className="gap-2" onSelect={() => createRemotePickerFolder(item.path)}>
-                                      <FolderPlus size={14} weight="duotone" />
-                                      新建子文件夹
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem className="gap-2" disabled={!isDraftFolder(item.path)} onSelect={() => startRenameDraftFolder(item.path)}>
-                                      <NotePencil size={14} weight="duotone" />
-                                      重命名
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem className="gap-2 text-destructive" disabled={!isDraftFolder(item.path)} onSelect={() => deleteDraftFolder(item.path)}>
-                                      <Trash size={14} weight="duotone" />
-                                      删除
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </ContextMenuTrigger>
-                            <ContextMenuContent className="min-w-[150px]">
-                              <ContextMenuItem className="gap-2" onSelect={() => createRemotePickerFolder(item.path)}>
-                                <FolderPlus size={14} weight="duotone" />
-                                新建子文件夹
-                              </ContextMenuItem>
-                              <ContextMenuItem className="gap-2" disabled={!isDraftFolder(item.path)} onSelect={() => startRenameDraftFolder(item.path)}>
-                                <NotePencil size={14} weight="duotone" />
-                                重命名
-                              </ContextMenuItem>
-                              <ContextMenuItem className="gap-2 text-destructive" disabled={!isDraftFolder(item.path)} onSelect={() => deleteDraftFolder(item.path)}>
-                                <Trash size={14} weight="duotone" />
-                                删除
-                              </ContextMenuItem>
-                            </ContextMenuContent>
-                          </ContextMenu>
-                        ) : (
-                          <div
-                            className="flex w-full items-center gap-1 pr-1"
-                            style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
-                          >
-                            <button
-                              type="button"
-                              className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
-                                remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                              }`}
-                              onClick={() => selectRemotePickerFolder(item.path)}
-                              onDoubleClick={() => toggleRemoteFolder(item.path)}
-                            >
-                              {item.collapsed ? (
-                                <CaretRight size={12} weight="bold" className="shrink-0" />
-                              ) : (
-                                <CaretDown size={12} weight="bold" className="shrink-0" />
-                              )}
-                              <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0" />
-                              <span className="truncate">{item.label}</span>
-                              {remotePickerTargetFolder === item.path ? (
-                                <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
-                                  目标文件夹
-                                </span>
-                              ) : null}
-                            </button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-6 w-6 px-0"
-                              onClick={() => toggleRemoteFolder(item.path)}
-                            >
-                              <DotsThreeVertical size={12} />
-                            </Button>
-                          </div>
-                        )
-                      ) : (
-                        <button
-                          type="button"
-                          className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 pr-3 text-left text-xs hover:bg-muted/30 ${
-                            remotePickerSelectedPaths.includes(item.path) ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                          }`}
-                          style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
-                          onClick={() => toggleRemotePickerPath(item.path)}
-                        >
-                          <span className="w-3 shrink-0" />
-                          <File size={14} weight="duotone" className="shrink-0" />
-                          <span className="truncate">{item.label}</span>
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {remotePickerStep === 2 && remotePickerLocalItems.length > 0 ? (
-                  <div className="space-y-1 border-t border-border bg-muted/20 p-2">
-                    <p className="px-1 text-[11px] text-muted-foreground">本地上传（OPFS）</p>
-                    {remotePickerLocalItems.map((path) => (
-                      <button
-                        key={`local-picker-${path}`}
-                        type="button"
-                        className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
-                          remotePickerSelectedPaths.includes(path) ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                        }`}
-                        onClick={() => toggleRemotePickerPath(path)}
-                      >
-                        <File size={14} weight="duotone" className="shrink-0" />
-                        <span className="truncate">{path}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <div
-              className={`shrink-0 space-y-3 rounded-lg border border-border bg-muted/20 p-3 ${
-                remotePickerMode === 'preview' && remotePickerStep === 1 ? 'hidden sm:block' : ''
-              }`}
-            >
-              <div className="text-xs text-muted-foreground">图片预览</div>
-              {remotePickerPreviewPath && (isImagePath(remotePickerPreviewPath) || Boolean(opfsLocalPreviewUrlMap[remotePickerPreviewPath])) ? (
-                <a
-                  href={getPickerPreviewUrl(remotePickerPreviewPath)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block overflow-hidden rounded-md border border-border bg-background"
-                >
-                  <img
-                    src={getPickerPreviewUrl(remotePickerPreviewPath)}
-                    alt={remotePickerPreviewPath}
-                    className="h-64 w-full object-contain"
-                  />
-                </a>
-              ) : (
-                <div className="flex h-64 items-center justify-center rounded-md border border-dashed border-border bg-background text-xs text-muted-foreground">
-                  选中文件后可预览图片
-                </div>
-              )}
-              <p className="break-all text-[11px] text-muted-foreground">{remotePickerPreviewPath || '未选择文件'}</p>
-            </div>
-          </div>
-          <DialogFooter className="mt-3 shrink-0 border-t border-border pt-3">
-            <Button variant="outline" onClick={() => setShowRemoteFilePickerDialog(false)}>取消</Button>
-            {remotePickerStep === 1 ? (
-              <Button onClick={() => setRemotePickerStep(2)}>下一步</Button>
-            ) : (
-              <Button variant="outline" onClick={() => setRemotePickerStep(1)}>上一步</Button>
-            )}
-            {remotePickerStep === 2 ? (
-              <Button onClick={applyRemotePickerSelection}>确认选择</Button>
-            ) : null}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isMobileViewport ? (
+        <Sheet open={showRemoteFilePickerDialog} onOpenChange={setShowRemoteFilePickerDialog}>
+          <SheetContent side="bottom" className="flex h-[88vh] w-full flex-col overflow-hidden rounded-t-2xl p-4 sm:hidden">
+            <SheetHeader className="shrink-0 gap-1 text-left">
+              <SheetTitle className="text-base">{remotePickerDialogTitle}</SheetTitle>
+              <SheetDescription>{remotePickerDialogDescription}</SheetDescription>
+            </SheetHeader>
+            {remotePickerDialogBody}
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={showRemoteFilePickerDialog} onOpenChange={setShowRemoteFilePickerDialog}>
+          <DialogContent className="flex h-[78vh] w-[95vw] !max-w-[1120px] flex-col overflow-hidden">
+            <DialogHeader className="shrink-0">
+              <DialogTitle>{remotePickerDialogTitle}</DialogTitle>
+              <DialogDescription>{remotePickerDialogDescription}</DialogDescription>
+            </DialogHeader>
+            {remotePickerDialogBody}
+          </DialogContent>
+        </Dialog>
+      )}
 
       <LinkIconPickerDialog
         open={showLinkIconPicker}
