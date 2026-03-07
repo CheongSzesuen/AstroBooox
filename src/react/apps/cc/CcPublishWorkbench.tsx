@@ -621,6 +621,11 @@ export function CcPublishWorkbench(props: {
   }, [authors, currentUser, mode])
 
   useEffect(() => {
+    if (mode !== 'resource_edit') return
+    setSubmitMode((prev) => (prev === 'both' ? 'v2' : prev))
+  }, [mode])
+
+  useEffect(() => {
     if (mode !== 'resource_edit') {
       setBootstrapLoading(false)
       setBootstrapError('')
@@ -1067,6 +1072,20 @@ export function CcPublishWorkbench(props: {
     return '仅 v2'
   }, [submitMode])
 
+  const submitModeOptions = useMemo<Array<{ value: SubmitMode; label: string; variant: 'default' | 'outline' }>>(
+    () => (mode === 'resource_edit'
+      ? [
+        { value: 'v2', label: '仅提交 v2（推荐）', variant: 'default' },
+        { value: 'v1', label: '仅提交 v1', variant: 'outline' }
+      ]
+      : [
+        { value: 'both', label: '同时提交 v1 + v2（推荐）', variant: 'default' },
+        { value: 'v2', label: '仅提交 v2', variant: 'outline' },
+        { value: 'v1', label: '仅提交 v1', variant: 'outline' }
+      ]),
+    [mode]
+  )
+
   const isWorkspaceStepDone = mode === 'resource_edit'
     ? true
     : Boolean(workspaceHandle || workspaceDisplayPath.trim())
@@ -1178,7 +1197,11 @@ export function CcPublishWorkbench(props: {
   }
 
   const confirmSubmitMode = (modeValue: SubmitMode) => {
-    setSubmitMode(modeValue)
+    if (mode === 'resource_edit' && modeValue === 'both') {
+      setSubmitMode('v2')
+    } else {
+      setSubmitMode(modeValue)
+    }
     setShowSubmitVersionDialog(false)
     setStep('2')
   }
@@ -4148,12 +4171,21 @@ export function CcPublishWorkbench(props: {
         <DialogContent className="max-w-[420px]">
           <DialogHeader>
             <DialogTitle>选择提交流程</DialogTitle>
-            <DialogDescription>请选择本次要提交到 v1、v2，或同时提交。</DialogDescription>
+            <DialogDescription>
+              {mode === 'resource_edit' ? '资源更新支持单版本提交，请选择 v1 或 v2。' : '请选择本次要提交到 v1、v2，或同时提交。'}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2 py-1">
-            <Button className="justify-start" onClick={() => confirmSubmitMode('both')}>同时提交 v1 + v2（推荐）</Button>
-            <Button variant="outline" className="justify-start" onClick={() => confirmSubmitMode('v2')}>仅提交 v2</Button>
-            <Button variant="outline" className="justify-start" onClick={() => confirmSubmitMode('v1')}>仅提交 v1</Button>
+            {submitModeOptions.map((option) => (
+              <Button
+                key={`submit-mode-option-${option.value}`}
+                variant={option.variant}
+                className="justify-start"
+                onClick={() => confirmSubmitMode(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSubmitVersionDialog(false)}>取消</Button>

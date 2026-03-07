@@ -223,9 +223,23 @@ const normalizeUrlLikeText = (input: string): string => {
   let next = input.trim()
   if (!next) return ''
 
+  next = next
+    .replace(/\\u003a/gi, ':')
+    .replace(/\\u002f/gi, '/')
+    .replace(/\\u003f/gi, '?')
+    .replace(/\\u0026/gi, '&')
+    .replace(/\\u003d/gi, '=')
+    .replace(/\\x3a/gi, ':')
+    .replace(/\\x2f/gi, '/')
+    .replace(/\\x3f/gi, '?')
+    .replace(/\\x26/gi, '&')
+    .replace(/\\x3d/gi, '=')
   next = next.replace(/\\\//g, '/')
   next = next.replace(/^https?:\\\\\/\\\\\//i, (matched) => (matched.toLowerCase().startsWith('https') ? 'https://' : 'http://'))
   next = next.replace(/^https?:\\\/\\\//i, (matched) => (matched.toLowerCase().startsWith('https') ? 'https://' : 'http://'))
+  next = next.replace(/^https?:\\\\/i, (matched) => (matched.toLowerCase().startsWith('https') ? 'https://' : 'http://'))
+  next = next.replace(/^\\+['"`<]+/, '')
+  next = next.replace(/[>'"`]+\\*$/g, '')
   next = next.replace(/^['"`<]+|[>'"`]+$/g, '')
   next = next.replace(/[),.;]+$/g, '')
   if (/^raw\.githubusercontent\.com\//i.test(next)) {
@@ -237,13 +251,38 @@ const normalizeUrlLikeText = (input: string): string => {
 const extractUrlCandidate = (value: string): string => {
   const raw = normalizeUrlLikeText(value)
   if (!raw) return ''
-  const markdownMatch = raw.match(/\[[^\]]*]\(([^)\s]+)\)/i)
+  const markdownMatch = raw.match(/!?\[[^\]]*]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/i)
   if (markdownMatch?.[1]) return normalizeUrlLikeText(markdownMatch[1])
   const angleWrapped = raw.match(/^<\s*([^>\s]+)\s*>$/i)
   if (angleWrapped?.[1]) return normalizeUrlLikeText(angleWrapped[1])
-  const directUrl = raw.match(/(?:https?:\/\/|raw\.githubusercontent\.com\/)[^\s)]+/i)
+  const directUrl = raw.match(/(?:https?:\/\/|raw\.githubusercontent\.com\/)[^\s<>"'`]+/i)
   if (directUrl?.[0]) return normalizeUrlLikeText(directUrl[0])
   return raw
+}
+
+const parseUrlCandidate = (raw: string): URL | null => {
+  const candidate = extractUrlCandidate(raw)
+  if (!candidate) return null
+  const attempts = [candidate, encodeURI(candidate), candidate.replace(/\\/g, '')]
+  for (const value of attempts) {
+    try {
+      return new URL(value)
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
+const isGithubRawLikeUrl = (url: URL): boolean => {
+  const host = url.hostname.toLowerCase()
+  if (host === 'raw.githubusercontent.com' || host === 'raw.github.com') return true
+  if (host !== 'github.com') return false
+  const parts = url.pathname.split('/').filter(Boolean).map((part) => part.toLowerCase())
+  if (parts.length < 4) return false
+  if (parts[2] === 'raw') return true
+  if (parts[2] === 'blob' && url.searchParams.get('raw') === '1') return true
+  return false
 }
 
 const parseCsvV2Row = (line: string): CsvV2Row | null => {
@@ -282,6 +321,33 @@ const parseCsvV2Row = (line: string): CsvV2Row | null => {
   }
   return null
 }
+
+const parseCsvRowsFromText = (text: string): CsvV2Row[] =>
+  text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#') && !line.toLowerCase().startsWith('id,'))
+    .map((line) => parseCsvV2Row(line))
+    .filter((row): row is CsvV2Row => {
+      if (!row) return false
+      return !isCsvHeaderRow(row)
+    })
+
+const serializeCsvRow = (row: CsvV2Row): string =>
+  [
+    row.id,
+    row.name,
+    row.restype,
+    row.repo_owner,
+    row.repo_name,
+    row.repo_commit_hash,
+    row.icon,
+    row.cover,
+    row.tags,
+    row.device_vendors,
+    row.devices,
+    row.paid_type
+  ].join('||')
 
 const isCsvHeaderRow = (row: CsvV2Row): boolean => {
   const id = row.id.trim().toLowerCase()
@@ -333,6 +399,21 @@ const pickPreferredCsvRow = (rows: CsvV2Row[]): CsvV2Row | null => {
   }
 
   return best || rows[rows.length - 1]
+}
+
+const pickBestCsvRow = (rows: CsvV2Row[], hintRow: CsvV2Row | null): CsvV2Row | null => {
+  if (rows.length === 0) return null
+  const hintId = hintRow?.id.trim() || ''
+  if (hintId) {
+    const byId = rows.find((row) => row.id.trim() === hintId)
+    if (byId) return byId
+  }
+  const hintName = hintRow?.name.trim() || ''
+  if (hintName) {
+    const byName = rows.find((row) => row.name.trim() === hintName)
+    if (byName) return byName
+  }
+  return pickPreferredCsvRow(rows)
 }
 
 const parseRawGithubUrl = (rawUrl: string): { owner: string; repo: string; ref: string; path: string } | null => {
@@ -428,30 +509,24 @@ const isPrivateHost = (hostname: string): boolean => {
 }
 
 const checkPublicUrl = (raw: string): { ok: boolean; reason: string } => {
-  const urlText = extractUrlCandidate(raw)
-  if (!urlText) return { ok: false, reason: '缺少链接' }
-  try {
-    const url = new URL(urlText)
-    if (!/^https?:$/.test(url.protocol)) return { ok: false, reason: '链接协议不是 http/https' }
-    if (isPrivateHost(url.hostname)) return { ok: false, reason: '链接使用了私有域名/内网地址' }
-    return { ok: true, reason: '链接格式正常' }
-  } catch {
-    return { ok: false, reason: '链接格式无效' }
-  }
+  const candidate = extractUrlCandidate(raw)
+  if (!candidate) return { ok: false, reason: '缺少链接' }
+  const url = parseUrlCandidate(candidate)
+  if (!url) return { ok: false, reason: '链接格式无效' }
+  if (!/^https?:$/.test(url.protocol)) return { ok: false, reason: '链接协议不是 http/https' }
+  if (isPrivateHost(url.hostname)) return { ok: false, reason: '链接使用了私有域名/内网地址' }
+  return { ok: true, reason: '链接格式正常' }
 }
 
 const checkRawGithubUrl = (raw: string): { ok: boolean; reason: string } => {
   const base = checkPublicUrl(raw)
   if (!base.ok) return base
-  try {
-    const url = new URL(extractUrlCandidate(raw))
-    if (url.hostname !== 'raw.githubusercontent.com') {
-      return { ok: false, reason: '不是 raw.githubusercontent.com 链接' }
-    }
-    return { ok: true, reason: 'Raw 链接格式正确' }
-  } catch {
-    return { ok: false, reason: '链接格式无效' }
+  const url = parseUrlCandidate(raw)
+  if (!url) return { ok: false, reason: '链接格式无效' }
+  if (!isGithubRawLikeUrl(url)) {
+    return { ok: false, reason: '不是 GitHub Raw 链接' }
   }
+  return { ok: true, reason: 'Raw 链接格式正确' }
 }
 
 const hasUrl = (value: string): boolean => /https?:\/\/[^\s)]+/.test(value)
@@ -870,8 +945,8 @@ export function CcPrReviewWorkbench(props: {
     const checks: RuleCheckItem[] = []
     const csvRow = csvRowFromPrDiff
     const resourceName = csvRow?.name || submissionOverview.resourceInfo.find((entry) => entry.key === '资源名称')?.value || ''
-    const iconRaw = csvRow?.icon || ''
-    const coverRaw = csvRow?.cover || ''
+    const iconRaw = csvRow?.icon || submissionOverview.images.icon?.url || ''
+    const coverRaw = csvRow?.cover || submissionOverview.images.cover?.url || ''
     const repoExists = !repoFilesError && repoFiles.length > 0
     const manifestCandidates = buildManifestCandidatesByCsvRow(repoFiles, csvRow)
 
@@ -881,18 +956,34 @@ export function CcPrReviewWorkbench(props: {
       detail: csvRow ? `检测到新增行：${csvRow.id || csvRow.name}` : '未检测到 CSV 新增资源行（严重）'
     })
 
-    const iconCheck = checkRawGithubUrl(iconRaw)
+    let iconCheck = checkRawGithubUrl(iconRaw)
+    let iconDetail = iconCheck.reason
+    if (!iconCheck.ok && iconCheck.reason === '链接格式无效' && csvRow?.icon && submissionOverview.images.icon?.url) {
+      const manifestIconCheck = checkRawGithubUrl(submissionOverview.images.icon.url)
+      if (manifestIconCheck.ok) {
+        iconCheck = manifestIconCheck
+        iconDetail = 'CSV icon 链接解析失败，已用 manifest icon 链接校验通过'
+      }
+    }
     checks.push({
       title: 'CSV icon 链接可访问且为 Raw，且非私有域名',
       status: iconCheck.ok ? 'pass' : 'fail',
-      detail: iconCheck.reason
+      detail: iconDetail
     })
 
-    const coverCheck = checkRawGithubUrl(coverRaw)
+    let coverCheck = checkRawGithubUrl(coverRaw)
+    let coverDetail = coverCheck.reason
+    if (!coverCheck.ok && coverCheck.reason === '链接格式无效' && csvRow?.cover && submissionOverview.images.cover?.url) {
+      const manifestCoverCheck = checkRawGithubUrl(submissionOverview.images.cover.url)
+      if (manifestCoverCheck.ok) {
+        coverCheck = manifestCoverCheck
+        coverDetail = 'CSV cover 链接解析失败，已用 manifest cover 链接校验通过'
+      }
+    }
     checks.push({
       title: 'CSV cover 链接可访问且为 Raw，且非私有域名',
       status: coverCheck.ok ? 'pass' : 'fail',
-      detail: coverCheck.reason
+      detail: coverDetail
     })
 
     checks.push({
@@ -1042,6 +1133,36 @@ export function CcPrReviewWorkbench(props: {
     }
   }
 
+  const detectCsvAddedRowByRepoDiff = async (
+    targetPr: PullListItem,
+    files: PullFileItem[],
+    baseRef: string,
+    patchRow: CsvV2Row | null
+  ): Promise<CsvV2Row | null> => {
+    const csvFiles = files.filter((file) => /(^|\/)index(_v2)?\.csv$/i.test(file.filename))
+    if (csvFiles.length === 0) return null
+
+    const addedRows: CsvV2Row[] = []
+    for (const file of csvFiles) {
+      const path = file.filename
+      const [baseText, headText] = await Promise.all([
+        readRepoTextFile(owner, repo, baseRef || 'main', path).catch(() => ''),
+        readRepoTextFile(targetPr.headOwner || owner, targetPr.headRepo || repo, targetPr.headRef || 'main', path).catch(() => '')
+      ])
+      if (!headText) continue
+      const baseRows = parseCsvRowsFromText(baseText)
+      const headRows = parseCsvRowsFromText(headText)
+      const baseSet = new Set(baseRows.map((row) => serializeCsvRow(row)))
+      for (const row of headRows) {
+        if (!baseSet.has(serializeCsvRow(row))) {
+          addedRows.push(row)
+        }
+      }
+    }
+
+    return pickBestCsvRow(addedRows, patchRow)
+  }
+
   const loadRepoFiles = async (targetPr: PullListItem, csvRow: CsvV2Row | null): Promise<void> => {
     setRepoFilesError('')
     setRepoFiles([])
@@ -1136,14 +1257,16 @@ export function CcPrReviewWorkbench(props: {
 
     try {
       const [pullDetail, comments, files] = await Promise.all([
-        githubGet<{ body?: string }>(`/repos/${owner}/${repo}/pulls/${targetPr.number}`),
+        githubGet<{ body?: string; base?: { ref?: string } }>(`/repos/${owner}/${repo}/pulls/${targetPr.number}`),
         fetchIssueComments(targetPr.number),
         githubGet<PullFileItem[]>(`/repos/${owner}/${repo}/pulls/${targetPr.number}/files?per_page=100`)
       ])
 
       const resolvedBody = pullDetail.body || targetPr.body
       const csvRows = parseCsvRowsFromPrPatch(files)
-      const resolvedCsvRow = pickPreferredCsvRow(csvRows)
+      const patchCsvRow = pickPreferredCsvRow(csvRows)
+      const diffCsvRow = await detectCsvAddedRowByRepoDiff(targetPr, files, pullDetail.base?.ref || 'main', patchCsvRow)
+      const resolvedCsvRow = diffCsvRow || patchCsvRow
       const resourceRepoOwner = resolvedCsvRow?.repo_owner || targetPr.headOwner
       const resourceRepoName = resolvedCsvRow?.repo_name || targetPr.headRepo
       const resourceRepoRef = resolvedCsvRow?.repo_commit_hash || targetPr.headRef || 'main'
