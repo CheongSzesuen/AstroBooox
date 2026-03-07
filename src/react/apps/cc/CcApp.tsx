@@ -382,8 +382,15 @@ function CcAuthenticatedApp() {
       return <CcSettingsPanel token={token} section={routeState.settingsSection} settings={ccSettings} onSectionChange={openSettingsSection} />
     }
 
-    if (routeState.tab === 'review') {
-      return <CcPrReviewWorkbench owner={defaultTargetOwner} repo={defaultTargetRepo} token={token} />
+    if (routeState.tab === 'review' || routeState.tab === 'pullrequest') {
+      return (
+        <CcPrReviewWorkbench
+          owner={defaultTargetOwner}
+          repo={defaultTargetRepo}
+          token={token}
+          initialPrNumber={routeState.tab === 'pullrequest' ? Number(routeState.pullRequestNumber || 0) : 0}
+        />
+      )
     }
 
     if (routeState.tab === 'published') {
@@ -400,7 +407,7 @@ function CcAuthenticatedApp() {
       )
     }
 
-    const workbenchMode = routeState.tab === 'pullrequest' ? 'review' : 'publish'
+    const workbenchMode = 'publish'
 
     return (
       <Card>

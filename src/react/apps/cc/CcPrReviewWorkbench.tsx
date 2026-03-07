@@ -168,8 +168,9 @@ export function CcPrReviewWorkbench(props: {
   owner: string
   repo: string
   token: string
+  initialPrNumber?: number
 }) {
-  const { owner, repo, token } = props
+  const { owner, repo, token, initialPrNumber = 0 } = props
   const resolvedToken = (token || '').trim() || SITE_DEFAULT_TOKEN
 
   const [loading, setLoading] = useState(false)
@@ -346,7 +347,7 @@ export function CcPrReviewWorkbench(props: {
     await loadPrDetails(targetPr)
   }
 
-  const loadPullRequests = async (): Promise<void> => {
+  const loadPullRequests = async (preferredPrNumber = 0): Promise<void> => {
     setLoading(true)
     setErrorMessage('')
     try {
@@ -396,7 +397,8 @@ export function CcPrReviewWorkbench(props: {
         setIsSidebarCollapsed(true)
       }
       if (sorted.length > 0) {
-        await selectPr(sorted[0])
+        const preferred = preferredPrNumber > 0 ? sorted.find((item) => item.number === preferredPrNumber) : null
+        await selectPr(preferred || sorted[0])
       } else {
         setSelectedPr(null)
         setPrComments([])
@@ -412,8 +414,8 @@ export function CcPrReviewWorkbench(props: {
   }
 
   useEffect(() => {
-    void loadPullRequests()
-  }, [owner, repo, token])
+    void loadPullRequests(initialPrNumber)
+  }, [initialPrNumber, owner, repo, token])
 
   const refreshSelectedPrDetails = async (): Promise<void> => {
     if (!selectedPr) return
@@ -520,7 +522,7 @@ export function CcPrReviewWorkbench(props: {
             ) : null}
             <div className={`flex items-center gap-1.5 ${isSidebarCollapsed ? 'flex-col gap-2' : ''}`}>
               {!isSidebarCollapsed ? (
-                <Button disabled={loading || !canLoad} size="sm" variant="outline" onClick={() => void loadPullRequests()}>
+                <Button disabled={loading || !canLoad} size="sm" variant="outline" onClick={() => void loadPullRequests(initialPrNumber)}>
                   <ClockCounterClockwise size={14} weight="duotone" />
                   <span>{loading ? '加载中' : '刷新'}</span>
                 </Button>
