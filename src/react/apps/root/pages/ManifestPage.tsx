@@ -488,7 +488,7 @@ export function ManifestPage() {
         setManifest((current) => {
           const appended = relativePaths.filter((path) => !current.item.preview.includes(path))
           if (appended.length === 0) {
-            showCustomAlert('操作提示', '您选择的文件已存在于预览图列表中')
+            showCustomAlert('操作提示', '您选择的文件已经存在于预览图列表中')
             return current
           }
 
@@ -520,7 +520,7 @@ export function ManifestPage() {
       setManifest((current) => {
         const appended = names.filter((name) => !current.item.preview.includes(name))
         if (appended.length === 0) {
-          showCustomAlert('操作提示', '您选择的文件已存在于预览图列表中')
+          showCustomAlert('操作提示', '您选择的文件已经存在于预览图列表中')
           return current
         }
         return {
@@ -683,7 +683,7 @@ export function ManifestPage() {
 
   const saveManifest = useCallback(async () => {
     if (!projectDirectory || isOPFSMode) {
-      showCustomAlert('操作失败', '当前浏览器不支持直接保存功能，可使用“下载”导出 manifest.json')
+      showCustomAlert('操作失败', '当前浏览器不支持直接保存功能')
       return
     }
 
@@ -770,10 +770,6 @@ export function ManifestPage() {
     }
     await loadManifestFromHandle()
   }, [isOPFSMode, loadManifestFromFileInput, loadManifestFromHandle])
-
-  const resetManifest = useCallback(() => {
-    setManifest(createEmptyManifest())
-  }, [])
 
   const isDeviceSelected = useCallback((device: SupportedDevice) => selectedDevices.includes(device.codename), [selectedDevices])
 
@@ -1104,7 +1100,6 @@ export function ManifestPage() {
                     <CopySimple size={16} weight="bold" />
                     复制
                   </Button>
-                  <Button variant="ghost" onClick={resetManifest}>重置</Button>
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
@@ -1119,14 +1114,9 @@ export function ManifestPage() {
         </div>
       ) : null}
 
-      {!showPhonePrompt && !projectDirectory && isOPFSMode ? (
-        <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/25 px-6 text-center text-sm text-muted-foreground">
-          <p>当前浏览器不支持目录写回，建议在桌面 Chrome/Edge 下使用。</p>
-          <Button variant="outline" className="gap-2" onClick={() => setShowEditPrompt(true)}>
-            <MagnifyingGlass size={16} weight="bold" />
-            加载已有 manifest.json
-          </Button>
-          <p className="max-w-[520px] text-xs leading-6">你仍可导入并编辑内容，再下载 `manifest.json`。</p>
+      {!showPhonePrompt && !projectDirectory ? (
+        <div className="flex min-h-[16rem] items-center justify-center rounded-xl border border-dashed border-border bg-muted/25 px-6 text-center text-sm text-muted-foreground">
+          请先选择项目目录，再开始编辑 manifest.json。
         </div>
       ) : null}
 
@@ -1243,8 +1233,8 @@ export function ManifestPage() {
             <DialogTitle>{isFsaSupported ? '检测到manifest.json' : '进入manifest编辑模式'}</DialogTitle>
             <DialogDescription>
               {isFsaSupported
-                ? '项目目录中检测到 manifest.json 文件，是否加载并编辑？'
-                : '浏览器不支持自动读取目录。是否手动导入已有 manifest.json 继续编辑？'}
+                ? '文件夹中已存在manifest.json文件，是否要加载并编辑现有文件？'
+                : '是否要加载并编辑现有的manifest.json文件？'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
