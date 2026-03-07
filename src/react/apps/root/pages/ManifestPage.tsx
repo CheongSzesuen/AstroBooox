@@ -13,6 +13,8 @@ import {
   WarningCircle
 } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
+import type { MainLayoutOutletContext } from '@/react/layouts/MainLayout'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/react/components/ui/card'
 import {
@@ -181,10 +183,39 @@ const copyText = async (text: string): Promise<boolean> => {
   return fallbackCopyText(text)
 }
 
+const createOpfsVirtualDirectoryHandle = (): FileSystemDirectoryHandle => {
+  const createVirtualFileHandle = (name: string): FileSystemFileHandle =>
+    ({
+      name,
+      kind: 'file',
+      isSameEntry: async () => false,
+      getFile: async () => new File([], name),
+      createWritable: async () => {
+        throw new Error('Not supported in OPFS mode')
+      }
+    }) as unknown as FileSystemFileHandle
+
+  const handle = {
+    name: 'OPFS_虚拟项目目录',
+    kind: 'directory',
+    isSameEntry: async () => false,
+    getFileHandle: async (name: string) => createVirtualFileHandle(name),
+    getDirectoryHandle: async () => createOpfsVirtualDirectoryHandle(),
+    removeEntry: async () => {
+      throw new Error('Not supported in OPFS mode')
+    },
+    resolve: async () => null,
+    entries: async function* () {},
+    [Symbol.asyncIterator]: async function* () {}
+  } as unknown as FileSystemDirectoryHandle
+
+  return handle
+}
+
 export function ManifestPage() {
   const isFsaSupported = typeof window.showDirectoryPicker === 'function'
   const [manifest, setManifest] = useState<ManifestData>(createEmptyManifest)
-  const [projectDirectory, setProjectDirectory] = useState<FileSystemDirectoryHandle | null>(null)
+  const { projectDirectory, setProjectDirectory } = useOutletContext<MainLayoutOutletContext>()
   const [deviceType, setDeviceType] = useState<DeviceType>(detectDeviceType())
 
   const [showDeclaration, setShowDeclaration] = useState(true)
@@ -320,6 +351,11 @@ export function ManifestPage() {
       }
     }
   }, [isFsaSupported, showCustomAlert])
+
+  const continueWithOPFS = useCallback(() => {
+    setShowUnsupportedPrompt(false)
+    setProjectDirectory((current) => current ?? createOpfsVirtualDirectoryHandle())
+  }, [setProjectDirectory])
 
   useEffect(() => {
     const updateType = () => {
@@ -759,7 +795,7 @@ export function ManifestPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showUnsupportedPrompt} onOpenChange={setShowUnsupportedPrompt}>
+      <Dialog open={showUnsupportedPrompt}>
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader className="gap-3">
             <div className="flex items-start gap-3">
@@ -773,7 +809,7 @@ export function ManifestPage() {
             </div>
           </DialogHeader>
           <DialogFooter className="sm:justify-start">
-            <Button variant="secondary" onClick={() => setShowUnsupportedPrompt(false)}>
+            <Button variant="secondary" onClick={continueWithOPFS}>
               <CheckCircle size={16} weight="fill" />
               确定
             </Button>
@@ -886,17 +922,19 @@ export function ManifestPage() {
                       {manifest.item.preview.map((previewPath, index) => (
                         <div
                           key={`${previewPath}-${index}`}
-                          draggable
-                          onDragStart={() => handlePreviewDragStart(index)}
                           onDragOver={handlePreviewDragOver}
                           onDrop={() => handlePreviewDrop(index)}
-                          onDragEnd={handlePreviewDragEnd}
                           className={[
                             'flex min-h-11 items-center gap-2.5 rounded-lg border border-border bg-background p-2.5',
                             draggingPreviewIndex === index ? 'opacity-80' : ''
                           ].join(' ')}
                         >
-                          <div className="drag-handle flex h-full w-6 cursor-grab items-center justify-center rounded-md bg-muted py-1 active:cursor-grabbing">
+                          <div
+                            draggable
+                            onDragStart={() => handlePreviewDragStart(index)}
+                            onDragEnd={handlePreviewDragEnd}
+                            className="drag-handle flex h-full w-6 cursor-grab items-center justify-center rounded-md bg-muted py-1 active:cursor-grabbing"
+                          >
                             <DotsSixVertical size={16} weight="bold" />
                           </div>
                           <Input value={previewPath} readOnly className="flex-1 min-w-0" />

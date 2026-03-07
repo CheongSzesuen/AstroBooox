@@ -36,7 +36,7 @@ export function RootApp() {
       <CcRedirectGuard />
       <Routes>
         <Route path="/" element={<MainLayout />}>
-          <Route index element={<Navigate to="/manifest" replace />} />
+          <Route index element={<ManifestPage />} />
           <Route path="manifest" element={<ManifestPage />} />
           <Route path="csv" element={<CsvPage />} />
           <Route path="res-link" element={<ResLinkPage />} />

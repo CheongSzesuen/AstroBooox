@@ -1,5 +1,5 @@
 import { Code, Compass, GithubLogo, Info, List, Moon, Star, Sun, X } from '@phosphor-icons/react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useTheme } from '@/react/hooks/useTheme'
 import { Button } from '@/react/components/ui/button'
@@ -22,6 +22,11 @@ const navItems = [
   { to: '/res-link', label: '资源链接生成' },
   { to: '/code-review', label: '代码审查' }
 ]
+
+export type MainLayoutOutletContext = {
+  projectDirectory: FileSystemDirectoryHandle | null
+  setProjectDirectory: Dispatch<SetStateAction<FileSystemDirectoryHandle | null>>
+}
 
 function Footer() {
   const [showTerms, setShowTerms] = useState(false)
@@ -91,6 +96,7 @@ function Footer() {
 export function MainLayout() {
   const { theme, toggleTheme } = useTheme()
   const [showMobileNavSheet, setShowMobileNavSheet] = useState(false)
+  const [projectDirectory, setProjectDirectory] = useState<FileSystemDirectoryHandle | null>(null)
 
   const mainSiteIcon = useMemo(
     () => (theme === 'dark' ? '/icon-candidates/astrobox-website-favicon.svg' : '/icon-candidates/astrobox-ng-web-favicon.svg'),
@@ -205,7 +211,7 @@ export function MainLayout() {
 
       <main className="flex-1 p-3 sm:p-4 md:p-6">
         <div className="mx-auto w-full max-w-[1320px]">
-          <Outlet />
+          <Outlet context={{ projectDirectory, setProjectDirectory }} />
         </div>
       </main>
 
