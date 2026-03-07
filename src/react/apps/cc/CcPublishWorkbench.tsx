@@ -621,11 +621,6 @@ export function CcPublishWorkbench(props: {
   }, [authors, currentUser, mode])
 
   useEffect(() => {
-    if (mode !== 'resource_edit') return
-    setSubmitMode((prev) => (prev === 'both' ? 'v2' : prev))
-  }, [mode])
-
-  useEffect(() => {
     if (mode !== 'resource_edit') {
       setBootstrapLoading(false)
       setBootstrapError('')
@@ -1073,16 +1068,11 @@ export function CcPublishWorkbench(props: {
   }, [submitMode])
 
   const submitModeOptions = useMemo<Array<{ value: SubmitMode; label: string; variant: 'default' | 'outline' }>>(
-    () => (mode === 'resource_edit'
-      ? [
-        { value: 'v2', label: '仅提交 v2（推荐）', variant: 'default' },
-        { value: 'v1', label: '仅提交 v1', variant: 'outline' }
-      ]
-      : [
-        { value: 'both', label: '同时提交 v1 + v2（推荐）', variant: 'default' },
-        { value: 'v2', label: '仅提交 v2', variant: 'outline' },
-        { value: 'v1', label: '仅提交 v1', variant: 'outline' }
-      ]),
+    () => [
+      { value: 'both', label: mode === 'resource_edit' ? '同时更新 v1 + v2（推荐）' : '同时提交 v1 + v2（推荐）', variant: 'default' },
+      { value: 'v2', label: mode === 'resource_edit' ? '仅更新 v2' : '仅提交 v2', variant: 'outline' },
+      { value: 'v1', label: mode === 'resource_edit' ? '仅更新 v1' : '仅提交 v1', variant: 'outline' }
+    ],
     [mode]
   )
 
@@ -1197,11 +1187,7 @@ export function CcPublishWorkbench(props: {
   }
 
   const confirmSubmitMode = (modeValue: SubmitMode) => {
-    if (mode === 'resource_edit' && modeValue === 'both') {
-      setSubmitMode('v2')
-    } else {
-      setSubmitMode(modeValue)
-    }
+    setSubmitMode(modeValue)
     setShowSubmitVersionDialog(false)
     setStep('2')
   }
@@ -4172,7 +4158,7 @@ export function CcPublishWorkbench(props: {
           <DialogHeader>
             <DialogTitle>选择提交流程</DialogTitle>
             <DialogDescription>
-              {mode === 'resource_edit' ? '资源更新支持单版本提交，请选择 v1 或 v2。' : '请选择本次要提交到 v1、v2，或同时提交。'}
+              {mode === 'resource_edit' ? '请选择本次要更新到 v1、v2，或同时更新。' : '请选择本次要提交到 v1、v2，或同时提交。'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2 py-1">
