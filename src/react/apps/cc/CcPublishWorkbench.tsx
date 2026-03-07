@@ -3221,10 +3221,10 @@ export function CcPublishWorkbench(props: {
     <div className="min-w-0 grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
       <div className="min-w-0 space-y-4 xl:sticky xl:top-[72px] xl:self-start">
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 sm:p-3 sm:pb-3">
             <CardTitle className="text-base">步骤导航</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 sm:p-3 sm:pt-0">
             <ol className="space-y-2">
               {stepItems.map((item, index) => (
                 <li key={item.value} className="relative pl-10">
@@ -3260,10 +3260,10 @@ export function CcPublishWorkbench(props: {
 
         {(mode === 'resource_edit' || workspaceDisplayPath.trim() || workspaceTree.length > 0 || remoteWorkspacePath.trim() || remoteWorkspaceTree.length > 0) ? (
           <Card className="border-border bg-card">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 sm:p-3 sm:pb-2">
               <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">文件树</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 sm:p-3 sm:pt-0">
               {mode === 'resource_edit' ? (
                 <div className="space-y-2">
                   <p className="truncate px-1 text-[11px] text-muted-foreground">{remoteWorkspacePath || '未同步远程仓库'}</p>
@@ -3404,13 +3404,13 @@ export function CcPublishWorkbench(props: {
         ) : null}
 
         <Card className="hidden border-border bg-card xl:block">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 sm:p-3 sm:pb-2">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">日志</CardTitle>
               <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setSubmitLogs([])}>清空</Button>
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 sm:p-3 sm:pt-0">
             <div className="max-h-56 overflow-y-auto rounded-md border border-border bg-muted/25 p-2.5">
               <pre className="m-0 whitespace-pre-wrap break-words text-[11px] leading-5 text-foreground">{submitLogs.join('\n') || '暂无日志'}</pre>
             </div>
@@ -3420,10 +3420,10 @@ export function CcPublishWorkbench(props: {
 
       <div className="min-w-0 space-y-4">
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 sm:p-3 sm:pb-3">
             <CardTitle className="text-base">{title}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 pt-0">
+          <CardContent className="space-y-3 pt-0 sm:p-3 sm:pt-0">
             {bootstrapLoading ? <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">正在加载待更新资源信息...</div> : null}
             {bootstrapError ? <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{bootstrapError}</div> : null}
 
@@ -3466,10 +3466,10 @@ export function CcPublishWorkbench(props: {
               {step === '1' ? (
                 <div className="space-y-4">
                   <Card className="border-border/70 shadow-none">
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-3 sm:p-3 sm:pb-3">
                       <CardTitle className="text-base">应用信息</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4 pt-0">
+                    <CardContent className="space-y-4 pt-0 sm:p-3 sm:pt-0">
                       <div className="grid gap-3 md:grid-cols-2">
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2">
@@ -3526,10 +3526,10 @@ export function CcPublishWorkbench(props: {
                   </Card>
 
                   <Card className="border-border/70 shadow-none">
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-3 sm:p-3 sm:pb-3">
                       <CardTitle className="text-base">资源属性</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4 pt-0">
+                    <CardContent className="space-y-4 pt-0 sm:p-3 sm:pt-0">
                       <div className="space-y-2">
                         <Label>标签</Label>
                         <div className="flex flex-wrap gap-2">
@@ -3598,10 +3598,10 @@ export function CcPublishWorkbench(props: {
                   </Card>
 
                   <Card className="border-border/70 shadow-none">
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-3 sm:p-3 sm:pb-3">
                       <CardTitle className="text-base">作者信息</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3 pt-0">
+                    <CardContent className="space-y-3 pt-0 sm:p-3 sm:pt-0">
                       {authors.map((author, index) => (
                         <div key={`author-${index}`} className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
                           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
@@ -3627,11 +3627,11 @@ export function CcPublishWorkbench(props: {
                   </Card>
 
                   <Card className="border-border/70 shadow-none">
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-3 sm:p-3 sm:pb-3">
                       <CardTitle className="text-base">相关链接（links）</CardTitle>
                       <CardDescription>icon 请填写 phosphor 图标名，可点击搜索按钮选择。</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-3 pt-0">
+                    <CardContent className="space-y-3 pt-0 sm:p-3 sm:pt-0">
                       {links.map((link, index) => (
                         <div key={`link-${index}`} className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
                           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
@@ -3669,10 +3669,10 @@ export function CcPublishWorkbench(props: {
                   </Card>
 
                   <Card className="border-border/70 shadow-none">
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-3 sm:p-3 sm:pb-3">
                       <CardTitle className="text-base">下载资源</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3 pt-0">
+                    <CardContent className="space-y-3 pt-0 sm:p-3 sm:pt-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Button variant="default" className="font-semibold" onClick={() => setShowDeviceSelector(true)}>+ 选择支持设备</Button>
                         {selectedDeviceIds.length === 0 ? <span className="text-xs text-muted-foreground">尚未选择设备</span> : null}
@@ -3829,13 +3829,13 @@ export function CcPublishWorkbench(props: {
         </Card>
 
         <Card className="border-border bg-card xl:hidden">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 sm:p-3 sm:pb-2">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">日志</CardTitle>
               <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setSubmitLogs([])}>清空</Button>
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 sm:p-3 sm:pt-0">
             <div className="max-h-56 overflow-y-auto rounded-md border border-border bg-muted/25 p-2.5">
               <pre className="m-0 whitespace-pre-wrap break-words text-[11px] leading-5 text-foreground">{submitLogs.join('\n') || '暂无日志'}</pre>
             </div>
