@@ -408,6 +408,7 @@ export function CcPublishWorkbench(props: {
   const [showResourceInfoValidationDialog, setShowResourceInfoValidationDialog] = useState(false)
   const [resourceInfoValidationIssues, setResourceInfoValidationIssues] = useState<string[]>([])
   const [showSubmitVersionDialog, setShowSubmitVersionDialog] = useState(false)
+  const [showUploadCompleteDialog, setShowUploadCompleteDialog] = useState(false)
   const [showRemoteFilePickerDialog, setShowRemoteFilePickerDialog] = useState(false)
   const [showLinkIconPicker, setShowLinkIconPicker] = useState(false)
   const [linkIconPickerIndex, setLinkIconPickerIndex] = useState<number | null>(null)
@@ -591,6 +592,7 @@ export function CcPublishWorkbench(props: {
     setShowResourceInfoValidationDialog(false)
     setResourceInfoValidationIssues([])
     setShowSubmitVersionDialog(false)
+    setShowUploadCompleteDialog(false)
     setShowRemoteFilePickerDialog(false)
     setShowLinkIconPicker(false)
     setLinkIconPickerIndex(null)
@@ -1126,6 +1128,11 @@ export function CcPublishWorkbench(props: {
     return items
   }, [isResourceInfoStepDone, isSubmitStepDone, isUploadStepDone, isWorkspaceStepDone, mode])
 
+  const appendLog = (message: string) => {
+    const time = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+    setSubmitLogs((prev) => [...prev, `[${time}] ${message}`].slice(-220))
+  }
+
   const canGoNextStep = useMemo(() => {
     if (step === '0') return isWorkspaceStepDone
     if (step === '1') return isResourceInfoStepDone
@@ -1133,10 +1140,32 @@ export function CcPublishWorkbench(props: {
     return false
   }, [isResourceInfoStepDone, isUploadStepDone, isWorkspaceStepDone, step])
 
+  const canAccessStep = (nextStep: StepKey): boolean => {
+    if (mode === 'resource_edit') {
+      if (nextStep === '1') return true
+      if (nextStep === '2') return isResourceInfoStepDone
+      if (nextStep === '3') return isUploadStepDone
+      return false
+    }
+    if (nextStep === '0') return true
+    if (nextStep === '1') return isWorkspaceStepDone
+    if (nextStep === '2') return isResourceInfoStepDone
+    if (nextStep === '3') return isUploadStepDone
+    return false
+  }
+
+  const goToStep = (nextStep: StepKey) => {
+    if (!canAccessStep(nextStep)) {
+      appendLog('请先完成前一步后再继续')
+      return
+    }
+    setStep(nextStep)
+  }
+
   const goPrevStep = () => {
     const index = stepItems.findIndex((item) => item.value === step)
     if (index <= 0) return
-    setStep(stepItems[index - 1].value)
+    goToStep(stepItems[index - 1].value)
   }
 
   const goNextStep = () => {
@@ -1146,7 +1175,7 @@ export function CcPublishWorkbench(props: {
     }
     const index = stepItems.findIndex((item) => item.value === step)
     if (index < 0 || index >= stepItems.length - 1) return
-    setStep(stepItems[index + 1].value)
+    goToStep(stepItems[index + 1].value)
   }
 
   const openSubmitVersionDialog = () => {
@@ -1189,12 +1218,7 @@ export function CcPublishWorkbench(props: {
   const confirmSubmitMode = (modeValue: SubmitMode) => {
     setSubmitMode(modeValue)
     setShowSubmitVersionDialog(false)
-    setStep('2')
-  }
-
-  const appendLog = (message: string) => {
-    const time = new Date().toLocaleTimeString('zh-CN', { hour12: false })
-    setSubmitLogs((prev) => [...prev, `[${time}] ${message}`].slice(-220))
+    goToStep('2')
   }
 
   const toggleWorkspaceFolder = (path: string) => {
@@ -2808,6 +2832,7 @@ export function CcPublishWorkbench(props: {
 
       appendLog('开始执行仓库上传')
       setUploading(true)
+      setShowUploadCompleteDialog(false)
 
       let repoOwner = ''
       let repoName = ''
@@ -2955,7 +2980,7 @@ export function CcPublishWorkbench(props: {
       toast('上传成功', {
         description: `${repoOwner}/${repoName}@${latestCommitSha.slice(0, 7)}`
       })
-      setStep('3')
+      setShowUploadCompleteDialog(true)
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : '上传失败'
       setSubmitError(message)
@@ -3428,7 +3453,7 @@ export function CcPublishWorkbench(props: {
                         ? 'border-primary/50 bg-primary/10 text-foreground'
                         : 'border-border bg-background text-muted-foreground hover:bg-muted/30'
                     } ${item.done ? '!text-foreground' : ''}`}
-                    onClick={() => setStep(item.value)}
+                    onClick={() => goToStep(item.value)}
                   >
                     <p className="font-medium">{item.label}</p>
                     <p className="text-xs text-muted-foreground">{item.done ? '已完成' : step === item.value ? '进行中' : '待完成'}</p>
@@ -3944,7 +3969,8 @@ export function CcPublishWorkbench(props: {
                   ) : null}
 
                   <div className="flex justify-between gap-2">
-                    <Button variant="outline" disabled={isSubmitting} onClick={() => setStep('1')}>上一步</Button>
+                    <Button variant="outline" disabled={isSubmitting} onClick={() => goToStep('1')}>上一步</Button>
+                    <Button disabled={isSubmitting || !isUploadStepDone} onClick={() => goToStep('3')}>下一步</Button>
                   </div>
                 </div>
               ) : null}
@@ -3987,7 +4013,7 @@ export function CcPublishWorkbench(props: {
                     <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive">{submitError}</div>
                   ) : null}
                   <div className="flex flex-wrap gap-2 pt-1">
-                    <Button variant="outline" disabled={isSubmitting} onClick={() => setStep('2')}>
+                    <Button variant="outline" disabled={isSubmitting} onClick={() => goToStep('2')}>
                       返回上传步骤
                     </Button>
                     <Button disabled={!canCreatePr || isSubmitting} onClick={() => void handleCreateCatalogPr()}>
@@ -4149,6 +4175,20 @@ export function CcPublishWorkbench(props: {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowResourceInfoValidationDialog(false)}>我知道了</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showUploadCompleteDialog} onOpenChange={setShowUploadCompleteDialog}>
+        <DialogContent className="max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>{mode === 'resource_edit' ? '更新已完成' : '上传已完成'}</DialogTitle>
+            <DialogDescription>
+              {mode === 'resource_edit' ? '资源仓库已更新完成，你可以继续下一步创建 PR。' : '资源仓库已创建并上传完成，你可以继续下一步创建 PR。'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowUploadCompleteDialog(false)}>我知道了</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

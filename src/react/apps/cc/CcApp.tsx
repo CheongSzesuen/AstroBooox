@@ -49,6 +49,9 @@ const tabMeta: Array<{ tab: CcTab; label: string; shortLabel: string; icon: any 
   { tab: 'review', label: '审核', shortLabel: '审', icon: CheckCircle }
 ]
 
+const HEADER_TITLE_RESERVED_WIDTH = 136
+const HEADER_TITLE_SHOW_BUFFER = 12
+
 const sanitizeCcRedirectPath = (rawPath: string | null): string => {
   if (!rawPath) return ''
   const value = rawPath.trim()
@@ -162,9 +165,12 @@ function CcAuthenticatedApp() {
   const [routeState, setRouteState] = useState<CcRouteState>(() => resolveRouteFromLocation(currentUser))
   const [routeProgress, setRouteProgress] = useState(0)
   const [routeProgressVisible, setRouteProgressVisible] = useState(false)
+  const [hideHeaderTitleForNav, setHideHeaderTitleForNav] = useState(true)
 
   const routeProgressTimerRef = useRef<number | null>(null)
   const userMenuRootRef = useRef<HTMLDivElement | null>(null)
+  const headerNavViewportRef = useRef<HTMLDivElement | null>(null)
+  const headerNavInnerRef = useRef<HTMLDivElement | null>(null)
 
   const profileUrl = useMemo(() => (currentUser ? `https://github.com/${currentUser}` : 'https://github.com'), [currentUser])
 
@@ -271,6 +277,45 @@ function CcAuthenticatedApp() {
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [currentUser])
+
+  const syncHeaderNavOverflow = () => {
+    if (typeof window === 'undefined') return
+    const viewport = headerNavViewportRef.current
+    const inner = headerNavInnerRef.current
+    if (!viewport || !inner) {
+      setHideHeaderTitleForNav(true)
+      return
+    }
+    if (window.innerWidth < 640) {
+      setHideHeaderTitleForNav(false)
+      return
+    }
+    setHideHeaderTitleForNav((prev) => {
+      if (!prev) {
+        return inner.scrollWidth > viewport.clientWidth + 1
+      }
+      return inner.scrollWidth + HEADER_TITLE_RESERVED_WIDTH + HEADER_TITLE_SHOW_BUFFER > viewport.clientWidth
+    })
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleResize = () => {
+      syncHeaderNavOverflow()
+    }
+    window.addEventListener('resize', handleResize)
+    const frame = window.requestAnimationFrame(syncHeaderNavOverflow)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      window.cancelAnimationFrame(frame)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const frame = window.requestAnimationFrame(syncHeaderNavOverflow)
+    return () => window.cancelAnimationFrame(frame)
+  }, [routeState.tab, routeState.settingsSection, token, currentUser])
 
   const navigateToTab = (nextTab: CcTab) => {
     const nextState: CcRouteState = {
@@ -527,10 +572,13 @@ function CcAuthenticatedApp() {
           <a href="/" className="hidden h-8 w-8 items-center justify-center sm:inline-flex" aria-label="返回主站">
             <img src="/icon-candidates/secret-icon.png" alt="AstroBooox" className="h-6 w-6" />
           </a>
-          <h1 className="hidden text-sm font-semibold text-foreground sm:block md:text-base">Creator Console</h1>
+          {!hideHeaderTitleForNav ? <h1 className="hidden text-sm font-semibold text-foreground sm:block md:text-base">Creator Console</h1> : null}
 
-          <div className="hidden min-w-0 flex-1 overflow-x-auto sm:block [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
+          <div
+            ref={headerNavViewportRef}
+            className={`hidden min-w-0 flex-1 overflow-x-auto sm:block [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${hideHeaderTitleForNav ? 'sm:ml-0' : 'sm:ml-2'}`}
+          >
+            <div ref={headerNavInnerRef} className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
               {tabMeta.map((item) => {
                 const Icon = item.icon
                 const isActive = routeState.tab === item.tab

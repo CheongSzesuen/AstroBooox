@@ -154,6 +154,8 @@ const toStringArray = (value: unknown): string[] => {
   return value.map((item) => toNonEmptyString(item)).filter(Boolean)
 }
 
+const normalizeText = (value: string): string => value.trim().toLowerCase()
+
 const resolveDeviceName = (deviceToken: string): string => {
   const normalized = deviceToken.trim()
   if (!normalized) return ''
@@ -191,6 +193,27 @@ const decodeBase64Utf8 = (base64: string): string => {
     bytes[i] = binary.charCodeAt(i)
   }
   return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+}
+
+const decodeBase64ToBytes = (base64: string): Uint8Array => {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+const inferImageMimeType = (url: string): string => {
+  const lower = url.toLowerCase()
+  if (lower.endsWith('.png')) return 'image/png'
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
+  if (lower.endsWith('.webp')) return 'image/webp'
+  if (lower.endsWith('.gif')) return 'image/gif'
+  if (lower.endsWith('.svg')) return 'image/svg+xml'
+  if (lower.endsWith('.bmp')) return 'image/bmp'
+  if (lower.endsWith('.avif')) return 'image/avif'
+  return 'application/octet-stream'
 }
 
 const splitCsvLine = (line: string): string[] => {
@@ -716,11 +739,15 @@ export function CcPrReviewWorkbench(props: {
   const [prComments, setPrComments] = useState<IssueCommentItem[]>([])
   const [prFiles, setPrFiles] = useState<PullFileItem[]>([])
   const [csvRowFromPrDiff, setCsvRowFromPrDiff] = useState<CsvV2Row | null>(null)
+  const [csvRowsFromPatch, setCsvRowsFromPatch] = useState<CsvV2Row[]>([])
+  const [csvRowsFromRepoDiff, setCsvRowsFromRepoDiff] = useState<CsvV2Row[]>([])
   const [repoFiles, setRepoFiles] = useState<string[]>([])
   const [repoFilesError, setRepoFilesError] = useState('')
   const [manifestData, setManifestData] = useState<Record<string, unknown> | null>(null)
   const [manifestFilePath, setManifestFilePath] = useState('')
   const [manifestLoadError, setManifestLoadError] = useState('')
+  const [imageMetaMap, setImageMetaMap] = useState<Record<string, { width?: number; height?: number }>>({})
+  const [imageBlobUrlMap, setImageBlobUrlMap] = useState<Record<string, string>>({})
 
   const [commentId, setCommentId] = useState('')
   const [commentMessage, setCommentMessage] = useState('')
@@ -755,6 +782,8 @@ export function CcPrReviewWorkbench(props: {
   const [commentCursorEnd, setCommentCursorEnd] = useState<number | null>(null)
 
   const pickerLineRowRefs = useRef<Map<number, HTMLButtonElement>>(new Map())
+  const loadingImageSetRef = useRef<Set<string>>(new Set())
+  const imageBlobUrlMapRef = useRef<Record<string, string>>({})
   const [pickerMatchCursor, setPickerMatchCursor] = useState(-1)
 
   const canLoad = Boolean(owner.trim() && repo.trim() && resolvedToken)
@@ -822,6 +851,75 @@ export function CcPrReviewWorkbench(props: {
     })
     return numbers
   }, [pickerContentLines, pickerLineSearch])
+
+  const getDisplayImageUrl = (url: string): string => imageBlobUrlMap[url] || url
+
+  const getImageMeta = (url: string): { width?: number; height?: number } => imageMetaMap[url] || {}
+
+  const setImageMeta = (url: string, next: { width?: number; height?: number }): void => {
+    if (!url) return
+    setImageMetaMap((prev) => ({
+      ...prev,
+      [url]: {
+        ...prev[url],
+        ...next
+      }
+    }))
+  }
+
+  const formatImageDimensions = (url: string): string => {
+    const meta = getImageMeta(url)
+    if (!meta.width || !meta.height) return '-'
+    return `${meta.width} × ${meta.height}`
+  }
+
+  const gcd = (a: number, b: number): number => {
+    let x = Math.abs(a)
+    let y = Math.abs(b)
+    while (y !== 0) {
+      const temp = y
+      y = x % y
+      x = temp
+    }
+    return x || 1
+  }
+
+  const formatAspectRatio = (url: string): string => {
+    const meta = getImageMeta(url)
+    if (!meta.width || !meta.height) return '-'
+    const divisor = gcd(meta.width, meta.height)
+    return `${meta.width / divisor}:${meta.height / divisor}`
+  }
+
+  const getAspectRatioValue = (url: string): number | null => {
+    const meta = getImageMeta(url)
+    if (!meta.width || !meta.height) return null
+    return meta.width / meta.height
+  }
+
+  const isIconRatioValid = (url: string): boolean => {
+    const ratio = getAspectRatioValue(url)
+    if (ratio === null) return true
+    return Math.abs(ratio - 1) <= 0.01
+  }
+
+  const isCoverRatioValid = (url: string): boolean => {
+    const ratio = getAspectRatioValue(url)
+    if (ratio === null) return true
+    return Math.abs(ratio - 1.5) <= 0.01
+  }
+
+  const handleImageLoad = (url: string, event: Event): void => {
+    if (!(event.target instanceof HTMLImageElement)) return
+    const width = event.target.naturalWidth
+    const height = event.target.naturalHeight
+    if (!width || !height) return
+    setImageMeta(url, { width, height })
+  }
+
+  const handlePreviewImageLoad = (payload: { url: string; event: Event }): void => {
+    handleImageLoad(payload.url, payload.event)
+  }
 
   const submissionOverview = useMemo<SubmissionOverview>(() => {
     const manifest = manifestData || {}
@@ -941,10 +1039,54 @@ export function CcPrReviewWorkbench(props: {
     [submissionOverview]
   )
 
+  const getResourceInfoValue = (keywords: string[]): string => {
+    const item = submissionOverview.resourceInfo.find((entry) =>
+      keywords.some((key) => normalizeText(entry.key).includes(normalizeText(key)))
+    )
+    return item?.value || ''
+  }
+
+  const parsedCsvRow = useMemo<CsvV2Row | null>(() => {
+    const merged = new Map<string, CsvV2Row>()
+    for (const row of [...csvRowsFromPatch, ...csvRowsFromRepoDiff]) {
+      merged.set(serializeCsvRow(row), row)
+    }
+    const rows = Array.from(merged.values())
+    if (rows.length === 0) return csvRowFromPrDiff
+
+    const wantedId = getResourceInfoValue(['资源 id', 'id'])
+    if (wantedId) {
+      const match = rows.find((row) => row.id.trim() === wantedId)
+      if (match) return match
+    }
+
+    const wantedName = getResourceInfoValue(['资源名称', 'name'])
+    if (wantedName) {
+      const match = rows.find((row) => row.name.trim() === wantedName)
+      if (match) return match
+    }
+
+    const resourceRepoOwner = (selectedPr?.resourceRepoOwner || '').trim().toLowerCase()
+    const resourceRepoName = (selectedPr?.resourceRepoName || '').trim().toLowerCase()
+    const resourceRepoRef = (selectedPr?.resourceRepoRef || '').trim().toLowerCase()
+    if (resourceRepoOwner && resourceRepoName) {
+      const match = rows.find((row) => {
+        const ownerMatched = row.repo_owner.trim().toLowerCase() === resourceRepoOwner
+        const repoMatched = row.repo_name.trim().toLowerCase() === resourceRepoName
+        if (!ownerMatched || !repoMatched) return false
+        if (!resourceRepoRef) return true
+        return row.repo_commit_hash.trim().toLowerCase() === resourceRepoRef
+      })
+      if (match) return match
+    }
+
+    return pickBestCsvRow(rows, csvRowFromPrDiff) || rows[rows.length - 1] || csvRowFromPrDiff
+  }, [csvRowFromPrDiff, csvRowsFromPatch, csvRowsFromRepoDiff, selectedPr, submissionOverview.resourceInfo])
+
   const ruleChecks = useMemo<RuleCheckItem[]>(() => {
     const checks: RuleCheckItem[] = []
-    const csvRow = csvRowFromPrDiff
-    const resourceName = csvRow?.name || submissionOverview.resourceInfo.find((entry) => entry.key === '资源名称')?.value || ''
+    const csvRow = parsedCsvRow
+    const resourceName = csvRow?.name || getResourceInfoValue(['资源名称', 'name'])
     const iconRaw = csvRow?.icon || submissionOverview.images.icon?.url || ''
     const coverRaw = csvRow?.cover || submissionOverview.images.cover?.url || ''
     const repoExists = !repoFilesError && repoFiles.length > 0
@@ -1033,7 +1175,7 @@ export function CcPrReviewWorkbench(props: {
     })
 
     return checks
-  }, [csvRowFromPrDiff, manifestData, manifestLoadError, repoFiles, repoFilesError, submissionOverview.resourceInfo])
+  }, [manifestData, manifestLoadError, parsedCsvRow, repoFiles, repoFilesError, submissionOverview])
 
   const openResultDialog = (title: string, message: string) => {
     setResultDialogTitle(title)
@@ -1081,6 +1223,40 @@ export function CcPrReviewWorkbench(props: {
     } catch (cause: unknown) {
       const normalized = normalizeGitHubError(cause)
       throw new Error(normalized.message)
+    }
+  }
+
+  const ensureImageDisplayUrl = async (url: string): Promise<void> => {
+    if (!url || imageBlobUrlMap[url] || loadingImageSetRef.current.has(url)) return
+    const parsed = parseRawGithubUrl(url)
+    if (!parsed) return
+    if (!resolvedToken) return
+
+    loadingImageSetRef.current.add(url)
+    try {
+      const encodedPath = parsed.path.split('/').map((segment) => encodeURIComponent(segment)).join('/')
+      const file = await githubGet<{ content?: string; encoding?: string }>(
+        `/repos/${parsed.owner}/${parsed.repo}/contents/${encodedPath}?ref=${encodeURIComponent(parsed.ref)}`
+      )
+      if (!file.content || (file.encoding && file.encoding !== 'base64')) return
+
+      const bytes = decodeBase64ToBytes(file.content.replace(/\n/g, ''))
+      const blob = new Blob([bytes], { type: inferImageMimeType(url) })
+      const objectUrl = URL.createObjectURL(blob)
+      setImageBlobUrlMap((prev) => {
+        if (prev[url]) {
+          URL.revokeObjectURL(objectUrl)
+          return prev
+        }
+        return {
+          ...prev,
+          [url]: objectUrl
+        }
+      })
+    } catch {
+      // 保留原始 URL 作为回退
+    } finally {
+      loadingImageSetRef.current.delete(url)
     }
   }
 
@@ -1133,14 +1309,13 @@ export function CcPrReviewWorkbench(props: {
     }
   }
 
-  const detectCsvAddedRowByRepoDiff = async (
+  const detectCsvAddedRowsByRepoDiff = async (
     targetPr: PullListItem,
     files: PullFileItem[],
-    baseRef: string,
-    patchRow: CsvV2Row | null
-  ): Promise<CsvV2Row | null> => {
+    baseRef: string
+  ): Promise<CsvV2Row[]> => {
     const csvFiles = files.filter((file) => /(^|\/)index(_v2)?\.csv$/i.test(file.filename))
-    if (csvFiles.length === 0) return null
+    if (csvFiles.length === 0) return []
 
     const addedRows: CsvV2Row[] = []
     for (const file of csvFiles) {
@@ -1159,8 +1334,7 @@ export function CcPrReviewWorkbench(props: {
         }
       }
     }
-
-    return pickBestCsvRow(addedRows, patchRow)
+    return addedRows
   }
 
   const loadRepoFiles = async (targetPr: PullListItem, csvRow: CsvV2Row | null): Promise<void> => {
@@ -1254,6 +1428,8 @@ export function CcPrReviewWorkbench(props: {
     setPickerMatchCursor(-1)
     setPickerError('')
     setCsvRowFromPrDiff(null)
+    setCsvRowsFromPatch([])
+    setCsvRowsFromRepoDiff([])
 
     try {
       const [pullDetail, comments, files] = await Promise.all([
@@ -1265,7 +1441,8 @@ export function CcPrReviewWorkbench(props: {
       const resolvedBody = pullDetail.body || targetPr.body
       const csvRows = parseCsvRowsFromPrPatch(files)
       const patchCsvRow = pickPreferredCsvRow(csvRows)
-      const diffCsvRow = await detectCsvAddedRowByRepoDiff(targetPr, files, pullDetail.base?.ref || 'main', patchCsvRow)
+      const diffCsvRows = await detectCsvAddedRowsByRepoDiff(targetPr, files, pullDetail.base?.ref || 'main')
+      const diffCsvRow = pickBestCsvRow(diffCsvRows, patchCsvRow)
       const resolvedCsvRow = diffCsvRow || patchCsvRow
       const resourceRepoOwner = resolvedCsvRow?.repo_owner || targetPr.headOwner
       const resourceRepoName = resolvedCsvRow?.repo_name || targetPr.headRepo
@@ -1286,6 +1463,8 @@ export function CcPrReviewWorkbench(props: {
       setPrComments(comments)
       setPrFiles(files)
       setCsvRowFromPrDiff(resolvedCsvRow)
+      setCsvRowsFromPatch(csvRows)
+      setCsvRowsFromRepoDiff(diffCsvRows)
       setPrPickerOpenFolders(getTopLevelFolders(files.map((file) => file.filename)))
       setPullRequests((prev) => prev.map((item) => (item.number === updatedPr.number ? updatedPr : item)))
 
@@ -1295,6 +1474,8 @@ export function CcPrReviewWorkbench(props: {
       setPrComments([])
       setPrFiles([])
       setCsvRowFromPrDiff(null)
+      setCsvRowsFromPatch([])
+      setCsvRowsFromRepoDiff([])
       setRepoFiles([])
       setManifestData(null)
       setManifestFilePath('')
@@ -1369,6 +1550,8 @@ export function CcPrReviewWorkbench(props: {
         setPrComments([])
         setPrFiles([])
         setCsvRowFromPrDiff(null)
+        setCsvRowsFromPatch([])
+        setCsvRowsFromRepoDiff([])
         setRepoFiles([])
         setManifestData(null)
         setManifestFilePath('')
@@ -1378,6 +1561,8 @@ export function CcPrReviewWorkbench(props: {
       setErrorMessage(cause instanceof Error ? cause.message : '加载 PR 失败')
       setPullRequests([])
       setSelectedPr(null)
+      setCsvRowsFromPatch([])
+      setCsvRowsFromRepoDiff([])
     } finally {
       setLoading(false)
     }
@@ -1386,6 +1571,29 @@ export function CcPrReviewWorkbench(props: {
   useEffect(() => {
     void loadPullRequests(initialPrNumber)
   }, [initialPrNumber, owner, repo, token])
+
+  useEffect(() => {
+    imageBlobUrlMapRef.current = imageBlobUrlMap
+  }, [imageBlobUrlMap])
+
+  useEffect(() => {
+    return () => {
+      Object.values(imageBlobUrlMapRef.current).forEach((url) => {
+        URL.revokeObjectURL(url)
+      })
+    }
+  }, [])
+
+  useEffect(() => {
+    const urls = [
+      submissionOverview.images.icon?.url || '',
+      submissionOverview.images.cover?.url || '',
+      ...submissionOverview.images.previews.map((item) => item.url)
+    ].filter(Boolean)
+    urls.forEach((url) => {
+      void ensureImageDisplayUrl(url)
+    })
+  }, [submissionOverview.images.cover?.url, submissionOverview.images.icon?.url, submissionOverview.images.previews, imageBlobUrlMap, resolvedToken])
 
   const refreshSelectedPrDetails = async (): Promise<void> => {
     if (!selectedPr) return
@@ -1837,7 +2045,7 @@ export function CcPrReviewWorkbench(props: {
                   <div className="grid gap-2 sm:grid-cols-2">
                     <InfoCell label="资源仓库" value={`${selectedPr.resourceRepoOwner}/${selectedPr.resourceRepoName}`} />
                     <InfoCell label="资源分支" value={selectedPr.resourceRepoRef || '-'} />
-                    <InfoCell label="CSV 新增行" value={csvRowFromPrDiff ? (csvRowFromPrDiff.id || csvRowFromPrDiff.name || '-') : '-'} />
+                    <InfoCell label="CSV 新增行" value={parsedCsvRow ? (parsedCsvRow.id || parsedCsvRow.name || '-') : '-'} />
                     <InfoCell label="Manifest 路径" value={manifestFilePath || '-'} />
                   </div>
 
@@ -1935,22 +2143,51 @@ export function CcPrReviewWorkbench(props: {
                               {submissionOverview.images.icon ? (
                                 <div className="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
                                   <div className="text-xs text-muted-foreground">Icon · {submissionOverview.images.icon.file}</div>
+                                  <div className="mt-1 text-xs text-muted-foreground">
+                                    像素：{formatImageDimensions(submissionOverview.images.icon.url)} ·
+                                    <span className={isIconRatioValid(submissionOverview.images.icon.url) ? '' : 'font-semibold text-red-600'}>
+                                      宽高比：{formatAspectRatio(submissionOverview.images.icon.url)}
+                                    </span>
+                                  </div>
                                   <a href={submissionOverview.images.icon.url} target="_blank" rel="noopener noreferrer" className="mt-2 mx-auto flex h-[200px] w-[200px] items-center justify-center overflow-hidden rounded-full border border-border/60 bg-background/70">
-                                    <img src={submissionOverview.images.icon.url} alt="Icon 预览" className="h-full w-full rounded-full object-contain p-3" loading="lazy" />
+                                    <img
+                                      src={getDisplayImageUrl(submissionOverview.images.icon.url)}
+                                      alt="Icon 预览"
+                                      className="h-full w-full rounded-full object-contain p-3"
+                                      loading="lazy"
+                                      onLoad={(event) => handleImageLoad(submissionOverview.images.icon!.url, event.nativeEvent)}
+                                    />
                                   </a>
                                 </div>
                               ) : null}
                               {submissionOverview.images.cover ? (
                                 <div className="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
                                   <div className="text-xs text-muted-foreground">Cover · {submissionOverview.images.cover.file}</div>
+                                  <div className="mt-1 text-xs text-muted-foreground">
+                                    像素：{formatImageDimensions(submissionOverview.images.cover.url)} ·
+                                    <span className={isCoverRatioValid(submissionOverview.images.cover.url) ? '' : 'font-semibold text-red-600'}>
+                                      宽高比：{formatAspectRatio(submissionOverview.images.cover.url)}
+                                    </span>
+                                  </div>
                                   <a href={submissionOverview.images.cover.url} target="_blank" rel="noopener noreferrer" className="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70">
-                                    <img src={submissionOverview.images.cover.url} alt="Cover 预览" className="max-h-[30vh] w-full object-contain" loading="lazy" />
+                                    <img
+                                      src={getDisplayImageUrl(submissionOverview.images.cover.url)}
+                                      alt="Cover 预览"
+                                      className="max-h-[30vh] w-full object-contain"
+                                      loading="lazy"
+                                      onLoad={(event) => handleImageLoad(submissionOverview.images.cover!.url, event.nativeEvent)}
+                                    />
                                   </a>
                                 </div>
                               ) : null}
                             </div>
                           ) : null}
-                          <PreviewImageCarousel items={submissionOverview.images.previews} emptyText="未检测到预览图" />
+                          <PreviewImageCarousel
+                            items={submissionOverview.images.previews}
+                            emptyText="未检测到预览图"
+                            imageUrlResolver={getDisplayImageUrl}
+                            onImageLoad={handlePreviewImageLoad}
+                          />
                         </div>
                       </div>
                     </div>
