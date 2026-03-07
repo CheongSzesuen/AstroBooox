@@ -26,6 +26,7 @@ import {
 } from '@/cc/route-config'
 import { CcRepositoriesPanel } from '@/react/apps/cc/CcRepositoriesPanel'
 import { CcPrReviewWorkbench } from '@/react/apps/cc/CcPrReviewWorkbench'
+import { CcPublishedPanel } from '@/react/apps/cc/CcPublishedPanel'
 import { CcSettingsPanel } from '@/react/apps/cc/CcSettingsPanel'
 import { CcTokenGate } from '@/react/cc/CcTokenGate'
 import { Button } from '@/react/components/ui/button'
@@ -341,6 +342,23 @@ function CcAuthenticatedApp() {
     navigateToTab('repositories')
   }
 
+  const openPublishedResourceDetail = (detailKey: string) => {
+    applyRouteState(
+      {
+        tab: 'published',
+        settingsSection: routeState.settingsSection,
+        resourceDetailKey: detailKey,
+        pullRequestNumber: 0,
+        pullRequestTargetRepo: '',
+        requireGhUser: false,
+        editResourceId: '',
+        editTargetRepo: '',
+        editUser: ''
+      },
+      { withProgress: true }
+    )
+  }
+
   const handleSignOut = () => {
     setShowUserMenu(false)
     clearSession()
@@ -368,7 +386,21 @@ function CcAuthenticatedApp() {
       return <CcPrReviewWorkbench owner={defaultTargetOwner} repo={defaultTargetRepo} token={token} />
     }
 
-    const workbenchMode = routeState.tab === 'published' ? 'published' : routeState.tab === 'pullrequest' ? 'review' : 'publish'
+    if (routeState.tab === 'published') {
+      return (
+        <CcPublishedPanel
+          token={token}
+          currentUser={currentUser}
+          defaultTargetOwner={defaultTargetOwner}
+          defaultTargetRepo={defaultTargetRepo}
+          defaultCatalogPath={defaultCatalogPath}
+          resourceDetailKey={routeState.resourceDetailKey || ''}
+          onResourceDetailKeyChange={openPublishedResourceDetail}
+        />
+      )
+    }
+
+    const workbenchMode = routeState.tab === 'pullrequest' ? 'review' : 'publish'
 
     return (
       <Card>
