@@ -35,7 +35,9 @@ import { LinkIconPickerDialog, PhosphorIconByName } from '@/react/components/cc/
 import { Button } from '@/react/components/ui/button'
 import { Badge } from '@/react/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/react/components/ui/context-menu'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/react/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/react/components/ui/dropdown-menu'
 import { Input } from '@/react/components/ui/input'
 import { Label } from '@/react/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react/components/ui/select'
@@ -3754,84 +3756,124 @@ export function CcPublishWorkbench(props: {
                   {(remotePickerStep === 1 ? remotePickerFolderItems : remotePickerTreeItems).map((item) => (
                     <div key={`picker-${item.path}`}>
                       {item.type === 'folder' ? (
-                        <div
-                          className="flex w-full items-center gap-1 pr-1"
-                          style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
-                        >
-                          <button
-                            type="button"
-                            className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
-                              remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                            }`}
-                            onClick={() => selectRemotePickerFolder(item.path)}
-                            onDoubleClick={() => toggleRemoteFolder(item.path)}
+                        remotePickerStep === 1 ? (
+                          <ContextMenu>
+                            <ContextMenuTrigger asChild>
+                              <div
+                                className="flex w-full items-center gap-1 pr-1"
+                                style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
+                              >
+                                <button
+                                  type="button"
+                                  className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
+                                    remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
+                                  }`}
+                                  onClick={() => selectRemotePickerFolder(item.path)}
+                                  onDoubleClick={() => toggleRemoteFolder(item.path)}
+                                >
+                                  {item.collapsed ? (
+                                    <CaretRight size={12} weight="bold" className="shrink-0" />
+                                  ) : (
+                                    <CaretDown size={12} weight="bold" className="shrink-0" />
+                                  )}
+                                  <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0" />
+                                  {remotePickerRenamingPath === item.path ? (
+                                    <Input
+                                      ref={remotePickerRenameInputRef}
+                                      value={remotePickerRenamingName}
+                                      onChange={(event) => setRemotePickerRenamingName(event.target.value)}
+                                      className="h-6 min-w-0 flex-1 px-1 text-xs"
+                                      onClick={(event) => event.stopPropagation()}
+                                      onKeyDown={(event) => {
+                                        if (event.key === 'Enter') {
+                                          event.preventDefault()
+                                          commitRenameDraftFolder()
+                                        } else if (event.key === 'Escape') {
+                                          event.preventDefault()
+                                          cancelRenameDraftFolder()
+                                        }
+                                      }}
+                                      onBlur={commitRenameDraftFolder}
+                                    />
+                                  ) : (
+                                    <span className="truncate">{item.label}</span>
+                                  )}
+                                  {remotePickerTargetFolder === item.path ? (
+                                    <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
+                                      目标文件夹
+                                    </span>
+                                  ) : null}
+                                </button>
+                                <DropdownMenu modal={false}>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 w-6 px-0 sm:hidden"
+                                      aria-label="详情菜单"
+                                    >
+                                      <DotsThreeVertical size={12} />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent side="bottom" align="end" sideOffset={6} className="min-w-[150px]">
+                                    <DropdownMenuItem className="gap-2" onSelect={() => createRemotePickerFolder(item.path)}>
+                                      <FolderPlus size={14} weight="duotone" />
+                                      新建子文件夹
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="gap-2" disabled={!isDraftFolder(item.path)} onSelect={() => startRenameDraftFolder(item.path)}>
+                                      <NotePencil size={14} weight="duotone" />
+                                      重命名
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="gap-2 text-destructive" disabled={!isDraftFolder(item.path)} onSelect={() => deleteDraftFolder(item.path)}>
+                                      <Trash size={14} weight="duotone" />
+                                      删除
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </ContextMenuTrigger>
+                            <ContextMenuContent className="min-w-[150px]">
+                              <ContextMenuItem className="gap-2" onSelect={() => createRemotePickerFolder(item.path)}>
+                                <FolderPlus size={14} weight="duotone" />
+                                新建子文件夹
+                              </ContextMenuItem>
+                              <ContextMenuItem className="gap-2" disabled={!isDraftFolder(item.path)} onSelect={() => startRenameDraftFolder(item.path)}>
+                                <NotePencil size={14} weight="duotone" />
+                                重命名
+                              </ContextMenuItem>
+                              <ContextMenuItem className="gap-2 text-destructive" disabled={!isDraftFolder(item.path)} onSelect={() => deleteDraftFolder(item.path)}>
+                                <Trash size={14} weight="duotone" />
+                                删除
+                              </ContextMenuItem>
+                            </ContextMenuContent>
+                          </ContextMenu>
+                        ) : (
+                          <div
+                            className="flex w-full items-center gap-1 pr-1"
+                            style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
                           >
-                            {item.collapsed ? (
-                              <CaretRight size={12} weight="bold" className="shrink-0" />
-                            ) : (
-                              <CaretDown size={12} weight="bold" className="shrink-0" />
-                            )}
-                            <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0" />
-                            {remotePickerStep === 1 && remotePickerRenamingPath === item.path ? (
-                              <Input
-                                ref={remotePickerRenameInputRef}
-                                value={remotePickerRenamingName}
-                                onChange={(event) => setRemotePickerRenamingName(event.target.value)}
-                                className="h-6 min-w-0 flex-1 px-1 text-xs"
-                                onClick={(event) => event.stopPropagation()}
-                                onKeyDown={(event) => {
-                                  if (event.key === 'Enter') {
-                                    event.preventDefault()
-                                    commitRenameDraftFolder()
-                                  } else if (event.key === 'Escape') {
-                                    event.preventDefault()
-                                    cancelRenameDraftFolder()
-                                  }
-                                }}
-                                onBlur={commitRenameDraftFolder}
-                              />
-                            ) : (
+                            <button
+                              type="button"
+                              className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
+                                remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
+                              }`}
+                              onClick={() => selectRemotePickerFolder(item.path)}
+                              onDoubleClick={() => toggleRemoteFolder(item.path)}
+                            >
+                              {item.collapsed ? (
+                                <CaretRight size={12} weight="bold" className="shrink-0" />
+                              ) : (
+                                <CaretDown size={12} weight="bold" className="shrink-0" />
+                              )}
+                              <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0" />
                               <span className="truncate">{item.label}</span>
-                            )}
-                            {remotePickerTargetFolder === item.path ? (
-                              <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
-                                目标文件夹
-                              </span>
-                            ) : null}
-                          </button>
-                          {remotePickerStep === 1 ? (
-                            <div className="flex items-center gap-1">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2"
-                                onClick={() => createRemotePickerFolder(item.path)}
-                              >
-                                <FolderPlus size={12} weight="duotone" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2"
-                                disabled={!isDraftFolder(item.path)}
-                                onClick={() => startRenameDraftFolder(item.path)}
-                              >
-                                <NotePencil size={12} weight="duotone" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2 text-destructive"
-                                disabled={!isDraftFolder(item.path)}
-                                onClick={() => deleteDraftFolder(item.path)}
-                              >
-                                <Trash size={12} weight="duotone" />
-                              </Button>
-                            </div>
-                          ) : (
+                              {remotePickerTargetFolder === item.path ? (
+                                <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
+                                  目标文件夹
+                                </span>
+                              ) : null}
+                            </button>
                             <Button
                               type="button"
                               variant="outline"
@@ -3841,8 +3883,8 @@ export function CcPublishWorkbench(props: {
                             >
                               <DotsThreeVertical size={12} />
                             </Button>
-                          )}
-                        </div>
+                          </div>
+                        )
                       ) : (
                         <button
                           type="button"
