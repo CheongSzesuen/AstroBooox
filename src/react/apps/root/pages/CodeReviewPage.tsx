@@ -166,10 +166,49 @@ const toStringValue = (value: unknown): string => (typeof value === 'string' ? v
 
 const isDataFile = (filename: string): boolean => filename.endsWith('.csv') || (filename.includes('resources/') && filename.endsWith('.json'))
 
+const avatarCache = new Map<string, string>()
+
 const getOptimizedAvatarUrl = (avatarUrl: string, size: number): string => {
   if (!avatarUrl) return 'https://github.com/ghost.png'
   if (!avatarUrl.includes('githubusercontent.com')) return avatarUrl
   return `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}s=${size}&q=70`
+}
+
+const getAvatarCacheKey = (login: string, size: number): string => `${login}_${size}`
+
+const getCachedAvatarUrl = (login: string, avatarUrl: string, size: number): string => {
+  const optimized = getOptimizedAvatarUrl(avatarUrl, size)
+  if (!login) return optimized
+
+  const cacheKey = getAvatarCacheKey(login, size)
+  if (avatarCache.has(cacheKey)) {
+    return avatarCache.get(cacheKey) as string
+  }
+
+  try {
+    const stored = localStorage.getItem(`avatar_${cacheKey}`)
+    if (stored) {
+      avatarCache.set(cacheKey, stored)
+      return stored
+    }
+  } catch {
+    // ignore storage read failure
+  }
+
+  avatarCache.set(cacheKey, optimized)
+  return optimized
+}
+
+const cacheAvatarUrl = (login: string, avatarUrl: string, size: number): void => {
+  if (!login) return
+  const optimized = getOptimizedAvatarUrl(avatarUrl, size)
+  const cacheKey = getAvatarCacheKey(login, size)
+  avatarCache.set(cacheKey, optimized)
+  try {
+    localStorage.setItem(`avatar_${cacheKey}`, optimized)
+  } catch {
+    // ignore storage write failure
+  }
 }
 
 const getTimeAgo = (dateString: string): string => {
@@ -497,10 +536,11 @@ function PullRequestSidebar(props: SidebarProps) {
                 onClick={() => props.onSelect(pr)}
               >
                 <img
-                  src={getOptimizedAvatarUrl(pr.user.avatar_url, 64)}
+                  src={getCachedAvatarUrl(pr.user.login, pr.user.avatar_url, 64)}
                   className="h-8 w-8 shrink-0 rounded-md object-cover"
                   loading="lazy"
                   alt={pr.user.login}
+                  onLoad={() => cacheAvatarUrl(pr.user.login, pr.user.avatar_url, 64)}
                 />
 
                 {!props.isCollapsed ? (
@@ -546,10 +586,11 @@ function PullRequestHeader(props: PullRequestHeaderProps) {
 
             <span className="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
               <img
-                src={getOptimizedAvatarUrl(props.pr.user.avatar_url, 40)}
+                src={getCachedAvatarUrl(props.pr.user.login, props.pr.user.avatar_url, 40)}
                 className="h-6 w-6 shrink-0 rounded-full object-cover"
                 loading="lazy"
                 alt={props.pr.user.login}
+                onLoad={() => cacheAvatarUrl(props.pr.user.login, props.pr.user.avatar_url, 40)}
               />
               <a href={props.pr.user.html_url} target="_blank" rel="noopener noreferrer" className="truncate font-medium text-foreground hover:underline">
                 {props.pr.user.login}

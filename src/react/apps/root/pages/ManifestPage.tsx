@@ -1,12 +1,12 @@
 import {
-  ArrowDown,
-  ArrowUp,
   CheckCircle,
   CopySimple,
   DeviceMobile,
+  DotsSixVertical,
   DownloadSimple,
   FloppyDisk,
   FolderOpen,
+  FolderSimplePlus,
   Info,
   MagnifyingGlass,
   Minus,
@@ -198,11 +198,13 @@ export function ManifestPage() {
   const [showAlert, setShowAlert] = useState(false)
   const [alertTitle, setAlertTitle] = useState('')
   const [alertMessage, setAlertMessage] = useState('')
+  const [draggingPreviewIndex, setDraggingPreviewIndex] = useState<number | null>(null)
 
   const declarationBodyRef = useRef<HTMLDivElement | null>(null)
 
   const showPhonePrompt = deviceType === 'phone'
   const isOPFSMode = !isFsaSupported
+  const showDirectoryPrompt = !showPhonePrompt && !showUnsupportedPrompt && !projectDirectory && isFsaSupported
 
   const manifestJsonString = useMemo(() => JSON.stringify(manifest, null, 2), [manifest])
 
@@ -387,17 +389,30 @@ export function ManifestPage() {
     }))
   }, [])
 
-  const movePreview = useCallback((index: number, direction: 'up' | 'down') => {
+  const handlePreviewDragStart = useCallback((index: number) => {
+    setDraggingPreviewIndex(index)
+  }, [])
+
+  const handlePreviewDragEnd = useCallback(() => {
+    setDraggingPreviewIndex(null)
+  }, [])
+
+  const handlePreviewDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+  }, [])
+
+  const handlePreviewDrop = useCallback((targetIndex: number) => {
     setManifest((current) => {
-      const list = [...current.item.preview]
-      const targetIndex = direction === 'up' ? index - 1 : index + 1
-      if (targetIndex < 0 || targetIndex >= list.length) {
+      if (draggingPreviewIndex === null || draggingPreviewIndex === targetIndex) {
         return current
       }
 
-      const temp = list[index]
-      list[index] = list[targetIndex]
-      list[targetIndex] = temp
+      const list = [...current.item.preview]
+      const [movedItem] = list.splice(draggingPreviewIndex, 1)
+      if (!movedItem) {
+        return current
+      }
+      list.splice(targetIndex, 0, movedItem)
 
       return {
         ...current,
@@ -407,7 +422,8 @@ export function ManifestPage() {
         }
       }
     })
-  }, [])
+    setDraggingPreviewIndex(null)
+  }, [draggingPreviewIndex])
 
   const selectMultiplePreviews = useCallback(async () => {
     if (!projectDirectory && isFsaSupported) {
@@ -765,6 +781,28 @@ export function ManifestPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={showDirectoryPrompt} modal={false}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader className="gap-3">
+            <div className="flex items-start gap-3">
+              <FolderSimplePlus size={36} weight="duotone" className="mt-0.5 text-foreground" />
+              <div>
+                <DialogTitle>请选择项目文件夹</DialogTitle>
+                <DialogDescription className="mt-2 text-sm leading-6">
+                  先选择项目目录，再进行 manifest 编辑与保存。已支持 FSA 模式处理非根目录文件。
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end">
+            <Button onClick={() => void selectProjectDirectory()}>
+              <FolderOpen size={16} weight="duotone" />
+              选择文件夹
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {showPhonePrompt ? (
         <div className="flex min-h-[16rem] items-center justify-center rounded-xl border border-dashed border-border bg-muted/25 px-6 text-center text-sm text-muted-foreground">
           当前设备为手机，Manifest 编辑功能已禁用。
@@ -846,26 +884,22 @@ export function ManifestPage() {
                     <label className="block text-sm font-medium text-foreground">预览图（可排序）</label>
                     <div className="space-y-2">
                       {manifest.item.preview.map((previewPath, index) => (
-                        <div key={`${previewPath}-${index}`} className="flex min-h-11 items-center gap-2.5 rounded-lg border border-border bg-background p-2.5">
+                        <div
+                          key={`${previewPath}-${index}`}
+                          draggable
+                          onDragStart={() => handlePreviewDragStart(index)}
+                          onDragOver={handlePreviewDragOver}
+                          onDrop={() => handlePreviewDrop(index)}
+                          onDragEnd={handlePreviewDragEnd}
+                          className={[
+                            'flex min-h-11 items-center gap-2.5 rounded-lg border border-border bg-background p-2.5',
+                            draggingPreviewIndex === index ? 'opacity-80' : ''
+                          ].join(' ')}
+                        >
+                          <div className="drag-handle flex h-full w-6 cursor-grab items-center justify-center rounded-md bg-muted py-1 active:cursor-grabbing">
+                            <DotsSixVertical size={16} weight="bold" />
+                          </div>
                           <Input value={previewPath} readOnly className="flex-1 min-w-0" />
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-full"
-                            onClick={() => movePreview(index, 'up')}
-                            disabled={index === 0}
-                          >
-                            <ArrowUp size={16} weight="bold" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-full"
-                            onClick={() => movePreview(index, 'down')}
-                            disabled={index === manifest.item.preview.length - 1}
-                          >
-                            <ArrowDown size={16} weight="bold" />
-                          </Button>
                           <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => removePreview(index)}>
                             <Minus size={16} weight="bold" />
                           </Button>
@@ -1053,24 +1087,14 @@ export function ManifestPage() {
         </div>
       ) : null}
 
-      {!showPhonePrompt && !projectDirectory ? (
+      {!showPhonePrompt && !projectDirectory && isOPFSMode ? (
         <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/25 px-6 text-center text-sm text-muted-foreground">
-          <p>请先选择项目目录，再开始编辑 manifest.json。</p>
-          <Button onClick={() => void selectProjectDirectory()} className="gap-2" disabled={isOPFSMode}>
-            <FolderOpen size={16} weight="duotone" />
-            选择文件夹
+          <p>当前浏览器不支持目录写回，建议在桌面 Chrome/Edge 下使用。</p>
+          <Button variant="outline" className="gap-2" onClick={() => setShowEditPrompt(true)}>
+            <MagnifyingGlass size={16} weight="bold" />
+            加载已有 manifest.json
           </Button>
-          {isOPFSMode ? (
-            <>
-              <Button variant="outline" className="gap-2" onClick={() => setShowEditPrompt(true)}>
-                <MagnifyingGlass size={16} weight="bold" />
-                加载已有 manifest.json
-              </Button>
-              <p className="max-w-[520px] text-xs leading-6">
-                当前浏览器不支持目录写回，建议在桌面 Chrome/Edge 下使用。你仍可导入并编辑内容，再下载 `manifest.json`。
-              </p>
-            </>
-          ) : null}
+          <p className="max-w-[520px] text-xs leading-6">你仍可导入并编辑内容，再下载 `manifest.json`。</p>
         </div>
       ) : null}
 
