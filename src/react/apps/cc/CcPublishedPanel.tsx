@@ -563,21 +563,13 @@ export function CcPublishedPanel(props: {
                         <GithubLogo size={16} weight="duotone" />
                       </a>
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex max-w-full justify-end">
-                        <Badge variant="secondary">{formatOwnedRestype(item.restype)}</Badge>
+                    <div className="flex max-w-full justify-end">
+                      <div className="flex max-w-full flex-nowrap items-center gap-1 overflow-x-auto pb-0.5 text-right [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                        <Badge variant="secondary" className="shrink-0">{formatOwnedRestype(item.restype)}</Badge>
+                        {item.sources.includes('v1') ? <Badge variant="outline" className="shrink-0">V1</Badge> : null}
+                        {item.sources.includes('v2') ? <Badge variant="outline" className="shrink-0">V2</Badge> : null}
+                        {showV2FollowUpTag && item.v2NeedsFollowUp ? <Badge variant="destructive" className="shrink-0">v2需要跟进</Badge> : null}
                       </div>
-                      {(item.sources.includes('v1') || item.sources.includes('v2')) ? (
-                        <div className="flex max-w-full flex-wrap justify-end gap-1">
-                          {item.sources.includes('v1') ? <Badge variant="outline">V1</Badge> : null}
-                          {item.sources.includes('v2') ? <Badge variant="outline">V2</Badge> : null}
-                        </div>
-                      ) : null}
-                      {showV2FollowUpTag && item.v2NeedsFollowUp ? (
-                        <div className="flex max-w-full justify-end">
-                          <Badge variant="destructive">v2需要跟进</Badge>
-                        </div>
-                      ) : null}
                     </div>
                     <div className="w-full break-all text-xs text-muted-foreground">
                       {item.description || '暂无描述'}
