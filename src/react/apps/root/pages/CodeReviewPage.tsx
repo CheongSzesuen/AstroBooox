@@ -262,7 +262,7 @@ const safeDecode = (value: string): string => {
 const createDefaultManifest = (): ManifestData => ({
   item: {
     name: '获取失败',
-    description: '无法加载 manifest.json',
+    description: '无法加载manifest.json',
     preview: [],
     icon: '',
     source_url: '',
@@ -428,7 +428,7 @@ const fetchRepoManifestData = async (repoUrl: string, githubGet: GitHubGetFn): P
     }
   }
 
-  throw new Error('所有获取 manifest 的方案都失败了')
+  throw new Error('所有获取manifest的方案都失败了')
 }
 
 const analyzeFile = async (file: FileChange, githubGet: GitHubGetFn): Promise<AnalyzedData> => {
@@ -1365,7 +1365,7 @@ function AnalysisTabContent(props: AnalysisTabContentProps) {
                   </div>
                 </div>
               ) : (
-                <div className="mt-3 text-sm text-destructive">无法获取或解析 manifest.json 文件</div>
+                <div className="mt-3 text-sm text-destructive">无法获取或解析manifest.json文件</div>
               )}
             </CardContent>
           </Card>
@@ -1472,7 +1472,8 @@ export function CodeReviewPage() {
             if (analyzed.resourceChange.repo_url) {
               try {
                 nextManifestData = await fetchRepoManifestData(analyzed.resourceChange.repo_url, githubGet)
-              } catch {
+              } catch (error) {
+                setErrorMessage(`获取manifest.json失败: ${getErrorMessage(error)}`)
                 nextManifestData = createDefaultManifest()
               }
             }
@@ -1483,7 +1484,7 @@ export function CodeReviewPage() {
         setRepoData(nextRepoData)
         setManifestData(nextManifestData)
       } catch (error) {
-        setErrorMessage(`获取 PR 详情失败: ${getErrorMessage(error)}`)
+        setErrorMessage(`获取PR详情失败: ${getErrorMessage(error)}`)
       } finally {
         setLoadingDetails(false)
       }
@@ -1506,7 +1507,7 @@ export function CodeReviewPage() {
       })
 
       if (!Array.isArray(data)) {
-        throw new Error('返回的 PR 数据格式不正确')
+        throw new Error('返回的PR数据格式不正确')
       }
 
       const mapped = data
@@ -1536,10 +1537,10 @@ export function CodeReviewPage() {
       setPullRequests(mapped)
     } catch (error) {
       const status = getErrorStatus(error)
-      const detail = `获取 PR 列表失败: ${getErrorMessage(error)}`
+      const detail = `获取PR列表失败: ${getErrorMessage(error)}`
       if (status === 401) {
         setErrorMessage(
-          hasGithubToken ? 'GitHub 认证失败，请检查 Token 是否有效' : `${GITHUB_TOKEN_SETUP_HINT} 当前请求返回 401，请先配置可用 token。`
+          hasGithubToken ? 'GitHub认证失败，请检查Token是否有效' : `${GITHUB_TOKEN_SETUP_HINT} 当前请求返回 401，请先配置可用 token。`
         )
       } else if (status === 404) {
         setErrorMessage(`仓库不存在: ${repoOwner}/${repoName}`)
