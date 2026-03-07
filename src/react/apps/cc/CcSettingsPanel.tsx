@@ -567,7 +567,7 @@ export function CcSettingsPanel(props: {
                   <a href="https://astrobooox-ng.waijade.cn/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
                     主站
                   </a>
-                  <a href="https://astrobooox-ng.waijade.cn/cc/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                  <a href="https://astrobooox-ng.waijade.cn/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
                     Creator Console
                   </a>
                   <a href="https://github.com/CheongSzesuen/AstroBooox" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">

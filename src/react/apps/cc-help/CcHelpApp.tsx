@@ -52,7 +52,7 @@ const flowSteps = [
   },
   {
     title: '生成并复制 Token',
-    description: '点击 `Generate token`，复制后立刻回 `/cc` 粘贴登录。',
+    description: '点击 `Generate token`，复制后立刻回 `/login` 粘贴登录。',
     extra: (
       <>
         <div className="mt-3 flex items-center gap-2">
@@ -60,7 +60,7 @@ const flowSteps = [
         </div>
         <div className="mt-3">
           <Button asChild size="sm" variant="outline" className="h-8">
-            <a href="/cc/">回到 /cc</a>
+            <a href="/login">回到登录页</a>
           </Button>
         </div>
       </>
@@ -73,8 +73,8 @@ export function CcHelpApp() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex h-14 w-full max-w-[1120px] items-center gap-2 px-4 md:px-6">
-          <a href="/cc/" className="text-sm text-muted-foreground hover:text-foreground">
-            返回 /cc
+          <a href="/login" className="text-sm text-muted-foreground hover:text-foreground">
+            返回登录
           </a>
           <div className="h-4 w-px bg-border" />
           <h1 className="text-sm font-semibold text-foreground md:text-base">Token 创建教程</h1>

@@ -116,7 +116,7 @@ export function CcTokenGate({ onAuthenticated }: { onAuthenticated?: () => void 
 
               <p className="text-center text-xs text-muted-foreground">
                 不会创建 Token？{' '}
-                <a href="/cc/help/" className="text-primary underline underline-offset-4 hover:opacity-85">
+                <a href="/help/" className="text-primary underline underline-offset-4 hover:opacity-85">
                   查看帮助
                 </a>
               </p>

@@ -14,17 +14,17 @@ export type CcRouteState = {
 }
 
 export const CC_PATHS = {
-  root: '/cc',
-  login: '/cc/login',
-  publish: '/cc/publish',
-  pullRequest: '/cc/pullrequest',
-  review: '/cc/review',
-  published: '/cc/resource',
-  repositories: '/cc/repositories',
-  resourceEdit: '/cc/resource/edit',
-  settings: '/cc/settings',
-  settingsAccount: '/cc/settings/account',
-  settingsAbout: '/cc/settings/about'
+  root: '/',
+  login: '/login',
+  publish: '/publish',
+  pullRequest: '/pullrequest',
+  review: '/review',
+  published: '/resource',
+  repositories: '/repositories',
+  resourceEdit: '/resource/edit',
+  settings: '/settings',
+  settingsAccount: '/settings/account',
+  settingsAbout: '/settings/about'
 } as const
 
 export const CC_DEFAULT_ROUTE: CcRouteState = {
@@ -75,11 +75,11 @@ export const buildCcPath = (state: CcRouteState): string => {
 export const resolveCcRouteFromPath = (pathname: string): CcRouteState => {
   const normalized = normalizeCcPath(pathname)
   const segments = normalized.split('/').filter(Boolean)
-  if (segments[0] !== 'cc') return CC_DEFAULT_ROUTE
-  const section = segments[1] || 'publish'
+  const routeSegments = segments[0] === 'cc' ? segments.slice(1) : segments
+  const section = routeSegments[0] || 'publish'
   if (section === 'publish') return { tab: 'publish', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'pullrequest') {
-    const rawPrNumber = Number(segments[2] || 0)
+    const rawPrNumber = Number(routeSegments[1] || 0)
     return {
       tab: 'pullrequest',
       settingsSection: 'defaults',
@@ -91,14 +91,14 @@ export const resolveCcRouteFromPath = (pathname: string): CcRouteState => {
   }
   if (section === 'review') return { tab: 'review', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'repositories') return { tab: 'repositories', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
-  if (section === 'resource' && segments[2] === 'edit') return { tab: 'resource_edit', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
+  if (section === 'resource' && routeSegments[1] === 'edit') return { tab: 'resource_edit', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'resource') {
-    const detailKey = segments[2] ? decodeURIComponent(segments[2]) : ''
+    const detailKey = routeSegments[1] ? decodeURIComponent(routeSegments[1]) : ''
     return { tab: 'published', settingsSection: 'defaults', resourceDetailKey: detailKey, pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   }
   if (section === 'published') return { tab: 'published', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'settings') {
-    const settingsSegment = segments[2]
+    const settingsSegment = routeSegments[1]
     return {
       tab: 'settings',
       settingsSection: settingsSegment === 'account' ? 'account' : settingsSegment === 'about' ? 'about' : 'defaults',
@@ -112,4 +112,4 @@ export const resolveCcRouteFromPath = (pathname: string): CcRouteState => {
 }
 
 export const isCcLoginPath = (pathname: string): boolean =>
-  normalizeCcPath(pathname) === CC_PATHS.login
+  normalizeCcPath(pathname) === CC_PATHS.login || normalizeCcPath(pathname) === '/cc/login'

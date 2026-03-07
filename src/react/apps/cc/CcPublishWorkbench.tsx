@@ -2779,7 +2779,7 @@ export function CcPublishWorkbench(props: {
         ...linkLines,
         '',
         '---',
-        '此 PR 由 [AstroBooox Creator Console](https://astrobooox-ng.waijade.cn/cc/) 生成，如有问题前往 [AstroBooox 仓库](https://github.com/CheongSzesuen/AstroBooox) 提交 [Issue](https://github.com/CheongSzesuen/AstroBooox/issues)。'
+        '此 PR 由 [AstroBooox Creator Console](https://astrobooox-ng.waijade.cn/) 生成，如有问题前往 [AstroBooox 仓库](https://github.com/CheongSzesuen/AstroBooox) 提交 [Issue](https://github.com/CheongSzesuen/AstroBooox/issues)。'
       ].join('\n')
     }
 
@@ -2806,7 +2806,7 @@ export function CcPublishWorkbench(props: {
       `- 提交短哈希：\`${shortHash}\``,
       '',
       '---',
-      '此 PR 由 [AstroBooox Creator Console](https://astrobooox-ng.waijade.cn/cc/) 生成，如有问题前往 [AstroBooox 仓库](https://github.com/CheongSzesuen/AstroBooox) 提交 [Issue](https://github.com/CheongSzesuen/AstroBooox/issues)。'
+      '此 PR 由 [AstroBooox Creator Console](https://astrobooox-ng.waijade.cn/) 生成，如有问题前往 [AstroBooox 仓库](https://github.com/CheongSzesuen/AstroBooox) 提交 [Issue](https://github.com/CheongSzesuen/AstroBooox/issues)。'
     ].join('\n')
   }
 

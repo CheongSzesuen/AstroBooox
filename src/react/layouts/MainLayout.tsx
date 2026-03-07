@@ -152,7 +152,7 @@ export function MainLayout() {
 
           <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 px-2 sm:px-3" aria-label="进入 CC 页面">
-              <a href="/cc/">
+              <a href="/">
                 <Compass size={15} weight="duotone" />
                 <span>CC</span>
               </a>

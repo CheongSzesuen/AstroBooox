@@ -56,11 +56,13 @@ const sanitizeCcRedirectPath = (rawPath: string | null): string => {
   if (!rawPath) return ''
   const value = rawPath.trim()
   if (!value) return ''
-  if (value.startsWith('/cc')) return value
+  if (value.startsWith('/legacy')) return ''
+  if (value.startsWith('/')) return value
   if (!/^https?:\/\//i.test(value)) return ''
   try {
     const parsed = new URL(value)
-    return parsed.pathname.startsWith('/cc') ? parsed.pathname : ''
+    if (parsed.pathname.startsWith('/legacy')) return ''
+    return parsed.pathname.startsWith('/') ? parsed.pathname : ''
   } catch {
     return ''
   }
@@ -86,7 +88,7 @@ const resolveExpectedUserFromLocation = (): string => {
 const resolveRouteFromLocation = (currentUser: string): CcRouteState => {
   const searchParams = new URLSearchParams(window.location.search)
   const redirectedPath = sanitizeCcRedirectPath(searchParams.get('cc_path'))
-  const routeBase = redirectedPath && redirectedPath.startsWith('/cc') ? resolveCcRouteFromPath(redirectedPath) : resolveCcRouteFromPath(window.location.pathname)
+  const routeBase = redirectedPath ? resolveCcRouteFromPath(redirectedPath) : resolveCcRouteFromPath(window.location.pathname)
 
   const route: CcRouteState = {
     ...routeBase,
