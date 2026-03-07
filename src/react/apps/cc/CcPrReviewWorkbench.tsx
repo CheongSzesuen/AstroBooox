@@ -1,5 +1,20 @@
-import { ClockCounterClockwise, GithubLogo, UserCircle } from '@phosphor-icons/react'
-import { useEffect, useMemo, useState } from 'react'
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  ArrowsClockwise,
+  CaretDown,
+  CaretRight,
+  CheckCircle,
+  File,
+  Folder,
+  GithubLogo,
+  GitPullRequest,
+  MagnifyingGlass,
+  UserCircle,
+  WarningCircle
+} from '@phosphor-icons/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createGitHubClient, normalizeGitHubError } from '@/utils/githubOctokitClient'
 import { escapeHtml, parseReviewCommentBody, renderCommentMarkdownHtml, renderCommentMarkdownInlineHtml } from '@/utils/reviewComment'
 import { Badge } from '@/react/components/ui/badge'
@@ -14,9 +29,11 @@ import {
   DialogTitle
 } from '@/react/components/ui/dialog'
 import { Input } from '@/react/components/ui/input'
-import { Switch } from '@/react/components/ui/switch'
+import { Label } from '@/react/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/react/components/ui/tabs'
 import { Textarea } from '@/react/components/ui/textarea'
+import { ResourceManifestOverview } from '@/react/components/cc/ResourceManifestOverview'
+import { parseManifestView, type ResourceManifestView } from '@/react/components/cc/resource-manifest'
 
 type ReviewState = 'waiting_review' | 'changes_requested' | 'fixed_waiting'
 
@@ -42,6 +59,9 @@ interface PullListItem {
   headOwner: string
   headRepo: string
   headRef: string
+  resourceRepoOwner: string
+  resourceRepoName: string
+  resourceRepoRef: string
   status: ReviewState
   review: ReviewStatusResult
 }
@@ -66,6 +86,19 @@ interface PullFileItem {
   patch?: string
 }
 
+type PickerTreeItem = {
+  type: 'folder' | 'file'
+  path: string
+  label: string
+  depth: number
+}
+
+type RuleCheckItem = {
+  title: string
+  status: 'pass' | 'fail' | 'warn' | 'manual'
+  detail: string
+}
+
 const COMMENT_PATTERN = /^\s*\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]\s*(.*)$/i
 const SITE_DEFAULT_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim() ?? ''
 
@@ -74,6 +107,38 @@ const formatDate = (value?: string): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('zh-CN', { hour12: false })
+}
+
+const decodeBase64Utf8 = (base64: string): string => {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+}
+
+const parseGitHubRepoFromUrl = (raw: string): { owner: string; repo: string } | null => {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  const matched = trimmed.match(/^https?:\/\/github\.com\/([^/]+)\/([^/?#]+)(?:[/?#].*)?$/i)
+  if (!matched) return null
+  return {
+    owner: matched[1],
+    repo: matched[2].replace(/\.git$/i, '')
+  }
+}
+
+const parseRepoFromPrBody = (body: string): { owner: string; repo: string } | null => {
+  const lines = body.split('\n')
+  for (const line of lines) {
+    if (!line.toLowerCase().includes('github.com/')) continue
+    const matched = line.match(/https?:\/\/github\.com\/[^\s)]+/i)
+    if (!matched) continue
+    const parsed = parseGitHubRepoFromUrl(matched[0])
+    if (parsed) return parsed
+  }
+  return null
 }
 
 const buildReplyContextBlock = (comment: IssueCommentItem | null): string => {
@@ -164,6 +229,76 @@ const buildCommentPreviewCardHtml = (body: string): string => {
   return `${reply}${content}`
 }
 
+const getTopLevelFolders = (paths: string[]): string[] =>
+  Array.from(new Set(paths.map((path) => path.split('/').filter(Boolean)[0]).filter(Boolean)))
+
+const buildPickerTreeItems = (paths: string[], openFolders: string[]): PickerTreeItem[] => {
+  interface TreeNode {
+    path: string
+    depth: number
+    label: string
+    folders: Map<string, TreeNode>
+    files: Array<{ path: string; label: string; depth: number }>
+  }
+
+  const root: TreeNode = {
+    path: '',
+    depth: -1,
+    label: '',
+    folders: new Map(),
+    files: []
+  }
+
+  for (const path of paths) {
+    const parts = path.split('/').filter(Boolean)
+    if (parts.length === 0) continue
+
+    let current = root
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      const folderPath = parts.slice(0, i + 1).join('/')
+      const existing = current.folders.get(parts[i])
+      if (existing) {
+        current = existing
+        continue
+      }
+      const node: TreeNode = {
+        path: folderPath,
+        depth: i,
+        label: parts[i],
+        folders: new Map(),
+        files: []
+      }
+      current.folders.set(parts[i], node)
+      current = node
+    }
+
+    current.files.push({
+      path,
+      label: parts[parts.length - 1],
+      depth: Math.max(parts.length - 1, 0)
+    })
+  }
+
+  const output: PickerTreeItem[] = []
+  const walk = (node: TreeNode): void => {
+    const folders = Array.from(node.folders.values()).sort((a, b) => a.path.localeCompare(b.path))
+    for (const folder of folders) {
+      output.push({ type: 'folder', path: folder.path, label: folder.label, depth: folder.depth })
+      if (openFolders.includes(folder.path)) {
+        walk(folder)
+      }
+    }
+
+    const files = [...node.files].sort((a, b) => a.path.localeCompare(b.path))
+    for (const file of files) {
+      output.push({ type: 'file', path: file.path, label: file.label, depth: file.depth })
+    }
+  }
+
+  walk(root)
+  return output
+}
+
 export function CcPrReviewWorkbench(props: {
   owner: string
   repo: string
@@ -178,10 +313,14 @@ export function CcPrReviewWorkbench(props: {
   const [pullRequests, setPullRequests] = useState<PullListItem[]>([])
   const [selectedPr, setSelectedPr] = useState<PullListItem | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [detailsError, setDetailsError] = useState('')
   const [prComments, setPrComments] = useState<IssueCommentItem[]>([])
   const [prFiles, setPrFiles] = useState<PullFileItem[]>([])
+  const [repoFiles, setRepoFiles] = useState<string[]>([])
+  const [repoFilesError, setRepoFilesError] = useState('')
+  const [manifestView, setManifestView] = useState<ResourceManifestView | null>(null)
 
   const [commentId, setCommentId] = useState('')
   const [commentMessage, setCommentMessage] = useState('')
@@ -198,8 +337,27 @@ export function CcPrReviewWorkbench(props: {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTargetComment, setDeleteTargetComment] = useState<IssueCommentItem | null>(null)
 
-  const canLoad = Boolean(owner.trim() && repo.trim() && resolvedToken)
+  const [filePickerOpen, setFilePickerOpen] = useState(false)
+  const [filePickerStep, setFilePickerStep] = useState<'file' | 'line'>('file')
+  const [filePickerTab, setFilePickerTab] = useState<'pr' | 'repo'>('pr')
+  const [prPickerOpenFolders, setPrPickerOpenFolders] = useState<string[]>([])
+  const [repoPickerOpenFolders, setRepoPickerOpenFolders] = useState<string[]>([])
+  const [filePickerSearch, setFilePickerSearch] = useState('')
+  const [selectedPickerPath, setSelectedPickerPath] = useState('')
+  const [selectedPickerContent, setSelectedPickerContent] = useState('')
+  const [selectedPickerLine, setSelectedPickerLine] = useState<number | null>(null)
+  const [pickerLineSearch, setPickerLineSearch] = useState('')
+  const [pickerLoading, setPickerLoading] = useState(false)
+  const [pickerError, setPickerError] = useState('')
 
+  const commentTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const [commentCursorStart, setCommentCursorStart] = useState<number | null>(null)
+  const [commentCursorEnd, setCommentCursorEnd] = useState<number | null>(null)
+
+  const pickerLineRowRefs = useRef<Map<number, HTMLButtonElement>>(new Map())
+  const [pickerMatchCursor, setPickerMatchCursor] = useState(-1)
+
+  const canLoad = Boolean(owner.trim() && repo.trim() && resolvedToken)
   const normalizedCommentId = useMemo(() => normalizeCommentId(commentId), [commentId])
 
   const submitCommentBody = useMemo(() => {
@@ -239,6 +397,56 @@ export function CcPrReviewWorkbench(props: {
     const text = (parsed.content || raw).replace(/\s+/g, ' ').trim()
     return text || '（空内容）'
   }, [deleteTargetComment])
+
+  const pickerPaths = useMemo(() => {
+    const source = filePickerTab === 'pr' ? prFiles.map((file) => file.filename) : repoFiles
+    const query = filePickerSearch.trim().toLowerCase()
+    if (!query) return source
+    return source.filter((path) => path.toLowerCase().includes(query))
+  }, [filePickerSearch, filePickerTab, prFiles, repoFiles])
+
+  const pickerOpenFolders = useMemo(() => (filePickerTab === 'pr' ? prPickerOpenFolders : repoPickerOpenFolders), [filePickerTab, prPickerOpenFolders, repoPickerOpenFolders])
+
+  const pickerTreeItems = useMemo(() => buildPickerTreeItems(pickerPaths, pickerOpenFolders), [pickerOpenFolders, pickerPaths])
+
+  const pickerContentLines = useMemo(() => selectedPickerContent.split('\n'), [selectedPickerContent])
+
+  const pickerMatchedLineNumbers = useMemo(() => {
+    const query = pickerLineSearch.trim().toLowerCase()
+    if (!query) return [] as number[]
+    const numbers: number[] = []
+    pickerContentLines.forEach((line, index) => {
+      if (line.toLowerCase().includes(query)) {
+        numbers.push(index + 1)
+      }
+    })
+    return numbers
+  }, [pickerContentLines, pickerLineSearch])
+
+  const ruleChecks = useMemo<RuleCheckItem[]>(() => {
+    const checks: RuleCheckItem[] = []
+    checks.push({
+      title: 'PR 文件变更已加载',
+      status: prFiles.length > 0 ? 'pass' : 'warn',
+      detail: prFiles.length > 0 ? `共 ${prFiles.length} 个文件` : '未检测到文件变更'
+    })
+    checks.push({
+      title: '资源仓库文件树可访问',
+      status: repoFilesError ? 'fail' : repoFiles.length > 0 ? 'pass' : 'warn',
+      detail: repoFilesError || (repoFiles.length > 0 ? `共 ${repoFiles.length} 个文件` : '未读取到仓库文件')
+    })
+    checks.push({
+      title: 'manifest 解析',
+      status: manifestView ? 'pass' : 'warn',
+      detail: manifestView ? '已解析资源 manifest' : '未识别到 manifest_v2.json 或 manifest.json'
+    })
+    checks.push({
+      title: '资源内容合规（人工）',
+      status: 'manual',
+      detail: '色情低俗/版权/可运行性仍需人工审核'
+    })
+    return checks
+  }, [manifestView, prFiles.length, repoFiles.length, repoFilesError])
 
   const openResultDialog = (title: string, message: string) => {
     setResultDialogTitle(title)
@@ -312,9 +520,91 @@ export function CcPrReviewWorkbench(props: {
     })
   }
 
+  const readRepoTextFile = async (repoOwner: string, repoName: string, ref: string, path: string): Promise<string> => {
+    const encodedPath = path
+      .split('/')
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join('/')
+    if (!encodedPath) return ''
+
+    const file = await githubGet<{ content?: string; encoding?: string }>(
+      `/repos/${repoOwner}/${repoName}/contents/${encodedPath}?ref=${encodeURIComponent(ref || 'main')}`
+    )
+    if (!file.content) return ''
+    if (file.encoding && file.encoding !== 'base64') return ''
+    return decodeBase64Utf8(file.content.replace(/\n/g, ''))
+  }
+
+  const loadRepoFiles = async (targetPr: PullListItem): Promise<void> => {
+    setRepoFilesError('')
+    setRepoFiles([])
+    setManifestView(null)
+
+    try {
+      if (!targetPr.resourceRepoOwner || !targetPr.resourceRepoName) {
+        throw new Error('无法解析资源仓库信息')
+      }
+
+      const repoBranch = targetPr.resourceRepoRef || 'main'
+      const commit = await githubGet<{ commit?: { tree?: { sha?: string } } }>(
+        `/repos/${targetPr.resourceRepoOwner}/${targetPr.resourceRepoName}/commits/${encodeURIComponent(repoBranch)}`
+      )
+
+      const treeSha = commit.commit?.tree?.sha
+      if (!treeSha) {
+        setRepoFiles([])
+        return
+      }
+
+      const tree = await githubGet<{ tree?: Array<{ path?: string; type?: string }> }>(
+        `/repos/${targetPr.resourceRepoOwner}/${targetPr.resourceRepoName}/git/trees/${treeSha}?recursive=1`
+      )
+
+      const files = (tree.tree || [])
+        .filter((item) => item.type === 'blob' && item.path)
+        .map((item) => item.path as string)
+        .slice(0, 4000)
+      setRepoFiles(files)
+      setRepoPickerOpenFolders(getTopLevelFolders(files))
+
+      const manifestV2Exists = files.includes('manifest_v2.json')
+      const manifestV1Exists = files.includes('manifest.json')
+      if (!manifestV2Exists && !manifestV1Exists) {
+        return
+      }
+
+      const manifestPath = manifestV2Exists ? 'manifest_v2.json' : 'manifest.json'
+      const manifestText = await readRepoTextFile(targetPr.resourceRepoOwner, targetPr.resourceRepoName, repoBranch, manifestPath)
+      if (!manifestText) {
+        return
+      }
+
+      const parsed = parseManifestView(
+        manifestText,
+        targetPr.resourceRepoOwner,
+        targetPr.resourceRepoName,
+        repoBranch
+      )
+      setManifestView(parsed)
+    } catch (cause: unknown) {
+      setRepoFilesError(cause instanceof Error ? cause.message : '加载资源仓库文件失败')
+      setRepoFiles([])
+      setManifestView(null)
+    }
+  }
+
   const loadPrDetails = async (targetPr: PullListItem): Promise<void> => {
     setDetailsLoading(true)
     setDetailsError('')
+    setFilePickerSearch('')
+    setSelectedPickerPath('')
+    setSelectedPickerContent('')
+    setSelectedPickerLine(null)
+    setPickerLineSearch('')
+    setPickerMatchCursor(-1)
+    setPickerError('')
+
     try {
       const [pullDetail, comments, files] = await Promise.all([
         githubGet<{ body?: string }>(`/repos/${owner}/${repo}/pulls/${targetPr.number}`),
@@ -322,21 +612,35 @@ export function CcPrReviewWorkbench(props: {
         githubGet<PullFileItem[]>(`/repos/${owner}/${repo}/pulls/${targetPr.number}/files?per_page=100`)
       ])
 
-      const updatedPr = {
+      const resolvedBody = pullDetail.body || targetPr.body
+      const guessedRepo = parseRepoFromPrBody(resolvedBody)
+      const resourceRepoOwner = guessedRepo?.owner || targetPr.headOwner
+      const resourceRepoName = guessedRepo?.repo || targetPr.headRepo
+      const resourceRepoRef = targetPr.headRef || 'main'
+
+      const updatedPr: PullListItem = {
         ...targetPr,
-        body: pullDetail.body || targetPr.body,
+        body: resolvedBody,
         review: deriveReviewStatus(comments),
-        status: deriveReviewStatus(comments).state
+        status: deriveReviewStatus(comments).state,
+        resourceRepoOwner,
+        resourceRepoName,
+        resourceRepoRef
       }
 
       setSelectedPr(updatedPr)
       setPrComments(comments)
       setPrFiles(files)
+      setPrPickerOpenFolders(getTopLevelFolders(files.map((file) => file.filename)))
       setPullRequests((prev) => prev.map((item) => (item.number === updatedPr.number ? updatedPr : item)))
+
+      await loadRepoFiles(updatedPr)
     } catch (cause: unknown) {
       setDetailsError(cause instanceof Error ? cause.message : '加载 PR 详情失败')
       setPrComments([])
       setPrFiles([])
+      setRepoFiles([])
+      setManifestView(null)
     } finally {
       setDetailsLoading(false)
     }
@@ -374,6 +678,7 @@ export function CcPrReviewWorkbench(props: {
           const headOwner = pr.head?.repo?.owner?.login || ''
           const headRepo = pr.head?.repo?.name || ''
           const headRef = pr.head?.ref || 'main'
+          const guessedRepo = parseRepoFromPrBody(pr.body || '')
           return {
             number: pr.number,
             title: pr.title,
@@ -385,6 +690,9 @@ export function CcPrReviewWorkbench(props: {
             headOwner,
             headRepo,
             headRef,
+            resourceRepoOwner: guessedRepo?.owner || headOwner,
+            resourceRepoName: guessedRepo?.repo || headRepo,
+            resourceRepoRef: headRef,
             status: review.state,
             review
           }
@@ -403,6 +711,8 @@ export function CcPrReviewWorkbench(props: {
         setSelectedPr(null)
         setPrComments([])
         setPrFiles([])
+        setRepoFiles([])
+        setManifestView(null)
       }
     } catch (cause: unknown) {
       setErrorMessage(cause instanceof Error ? cause.message : '加载 PR 失败')
@@ -420,6 +730,164 @@ export function CcPrReviewWorkbench(props: {
   const refreshSelectedPrDetails = async (): Promise<void> => {
     if (!selectedPr) return
     await loadPrDetails(selectedPr)
+  }
+
+  const syncCommentCursor = () => {
+    const textarea = commentTextareaRef.current
+    if (!textarea) return
+    setCommentCursorStart(textarea.selectionStart)
+    setCommentCursorEnd(textarea.selectionEnd)
+  }
+
+  const buildRepoBlobUrl = (path: string, forLineRef = false): string => {
+    if (!selectedPr) return ''
+    const ownerValue = filePickerTab === 'repo' ? selectedPr.resourceRepoOwner : selectedPr.headOwner
+    const repoValue = filePickerTab === 'repo' ? selectedPr.resourceRepoName : selectedPr.headRepo
+    const refValue = filePickerTab === 'repo' ? selectedPr.resourceRepoRef : selectedPr.headRef
+    if (!ownerValue || !repoValue || !refValue) return ''
+    const encodedPath = path.split('/').map((segment) => encodeURIComponent(segment)).join('/')
+    const base = `https://github.com/${ownerValue}/${repoValue}/blob/${encodeURIComponent(refValue)}/${encodedPath}`
+    return forLineRef ? `${base}` : base
+  }
+
+  const addCommentReference = (path: string, line: number | null) => {
+    if (!path) return
+    const baseUrl = buildRepoBlobUrl(path, true)
+    if (!baseUrl) return
+    const label = line ? `${path}#L${line}` : path
+    const url = line ? `${baseUrl}#L${line}` : baseUrl
+    const markdown = `[\`${label}\`](${url})`
+
+    const source = commentMessage
+    const start = commentCursorStart ?? source.length
+    const end = commentCursorEnd ?? start
+    const nextText = `${source.slice(0, start)}${markdown}${source.slice(end)}`
+    const nextCursor = start + markdown.length
+    setCommentMessage(nextText)
+    setCommentCursorStart(nextCursor)
+    setCommentCursorEnd(nextCursor)
+    setCommentEditorTab('edit')
+
+    window.requestAnimationFrame(() => {
+      const textarea = commentTextareaRef.current
+      if (!textarea) return
+      textarea.focus()
+      textarea.setSelectionRange(nextCursor, nextCursor)
+    })
+  }
+
+  const isImageFile = (filename: string): boolean => /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)$/i.test(filename)
+
+  const openFilePicker = () => {
+    syncCommentCursor()
+    setFilePickerOpen(true)
+    setFilePickerStep('file')
+    setFilePickerTab('pr')
+    setPrPickerOpenFolders(getTopLevelFolders(prFiles.map((file) => file.filename)))
+    setRepoPickerOpenFolders(getTopLevelFolders(repoFiles))
+    setFilePickerSearch('')
+    setSelectedPickerPath('')
+    setSelectedPickerContent('')
+    setSelectedPickerLine(null)
+    setPickerLineSearch('')
+    setPickerMatchCursor(-1)
+    setPickerError('')
+    pickerLineRowRefs.current.clear()
+  }
+
+  const togglePickerFolder = (path: string) => {
+    if (filePickerTab === 'pr') {
+      setPrPickerOpenFolders((prev) => (prev.includes(path) ? prev.filter((item) => item !== path) : [...prev, path]))
+      return
+    }
+    setRepoPickerOpenFolders((prev) => (prev.includes(path) ? prev.filter((item) => item !== path) : [...prev, path]))
+  }
+
+  const selectPickerPath = (path: string) => {
+    setSelectedPickerPath(path)
+    setSelectedPickerLine(null)
+    setPickerLineSearch('')
+    setPickerMatchCursor(-1)
+    setPickerError('')
+    pickerLineRowRefs.current.clear()
+  }
+
+  const readSelectedPickerFileContent = async (path: string): Promise<string> => {
+    if (!selectedPr) return ''
+    const ownerValue = filePickerTab === 'repo' ? selectedPr.resourceRepoOwner : selectedPr.headOwner
+    const repoValue = filePickerTab === 'repo' ? selectedPr.resourceRepoName : selectedPr.headRepo
+    const refValue = filePickerTab === 'repo' ? selectedPr.resourceRepoRef : selectedPr.headRef
+    if (!ownerValue || !repoValue || !refValue) return ''
+
+    return readRepoTextFile(ownerValue, repoValue, refValue, path)
+  }
+
+  const enterPickerLineStep = async () => {
+    if (!selectedPickerPath || isImageFile(selectedPickerPath)) return
+    setFilePickerStep('line')
+    setPickerLineSearch('')
+    setPickerMatchCursor(-1)
+    setPickerError('')
+    pickerLineRowRefs.current.clear()
+    setPickerLoading(true)
+
+    try {
+      const text = await readSelectedPickerFileContent(selectedPickerPath)
+      setSelectedPickerContent(text || '无法预览该文件内容（可能是二进制文件）')
+    } catch (cause: unknown) {
+      setPickerError(cause instanceof Error ? cause.message : '读取文件失败')
+      setSelectedPickerContent('')
+    } finally {
+      setPickerLoading(false)
+    }
+  }
+
+  const scrollToPickerLine = (lineNumber: number) => {
+    const row = pickerLineRowRefs.current.get(lineNumber)
+    row?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+  }
+
+  const focusPickerMatchByCursor = () => {
+    if (pickerMatchCursor < 0 || pickerMatchedLineNumbers.length === 0) return
+    const lineNumber = pickerMatchedLineNumbers[pickerMatchCursor]
+    setSelectedPickerLine(lineNumber)
+    scrollToPickerLine(lineNumber)
+  }
+
+  useEffect(() => {
+    if (!pickerLineSearch.trim()) {
+      setPickerMatchCursor(-1)
+      return
+    }
+    setPickerMatchCursor(pickerMatchedLineNumbers.length > 0 ? 0 : -1)
+  }, [pickerLineSearch, pickerMatchedLineNumbers.length])
+
+  useEffect(() => {
+    focusPickerMatchByCursor()
+  }, [pickerMatchCursor])
+
+  const gotoNextPickerMatch = () => {
+    const total = pickerMatchedLineNumbers.length
+    if (total === 0) return
+    setPickerMatchCursor((prev) => (prev + 1 + total) % total)
+  }
+
+  const gotoPrevPickerMatch = () => {
+    const total = pickerMatchedLineNumbers.length
+    if (total === 0) return
+    setPickerMatchCursor((prev) => (prev - 1 + total) % total)
+  }
+
+  const insertSelectedFileReference = () => {
+    if (!selectedPickerPath) return
+    addCommentReference(selectedPickerPath, null)
+    setFilePickerOpen(false)
+  }
+
+  const insertSelectedLineReference = () => {
+    if (!selectedPickerPath || !selectedPickerLine) return
+    addCommentReference(selectedPickerPath, selectedPickerLine)
+    setFilePickerOpen(false)
   }
 
   const clearReplyTarget = () => {
@@ -523,7 +991,7 @@ export function CcPrReviewWorkbench(props: {
             <div className={`flex items-center gap-1.5 ${isSidebarCollapsed ? 'flex-col gap-2' : ''}`}>
               {!isSidebarCollapsed ? (
                 <Button disabled={loading || !canLoad} size="sm" variant="outline" onClick={() => void loadPullRequests(initialPrNumber)}>
-                  <ClockCounterClockwise size={14} weight="duotone" />
+                  <ArrowsClockwise size={14} weight="duotone" />
                   <span>{loading ? '加载中' : '刷新'}</span>
                 </Button>
               ) : null}
@@ -597,7 +1065,10 @@ export function CcPrReviewWorkbench(props: {
                     <div className="space-y-2">
                       <CardTitle className="text-lg">#{selectedPr.number} {selectedPr.title}</CardTitle>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        <Badge variant="secondary">Open</Badge>
+                        <Badge variant="secondary" className="h-6 gap-1.5 rounded-full px-2.5 text-xs">
+                          <GitPullRequest size={14} weight="duotone" className="shrink-0" />
+                          Open
+                        </Badge>
                         <span className="inline-flex min-w-0 items-center gap-2">
                           {selectedPr.authorAvatar ? (
                             <img src={selectedPr.authorAvatar} className="h-6 w-6 shrink-0 rounded-full object-cover" loading="lazy" />
@@ -611,7 +1082,7 @@ export function CcPrReviewWorkbench(props: {
                     </div>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" className="h-9 gap-1.5 px-3" disabled={detailsLoading} onClick={() => void refreshSelectedPrDetails()}>
-                        <ClockCounterClockwise size={16} weight="bold" />
+                        <ArrowsClockwise size={16} weight="bold" />
                         刷新
                       </Button>
                       <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 px-3">
@@ -631,17 +1102,22 @@ export function CcPrReviewWorkbench(props: {
                 </CardHeader>
                 <CardContent className="space-y-3 pt-0">
                   {detailsError ? <div className="text-xs text-destructive">{detailsError}</div> : null}
+                  {repoFilesError ? <div className="text-xs text-destructive">{repoFilesError}</div> : null}
                   {detailsLoading ? <div className="text-xs text-muted-foreground">正在加载文件变更...</div> : null}
 
                   <div className="space-y-2 rounded-md border border-border bg-muted/10 p-3">
                     <div className="flex items-center justify-between gap-2">
                       <LabelledSwitch label="启用 ABCC 标签" checked={commentTagEnabled} onCheckedChange={setCommentTagEnabled} />
-                      <div className="text-xs text-muted-foreground">文件定位器下一批接入</div>
+                      <Button size="sm" variant="outline" onClick={openFilePicker}>
+                        插入文件定位
+                      </Button>
                     </div>
 
                     {commentTagEnabled ? (
                       <div className="space-y-1.5">
+                        <Label htmlFor="review-comment-id">评论 ID</Label>
                         <Input
+                          id="review-comment-id"
                           value={commentId}
                           onChange={(event) => setCommentId(event.target.value)}
                           placeholder="自定义 ID，例如 icon_png_check"
@@ -651,8 +1127,12 @@ export function CcPrReviewWorkbench(props: {
 
                     <Textarea
                       id="review-comment-message"
+                      ref={commentTextareaRef}
                       value={commentMessage}
                       onChange={(event) => setCommentMessage(event.target.value)}
+                      onSelect={syncCommentCursor}
+                      onKeyUp={syncCommentCursor}
+                      onClick={syncCommentCursor}
                       placeholder="评论说明（支持 Markdown）"
                       className="min-h-[140px]"
                     />
@@ -746,10 +1226,7 @@ export function CcPrReviewWorkbench(props: {
 
                           {parsed.replyExcerpt ? <blockquote className="mt-2 rounded border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">{parsed.replyExcerpt}</blockquote> : null}
 
-                          <div
-                            className="prose prose-sm dark:prose-invert mt-2 max-w-none"
-                            dangerouslySetInnerHTML={{ __html: renderCommentMarkdownHtml(parsed.content || '(空内容)') }}
-                          />
+                          <div className="prose prose-sm dark:prose-invert mt-2 max-w-none" dangerouslySetInnerHTML={{ __html: renderCommentMarkdownHtml(parsed.content || '(空内容)') }} />
                         </article>
                       )
                     })}
@@ -759,25 +1236,192 @@ export function CcPrReviewWorkbench(props: {
 
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">变更文件（{prFiles.length}）</CardTitle>
+                  <CardTitle className="text-base">资源提交信息</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 pt-0">
-                  {prFiles.length === 0 ? <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">暂无文件变更</div> : null}
-                  {prFiles.slice(0, 30).map((file) => (
-                    <div key={file.sha} className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs">
-                      <div className="font-medium text-foreground">{file.filename}</div>
-                      <div className="mt-1 text-muted-foreground">
-                        {file.status} · +{file.additions} / -{file.deletions}
+                <CardContent className="space-y-3 pt-0 text-sm">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <InfoCell label="资源仓库" value={`${selectedPr.resourceRepoOwner}/${selectedPr.resourceRepoName}`} />
+                    <InfoCell label="资源分支" value={selectedPr.resourceRepoRef || '-'} />
+                    <InfoCell label="PR 文件数" value={String(prFiles.length)} />
+                    <InfoCell label="仓库文件数" value={String(repoFiles.length)} />
+                  </div>
+
+                  {manifestView ? <ResourceManifestOverview manifestView={manifestView} /> : <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">未解析到 manifest，无法展示详细资源预览</div>}
+
+                  <div className="space-y-2 rounded-md border border-border p-3">
+                    <div className="text-xs font-semibold text-muted-foreground">规范自动检查</div>
+                    {ruleChecks.map((item) => (
+                      <div key={item.title} className="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                        <div className="flex items-start gap-2">
+                          {item.status === 'pass' ? (
+                            <CheckCircle size={14} weight="fill" className="mt-0.5 shrink-0 text-emerald-600" />
+                          ) : item.status === 'fail' ? (
+                            <WarningCircle size={14} weight="fill" className="mt-0.5 shrink-0 text-red-600" />
+                          ) : item.status === 'warn' ? (
+                            <WarningCircle size={14} weight="fill" className="mt-0.5 shrink-0 text-amber-500" />
+                          ) : (
+                            <WarningCircle size={14} weight="fill" className="mt-0.5 shrink-0 text-slate-500" />
+                          )}
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-foreground">{item.title}</div>
+                            <div className="text-xs text-muted-foreground">{item.detail}</div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                  {prFiles.length > 30 ? <div className="text-xs text-muted-foreground">仅显示前 30 个文件，完整检查将在下一批接入文件定位器。</div> : null}
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </>
           )}
         </div>
       </div>
+
+      <Dialog open={filePickerOpen} onOpenChange={setFilePickerOpen}>
+        <DialogContent className="h-[88vh] w-[96vw] max-w-[1360px] overflow-hidden p-0">
+          <div className="flex h-full flex-col overflow-hidden">
+            <DialogHeader className="shrink-0 border-b border-border px-5 py-4">
+              <DialogTitle>插入文件定位</DialogTitle>
+              <DialogDescription>{filePickerStep === 'file' ? '第一步：先选择文件。' : '第二步：选择具体行并插入定位。'}</DialogDescription>
+            </DialogHeader>
+
+            {filePickerStep === 'file' ? (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="shrink-0 border-b border-border px-4 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Tabs
+                      value={filePickerTab}
+                      onValueChange={(value) => {
+                        setFilePickerTab(value as 'pr' | 'repo')
+                        setSelectedPickerPath('')
+                        setSelectedPickerLine(null)
+                        setSelectedPickerContent('')
+                        setPickerLineSearch('')
+                        setPickerMatchCursor(-1)
+                        setPickerError('')
+                        setFilePickerStep('file')
+                      }}
+                    >
+                      <TabsList className="grid w-[260px] grid-cols-2">
+                        <TabsTrigger value="pr">PR 文件</TabsTrigger>
+                        <TabsTrigger value="repo">作者仓库文件</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    <div className="text-xs text-muted-foreground">
+                      {filePickerTab === 'pr' ? '来源：当前 PR 变更文件' : `来源：${selectedPr?.resourceRepoOwner || '-'} / ${selectedPr?.resourceRepoName || '-'}`}
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <Input value={filePickerSearch} onChange={(event) => setFilePickerSearch(event.target.value)} placeholder="筛选文件..." className="h-8 text-xs" />
+                  </div>
+                </div>
+                <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-3">
+                  {pickerTreeItems.map((item) => (
+                    <div key={`tree-${filePickerTab}-${item.type}-${item.path}`} className="mb-1" style={{ paddingLeft: `${0.5 + Math.min(item.depth, 8) * 0.7}rem` }}>
+                      {item.type === 'folder' ? (
+                        <button type="button" className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted" onClick={() => togglePickerFolder(item.path)}>
+                          {pickerOpenFolders.includes(item.path) ? <CaretDown size={13} weight="bold" className="shrink-0 text-muted-foreground" /> : <CaretRight size={13} weight="bold" className="shrink-0 text-muted-foreground" />}
+                          <Folder size={14} weight="fill" className="shrink-0 text-muted-foreground" />
+                          <span className="truncate">{item.label}</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition ${selectedPickerPath === item.path ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'}`}
+                          onClick={() => selectPickerPath(item.path)}
+                        >
+                          <File size={14} weight="duotone" className="shrink-0 text-muted-foreground" />
+                          <span className="truncate">{item.label}</span>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="shrink-0 border-t border-border bg-background px-4 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 truncate text-xs text-muted-foreground">{selectedPickerPath ? `已选择：${selectedPickerPath}` : '请选择文件后继续'}</div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" disabled={!selectedPickerPath} onClick={insertSelectedFileReference}>直接插入文件</Button>
+                      <Button size="sm" disabled={!selectedPickerPath || isImageFile(selectedPickerPath)} onClick={() => void enterPickerLineStep()}>下一步：选择具体行</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="shrink-0 border-b border-border px-4 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setFilePickerStep('file')}>
+                          <ArrowLeft size={14} weight="bold" />
+                        </Button>
+                        <File size={14} weight="duotone" className="shrink-0 text-muted-foreground" />
+                        <span className="truncate">{selectedPickerPath || '未选择文件'}</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" disabled={!selectedPickerPath} onClick={insertSelectedFileReference}>不选行，插入文件</Button>
+                      <Button size="sm" disabled={!selectedPickerPath || !selectedPickerLine} onClick={insertSelectedLineReference}>插入行定位</Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="shrink-0 space-y-2 border-b border-border bg-background/80 px-4 py-2 backdrop-blur">
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={gotoNextPickerMatch}>
+                      <MagnifyingGlass size={14} weight="bold" />
+                    </Button>
+                    <Input value={pickerLineSearch} onChange={(event) => setPickerLineSearch(event.target.value)} placeholder="搜索当前文件内容..." className="h-8 min-w-0 flex-1 text-xs" />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>{pickerMatchedLineNumbers.length} 个匹配</span>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" className="h-8 w-8 p-0" disabled={pickerMatchedLineNumbers.length === 0} onClick={gotoPrevPickerMatch}>
+                        <ArrowUp size={14} weight="bold" />
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 w-8 p-0" disabled={pickerMatchedLineNumbers.length === 0} onClick={gotoNextPickerMatch}>
+                        <ArrowDown size={14} weight="bold" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="min-h-0 flex-1 overflow-auto overscroll-contain bg-muted/20 p-4">
+                  {pickerLoading ? <div className="text-xs text-muted-foreground">加载文件内容中...</div> : null}
+                  {!pickerLoading && pickerError ? <div className="text-xs text-destructive">{pickerError}</div> : null}
+                  {!pickerLoading && !pickerError && !selectedPickerPath ? <div className="text-xs text-muted-foreground">请先返回上一步选择文件</div> : null}
+                  {!pickerLoading && !pickerError && selectedPickerPath ? (
+                    <div className="h-full font-mono text-xs leading-5">
+                      {pickerContentLines.map((line, index) => {
+                        const lineNumber = index + 1
+                        const matched = pickerMatchedLineNumbers.includes(lineNumber)
+                        const active = selectedPickerLine === lineNumber
+                        return (
+                          <button
+                            key={`line-${lineNumber}`}
+                            ref={(node) => {
+                              if (!node) {
+                                pickerLineRowRefs.current.delete(lineNumber)
+                                return
+                              }
+                              pickerLineRowRefs.current.set(lineNumber, node)
+                            }}
+                            type="button"
+                            className={`flex w-full items-start gap-3 rounded px-2 py-0.5 text-left hover:bg-accent/60 ${active ? 'bg-accent text-accent-foreground' : ''} ${matched ? 'ring-1 ring-primary/40' : ''}`}
+                            onClick={() => setSelectedPickerLine(lineNumber)}
+                          >
+                            <span className="w-10 shrink-0 text-right text-muted-foreground">{lineNumber}</span>
+                            <span className="whitespace-pre-wrap break-all">{line || ' '}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>
         <DialogContent className="max-w-[420px]">
@@ -812,8 +1456,25 @@ function LabelledSwitch(props: { label: string; checked: boolean; onCheckedChang
   const { label, checked, onCheckedChange } = props
   return (
     <div className="inline-flex items-center gap-2">
-      <Switch checked={checked} onCheckedChange={(value) => onCheckedChange(Boolean(value))} aria-label={label} />
+      <button
+        type="button"
+        className={`inline-flex h-5 w-9 items-center rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-primary' : 'bg-input'}`}
+        onClick={() => onCheckedChange(!checked)}
+        aria-label={label}
+      >
+        <span className={`h-4 w-4 rounded-full bg-background shadow transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
+      </button>
       <span className="text-xs text-muted-foreground">{label}</span>
+    </div>
+  )
+}
+
+function InfoCell(props: { label: string; value: string }) {
+  const { label, value } = props
+  return (
+    <div className="rounded-md border border-border bg-muted/20 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 break-all text-sm font-medium text-foreground">{value}</div>
     </div>
   )
 }

@@ -1,117 +1,17 @@
-import { ClockCounterClockwise, LinkSimple, Package } from '@phosphor-icons/react'
+import { ClockCounterClockwise, Package } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
 import { loadOwnedResourceDetail, loadOwnedResources, type OwnedResourceDetail, type OwnedResourceEntry } from '@/utils/resourcePublishApi'
 import { Badge } from '@/react/components/ui/badge'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/react/components/ui/card'
-import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
-
-type ResourceManifestView = {
-  name: string
-  description: string
-  restype: string
-  icon: { file: string; url: string } | null
-  cover: { file: string; url: string } | null
-  previews: PreviewImageItem[]
-  links: Array<{ title: string; type: string; url: string }>
-}
+import { ResourceManifestOverview } from '@/react/components/cc/ResourceManifestOverview'
+import { parseManifestView, type ResourceManifestView } from '@/react/components/cc/resource-manifest'
 
 const formatDate = (value?: string): string => {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('zh-CN', { hour12: false })
-}
-
-const buildRawGithubUrl = (owner: string, repo: string, ref: string, path: string): string => {
-  const encodedPath = path
-    .split('/')
-    .filter(Boolean)
-    .map((segment) => encodeURIComponent(segment))
-    .join('/')
-  return `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(ref)}/${encodedPath}`
-}
-
-const toNonEmptyString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
-
-const toStringArray = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return []
-  return value.map((item) => toNonEmptyString(item)).filter(Boolean)
-}
-
-const toImageAsset = (rawPath: string, owner: string, repo: string, ref: string): { file: string; url: string } | null => {
-  const raw = rawPath.trim()
-  if (!raw) return null
-  const file = raw.split('/').filter(Boolean).pop() || raw
-  if (/^https?:\/\//i.test(raw)) {
-    return { file, url: raw }
-  }
-  return {
-    file,
-    url: buildRawGithubUrl(owner, repo, ref, raw.replace(/^\/+/, ''))
-  }
-}
-
-const parseManifestView = (
-  manifestText: string,
-  owner: string,
-  repo: string,
-  ref: string
-): ResourceManifestView => {
-  if (!manifestText.trim()) {
-    return {
-      name: '',
-      description: '',
-      restype: '',
-      icon: null,
-      cover: null,
-      previews: [],
-      links: []
-    }
-  }
-
-  try {
-    const parsed = JSON.parse(manifestText) as Record<string, unknown>
-    const item = (parsed.item && typeof parsed.item === 'object') ? (parsed.item as Record<string, unknown>) : parsed
-
-    const icon = toImageAsset(toNonEmptyString(item.icon), owner, repo, ref)
-    const cover = toImageAsset(toNonEmptyString(item.cover), owner, repo, ref)
-    const previews = toStringArray(item.preview)
-      .map((path) => toImageAsset(path, owner, repo, ref))
-      .filter((asset): asset is { file: string; url: string } => Boolean(asset))
-
-    const linksSource = Array.isArray(parsed.links) ? parsed.links : []
-    const links = linksSource
-      .map((entry) => {
-        const row = (entry && typeof entry === 'object') ? (entry as Record<string, unknown>) : {}
-        return {
-          title: toNonEmptyString(row.title),
-          type: toNonEmptyString(row.icon),
-          url: toNonEmptyString(row.url)
-        }
-      })
-      .filter((link) => link.title || link.type || link.url)
-
-    return {
-      name: toNonEmptyString(item.name),
-      description: toNonEmptyString(item.description) || toNonEmptyString(parsed.description),
-      restype: toNonEmptyString(item.restype),
-      icon,
-      cover,
-      previews,
-      links
-    }
-  } catch {
-    return {
-      name: '',
-      description: '',
-      restype: '',
-      icon: null,
-      cover: null,
-      previews: [],
-      links: []
-    }
-  }
 }
 
 export function CcPublishedPanel(props: {
@@ -303,50 +203,10 @@ export function CcPublishedPanel(props: {
 
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">图片预览</CardTitle>
+                  <CardTitle className="text-base">预览与链接</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4 pt-0">
-                  {manifestView?.icon ? (
-                    <div className="rounded-md border border-border bg-muted/20 p-3">
-                      <div className="text-xs text-muted-foreground">Icon · {manifestView.icon.file}</div>
-                      <a href={manifestView.icon.url} target="_blank" rel="noopener noreferrer" className="mt-2 mx-auto flex h-[180px] w-[180px] items-center justify-center overflow-hidden rounded-full border border-border/60 bg-background/70">
-                        <img src={manifestView.icon.url} alt="Icon 预览" className="h-full w-full rounded-full object-contain p-3" loading="lazy" />
-                      </a>
-                    </div>
-                  ) : null}
-
-                  {manifestView?.cover ? (
-                    <div className="rounded-md border border-border bg-muted/20 p-3">
-                      <div className="text-xs text-muted-foreground">Cover · {manifestView.cover.file}</div>
-                      <a href={manifestView.cover.url} target="_blank" rel="noopener noreferrer" className="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70">
-                        <img src={manifestView.cover.url} alt="Cover 预览" className="max-h-[50vh] w-full object-contain" loading="lazy" />
-                      </a>
-                    </div>
-                  ) : null}
-
-                  <PreviewImageCarousel items={manifestView?.previews || []} emptyText="未检测到预览图" />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Links</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 pt-0">
-                  {!manifestView || manifestView.links.length === 0 ? <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">暂无 links</div> : null}
-                  {manifestView?.links.map((link) => (
-                    <a
-                      key={`${link.title}-${link.url}`}
-                      href={link.url || '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm hover:bg-accent"
-                    >
-                      <LinkSimple size={14} weight="duotone" className="shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1 break-all text-foreground">{link.title || link.url || '-'}</span>
-                      {link.type ? <Badge variant="outline">{link.type}</Badge> : null}
-                    </a>
-                  ))}
+                <CardContent className="pt-0">
+                  <ResourceManifestOverview manifestView={manifestView} />
                 </CardContent>
               </Card>
 
