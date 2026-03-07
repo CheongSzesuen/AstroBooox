@@ -110,6 +110,20 @@ type ManifestDraft = {
   previewPaths: string[]
 }
 
+type UpdateChangeBaseline = {
+  name: string
+  description: string
+  restype: string
+  paidType: string
+  icon: string
+  cover: string
+  previews: string[]
+  tags: string[]
+  links: ManifestLinkDraft[]
+  authors: ManifestAuthorDraft[]
+  downloads: ManifestDownloadDraft[]
+}
+
 type WorkspaceFileHandle = {
   kind: 'file'
   name: string
@@ -146,6 +160,8 @@ const normalizeRestype = (value: string): Restype => {
 }
 
 const RELEASE_FOLDER_SUFFIX = '_AstroBox_Release'
+const MAX_GITHUB_REPO_NAME_LENGTH = 100
+const MAX_RELEASE_REPO_PREFIX_LENGTH = MAX_GITHUB_REPO_NAME_LENGTH - RELEASE_FOLDER_SUFFIX.length
 
 const stripReleaseFolderSuffix = (raw: string): string =>
   raw
@@ -166,7 +182,7 @@ const toReleaseFolderName = (raw: string): string => {
 
 const validateGitHubRepoName = (name: string): string | null => {
   if (!name) return '名称不能为空'
-  if (name.length > 100) return '长度不能超过 100 个字符'
+  if (name.length > MAX_GITHUB_REPO_NAME_LENGTH) return `长度不能超过 ${MAX_GITHUB_REPO_NAME_LENGTH} 个字符`
   if (!/^[A-Za-z0-9._-]+$/.test(name)) return '仅允许英文、数字、点号(.)、下划线(_)和连字符(-)'
   if (!/^[A-Za-z0-9]/.test(name) || !/[A-Za-z0-9]$/.test(name)) return '必须以英文或数字开头和结尾'
   if (name.includes('..')) return '不能包含连续点号(..)'
@@ -359,6 +375,7 @@ export function CcPublishWorkbench(props: {
   const [existingCommitSha, setExistingCommitSha] = useState('')
   const [baselineCatalogId, setBaselineCatalogId] = useState('')
   const [existingManifestObject, setExistingManifestObject] = useState<Record<string, unknown> | null>(null)
+  const [updateChangeBaseline, setUpdateChangeBaseline] = useState<UpdateChangeBaseline | null>(null)
   const [showDeviceSelector, setShowDeviceSelector] = useState(false)
   const [showResourceIdGuide, setShowResourceIdGuide] = useState(false)
   const [showOutOfWorkspaceFileDialog, setShowOutOfWorkspaceFileDialog] = useState(false)
@@ -368,6 +385,8 @@ export function CcPublishWorkbench(props: {
   const [folderNameValidationMessage, setFolderNameValidationMessage] = useState('')
   const [showFileNameConflictDialog, setShowFileNameConflictDialog] = useState(false)
   const [fileNameConflictMessage, setFileNameConflictMessage] = useState('')
+  const [showResourceInfoValidationDialog, setShowResourceInfoValidationDialog] = useState(false)
+  const [resourceInfoValidationIssues, setResourceInfoValidationIssues] = useState<string[]>([])
   const [showSubmitVersionDialog, setShowSubmitVersionDialog] = useState(false)
   const [showRemoteFilePickerDialog, setShowRemoteFilePickerDialog] = useState(false)
   const [showLinkIconPicker, setShowLinkIconPicker] = useState(false)
@@ -469,6 +488,7 @@ export function CcPublishWorkbench(props: {
     setExistingCommitSha('')
     setBaselineCatalogId('')
     setExistingManifestObject(null)
+    setUpdateChangeBaseline(null)
     setShowDeviceSelector(false)
     setShowResourceIdGuide(false)
     setShowOutOfWorkspaceFileDialog(false)
@@ -478,6 +498,8 @@ export function CcPublishWorkbench(props: {
     setFolderNameValidationMessage('')
     setShowFileNameConflictDialog(false)
     setFileNameConflictMessage('')
+    setShowResourceInfoValidationDialog(false)
+    setResourceInfoValidationIssues([])
     setShowSubmitVersionDialog(false)
     setShowRemoteFilePickerDialog(false)
     setShowLinkIconPicker(false)
@@ -514,6 +536,7 @@ export function CcPublishWorkbench(props: {
       setBootstrapError('')
       setExistingManifestObject(null)
       setBaselineCatalogId('')
+      setUpdateChangeBaseline(null)
       setBoundRepoOwner('')
       setBoundRepoName('')
       setBoundRepoUrl('')
@@ -619,13 +642,21 @@ export function CcPublishWorkbench(props: {
 
         if (cancelled) return
 
+        const nextRestype = normalizeRestype(parsed.restype || target.restype)
+        const nextTags = parseTagText(target.tags || '')
+        const nextAuthors = parsedAuthors.length > 0
+          ? parsedAuthors
+          : [{ name: target.repo_owner || '', authorUrl: '', bindABAccount: true }]
+        const nextLinks = parsedLinks
+        const nextDownloads = parsedDownloads
+
         setResourceId(parsed.id || target.catalogId || targetResourceId)
         setName(parsed.name || target.name)
         setDescription(parsed.description || target.description || '')
-        setRestype(normalizeRestype(parsed.restype || target.restype))
+        setRestype(nextRestype)
         setIconPath(parsed.icon || target.icon || '')
         setCoverPath(parsed.cover || target.cover || '')
-        setTags(parseTagText(target.tags || ''))
+        setTags(nextTags)
         setTagInput('')
         setDeviceVendorsText(target.device_vendors || '')
         setDevicesText(target.devices || '')
@@ -638,12 +669,37 @@ export function CcPublishWorkbench(props: {
         setExistingCommitSha(detail.latestCommitSha || target.repo_commit_hash || '')
         setBaselineCatalogId(target.catalogId || targetResourceId)
         setExistingManifestObject(parsed.rawObject)
+        setUpdateChangeBaseline({
+          name: (parsed.name || target.name).trim(),
+          description: (parsed.description || target.description || '').trim(),
+          restype: nextRestype.trim(),
+          paidType: (target.paid_type || '').trim(),
+          icon: (parsed.icon || target.icon || '').trim(),
+          cover: (parsed.cover || target.cover || '').trim(),
+          previews: parsed.previewPaths.map((path) => path.trim()).filter(Boolean),
+          tags: nextTags.map((tag) => tag.trim()).filter(Boolean),
+          links: nextLinks.map((link) => ({
+            icon: link.icon.trim(),
+            title: link.title.trim(),
+            url: link.url.trim()
+          })),
+          authors: nextAuthors.map((author) => ({
+            name: author.name.trim(),
+            authorUrl: author.authorUrl.trim(),
+            bindABAccount: Boolean(author.bindABAccount)
+          })),
+          downloads: nextDownloads.map((entry) => ({
+            device: entry.device.trim(),
+            version: entry.version.trim(),
+            file_name: normalizeRepoPath(entry.file_name)
+          }))
+        })
         setHasUploadedInFlow(false)
         setSubmitMode('v2')
         setFileTreeTab('remote')
-        setAuthors(parsedAuthors.length > 0 ? parsedAuthors : [{ name: target.repo_owner || '', authorUrl: '', bindABAccount: true }])
-        setLinks(parsedLinks)
-        setDownloads(parsedDownloads)
+        setAuthors(nextAuthors)
+        setLinks(nextLinks)
+        setDownloads(nextDownloads)
         setExtraFiles([])
         setSubmitError('')
         setLatestPrUrl('')
@@ -800,21 +856,20 @@ export function CcPublishWorkbench(props: {
   )
 
   const resolvedRepoName = useMemo(() => {
-    const manual = repoNameInput
-      .trim()
-      .replace(/[^A-Za-z0-9._-]+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '')
-    if (manual) return manual
+    const normalizePrefix = (raw: string): string =>
+      stripReleaseFolderSuffix(raw)
+        .trim()
+        .replace(/[^A-Za-z0-9._-]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '')
 
-    const fallback = (resourceId || name)
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 96)
-    return fallback
+    const manualPrefix = normalizePrefix(repoNameInput)
+    if (manualPrefix) return `${manualPrefix}${RELEASE_FOLDER_SUFFIX}`
+
+    const fallbackPrefix = normalizePrefix((resourceId || name).trim().toLowerCase())
+      .slice(0, MAX_RELEASE_REPO_PREFIX_LENGTH)
+    if (!fallbackPrefix) return ''
+    return `${fallbackPrefix}${RELEASE_FOLDER_SUFFIX}`
   }, [name, repoNameInput, resourceId])
 
   const linksValidationMessage = useMemo(() => {
@@ -987,8 +1042,37 @@ export function CcPublishWorkbench(props: {
   }
 
   const openSubmitVersionDialog = () => {
-    if (!isResourceInfoStepDone) {
-      appendLog('请先完成资源信息后再继续')
+    const issues: string[] = []
+    if (!resourceId.trim()) issues.push('请填写资源 ID')
+    if (!name.trim()) issues.push('请填写资源名称')
+    if (!iconPath.trim()) issues.push('请选择图标文件')
+    if (!coverPath.trim()) issues.push('请选择封面文件')
+    if (!normalizedTagsText) issues.push('请至少添加一个标签')
+    if (selectedDeviceIds.length === 0) {
+      issues.push('请至少选择一个支持设备')
+    } else {
+      for (const deviceId of selectedDeviceIds) {
+        const entry = downloads.find((item) => item.device.trim() === deviceId)
+        if (!entry) {
+          issues.push(`设备 ${deviceId} 缺少下载信息`)
+          continue
+        }
+        const missingParts: string[] = []
+        if (!entry.version.trim()) missingParts.push('版本号')
+        if (!entry.file_name.trim()) missingParts.push('文件路径')
+        if (missingParts.length > 0) {
+          issues.push(`设备 ${deviceId} 缺少${missingParts.join('、')}`)
+        }
+      }
+    }
+    if (linksValidationMessage) {
+      issues.push(linksValidationMessage)
+    }
+
+    if (issues.length > 0) {
+      setResourceInfoValidationIssues(issues)
+      setShowResourceInfoValidationDialog(true)
+      appendLog(`请先完成资源信息：${issues[0]}`)
       return
     }
     setShowSubmitVersionDialog(true)
@@ -2198,24 +2282,133 @@ export function CcPublishWorkbench(props: {
     return fallback
   }
 
+  const normalizeTextValue = (value: string): string => value.trim()
+
+  const normalizeStringArray = (values: string[]): string[] =>
+    values.map((item) => item.trim()).filter(Boolean)
+
+  const formatTagListForPr = (values: string[]): string =>
+    values.length > 0 ? values.map((tag) => `\`${tag}\``).join('、') : '--'
+
+  const normalizeLinksForPr = (values: ManifestLinkDraft[]): string =>
+    JSON.stringify(
+      values
+        .map((link) => ({
+          icon: link.icon.trim(),
+          title: link.title.trim(),
+          url: link.url.trim()
+        }))
+        .filter((link) => link.icon || link.title || link.url)
+        .sort((a, b) => `${a.title}|${a.url}|${a.icon}`.localeCompare(`${b.title}|${b.url}|${b.icon}`, 'zh-CN'))
+    )
+
+  const normalizeAuthorsForPr = (values: ManifestAuthorDraft[]): string =>
+    JSON.stringify(
+      values
+        .map((author) => ({
+          name: author.name.trim(),
+          authorUrl: author.authorUrl.trim(),
+          bindABAccount: Boolean(author.bindABAccount)
+        }))
+        .filter((author) => author.name || author.authorUrl)
+        .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+    )
+
+  const normalizeDownloadsForPr = (values: ManifestDownloadDraft[]): string =>
+    JSON.stringify(
+      values
+        .map((entry) => ({
+          device: entry.device.trim(),
+          version: entry.version.trim(),
+          file_name: normalizeRepoPath(entry.file_name)
+        }))
+        .filter((entry) => entry.device || entry.version || entry.file_name)
+        .sort((a, b) => a.device.localeCompare(b.device, 'zh-CN'))
+    )
+
+  const collectUpdateChangeLines = (): string[] => {
+    const baseline = updateChangeBaseline
+    if (!baseline) return []
+
+    const lines: string[] = []
+    const pushIfChanged = (label: string, before: string, after: string): void => {
+      if (before === after) return
+      lines.push(`- ${label}：\`${before || '--'}\` -> \`${after || '--'}\``)
+    }
+
+    pushIfChanged('资源名称', normalizeTextValue(baseline.name), normalizeTextValue(name))
+    pushIfChanged('资源描述', normalizeTextValue(baseline.description), normalizeTextValue(description))
+    pushIfChanged('资源类型', normalizeTextValue(baseline.restype), normalizeTextValue(restype))
+    pushIfChanged('付费类型', normalizeTextValue(baseline.paidType), normalizeTextValue(paidType))
+    pushIfChanged('图标', normalizeTextValue(baseline.icon), normalizeTextValue(iconPath))
+    pushIfChanged('封面', normalizeTextValue(baseline.cover), normalizeTextValue(coverPath))
+
+    const beforePreviewList = normalizeStringArray(baseline.previews)
+    const afterPreviewList = normalizeStringArray(previewItems.map((item) => item.path))
+    const beforePreview = beforePreviewList.join('|')
+    const afterPreview = afterPreviewList.join('|')
+    if (beforePreview !== afterPreview) {
+      const beforeSet = new Set(beforePreviewList)
+      const afterSet = new Set(afterPreviewList)
+      const added = afterPreviewList.filter((path) => !beforeSet.has(path))
+      const removed = beforePreviewList.filter((path) => !afterSet.has(path))
+      if (added.length > 0) {
+        lines.push(`- 预览图：新增 ${added.length} 张`)
+        for (const path of added) {
+          lines.push(`  - \`${path}\``)
+          lines.push(`    ${getRawUrl(path)}`)
+        }
+      }
+      if (removed.length > 0) {
+        lines.push(`- 预览图：移除 ${removed.length} 张`)
+        for (const path of removed) {
+          lines.push(`  - \`${path}\``)
+        }
+      }
+      if (added.length === 0 && removed.length === 0) {
+        lines.push(`- 预览图：顺序已调整（${beforePreviewList.length} 张）`)
+      }
+    }
+
+    const beforeTagList = normalizeStringArray(baseline.tags)
+    const afterTagList = normalizeStringArray(tags)
+    const beforeTags = beforeTagList.join('|')
+    const afterTags = afterTagList.join('|')
+    if (beforeTags !== afterTags) {
+      lines.push(`- 标签：${formatTagListForPr(beforeTagList)} -> ${formatTagListForPr(afterTagList)}`)
+    }
+
+    const beforeLinks = normalizeLinksForPr(baseline.links)
+    const afterLinks = normalizeLinksForPr(links)
+    if (beforeLinks !== afterLinks) {
+      lines.push('- 相关链接：已更新')
+    }
+
+    const beforeAuthors = normalizeAuthorsForPr(baseline.authors)
+    const afterAuthors = normalizeAuthorsForPr(authors)
+    if (beforeAuthors !== afterAuthors) {
+      lines.push('- 作者信息：已更新')
+    }
+
+    const beforeDownloads = normalizeDownloadsForPr(baseline.downloads)
+    const afterDownloads = normalizeDownloadsForPr(downloads)
+    if (beforeDownloads !== afterDownloads) {
+      lines.push('- 下载资源（downloads）：已更新')
+    }
+
+    return lines
+  }
+
   const buildAutoPrTitle = (): string =>
-    `[ABoooxCC] ${mode === 'resource_edit' ? '更新' : '发布'} ${name.trim() || '未命名资源'} ${formatResourceTypeForTitle(restype)}`
+    `[ABoooxCC] 更新 ${name.trim() || '未命名资源'} ${formatResourceTypeForTitle(restype)}`
 
   const buildAutoPrBody = (repoUrl: string, commitSha: string): string => {
+    const changeLines = collectUpdateChangeLines()
     const shortHash = commitSha.trim() ? commitSha.trim().slice(0, 7) : '--'
     return [
-      '## 变更摘要',
+      '## 本次变更',
       '',
-      `- 模式：${mode === 'resource_edit' ? '更新已有资源' : '发布新资源'}`,
-      `- 提交流程：${submitModeLabel}`,
-      `- 资源 ID：${resourceId.trim()}`,
-      `- 资源名称：${name.trim()}`,
-      `- 资源类型：${formatResourceTypeForTitle(restype)}`,
-      `- 预览图数量：${normalizedPreviewPaths.length}`,
-      `- 作者数量：${authors.filter((item) => item.name.trim()).length}`,
-      `- Links 数量：${links.filter((item) => item.icon.trim() || item.title.trim() || item.url.trim()).length}`,
-      `- Downloads 数量：${downloads.filter((item) => item.device.trim()).length}`,
-      `- Tags：${normalizedTagsText || '--'}`,
+      ...(changeLines.length > 0 ? changeLines : ['- 未检测到字段变化（仅同步仓库文件）']),
       '',
       '## 仓库信息',
       '',
@@ -2223,7 +2416,7 @@ export function CcPublishWorkbench(props: {
       `- 提交短哈希：\`${shortHash}\``,
       '',
       '---',
-      '此 PR 由 AstroBooox Creator Console (React) 自动创建。'
+      '此 PR 由 [AstroBooox Creator Console](https://astrobooox-ng.waijade.cn/cc/) 生成，如有问题前往 [AstroBooox 仓库](https://github.com/CheongSzesuen/AstroBooox) 提交 [Issue](https://github.com/CheongSzesuen/AstroBooox/issues)。'
     ].join('\n')
   }
 
@@ -3077,34 +3270,60 @@ export function CcPublishWorkbench(props: {
               ) : null}
 
               {step === '2' ? (
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">
+                <div className="space-y-4 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
                     提交流程：<span className="font-semibold text-foreground">{submitModeLabel}</span>
                   </div>
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">资源 ID：{resourceId.trim() || '-'}</div>
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">资源名称：{name.trim() || '-'}</div>
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">资源类型：{formatResourceTypeForTitle(restype)}</div>
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">预览图数量：{normalizedPreviewPaths.length}</div>
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">作者数量：{authors.filter((item) => item.name.trim()).length}</div>
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">Links 数量：{links.filter((item) => item.icon.trim() || item.title.trim() || item.url.trim()).length}</div>
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">Downloads 数量：{downloads.filter((item) => item.device.trim()).length}</div>
-                  {submitError ? (
-                    <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive">{submitError}</div>
+                  {mode !== 'resource_edit' ? (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="repo-name">资源仓库名（可选）</Label>
+                        <Input
+                          id="repo-name"
+                          value={repoNameInput}
+                          onChange={(event) => setRepoNameInput(event.target.value)}
+                          placeholder="留空时默认使用当前文件夹名"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="repo-desc">仓库描述（可选）</Label>
+                        <Input
+                          id="repo-desc"
+                          value={repoDescription}
+                          onChange={(event) => setRepoDescription(event.target.value)}
+                          placeholder="resource repository"
+                        />
+                      </div>
+                    </div>
                   ) : null}
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">目标仓库：{boundRepoOwner || '-'}/{boundRepoName || '-'}</div>
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">最新提交：{existingCommitSha ? existingCommitSha.slice(0, 7) : '-'}</div>
-                  <div className="flex flex-wrap gap-2 pt-1">
+
+                  {submitError ? (
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive">{submitError}</div>
+                  ) : null}
+
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button disabled={!canUpload || isSubmitting} onClick={() => void handleUploadResources()}>
                       <UploadSimple size={16} weight="duotone" />
                       {uploading ? '上传中...' : mode === 'resource_edit' ? '更新仓库' : '上传仓库'}
                     </Button>
-                    <Button
-                      variant="outline"
-                      disabled={!isUploadStepDone || isSubmitting}
-                      onClick={() => setStep('3')}
-                    >
-                      下一步：提交 PR
-                    </Button>
+                  </div>
+
+                  {boundRepoUrl ? (
+                    <div className="rounded-lg border border-border bg-muted/25 p-3 text-sm">
+                      <p className="mb-1 font-medium text-foreground">仓库已就绪</p>
+                      <a
+                        href={boundRepoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="break-all text-primary hover:underline"
+                      >
+                        {boundRepoUrl}
+                      </a>
+                    </div>
+                  ) : null}
+
+                  <div className="flex justify-between gap-2">
+                    <Button variant="outline" disabled={isSubmitting} onClick={() => setStep('1')}>上一步</Button>
                   </div>
                 </div>
               ) : null}
@@ -3152,15 +3371,20 @@ export function CcPublishWorkbench(props: {
               ) : null}
             </section>
 
-            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
-              <Button variant="outline" disabled={step === stepItems[0]?.value || isSubmitting} onClick={goPrevStep}>
-                上一步
-              </Button>
-              <Button disabled={step === '3' || isSubmitting || !canGoNextStep} onClick={goNextStep}>
-                <UploadSimple size={16} weight="duotone" />
-                下一步
-              </Button>
-            </div>
+            {(step === '0' || step === '1') ? (
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
+                <Button variant="outline" disabled={step === stepItems[0]?.value || isSubmitting} onClick={goPrevStep}>
+                  上一步
+                </Button>
+                <Button
+                  disabled={isSubmitting || (step !== '1' && !canGoNextStep)}
+                  onClick={goNextStep}
+                >
+                  <UploadSimple size={16} weight="duotone" />
+                  下一步
+                </Button>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -3274,6 +3498,29 @@ export function CcPublishWorkbench(props: {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowFileNameConflictDialog(false)}>我知道了</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showResourceInfoValidationDialog} onOpenChange={setShowResourceInfoValidationDialog}>
+        <DialogContent className="max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>资源信息未填写完整</DialogTitle>
+            <DialogDescription>请先补齐以下字段后再继续下一步。</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[40vh] overflow-y-auto rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-foreground">
+            {resourceInfoValidationIssues.length === 0 ? (
+              <p className="text-muted-foreground">未检测到具体问题，请检查必填项。</p>
+            ) : (
+              <ol className="list-decimal space-y-1 pl-5">
+                {resourceInfoValidationIssues.map((issue, index) => (
+                  <li key={`resource-info-issue-${index}`}>{issue}</li>
+                ))}
+              </ol>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResourceInfoValidationDialog(false)}>我知道了</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
