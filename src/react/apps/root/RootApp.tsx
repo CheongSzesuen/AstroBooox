@@ -5,7 +5,7 @@ import { ManifestPage } from '@/react/apps/root/pages/ManifestPage'
 import { CsvPage } from '@/react/apps/root/pages/CsvPage'
 import { ResLinkPage } from '@/react/apps/root/pages/ResLinkPage'
 import { CodeReviewPage } from '@/react/apps/root/pages/CodeReviewPage'
-import { Sonner } from '@/react/components/ui/sonner'
+import { Toaster } from '@/react/components/ui/sonner'
 
 function CcRedirectGuard() {
   useEffect(() => {
@@ -44,7 +44,7 @@ export function RootApp() {
           <Route path="*" element={<Navigate to="/manifest" replace />} />
         </Route>
       </Routes>
-      <Sonner />
+      <Toaster position="top-center" />
     </>
   )
 }

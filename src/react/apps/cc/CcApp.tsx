@@ -28,7 +28,7 @@ import { CcTokenGate } from '@/react/cc/CcTokenGate'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
 import { Sheet, SheetClose, SheetContent } from '@/react/components/ui/sheet'
-import { Sonner } from '@/react/components/ui/sonner'
+import { Toaster } from '@/react/components/ui/sonner'
 import { useCcTheme } from '@/react/hooks/useCcTheme'
 import { CcSessionProvider, useCcSession } from '@/react/hooks/useCcSession'
 import { useCcSettings } from '@/react/hooks/useCcSettings'
@@ -609,7 +609,7 @@ function CcAuthenticatedApp() {
         </section>
       </main>
 
-      <Sonner />
+      <Toaster position="top-center" />
     </div>
   )
 }
