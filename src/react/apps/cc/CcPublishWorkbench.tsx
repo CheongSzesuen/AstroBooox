@@ -1,11 +1,9 @@
 import {
-  ArrowCounterClockwise,
   CaretDown,
   CaretRight,
   CheckCircle,
   DotsThreeVertical,
   File,
-  FileImage,
   FolderNotchOpenIcon,
   FolderPlus,
   NotePencil,
@@ -99,7 +97,7 @@ const REMOTE_PICKER_LOCAL_OPFS_ROOT = 'astrobooox-local'
 const IMAGE_FILE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.avif']
 
 type Restype = 'quickapp' | 'watchface'
-type StepKey = '0' | '1' | '2' | '3' | '4'
+type StepKey = '0' | '1' | '2' | '3'
 
 type ManifestDraft = {
   rawObject: Record<string, unknown> | null
@@ -386,8 +384,6 @@ export function CcPublishWorkbench(props: {
   const [remotePickerRenamingName, setRemotePickerRenamingName] = useState('')
   const [opfsLocalPathSet, setOpfsLocalPathSet] = useState<Record<string, true>>({})
   const [opfsLocalPreviewUrlMap, setOpfsLocalPreviewUrlMap] = useState<Record<string, string>>({})
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const extraFileInputRef = useRef<HTMLInputElement | null>(null)
   const remotePickerLocalInputRef = useRef<HTMLInputElement | null>(null)
   const remotePickerRenameInputRef = useRef<HTMLInputElement | null>(null)
   const previewItemsRef = useRef<PublishPreviewItem[]>([])
@@ -951,7 +947,6 @@ export function CcPublishWorkbench(props: {
     areDownloadsComplete &&
     !linksValidationMessage
   )
-  const isFileStepDone = Boolean(previewItems.length > 0 || extraFiles.length > 0 || mode === 'resource_edit')
   const isUploadStepDone = Boolean(hasUploadedInFlow && existingCommitSha.trim() && boundRepoOwner.trim() && boundRepoName.trim())
   const isSubmitStepDone = Boolean(latestPrUrl)
 
@@ -962,18 +957,16 @@ export function CcPublishWorkbench(props: {
     }
     items.push(
       { value: '1', label: '资源信息', done: isResourceInfoStepDone },
-      { value: '2', label: '资源文件', done: isFileStepDone },
-      { value: '3', label: '上传资源仓库', done: isUploadStepDone },
-      { value: '4', label: '提交 Pull Request', done: isSubmitStepDone }
+      { value: '2', label: '上传资源仓库', done: isUploadStepDone },
+      { value: '3', label: '提交 Pull Request', done: isSubmitStepDone }
     )
     return items
-  }, [isFileStepDone, isResourceInfoStepDone, isSubmitStepDone, isUploadStepDone, isWorkspaceStepDone, mode])
+  }, [isResourceInfoStepDone, isSubmitStepDone, isUploadStepDone, isWorkspaceStepDone, mode])
 
   const canGoNextStep = useMemo(() => {
     if (step === '0') return isWorkspaceStepDone
     if (step === '1') return isResourceInfoStepDone
-    if (step === '2') return true
-    if (step === '3') return isUploadStepDone
+    if (step === '2') return isUploadStepDone
     return false
   }, [isResourceInfoStepDone, isUploadStepDone, isWorkspaceStepDone, step])
 
@@ -984,6 +977,10 @@ export function CcPublishWorkbench(props: {
   }
 
   const goNextStep = () => {
+    if (step === '1') {
+      openSubmitVersionDialog()
+      return
+    }
     const index = stepItems.findIndex((item) => item.value === step)
     if (index < 0 || index >= stepItems.length - 1) return
     setStep(stepItems[index + 1].value)
@@ -1000,7 +997,7 @@ export function CcPublishWorkbench(props: {
   const confirmSubmitMode = (modeValue: SubmitMode) => {
     setSubmitMode(modeValue)
     setShowSubmitVersionDialog(false)
-    setStep('3')
+    setStep('2')
   }
 
   const appendLog = (message: string) => {
@@ -1358,42 +1355,6 @@ export function CcPublishWorkbench(props: {
       appendLog(`选择文件失败: ${cause instanceof Error ? cause.message : '未知错误'}`)
       return []
     }
-  }
-
-  const appendPreviewFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return
-    const next: PublishPreviewItem[] = []
-    Array.from(files).forEach((file) => {
-      if (!file.type.startsWith('image/')) return
-      const objectUrl = URL.createObjectURL(file)
-      const path = normalizeRepoPath(file.name)
-      next.push({
-        id: nextId(),
-        path,
-        file: file.name,
-        url: objectUrl,
-        objectUrl,
-        fileObject: file
-      })
-    })
-    if (next.length === 0) return
-    setPreviewItems((prev) => [...prev, ...next])
-    setIconPath((prev) => (prev.trim() ? prev : next[0].path))
-    setCoverPath((prev) => (prev.trim() ? prev : next[0].path))
-    setSubmitError('')
-  }
-
-  const appendExtraFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return
-    const next: ExtraUploadFile[] = Array.from(files).map((file) => ({
-      id: nextId(),
-      path: normalizeRepoPath(file.name),
-      fileName: file.name,
-      fileObject: file
-    }))
-    if (next.length === 0) return
-    setExtraFiles((prev) => [...prev, ...next])
-    setSubmitError('')
   }
 
   const upsertExtraFiles = (picked: PickedWorkspaceFile[]) => {
@@ -1835,28 +1796,6 @@ export function CcPublishWorkbench(props: {
       })
     }
     setShowRemoteFilePickerDialog(false)
-  }
-
-  const updatePreviewPath = (id: string, value: string) => {
-    const path = normalizeRepoPath(value)
-    setPreviewItems((prev) => prev.map((item) => {
-      if (item.id !== id) return item
-      return {
-        ...item,
-        path,
-        file: basenameFromPath(path),
-        url: item.objectUrl || item.fileObject ? (item.objectUrl || item.url) : getPickerPreviewUrl(path)
-      }
-    }))
-  }
-
-  const updateExtraFilePath = (id: string, value: string) => {
-    const path = normalizeRepoPath(value)
-    setExtraFiles((prev) => prev.map((item) => (item.id === id ? { ...item, path } : item)))
-  }
-
-  const removeExtraFile = (id: string) => {
-    setExtraFiles((prev) => prev.filter((item) => item.id !== id))
   }
 
   const finalizeRemovedPreviewItems = (items: PublishPreviewItem[]) => {
@@ -2457,7 +2396,7 @@ export function CcPublishWorkbench(props: {
       toast('上传成功', {
         description: `${repoOwner}/${repoName}@${latestCommitSha.slice(0, 7)}`
       })
-      setStep('4')
+      setStep('3')
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : '上传失败'
       setSubmitError(message)
@@ -2598,7 +2537,7 @@ export function CcPublishWorkbench(props: {
   }
 
   useEffect(() => {
-    if (step !== '4') return
+    if (step !== '3') return
     if (!boundRepoOwner.trim() || !boundRepoName.trim() || !existingCommitSha.trim()) return
     const repoUrl = boundRepoUrl.trim() || `https://github.com/${boundRepoOwner}/${boundRepoName}`
     if (!prTitle.trim()) {
@@ -3138,71 +3077,6 @@ export function CcPublishWorkbench(props: {
               ) : null}
 
               {step === '2' ? (
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" onClick={() => fileInputRef.current?.click()}>
-                      <FileImage size={16} weight="duotone" />
-                      选择预览图
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => extraFileInputRef.current?.click()}>
-                      <UploadSimple size={16} weight="duotone" />
-                      选择其他文件
-                    </Button>
-                    <Button type="button" variant="outline" disabled={deletedStack.length === 0} onClick={() => undoDelete()}>
-                      <ArrowCounterClockwise size={16} weight="duotone" />
-                      撤销删除
-                    </Button>
-                    <span className="text-xs text-muted-foreground">删除历史：{deletedStack.length}</span>
-                  </div>
-
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(event) => {
-                      appendPreviewFiles(event.target.files)
-                      event.currentTarget.value = ''
-                    }}
-                  />
-                  <input
-                    ref={extraFileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(event) => {
-                      appendExtraFiles(event.target.files)
-                      event.currentTarget.value = ''
-                    }}
-                  />
-
-                  <PreviewImageCarousel items={previewCarouselItems} removable onRemove={deletePreviewAt} emptyText="请先添加预览图" />
-                  {previewItems.length > 0 ? (
-                    <div className="space-y-2">
-                      <div className="text-xs text-muted-foreground">预览图路径（用于 manifest）</div>
-                      {previewItems.map((item, index) => (
-                        <div key={item.id} className="flex items-center gap-2">
-                          <span className="w-6 text-xs text-muted-foreground">{index + 1}.</span>
-                          <Input value={item.path} onChange={(event) => updatePreviewPath(item.id, event.target.value)} />
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                  <div className="space-y-2">
-                    <div className="text-xs text-muted-foreground">额外上传文件（用于 downloads/icon/cover 等）</div>
-                    {extraFiles.length === 0 ? <div className="text-xs text-muted-foreground">暂无额外文件。</div> : null}
-                    {extraFiles.map((item) => (
-                      <div key={item.id} className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
-                        <Input value={item.path} onChange={(event) => updateExtraFilePath(item.id, event.target.value)} />
-                        <Button type="button" variant="outline" size="sm" onClick={() => removeExtraFile(item.id)}>移除</Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {step === '3' ? (
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="rounded-md border border-border bg-muted/20 px-3 py-2">
                     提交流程：<span className="font-semibold text-foreground">{submitModeLabel}</span>
@@ -3220,9 +3094,6 @@ export function CcPublishWorkbench(props: {
                   <div className="rounded-md border border-border bg-muted/20 px-3 py-2">目标仓库：{boundRepoOwner || '-'}/{boundRepoName || '-'}</div>
                   <div className="rounded-md border border-border bg-muted/20 px-3 py-2">最新提交：{existingCommitSha ? existingCommitSha.slice(0, 7) : '-'}</div>
                   <div className="flex flex-wrap gap-2 pt-1">
-                    <Button variant="outline" disabled={isSubmitting} onClick={openSubmitVersionDialog}>
-                      选择提交流程
-                    </Button>
                     <Button disabled={!canUpload || isSubmitting} onClick={() => void handleUploadResources()}>
                       <UploadSimple size={16} weight="duotone" />
                       {uploading ? '上传中...' : mode === 'resource_edit' ? '更新仓库' : '上传仓库'}
@@ -3230,7 +3101,7 @@ export function CcPublishWorkbench(props: {
                     <Button
                       variant="outline"
                       disabled={!isUploadStepDone || isSubmitting}
-                      onClick={() => setStep('4')}
+                      onClick={() => setStep('3')}
                     >
                       下一步：提交 PR
                     </Button>
@@ -3238,7 +3109,7 @@ export function CcPublishWorkbench(props: {
                 </div>
               ) : null}
 
-              {step === '4' ? (
+              {step === '3' ? (
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="rounded-md border border-border bg-muted/20 px-3 py-2">提交流程：{submitModeLabel}</div>
                   <div className="rounded-md border border-border bg-muted/20 px-3 py-2">目标仓库：{defaultTargetOwner}/{defaultTargetRepo}</div>
@@ -3269,7 +3140,7 @@ export function CcPublishWorkbench(props: {
                     <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive">{submitError}</div>
                   ) : null}
                   <div className="flex flex-wrap gap-2 pt-1">
-                    <Button variant="outline" disabled={isSubmitting} onClick={() => setStep('3')}>
+                    <Button variant="outline" disabled={isSubmitting} onClick={() => setStep('2')}>
                       返回上传步骤
                     </Button>
                     <Button disabled={!canCreatePr || isSubmitting} onClick={() => void handleCreateCatalogPr()}>
@@ -3285,7 +3156,7 @@ export function CcPublishWorkbench(props: {
               <Button variant="outline" disabled={step === stepItems[0]?.value || isSubmitting} onClick={goPrevStep}>
                 上一步
               </Button>
-              <Button disabled={step === '4' || isSubmitting || !canGoNextStep} onClick={goNextStep}>
+              <Button disabled={step === '3' || isSubmitting || !canGoNextStep} onClick={goNextStep}>
                 <UploadSimple size={16} weight="duotone" />
                 下一步
               </Button>
