@@ -2411,26 +2411,101 @@ export function CcPublishWorkbench(props: {
   const buildAutoPrBody = (repoUrl: string, commitSha: string): string => {
     const shortHash = commitSha.trim() ? commitSha.trim().slice(0, 7) : '--'
     if (mode === 'publish') {
+      const resourceTypeText = restype === 'watchface' ? '表盘（watch_face）' : '快应用（quick_app）'
+      const submitVersionText = submitMode === 'both' ? 'v1 + v2' : submitMode === 'v1' ? 'v1' : 'v2'
+      const tagsText = tags.map((tag) => tag.trim()).filter(Boolean).join(' / ') || '--'
+      const paidTypeText = paidType.trim() || '免费'
+
+      const deviceLines = selectedDeviceIds.length > 0
+        ? selectedDeviceIds.map((deviceId) => `- ${deviceId}（${getDeviceLabel(deviceId)}）`)
+        : ['- --']
+
+      const normalizedIconPath = normalizeRepoPath(iconPath)
+      const normalizedCoverPath = normalizeRepoPath(coverPath)
+
+      const imageLines: string[] = []
+      if (normalizedIconPath) {
+        imageLines.push(`- Icon：\`${normalizedIconPath}\`  `)
+        imageLines.push(getRawUrl(normalizedIconPath))
+      } else {
+        imageLines.push('- Icon：--')
+      }
+      if (normalizedCoverPath) {
+        imageLines.push(`- Cover：\`${normalizedCoverPath}\`  `)
+        imageLines.push(getRawUrl(normalizedCoverPath))
+      } else {
+        imageLines.push('- Cover：--')
+      }
+      if (normalizedPreviewPaths.length > 0) {
+        imageLines.push('- Preview：')
+        normalizedPreviewPaths.forEach((path) => {
+          imageLines.push(`- \`${path}\``)
+          imageLines.push(`  ${getRawUrl(path)}`)
+        })
+      } else {
+        imageLines.push('- Preview：--')
+      }
+
+      const downloadLines = selectedDeviceIds.length > 0
+        ? selectedDeviceIds.flatMap((deviceId) => {
+            const entry = getDownloadEntry(deviceId)
+            const version = entry.version.trim() || '--'
+            const file = normalizeRepoPath(entry.file_name)
+            const raw = file ? getRawUrl(file) : '--'
+            return [
+              `- \`${deviceId}\``,
+              `  - version: \`${version}\``,
+              `  - file: \`${file || '--'}\``,
+              `  - raw: ${raw}`
+            ]
+          })
+        : ['- --']
+
+      const normalizedLinks = links
+        .map((link) => ({
+          title: link.title.trim(),
+          icon: link.icon.trim(),
+          url: link.url.trim()
+        }))
+        .filter((link) => link.title || link.icon || link.url)
+
+      const linkLines = normalizedLinks.length > 0
+        ? normalizedLinks.map((link) => `- ${link.title || '--'}（${link.icon || '--'}）：${link.url || '--'}`)
+        : ['- --']
+
       return [
-        '## 发布内容',
+        '## 资源信息',
         '',
-        `- 提交流程：${submitModeLabel}`,
-        `- 资源 ID：${resourceId.trim()}`,
         `- 资源名称：${name.trim()}`,
-        `- 资源类型：${formatResourceTypeForTitle(restype)}`,
-        `- 预览图数量：${normalizedPreviewPaths.length}`,
-        `- 作者数量：${authors.filter((item) => item.name.trim()).length}`,
-        `- Links 数量：${links.filter((item) => item.icon.trim() || item.title.trim() || item.url.trim()).length}`,
-        `- Downloads 数量：${downloads.filter((item) => item.device.trim()).length}`,
-        `- Tags：${normalizedTagsText || '--'}`,
+        `- 资源 ID：${resourceId.trim()}`,
+        `- 资源类型：${resourceTypeText}`,
+        `- 提交版本：${submitVersionText}`,
+        `- 付费类型：${paidTypeText}`,
+        `- 标签：${tagsText}`,
+        '',
+        '## 支持设备',
+        '',
+        ...deviceLines,
         '',
         '## 仓库信息',
         '',
         `- 资源仓库：${repoUrl}`,
         `- 提交短哈希：\`${shortHash}\``,
         '',
+        '## 图片资源（Raw）',
+        '',
+        ...imageLines,
+        '',
+        '## 下载资源（downloads）',
+        '',
+        ...downloadLines,
+        '',
+        '## 链接（manifest_v2.links）',
+        '',
+        ...linkLines,
+        '',
         '---',
-        '此 PR 由 [AstroBooox Creator Console](https://astrobooox-ng.waijade.cn/cc/) 生成，如有问题前往 [AstroBooox 仓库](https://github.com/CheongSzesuen/AstroBooox) 提交 [Issue](https://github.com/CheongSzesuen/AstroBooox/issues)。'
+        '此 PR 由 AstroBooox Cretor Console（https://astrobooox-ng.waijade.cn/cc/）生成，如有问题前往 https://github.com/CheongSzesuen/AstroBooox/issues 提交 issue。'
       ].join('\n')
     }
 
