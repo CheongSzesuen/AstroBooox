@@ -379,13 +379,14 @@ function CcAuthenticatedApp() {
     }
 
     if (routeState.tab === 'pullrequest') {
+      const pullRequestTargetRepo = routeState.pullRequestTargetRepo ? routeState.pullRequestTargetRepo : defaultTargetRepo
       return (
         <Suspense fallback={<PanelLoading />}>
           <CcPullRequestPanel
             token={token}
             currentUser={currentUser}
             targetOwner={defaultTargetOwner}
-            targetRepo={defaultTargetRepo}
+            targetRepo={pullRequestTargetRepo}
             catalogPath={defaultCatalogPath}
             initialPrNumber={Number(routeState.pullRequestNumber || 0)}
             onSelectPr={openPullRequestDetail}
