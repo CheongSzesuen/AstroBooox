@@ -106,6 +106,7 @@ const LEGACY_RESOURCES_DIR = 'resources'
 const PREVIEW_UNDO_LIMIT = 12
 const REMOTE_PICKER_LOCAL_OPFS_ROOT = 'astrobooox-local'
 const IMAGE_FILE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.avif']
+const DESKTOP_PR_BODY_MIN_HEIGHT = 120
 
 type Restype = 'quickapp' | 'watchface'
 type StepKey = '0' | '1' | '2' | '3'
@@ -257,6 +258,13 @@ const formatCatalogRestype = (value: Restype): string => (value === 'watchface' 
 const formatLegacyRestype = (value: Restype): string => (value === 'watchface' ? 'watchface' : 'quickapp')
 
 const formatResourceTypeForTitle = (value: Restype): string => (value === 'watchface' ? '表盘' : '快应用')
+const formatPaidTypeLabel = (value: string): string => {
+  const normalized = value.trim()
+  if (!normalized) return '免费'
+  if (normalized === 'paid') return '应用内付费（paid）'
+  if (normalized === 'force_paid') return '强制付费（force_paid）'
+  return normalized
+}
 
 const basenameFromPath = (path: string): string => {
   const normalized = path.split('/').filter(Boolean)
@@ -414,10 +422,14 @@ export function CcPublishWorkbench(props: {
   const [remotePickerRenamingName, setRemotePickerRenamingName] = useState('')
   const [opfsLocalPathSet, setOpfsLocalPathSet] = useState<Record<string, true>>({})
   const [opfsLocalPreviewUrlMap, setOpfsLocalPreviewUrlMap] = useState<Record<string, string>>({})
+  const [desktopPrBodyMinHeight, setDesktopPrBodyMinHeight] = useState(DESKTOP_PR_BODY_MIN_HEIGHT)
   const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return window.matchMedia('(max-width: 767px)').matches
   })
+  const leftRailRef = useRef<HTMLDivElement | null>(null)
+  const mainWorkbenchCardRef = useRef<HTMLDivElement | null>(null)
+  const prBodyTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const remotePickerLocalInputRef = useRef<HTMLInputElement | null>(null)
   const remotePickerRenameInputRef = useRef<HTMLInputElement | null>(null)
   const previewItemsRef = useRef<PublishPreviewItem[]>([])
@@ -449,6 +461,55 @@ export function CcPublishWorkbench(props: {
       media.removeEventListener('change', handleChange)
     }
   }, [])
+
+  useEffect(() => {
+    if (step !== '3') {
+      setDesktopPrBodyMinHeight(DESKTOP_PR_BODY_MIN_HEIGHT)
+      return
+    }
+    if (typeof window === 'undefined') return
+
+    let rafId = 0
+    const syncDesktopPrBodyHeight = (): void => {
+      if (window.innerWidth < 1280) {
+        setDesktopPrBodyMinHeight((prev) => (prev === DESKTOP_PR_BODY_MIN_HEIGHT ? prev : DESKTOP_PR_BODY_MIN_HEIGHT))
+        return
+      }
+
+      const leftRail = leftRailRef.current
+      const workbenchCard = mainWorkbenchCardRef.current
+      const prBodyTextarea = prBodyTextareaRef.current
+      if (!leftRail || !workbenchCard || !prBodyTextarea) return
+
+      const leftBottom = leftRail.getBoundingClientRect().bottom
+      const rightBottom = workbenchCard.getBoundingClientRect().bottom
+      const currentHeight = prBodyTextarea.getBoundingClientRect().height
+      const targetHeight = Math.max(DESKTOP_PR_BODY_MIN_HEIGHT, Math.round(currentHeight + (leftBottom - rightBottom)))
+      setDesktopPrBodyMinHeight((prev) => (Math.abs(prev - targetHeight) <= 1 ? prev : targetHeight))
+    }
+
+    const queueSync = (): void => {
+      if (rafId) window.cancelAnimationFrame(rafId)
+      rafId = window.requestAnimationFrame(() => {
+        rafId = 0
+        syncDesktopPrBodyHeight()
+      })
+    }
+
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(queueSync) : null
+    if (observer) {
+      if (leftRailRef.current) observer.observe(leftRailRef.current)
+      if (mainWorkbenchCardRef.current) observer.observe(mainWorkbenchCardRef.current)
+    }
+    window.addEventListener('resize', queueSync)
+    queueSync()
+
+    return () => {
+      window.removeEventListener('resize', queueSync)
+      if (observer) observer.disconnect()
+      if (rafId) window.cancelAnimationFrame(rafId)
+    }
+  }, [step])
 
   useEffect(() => {
     return () => {
@@ -2370,41 +2431,53 @@ export function CcPublishWorkbench(props: {
   const formatTagListForPr = (values: string[]): string =>
     values.length > 0 ? values.map((tag) => `\`${tag}\``).join('、') : '--'
 
-  const normalizeLinksForPr = (values: ManifestLinkDraft[]): string =>
-    JSON.stringify(
-      values
-        .map((link) => ({
-          icon: link.icon.trim(),
-          title: link.title.trim(),
-          url: link.url.trim()
-        }))
-        .filter((link) => link.icon || link.title || link.url)
-        .sort((a, b) => `${a.title}|${a.url}|${a.icon}`.localeCompare(`${b.title}|${b.url}|${b.icon}`, 'zh-CN'))
-    )
+  const getNormalizedLinksForPr = (values: ManifestLinkDraft[]): Array<{ icon: string; title: string; url: string }> =>
+    values
+      .map((link) => ({
+        icon: link.icon.trim(),
+        title: link.title.trim(),
+        url: link.url.trim()
+      }))
+      .filter((link) => link.icon || link.title || link.url)
+      .sort((a, b) => `${a.title}|${a.url}|${a.icon}`.localeCompare(`${b.title}|${b.url}|${b.icon}`, 'zh-CN'))
 
-  const normalizeAuthorsForPr = (values: ManifestAuthorDraft[]): string =>
-    JSON.stringify(
-      values
-        .map((author) => ({
-          name: author.name.trim(),
-          authorUrl: author.authorUrl.trim(),
-          bindABAccount: Boolean(author.bindABAccount)
-        }))
-        .filter((author) => author.name || author.authorUrl)
-        .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
-    )
+  const serializeLinksForPr = (values: ManifestLinkDraft[]): string =>
+    JSON.stringify(getNormalizedLinksForPr(values))
 
-  const normalizeDownloadsForPr = (values: ManifestDownloadDraft[]): string =>
-    JSON.stringify(
-      values
-        .map((entry) => ({
-          device: entry.device.trim(),
-          version: entry.version.trim(),
-          file_name: normalizeRepoPath(entry.file_name)
-        }))
-        .filter((entry) => entry.device || entry.version || entry.file_name)
-        .sort((a, b) => a.device.localeCompare(b.device, 'zh-CN'))
-    )
+  const getNormalizedAuthorsForPr = (values: ManifestAuthorDraft[]): Array<{ name: string; authorUrl: string; bindABAccount: boolean }> =>
+    values
+      .map((author) => ({
+        name: author.name.trim(),
+        authorUrl: author.authorUrl.trim(),
+        bindABAccount: Boolean(author.bindABAccount)
+      }))
+      .filter((author) => author.name || author.authorUrl)
+      .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+
+  const serializeAuthorsForPr = (values: ManifestAuthorDraft[]): string =>
+    JSON.stringify(getNormalizedAuthorsForPr(values))
+
+  const getNormalizedDownloadsForPr = (values: ManifestDownloadDraft[]): Array<{ device: string; version: string; file_name: string }> =>
+    values
+      .map((entry) => ({
+        device: entry.device.trim(),
+        version: entry.version.trim(),
+        file_name: normalizeRepoPath(entry.file_name)
+      }))
+      .filter((entry) => entry.device || entry.version || entry.file_name)
+      .sort((a, b) => a.device.localeCompare(b.device, 'zh-CN'))
+
+  const serializeDownloadsForPr = (values: ManifestDownloadDraft[]): string =>
+    JSON.stringify(getNormalizedDownloadsForPr(values))
+
+  const formatLinkEntryForPr = (entry: { icon: string; title: string; url: string }): string =>
+    `${entry.title || '--'}（${entry.icon || '--'}）：${entry.url || '--'}`
+
+  const formatAuthorEntryForPr = (entry: { name: string; authorUrl: string; bindABAccount: boolean }): string =>
+    `${entry.name || '--'} / author_url=${entry.authorUrl || '--'} / bindABAccount=${entry.bindABAccount ? 'true' : 'false'}`
+
+  const formatDownloadEntryForPr = (entry: { device: string; version: string; file_name: string }): string =>
+    `device=\`${entry.device || '--'}\` / version=\`${entry.version || '--'}\` / file=\`${entry.file_name || '--'}\``
 
   const collectUpdateChangeLines = (): string[] => {
     const baseline = updateChangeBaseline
@@ -2458,22 +2531,101 @@ export function CcPublishWorkbench(props: {
       lines.push(`- 标签：${formatTagListForPr(beforeTagList)} -> ${formatTagListForPr(afterTagList)}`)
     }
 
-    const beforeLinks = normalizeLinksForPr(baseline.links)
-    const afterLinks = normalizeLinksForPr(links)
+    const beforeLinks = serializeLinksForPr(baseline.links)
+    const afterLinks = serializeLinksForPr(links)
     if (beforeLinks !== afterLinks) {
-      lines.push('- 相关链接：已更新')
+      const beforeLinkList = getNormalizedLinksForPr(baseline.links)
+      const afterLinkList = getNormalizedLinksForPr(links)
+      const makeLinkKey = (entry: { icon: string; title: string; url: string }): string => `${entry.title}|${entry.icon}|${entry.url}`
+      const beforeSet = new Set(beforeLinkList.map(makeLinkKey))
+      const afterSet = new Set(afterLinkList.map(makeLinkKey))
+      const addedLinks = afterLinkList.filter((entry) => !beforeSet.has(makeLinkKey(entry)))
+      const removedLinks = beforeLinkList.filter((entry) => !afterSet.has(makeLinkKey(entry)))
+      if (addedLinks.length > 0) {
+        lines.push(`- 相关链接：新增 ${addedLinks.length} 条`)
+        addedLinks.forEach((entry) => lines.push(`  - ${formatLinkEntryForPr(entry)}`))
+      }
+      if (removedLinks.length > 0) {
+        lines.push(`- 相关链接：移除 ${removedLinks.length} 条`)
+        removedLinks.forEach((entry) => lines.push(`  - ${formatLinkEntryForPr(entry)}`))
+      }
+      if (addedLinks.length === 0 && removedLinks.length === 0) {
+        lines.push(`- 相关链接：顺序已调整（${afterLinkList.length} 条）`)
+      }
     }
 
-    const beforeAuthors = normalizeAuthorsForPr(baseline.authors)
-    const afterAuthors = normalizeAuthorsForPr(authors)
+    const beforeAuthors = serializeAuthorsForPr(baseline.authors)
+    const afterAuthors = serializeAuthorsForPr(authors)
     if (beforeAuthors !== afterAuthors) {
-      lines.push('- 作者信息：已更新')
+      const beforeAuthorList = getNormalizedAuthorsForPr(baseline.authors)
+      const afterAuthorList = getNormalizedAuthorsForPr(authors)
+      const makeAuthorKey = (entry: { name: string; authorUrl: string; bindABAccount: boolean }): string => `${entry.name}|${entry.authorUrl}|${entry.bindABAccount ? '1' : '0'}`
+      const beforeSet = new Set(beforeAuthorList.map(makeAuthorKey))
+      const afterSet = new Set(afterAuthorList.map(makeAuthorKey))
+      const addedAuthors = afterAuthorList.filter((entry) => !beforeSet.has(makeAuthorKey(entry)))
+      const removedAuthors = beforeAuthorList.filter((entry) => !afterSet.has(makeAuthorKey(entry)))
+      if (addedAuthors.length > 0) {
+        lines.push(`- 作者信息：新增 ${addedAuthors.length} 条`)
+        addedAuthors.forEach((entry) => lines.push(`  - ${formatAuthorEntryForPr(entry)}`))
+      }
+      if (removedAuthors.length > 0) {
+        lines.push(`- 作者信息：移除 ${removedAuthors.length} 条`)
+        removedAuthors.forEach((entry) => lines.push(`  - ${formatAuthorEntryForPr(entry)}`))
+      }
+      if (addedAuthors.length === 0 && removedAuthors.length === 0) {
+        lines.push(`- 作者信息：顺序已调整（${afterAuthorList.length} 条）`)
+      }
     }
 
-    const beforeDownloads = normalizeDownloadsForPr(baseline.downloads)
-    const afterDownloads = normalizeDownloadsForPr(downloads)
+    const beforeDownloads = serializeDownloadsForPr(baseline.downloads)
+    const afterDownloads = serializeDownloadsForPr(downloads)
     if (beforeDownloads !== afterDownloads) {
-      lines.push('- 下载资源（downloads）：已更新')
+      const beforeDownloadList = getNormalizedDownloadsForPr(baseline.downloads)
+      const afterDownloadList = getNormalizedDownloadsForPr(downloads)
+      const beforeDownloadMap = new Map(beforeDownloadList.map((entry) => [entry.device, entry]))
+      const afterDownloadMap = new Map(afterDownloadList.map((entry) => [entry.device, entry]))
+
+      const addedDownloads = afterDownloadList.filter((entry) => !beforeDownloadMap.has(entry.device))
+      const removedDownloads = beforeDownloadList.filter((entry) => !afterDownloadMap.has(entry.device))
+      const updatedDownloads = afterDownloadList.filter((entry) => {
+        const beforeEntry = beforeDownloadMap.get(entry.device)
+        if (!beforeEntry) return false
+        return beforeEntry.version !== entry.version || beforeEntry.file_name !== entry.file_name
+      })
+
+      if (addedDownloads.length > 0) {
+        lines.push(`- 下载资源（downloads）：新增 ${addedDownloads.length} 条`)
+        addedDownloads.forEach((entry) => {
+          lines.push(`  - ${formatDownloadEntryForPr(entry)}`)
+          if (entry.file_name) {
+            lines.push(`    ${getRawUrl(entry.file_name)}`)
+          }
+        })
+      }
+      if (removedDownloads.length > 0) {
+        lines.push(`- 下载资源（downloads）：移除 ${removedDownloads.length} 条`)
+        removedDownloads.forEach((entry) => lines.push(`  - ${formatDownloadEntryForPr(entry)}`))
+      }
+      if (updatedDownloads.length > 0) {
+        lines.push(`- 下载资源（downloads）：更新 ${updatedDownloads.length} 条`)
+        updatedDownloads.forEach((entry) => {
+          const beforeEntry = beforeDownloadMap.get(entry.device)
+          if (!beforeEntry) return
+          lines.push(`  - 设备 \`${entry.device || '--'}\``)
+          if (beforeEntry.version !== entry.version) {
+            lines.push(`    - version：\`${beforeEntry.version || '--'}\` -> \`${entry.version || '--'}\``)
+          }
+          if (beforeEntry.file_name !== entry.file_name) {
+            lines.push(`    - file：\`${beforeEntry.file_name || '--'}\` -> \`${entry.file_name || '--'}\``)
+            if (entry.file_name) {
+              lines.push(`      ${getRawUrl(entry.file_name)}`)
+            }
+          }
+        })
+      }
+      if (addedDownloads.length === 0 && removedDownloads.length === 0 && updatedDownloads.length === 0) {
+        lines.push(`- 下载资源（downloads）：顺序已调整（${afterDownloadList.length} 条）`)
+      }
     }
 
     return lines
@@ -2590,7 +2742,18 @@ export function CcPublishWorkbench(props: {
     }
 
     const changeLines = collectUpdateChangeLines()
+    const resourceTypeText = restype === 'watchface' ? '表盘（watch_face）' : '快应用（quick_app）'
+    const tagsText = tags.map((tag) => tag.trim()).filter(Boolean).join(' / ') || '--'
+    const paidTypeText = formatPaidTypeLabel(paidType)
     return [
+      '## 资源信息',
+      '',
+      `- 资源名称：${name.trim() || '--'}`,
+      `- 资源 ID：${resourceId.trim() || '--'}`,
+      `- 资源类型：${resourceTypeText}`,
+      `- 付费类型：${paidTypeText}`,
+      `- 标签：${tagsText}`,
+      '',
       '## 本次变更',
       '',
       ...(changeLines.length > 0 ? changeLines : ['- 未检测到字段变化（仅同步仓库文件）']),
@@ -3219,7 +3382,7 @@ export function CcPublishWorkbench(props: {
 
   return (
     <div className="min-w-0 grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-      <div className="min-w-0 space-y-4 xl:sticky xl:top-[72px] xl:self-start">
+      <div ref={leftRailRef} className="min-w-0 space-y-4 xl:sticky xl:top-[72px] xl:self-start">
         <Card>
           <CardHeader className="pb-3 sm:p-3 sm:pb-3">
             <CardTitle className="text-base">步骤导航</CardTitle>
@@ -3419,7 +3582,7 @@ export function CcPublishWorkbench(props: {
       </div>
 
       <div className="min-w-0 space-y-4">
-        <Card>
+        <Card ref={mainWorkbenchCardRef}>
           <CardHeader className="pb-3 sm:p-3 sm:pb-3">
             <CardTitle className="text-base">{title}</CardTitle>
           </CardHeader>
@@ -3785,7 +3948,14 @@ export function CcPublishWorkbench(props: {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="publish-pr-body">PR 描述</Label>
-                    <Textarea id="publish-pr-body" value={prBody} onChange={(event) => setPrBody(event.target.value)} className="min-h-[120px]" />
+                    <Textarea
+                      ref={prBodyTextareaRef}
+                      id="publish-pr-body"
+                      value={prBody}
+                      onChange={(event) => setPrBody(event.target.value)}
+                      className="min-h-[120px]"
+                      style={!isMobileViewport ? { minHeight: `${desktopPrBodyMinHeight}px` } : undefined}
+                    />
                   </div>
                   {latestPrUrl ? (
                     <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-emerald-700 dark:text-emerald-300">
