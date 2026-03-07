@@ -33,28 +33,28 @@
 ## 页面与功能清单（按优先级）
 
 ### P0：登录与路由基础
-- [ ] `/cc/login` Token 登录页完整迁移（含 GitHub 注册提示卡）
-- [ ] `/cc` 路由状态机完整迁移（`cc_path` 兼容）
-- [ ] 头部导航、移动端抽屉、主题切换、用户菜单迁移
+- [x] `/cc/login` Token 登录页完整迁移（含 GitHub 注册提示卡）
+- [x] `/cc` 路由状态机迁移（`cc_path` 兼容，含登录回跳与路由同步）
+- [x] 头部导航、移动端抽屉、主题切换、用户菜单迁移
 
 ### P0：发布工作台（最重）
-- [ ] 步骤导航、文件树、日志区迁移
+- [x] 步骤导航、文件树、日志区迁移（首版）
 - [ ] 本地 workspace / 远程 repo 文件选择与同步迁移
-- [ ] 资源信息表单迁移（ID/名称/类型/付费/描述/tags）
-- [ ] icon/cover/preview 上传与预览迁移
-- [ ] preview 轮播、删除、toast 撤销栈迁移（sonner）
+- [x] 资源信息表单迁移（首版：名称/描述）
+- [x] icon/cover/preview 上传与预览迁移（首版：preview）
+- [x] preview 轮播、删除、toast 撤销栈迁移（sonner）
 - [ ] 作者、links、下载设备矩阵迁移
 - [ ] 提交流程（上传、创建 PR、结果回显）迁移
 
 ### P0：审核与资源管理
-- [ ] `/cc/review` 列表、详情、评论流迁移
-- [ ] `/cc/resource` 资源列表与详情迁移
-- [ ] 资源详情预览组件复用（与 review 一致）
-- [ ] `/cc/resource/edit` 更新资源工作台迁移
+- [x] `/cc/review` 列表、详情、评论流迁移（首版）
+- [x] `/cc/resource` 资源列表与详情迁移（首版）
+- [x] 资源详情预览组件复用（与 review 一致，已抽 React 轮播组件）
+- [x] `/cc/resource/edit` 更新资源工作台迁移（首版）
 
 ### P1：仓库与设置
-- [ ] `/cc/repositories` 仓库管理与协作者邀请迁移
-- [ ] `/cc/settings` 默认仓库、账号、关于迁移
+- [x] `/cc/repositories` 仓库管理与协作者邀请迁移
+- [x] `/cc/settings` 默认仓库、账号、关于迁移
 
 ### P1：帮助页
 - [x] `/cc/help` Token 教程页迁移完成
@@ -82,3 +82,9 @@
   - `feat(cc): 迁移预览轮播与删除撤销`
   - `feat(cc): 迁移审核评论流`
   - `feat(cc): 迁移资源管理与编辑`
+
+## 当前遗留差异（必须补齐）
+- 发布工作台仍是首版：缺少 workspace 目录读写、远程仓库文件树同步、实际提交 PR 流程。
+- review 仍缺文件定位器（按文件/行插入引用）与资源提交信息规则检查区块。
+- pullrequest 当前复用 review 工作台，尚未做与 Vue `ResourcePublishWorkbench(mode=review)` 的行为差异对齐。
+- resource/edit 当前为首版结构，尚未完成旧版完整“更新资源向导”字段与提交策略。
