@@ -136,6 +136,7 @@ export function CcPublishedPanel(props: {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [resources, setResources] = useState<OwnedResourceEntry[]>([])
+  const [reloadSeed, setReloadSeed] = useState(0)
 
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
@@ -181,7 +182,7 @@ export function CcPublishedPanel(props: {
     }
 
     void run()
-  }, [currentUser, defaultCatalogPath, defaultTargetOwner, defaultTargetRepo, onResourceDetailKeyChange, resourceDetailKey, token])
+  }, [currentUser, defaultCatalogPath, defaultTargetOwner, defaultTargetRepo, onResourceDetailKeyChange, reloadSeed, resourceDetailKey, token])
 
   const selectedResource = useMemo(() => {
     if (!resourceDetailKey) return null
@@ -236,7 +237,7 @@ export function CcPublishedPanel(props: {
         <aside className="w-full rounded-xl border border-border bg-card p-3 shadow-sm lg:sticky lg:top-0 lg:w-80 lg:p-3">
           <div className="mb-2 flex items-center justify-between border-b border-border pb-2">
             <p className="truncate text-xs font-semibold text-foreground">资源列表</p>
-            <Button size="sm" variant="outline" className="h-8" disabled={loading} onClick={() => window.location.reload()}>
+            <Button size="sm" variant="outline" className="h-8" disabled={loading} onClick={() => setReloadSeed((prev) => prev + 1)}>
               <ClockCounterClockwise size={14} weight="duotone" />
               刷新
             </Button>

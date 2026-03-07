@@ -354,10 +354,14 @@ function CcAuthenticatedApp() {
     }
 
     if (routeState.tab === 'review' || routeState.tab === 'pullrequest') {
+      const reviewTargetRepo =
+        routeState.tab === 'pullrequest' && routeState.pullRequestTargetRepo
+          ? routeState.pullRequestTargetRepo
+          : defaultTargetRepo
       return (
         <CcPrReviewWorkbench
           owner={defaultTargetOwner}
-          repo={defaultTargetRepo}
+          repo={reviewTargetRepo}
           token={token}
           initialPrNumber={routeState.tab === 'pullrequest' ? Number(routeState.pullRequestNumber || 0) : 0}
         />
