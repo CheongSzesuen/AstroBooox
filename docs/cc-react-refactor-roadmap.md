@@ -86,5 +86,5 @@
 ## 当前遗留差异（必须补齐）
 - 发布工作台仍是首版：缺少 workspace 目录读写、远程仓库文件树同步、实际提交 PR 流程。
 - review 二期已补文件定位器与资源提交信息规则检查区块，但细节交互与 Vue 仍有差异（搜索/自动滚动/数据命中率需继续对齐）。
-- pullrequest 当前复用 review 工作台，尚未做与 Vue `ResourcePublishWorkbench(mode=review)` 的行为差异对齐。
+- pullrequest 已迁移独立“等待审核”面板，后续需继续补齐与 Vue `ResourcePublishWorkbench(mode=review)` 的细节行为差异。
 - resource/edit 当前为首版结构，尚未完成旧版完整“更新资源向导”字段与提交策略。
