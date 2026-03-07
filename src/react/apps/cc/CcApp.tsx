@@ -383,11 +383,34 @@ function CcAuthenticatedApp() {
     }
 
     if (routeState.tab === 'publish') {
-      return <CcPublishWorkbench mode="publish" />
+      return (
+        <CcPublishWorkbench
+          mode="publish"
+          token={token}
+          currentUser={currentUser}
+          defaultTargetOwner={defaultTargetOwner}
+          defaultTargetRepo={defaultTargetRepo}
+          defaultCatalogPath={defaultCatalogPath}
+        />
+      )
     }
 
     if (routeState.tab === 'resource_edit') {
-      return <CcPublishWorkbench mode="resource_edit" />
+      return (
+        <CcPublishWorkbench
+          mode="resource_edit"
+          token={token}
+          currentUser={currentUser}
+          defaultTargetOwner={defaultTargetOwner}
+          defaultTargetRepo={defaultTargetRepo}
+          defaultCatalogPath={defaultCatalogPath}
+          editContext={{
+            resourceId: routeState.editResourceId || '',
+            targetRepo: routeState.editTargetRepo || '',
+            user: routeState.editUser || ''
+          }}
+        />
+      )
     }
 
     return (

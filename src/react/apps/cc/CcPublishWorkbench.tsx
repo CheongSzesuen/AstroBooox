@@ -1,6 +1,8 @@
 import { ArrowCounterClockwise, CheckCircle, FileImage, FolderNotchOpenIcon, UploadSimple } from '@phosphor-icons/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { loadOwnedResourceDetail, loadOwnedResources } from '@/utils/resourcePublishApi'
+import { parseManifestView } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
 import { Badge } from '@/react/components/ui/badge'
 import { Button } from '@/react/components/ui/button'
@@ -15,33 +17,173 @@ type PublishPreviewItem = PreviewImageItem & {
   objectUrl?: string
 }
 
+type ResourceEditContext = {
+  resourceId: string
+  targetRepo: string
+  user: string
+}
+
 const nextId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+
+const normalizeLower = (value: string): string => value.trim().toLowerCase()
+
+const revokeLocalItems = (items: PublishPreviewItem[]) => {
+  items.forEach((item) => {
+    if (item.objectUrl) {
+      URL.revokeObjectURL(item.objectUrl)
+    }
+  })
+}
 
 export function CcPublishWorkbench(props: {
   mode: 'publish' | 'resource_edit'
+  token: string
+  currentUser: string
+  defaultTargetOwner: string
+  defaultTargetRepo: string
+  defaultCatalogPath: string
+  editContext?: ResourceEditContext
 }) {
-  const { mode } = props
+  const {
+    mode,
+    token,
+    currentUser,
+    defaultTargetOwner,
+    defaultTargetRepo,
+    defaultCatalogPath,
+    editContext
+  } = props
+
   const [step, setStep] = useState<'1' | '2' | '3'>('1')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [previewItems, setPreviewItems] = useState<PublishPreviewItem[]>([])
   const [deletedStack, setDeletedStack] = useState<PublishPreviewItem[]>([])
+  const [bootstrapLoading, setBootstrapLoading] = useState(false)
+  const [bootstrapError, setBootstrapError] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     return () => {
-      previewItems.forEach((item) => {
-        if (item.objectUrl) {
-          URL.revokeObjectURL(item.objectUrl)
-        }
-      })
-      deletedStack.forEach((item) => {
-        if (item.objectUrl) {
-          URL.revokeObjectURL(item.objectUrl)
-        }
-      })
+      revokeLocalItems(previewItems)
+      revokeLocalItems(deletedStack)
     }
   }, [deletedStack, previewItems])
+
+  useEffect(() => {
+    if (mode !== 'resource_edit') {
+      setBootstrapLoading(false)
+      setBootstrapError('')
+      return
+    }
+
+    let cancelled = false
+
+    const run = async () => {
+      try {
+        const resolvedToken = token.trim()
+        const fallbackUser = normalizeLower(currentUser)
+        const targetUser = normalizeLower(editContext?.user || '') || fallbackUser
+        const targetRepo = normalizeLower(editContext?.targetRepo || '')
+        const targetResourceId = (editContext?.resourceId || '').trim()
+
+        if (!resolvedToken) {
+          throw new Error('更新资源需要先登录 Token')
+        }
+        if (!targetUser) {
+          throw new Error('更新资源需要明确资源作者')
+        }
+
+        setBootstrapLoading(true)
+        setBootstrapError('')
+
+        const entries = await loadOwnedResources({
+          token: resolvedToken,
+          username: targetUser,
+          upstreamOwner: defaultTargetOwner.trim(),
+          upstreamRepo: defaultTargetRepo.trim(),
+          upstreamBranch: 'main',
+          catalogPath: defaultCatalogPath.trim()
+        })
+
+        const matchedByRepo = targetRepo
+          ? entries.filter((item) => {
+              const full = `${normalizeLower(item.repo_owner)}/${normalizeLower(item.repo_name)}`
+              const repoName = normalizeLower(item.repo_name)
+              return full === targetRepo || repoName === targetRepo
+            })
+          : entries
+
+        const target =
+          matchedByRepo.find((item) => item.catalogId === targetResourceId) ||
+          matchedByRepo.find((item) => item.name === targetResourceId) ||
+          matchedByRepo[0]
+
+        if (!target) {
+          throw new Error('未找到要更新的资源，请检查 edit 参数')
+        }
+
+        const v1Ref = target.source === 'v1' ? target.repo_commit_hash : undefined
+        const v2Ref = target.source === 'v2' ? target.repo_commit_hash : undefined
+
+        const detail = await loadOwnedResourceDetail({
+          token: resolvedToken,
+          owner: target.repo_owner,
+          repo: target.repo_name,
+          ...(v1Ref ? { v1Ref } : {}),
+          ...(v2Ref ? { v2Ref } : {})
+        })
+
+        const hasV2 = Boolean(detail.v2ManifestText)
+        const activeRef = hasV2 ? (detail.v2Ref || detail.defaultBranch) : (detail.v1Ref || detail.defaultBranch)
+        const activeManifestText = hasV2 ? detail.v2ManifestText : detail.v1ManifestText
+        const parsed = parseManifestView(activeManifestText, detail.owner, detail.repo, activeRef || 'main')
+
+        if (cancelled) return
+
+        setName(parsed.name || target.name)
+        setDescription(parsed.description || target.description || '')
+
+        const remotePreviews: PublishPreviewItem[] = parsed.previews.map((item) => ({
+          id: nextId(),
+          file: item.file,
+          url: item.url
+        }))
+
+        setPreviewItems((prev) => {
+          revokeLocalItems(prev)
+          return remotePreviews
+        })
+        setDeletedStack((prev) => {
+          revokeLocalItems(prev)
+          return []
+        })
+      } catch (cause: unknown) {
+        if (cancelled) return
+        setBootstrapError(cause instanceof Error ? cause.message : '加载更新资源信息失败')
+      } finally {
+        if (!cancelled) {
+          setBootstrapLoading(false)
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    currentUser,
+    defaultCatalogPath,
+    defaultTargetOwner,
+    defaultTargetRepo,
+    editContext?.resourceId,
+    editContext?.targetRepo,
+    editContext?.user,
+    mode,
+    token
+  ])
 
   const title = mode === 'resource_edit' ? '更新资源工作台（首版）' : '资源发布工作台（首版）'
   const hidePreviewInCurrentStepOnMobile = mode === 'resource_edit' && step === '1'
@@ -81,10 +223,7 @@ export function CcPublishWorkbench(props: {
       const target = prev[index]
       if (!target) return prev
       const next = prev.filter((_, i) => i !== index)
-      setDeletedStack((stack) => {
-        const updated = [target, ...stack].slice(0, 12)
-        return updated
-      })
+      setDeletedStack((stack) => [target, ...stack].slice(0, 12))
 
       toast('已删除预览图', {
         description: target.file,
@@ -112,6 +251,9 @@ export function CcPublishWorkbench(props: {
               <TabsTrigger value="3">3. 提交</TabsTrigger>
             </TabsList>
           </Tabs>
+
+          {bootstrapLoading ? <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">正在加载待更新资源信息...</div> : null}
+          {bootstrapError ? <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{bootstrapError}</div> : null}
 
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-[340px_minmax(0,1fr)]">
             <section className="flex min-h-[360px] flex-col rounded-xl border border-border bg-card p-3">
@@ -202,10 +344,7 @@ export function CcPublishWorkbench(props: {
             <Button variant="outline" disabled={step === '1'} onClick={() => setStep((prev) => (prev === '3' ? '2' : '1'))}>
               上一步
             </Button>
-            <Button
-              disabled={step === '3'}
-              onClick={() => setStep((prev) => (prev === '1' ? '2' : '3'))}
-            >
+            <Button disabled={step === '3'} onClick={() => setStep((prev) => (prev === '1' ? '2' : '3'))}>
               <UploadSimple size={16} weight="duotone" />
               下一步
             </Button>
