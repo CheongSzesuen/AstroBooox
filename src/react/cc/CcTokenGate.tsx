@@ -58,14 +58,14 @@ export function CcTokenGate({ onAuthenticated }: { onAuthenticated?: () => void 
         <CcInteractiveGrid cellSize={48} className="absolute inset-x-0 inset-y-0 h-full w-full skew-y-12 [mask-image:radial-gradient(420px_circle_at_center,white,transparent)]" />
       </div>
 
-      <div className="cc-login-panel absolute inset-0 z-30 flex items-center justify-center bg-gradient-to-b from-black/15 via-black/30 to-black/45 p-4 backdrop-blur-[1px] sm:p-6 lg:static lg:z-auto lg:h-full lg:min-h-[100dvh] lg:bg-none lg:bg-background lg:p-8 lg:backdrop-blur-none">
+      <div className="cc-login-panel absolute inset-0 z-30 flex items-center justify-center bg-gradient-to-b from-black/15 via-black/30 to-black/45 p-4 backdrop-blur-[1px] sm:p-6 lg:static lg:z-auto lg:h-full lg:min-h-[100dvh] lg:bg-zinc-900 lg:p-8 lg:backdrop-blur-none">
         <div className="w-full max-w-md space-y-6">
           <div className="space-y-2 text-center lg:text-left">
-            <h2 className="cc-login-title text-2xl font-semibold tracking-tight text-white lg:text-foreground">Token 登录</h2>
-            <p className="cc-login-desc text-sm text-zinc-100/90 lg:text-muted-foreground">输入 GitHub Token 后进入 Creator Console。</p>
+            <h2 className="cc-login-title text-2xl font-semibold tracking-tight text-white">Token 登录</h2>
+            <p className="cc-login-desc text-sm text-zinc-100/90">输入 GitHub Token 后进入 Creator Console。</p>
           </div>
 
-          <Card className="cc-login-card cc-login-light border-zinc-200 bg-white/95 text-zinc-900 shadow-xl backdrop-blur lg:border-zinc-700 lg:bg-zinc-900/90 lg:text-zinc-100">
+          <Card className="cc-login-card cc-login-light border-zinc-200 bg-white/95 text-zinc-900 shadow-xl backdrop-blur">
             <CardContent className="flex items-start gap-3">
               <div className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50">
                 <GithubLogo size={18} weight="duotone" />
@@ -82,7 +82,7 @@ export function CcTokenGate({ onAuthenticated }: { onAuthenticated?: () => void 
             </CardContent>
           </Card>
 
-          <Card className="cc-login-card cc-login-light border-zinc-200 bg-white/95 text-zinc-900 shadow-xl backdrop-blur lg:border-zinc-700 lg:bg-zinc-900/90 lg:text-zinc-100">
+          <Card className="cc-login-card cc-login-light border-zinc-200 bg-white/95 text-zinc-900 shadow-xl backdrop-blur">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">GitHub Token</CardTitle>
               <CardDescription>务必使用自己的GitHub Token</CardDescription>
