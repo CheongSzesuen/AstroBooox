@@ -49,6 +49,14 @@ type PublishPreviewItem = PreviewImageItem & {
   fileObject?: File
 }
 
+type DeletedPreviewEntry = {
+  id: string
+  item: PublishPreviewItem
+  originalIndex: number
+  prevId: string | null
+  nextId: string | null
+}
+
 type ExtraUploadFile = {
   id: string
   path: string
@@ -357,7 +365,7 @@ export function CcPublishWorkbench(props: {
   const [authors, setAuthors] = useState<ManifestAuthorDraft[]>([{ name: '', authorUrl: '', bindABAccount: true }])
   const [links, setLinks] = useState<ManifestLinkDraft[]>([])
   const [downloads, setDownloads] = useState<ManifestDownloadDraft[]>([])
-  const [deletedStack, setDeletedStack] = useState<PublishPreviewItem[]>([])
+  const [deletedStack, setDeletedStack] = useState<DeletedPreviewEntry[]>([])
   const [submitMode, setSubmitMode] = useState<SubmitMode>('v2')
   const [bootstrapLoading, setBootstrapLoading] = useState(false)
   const [bootstrapError, setBootstrapError] = useState('')
@@ -407,7 +415,7 @@ export function CcPublishWorkbench(props: {
   const remotePickerRenameInputRef = useRef<HTMLInputElement | null>(null)
   const previewItemsRef = useRef<PublishPreviewItem[]>([])
   const opfsLocalPreviewUrlMapRef = useRef<Record<string, string>>({})
-  const deletedStackRef = useRef<PublishPreviewItem[]>([])
+  const deletedStackRef = useRef<DeletedPreviewEntry[]>([])
   const previousModeRef = useRef(mode)
 
   useEffect(() => {
@@ -425,7 +433,7 @@ export function CcPublishWorkbench(props: {
   useEffect(() => {
     return () => {
       revokeLocalItems(previewItemsRef.current)
-      revokeLocalItems(deletedStackRef.current)
+      revokeLocalItems(deletedStackRef.current.map((entry) => entry.item))
       Object.values(opfsLocalPreviewUrlMapRef.current).forEach((url) => {
         URL.revokeObjectURL(url)
       })
@@ -467,7 +475,7 @@ export function CcPublishWorkbench(props: {
       return []
     })
     setDeletedStack((prev) => {
-      revokeLocalItems(prev)
+      revokeLocalItems(prev.map((entry) => entry.item))
       return []
     })
     setExtraFiles([])
@@ -727,7 +735,7 @@ export function CcPublishWorkbench(props: {
           return remotePreviews
         })
         setDeletedStack((prev) => {
-          revokeLocalItems(prev)
+          revokeLocalItems(prev.map((entry) => entry.item))
           return []
         })
 
@@ -1916,7 +1924,33 @@ export function CcPublishWorkbench(props: {
 
     const target = stack[index]
     const nextStack = [...stack.slice(0, index), ...stack.slice(index + 1)]
-    const nextPreviewItems = [...previewItemsRef.current, target]
+    const currentPreviewItems = previewItemsRef.current
+    if (currentPreviewItems.some((item) => item.id === target.item.id)) {
+      deletedStackRef.current = nextStack
+      setDeletedStack(nextStack)
+      return
+    }
+
+    let insertIndex = Math.min(Math.max(target.originalIndex, 0), currentPreviewItems.length)
+    const nextAnchorIndex = target.nextId
+      ? currentPreviewItems.findIndex((item) => item.id === target.nextId)
+      : -1
+    const prevAnchorIndex = target.prevId
+      ? currentPreviewItems.findIndex((item) => item.id === target.prevId)
+      : -1
+
+    if (nextAnchorIndex >= 0) {
+      if (prevAnchorIndex >= 0 && prevAnchorIndex < nextAnchorIndex) {
+        insertIndex = prevAnchorIndex + 1
+      } else {
+        insertIndex = nextAnchorIndex
+      }
+    } else if (prevAnchorIndex >= 0) {
+      insertIndex = prevAnchorIndex + 1
+    }
+
+    const nextPreviewItems = [...currentPreviewItems]
+    nextPreviewItems.splice(insertIndex, 0, target.item)
 
     deletedStackRef.current = nextStack
     previewItemsRef.current = nextPreviewItems
@@ -1929,8 +1963,17 @@ export function CcPublishWorkbench(props: {
     const target = currentPreviewItems[index]
     if (!target) return
 
+    const prevId = index > 0 ? currentPreviewItems[index - 1]?.id ?? null : null
+    const nextId = index < currentPreviewItems.length - 1 ? currentPreviewItems[index + 1]?.id ?? null : null
+    const deletedEntry: DeletedPreviewEntry = {
+      id: target.id,
+      item: target,
+      originalIndex: index,
+      prevId,
+      nextId
+    }
     const nextPreviewItems = currentPreviewItems.filter((_, i) => i !== index)
-    const mergedStack = [target, ...deletedStackRef.current]
+    const mergedStack = [deletedEntry, ...deletedStackRef.current]
     const keptStack = mergedStack.slice(0, PREVIEW_UNDO_LIMIT)
     const droppedStack = mergedStack.slice(PREVIEW_UNDO_LIMIT)
 
@@ -1939,8 +1982,9 @@ export function CcPublishWorkbench(props: {
 
     setPreviewItems(nextPreviewItems)
     setDeletedStack(keptStack)
-    revokeLocalItems(droppedStack)
-    finalizeRemovedPreviewItems(droppedStack)
+    const droppedItems = droppedStack.map((entry) => entry.item)
+    revokeLocalItems(droppedItems)
+    finalizeRemovedPreviewItems(droppedItems)
     setIconPath((current) => (current.trim() === target.path ? '' : current))
     setCoverPath((current) => (current.trim() === target.path ? '' : current))
 
@@ -3256,7 +3300,7 @@ export function CcPublishWorkbench(props: {
                             <div className="font-medium text-foreground">最近删除（可撤销）</div>
                             {deletedStack.slice(0, 3).map((entry) => (
                               <div key={entry.id} className="flex items-center justify-between gap-2">
-                                <div className="min-w-0 break-all text-muted-foreground">{entry.path}</div>
+                                <div className="min-w-0 break-all text-muted-foreground">{entry.item.path}</div>
                                 <Button variant="outline" size="sm" className="h-6 shrink-0 px-2 text-xs" onClick={() => undoDelete(entry.id)}>撤销</Button>
                               </div>
                             ))}
