@@ -2476,8 +2476,16 @@ export function CcPublishWorkbench(props: {
   const formatAuthorEntryForPr = (entry: { name: string; authorUrl: string; bindABAccount: boolean }): string =>
     `${entry.name || '--'} / author_url=${entry.authorUrl || '--'} / bindABAccount=${entry.bindABAccount ? 'true' : 'false'}`
 
+  const formatDeviceForPr = (deviceId: string): string => {
+    const normalized = deviceId.trim()
+    if (!normalized) return '--'
+    const device = getDeviceById(normalized)
+    if (!device) return normalized
+    return `${device.name}（device_id: ${device.id}）`
+  }
+
   const formatDownloadEntryForPr = (entry: { device: string; version: string; file_name: string }): string =>
-    `device=\`${entry.device || '--'}\` / version=\`${entry.version || '--'}\` / file=\`${entry.file_name || '--'}\``
+    `device=\`${formatDeviceForPr(entry.device)}\` / version=\`${entry.version || '--'}\` / file=\`${entry.file_name || '--'}\``
 
   const collectUpdateChangeLines = (): string[] => {
     const baseline = updateChangeBaseline
@@ -2611,7 +2619,7 @@ export function CcPublishWorkbench(props: {
         updatedDownloads.forEach((entry) => {
           const beforeEntry = beforeDownloadMap.get(entry.device)
           if (!beforeEntry) return
-          lines.push(`  - 设备 \`${entry.device || '--'}\``)
+          lines.push(`  - 设备：${formatDeviceForPr(entry.device)}`)
           if (beforeEntry.version !== entry.version) {
             lines.push(`    - version：\`${beforeEntry.version || '--'}\` -> \`${entry.version || '--'}\``)
           }
@@ -2649,7 +2657,7 @@ export function CcPublishWorkbench(props: {
       const paidTypeText = paidType.trim() || '免费'
 
       const deviceLines = selectedDeviceIds.length > 0
-        ? selectedDeviceIds.map((deviceId) => `- ${deviceId}（${getDeviceLabel(deviceId)}）`)
+        ? selectedDeviceIds.map((deviceId) => `- ${formatDeviceForPr(deviceId)}`)
         : ['- --']
 
       const normalizedIconPath = normalizeRepoPath(iconPath)
@@ -2685,7 +2693,7 @@ export function CcPublishWorkbench(props: {
             const file = normalizeRepoPath(entry.file_name)
             const raw = file ? getRawUrl(file) : '--'
             return [
-              `- \`${deviceId}\``,
+              `- ${formatDeviceForPr(deviceId)}`,
               `  - version: \`${version}\``,
               `  - file: \`${file || '--'}\``,
               `  - raw: ${raw}`
