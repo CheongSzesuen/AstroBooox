@@ -14,6 +14,7 @@ import {
   X
 } from '@phosphor-icons/react'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   CC_DEFAULT_ROUTE,
   CC_PATHS,
@@ -566,14 +567,14 @@ function CcAuthenticatedApp() {
             <Button variant="outline" size="icon" className="h-8 w-8" aria-label="打开导航菜单" onClick={() => setShowMobileNavSheet(true)}>
               <List size={16} weight="duotone" />
             </Button>
-            <a href="/" className="inline-flex h-8 w-8 items-center justify-center" aria-label="返回主站">
+            <Link to="/" className="inline-flex h-8 w-8 items-center justify-center" aria-label="返回主站">
               <img src="/icon-candidates/secret-icon.png" alt="AstroBooox" className="h-6 w-6" />
-            </a>
+            </Link>
           </div>
 
-          <a href="/" className="hidden h-8 w-8 items-center justify-center sm:inline-flex" aria-label="返回主站">
+          <Link to="/" className="hidden h-8 w-8 items-center justify-center sm:inline-flex" aria-label="返回主站">
             <img src="/icon-candidates/secret-icon.png" alt="AstroBooox" className="h-6 w-6" />
-          </a>
+          </Link>
           {!hideHeaderTitleForNav ? <h1 className="hidden text-sm font-semibold text-foreground sm:block md:text-base">Creator Console</h1> : null}
 
           <div

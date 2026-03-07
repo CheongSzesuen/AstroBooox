@@ -65,17 +65,6 @@ export default defineConfig({
     __BUILD_BRANCH__: JSON.stringify(buildBranch),
     __BUILD_TIME_UTC8__: JSON.stringify(buildTimeUtc8)
   },
-  build: {
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html'),
-        legacy: path.resolve(__dirname, 'legacy/index.html'),
-        help: path.resolve(__dirname, 'help/index.html'),
-        ccCompat: path.resolve(__dirname, 'cc/index.html'),
-        ccHelpCompat: path.resolve(__dirname, 'cc/help/index.html')
-      }
-    }
-  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')

@@ -1,6 +1,6 @@
 import { Code, Compass, GithubLogo, Info, List, Moon, Star, Sun, X } from '@phosphor-icons/react'
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useTheme } from '@/react/hooks/useTheme'
 import { Button } from '@/react/components/ui/button'
 import {
@@ -17,10 +17,10 @@ const repoUrl = 'https://github.com/CheongSzesuen/AstroBooox'
 const starsUrl = `${repoUrl}/stargazers`
 
 const navItems = [
-  { to: '/manifest', label: 'manifest内容' },
-  { to: '/csv', label: 'CSV 生成' },
-  { to: '/res-link', label: '资源链接生成' },
-  { to: '/code-review', label: '代码审查' }
+  { to: '/legacy/manifest', label: 'manifest内容' },
+  { to: '/legacy/csv', label: 'CSV 生成' },
+  { to: '/legacy/res-link', label: '资源链接生成' },
+  { to: '/legacy/code-review', label: '代码审查' }
 ]
 
 export type MainLayoutOutletContext = {
@@ -117,24 +117,22 @@ export function MainLayout() {
             >
               <List size={16} weight="duotone" />
             </Button>
-            <a
-              href="/"
+            <Link
+              to="/legacy/manifest"
               className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card"
               aria-label="返回主页"
             >
               <img src={mainSiteIcon} alt="AstroBooox" className="h-5 w-5" />
-            </a>
+            </Link>
           </div>
 
-          <a
-            href={repoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            to="/legacy/manifest"
             className="hidden shrink-0 items-center gap-2 rounded-md px-2 py-1 text-sm font-semibold text-foreground transition-colors hover:bg-accent sm:inline-flex"
           >
             <Code size={16} weight="duotone" />
             <span className="hidden sm:inline">AstroBooox</span>
-          </a>
+          </Link>
 
           <div className="scrollbar-none hidden min-w-0 flex-1 overflow-x-auto sm:block">
             <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-1">
@@ -152,10 +150,10 @@ export function MainLayout() {
 
           <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 px-2 sm:px-3" aria-label="进入 CC 页面">
-              <a href="/">
+              <Link to="/">
                 <Compass size={15} weight="duotone" />
                 <span>CC</span>
-              </a>
+              </Link>
             </Button>
 
             <Button asChild variant="outline" size="sm" className="hidden h-8 gap-1.5 lg:inline-flex">

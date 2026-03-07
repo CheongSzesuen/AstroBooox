@@ -5,10 +5,6 @@ const cacheName = `astrobooox-cache-${appVersion}`
 const appShellPaths = [
   '/',
   '/index.html',
-  '/cc/',
-  '/cc/index.html',
-  '/cc/help/',
-  '/cc/help/index.html',
   '/favicon.svg'
 ]
 

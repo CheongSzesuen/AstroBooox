@@ -14,32 +14,6 @@
   </head>
   <body>
     <div id="app"></div>
-    <script>
-      (function () {
-        const { pathname, search, hash } = window.location
-
-        if (pathname === '/cc' || pathname === '/cc/') {
-          window.location.replace('/' + search + hash)
-          return
-        }
-
-        if (pathname.startsWith('/cc/help')) {
-          window.location.replace('/help/' + search + hash)
-          return
-        }
-
-        if (pathname.startsWith('/cc/')) {
-          const targetPath = pathname.slice(3) || '/'
-          window.location.replace(targetPath + search + hash)
-          return
-        }
-
-        const legacyPaths = new Set(['/manifest', '/csv', '/res-link', '/code-review'])
-        if (legacyPaths.has(pathname)) {
-          window.location.replace('/legacy' + pathname + search + hash)
-        }
-      })()
-    </script>
     <script type="module" src="/src/react/main.tsx"></script>
 
 <script type="text/javascript">

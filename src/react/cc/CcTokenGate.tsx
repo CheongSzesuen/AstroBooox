@@ -1,5 +1,6 @@
 import { Eye, GithubLogo, SignIn } from '@phosphor-icons/react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
 import { Input } from '@/react/components/ui/input'
@@ -116,9 +117,9 @@ export function CcTokenGate({ onAuthenticated }: { onAuthenticated?: () => void 
 
               <p className="text-center text-xs text-muted-foreground">
                 不会创建 Token？{' '}
-                <a href="/help/" className="text-primary underline underline-offset-4 hover:opacity-85">
+                <Link to="/help" className="text-primary underline underline-offset-4 hover:opacity-85">
                   查看帮助
-                </a>
+                </Link>
               </p>
             </CardContent>
           </Card>

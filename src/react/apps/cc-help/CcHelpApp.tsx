@@ -1,4 +1,5 @@
 import { ArrowSquareOut, CheckCircle } from '@phosphor-icons/react'
+import { Link } from 'react-router-dom'
 import { Badge } from '@/react/components/ui/badge'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
@@ -60,7 +61,7 @@ const flowSteps = [
         </div>
         <div className="mt-3">
           <Button asChild size="sm" variant="outline" className="h-8">
-            <a href="/login">回到登录页</a>
+            <Link to="/login">回到登录页</Link>
           </Button>
         </div>
       </>
@@ -73,9 +74,9 @@ export function CcHelpApp() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex h-14 w-full max-w-[1120px] items-center gap-2 px-4 md:px-6">
-          <a href="/login" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link to="/login" className="text-sm text-muted-foreground hover:text-foreground">
             返回登录
-          </a>
+          </Link>
           <div className="h-4 w-px bg-border" />
           <h1 className="text-sm font-semibold text-foreground md:text-base">Token 创建教程</h1>
         </div>
