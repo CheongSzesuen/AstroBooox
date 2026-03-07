@@ -220,7 +220,7 @@ export function ManifestPage() {
 
   const [showDeclaration, setShowDeclaration] = useState(true)
   const [isDeclarationScrolledToBottom, setIsDeclarationScrolledToBottom] = useState(false)
-  const [showUnsupportedPrompt, setShowUnsupportedPrompt] = useState(!isFsaSupported)
+  const [showUnsupportedPrompt, setShowUnsupportedPrompt] = useState(() => !isFsaSupported && projectDirectory === null)
   const [showDeviceSelector, setShowDeviceSelector] = useState(false)
   const [selectedDevices, setSelectedDevices] = useState<string[]>([])
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false)
