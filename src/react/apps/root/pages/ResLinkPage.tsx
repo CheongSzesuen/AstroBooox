@@ -216,40 +216,50 @@ export function ResLinkPage() {
 
   const isResourceSelected = (resource: ResourceItem): boolean => resourceName === resource.name
 
-  const copyText = async (text: string): Promise<boolean> => {
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-      try {
-        await navigator.clipboard.writeText(text)
-        return true
-      } catch {
-        return fallbackCopyTextToClipboard(text)
-      }
-    }
-    return fallbackCopyTextToClipboard(text)
-  }
-
   const copyLink = async () => {
     if (!resourceName.trim()) return
-    const success = await copyText(generatedLink)
-    setCopyButtonText(success ? '已复制！' : '复制失败')
-    if (copyLinkTimerRef.current !== null) {
-      window.clearTimeout(copyLinkTimerRef.current)
+
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(generatedLink)
+        setCopyButtonText('已复制！')
+        if (copyLinkTimerRef.current !== null) {
+          window.clearTimeout(copyLinkTimerRef.current)
+        }
+        copyLinkTimerRef.current = window.setTimeout(() => {
+          setCopyButtonText('复制链接')
+        }, 1500)
+      } catch {
+        setCopyButtonText('复制失败 ')
+      }
+      return
     }
-    copyLinkTimerRef.current = window.setTimeout(() => {
-      setCopyButtonText('复制链接')
-    }, 1500)
+
+    fallbackCopyTextToClipboard(generatedLink)
+    setCopyButtonText('请手动复制')
   }
 
   const copyBadgeCode = async () => {
     if (!resourceName.trim()) return
-    const success = await copyText(badgeHtmlCode)
-    setCopyBadgeButtonText(success ? '已复制！' : '复制失败')
-    if (copyBadgeTimerRef.current !== null) {
-      window.clearTimeout(copyBadgeTimerRef.current)
+
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(badgeHtmlCode)
+        setCopyBadgeButtonText('已复制！')
+        if (copyBadgeTimerRef.current !== null) {
+          window.clearTimeout(copyBadgeTimerRef.current)
+        }
+        copyBadgeTimerRef.current = window.setTimeout(() => {
+          setCopyBadgeButtonText('复制代码')
+        }, 1500)
+      } catch {
+        setCopyBadgeButtonText('复制失败 ')
+      }
+      return
     }
-    copyBadgeTimerRef.current = window.setTimeout(() => {
-      setCopyBadgeButtonText('复制代码')
-    }, 1500)
+
+    fallbackCopyTextToClipboard(badgeHtmlCode)
+    setCopyBadgeButtonText('请手动复制')
   }
 
   const clearInput = () => {
