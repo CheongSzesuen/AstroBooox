@@ -26,12 +26,14 @@ import {
 } from '@/cc/route-config'
 import { CcRepositoriesPanel } from '@/react/apps/cc/CcRepositoriesPanel'
 import { CcPrReviewWorkbench } from '@/react/apps/cc/CcPrReviewWorkbench'
+import { CcPublishWorkbench } from '@/react/apps/cc/CcPublishWorkbench'
 import { CcPublishedPanel } from '@/react/apps/cc/CcPublishedPanel'
 import { CcSettingsPanel } from '@/react/apps/cc/CcSettingsPanel'
 import { CcTokenGate } from '@/react/cc/CcTokenGate'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
 import { Sheet, SheetClose, SheetContent } from '@/react/components/ui/sheet'
+import { Sonner } from '@/react/components/ui/sonner'
 import { useCcTheme } from '@/react/hooks/useCcTheme'
 import { CcSessionProvider, useCcSession } from '@/react/hooks/useCcSession'
 import { useCcSettings } from '@/react/hooks/useCcSettings'
@@ -44,37 +46,6 @@ const tabMeta: Array<{ tab: CcTab; label: string; shortLabel: string; icon: any 
   { tab: 'published', label: '资源管理', shortLabel: '管理', icon: Archive },
   { tab: 'review', label: '审核', shortLabel: '审', icon: CheckCircle }
 ]
-
-const placeholderByTab: Record<CcTab, { title: string; description: string }> = {
-  publish: {
-    title: '资源发布工作台（迁移中）',
-    description: '下一批将直接迁移 ResourcePublishWorkbench 的发布流程主逻辑。'
-  },
-  pullrequest: {
-    title: '等待审核（迁移中）',
-    description: '下一批将迁移 PR 列表、详情与评论时间线。'
-  },
-  published: {
-    title: '资源管理（迁移中）',
-    description: '下一批将迁移资源列表、详情预览与编辑入口。'
-  },
-  resource_edit: {
-    title: '更新资源（迁移中）',
-    description: '下一批将迁移更新资源向导和预览图管理。'
-  },
-  review: {
-    title: '审核（迁移中）',
-    description: '下一批将迁移审核界面的评论编辑、预览与提交。'
-  },
-  repositories: {
-    title: '仓库管理（迁移中）',
-    description: '下一批将迁移仓库列表与协作者邀请。'
-  },
-  settings: {
-    title: '设置（迁移中）',
-    description: '下一批将迁移默认仓库、主题、账号与 about。'
-  }
-}
 
 const sanitizeCcRedirectPath = (rawPath: string | null): string => {
   if (!rawPath) return ''
@@ -407,20 +378,25 @@ function CcAuthenticatedApp() {
       )
     }
 
-    const workbenchMode = 'publish'
+    if (routeState.tab === 'publish') {
+      return <CcPublishWorkbench mode="publish" />
+    }
+
+    if (routeState.tab === 'resource_edit') {
+      return <CcPublishWorkbench mode="resource_edit" />
+    }
 
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{placeholderByTab[routeState.tab].title}</CardTitle>
-          <CardDescription>{placeholderByTab[routeState.tab].description}</CardDescription>
+          <CardTitle>页面迁移中</CardTitle>
+          <CardDescription>当前路由尚未完成 React 版功能映射。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">当前路径：{window.location.pathname}</div>
           <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
             默认目标仓库：{defaultTargetOwner}/{defaultTargetRepo}
           </div>
-          <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">当前模式：{workbenchMode}</div>
         </CardContent>
       </Card>
     )
@@ -558,6 +534,8 @@ function CcAuthenticatedApp() {
           <div className="w-full max-w-[1320px] space-y-4">{renderContent()}</div>
         </section>
       </main>
+
+      <Sonner />
     </div>
   )
 }

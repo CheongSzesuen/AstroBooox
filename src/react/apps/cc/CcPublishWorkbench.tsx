@@ -1,0 +1,221 @@
+import { ArrowCounterClockwise, CheckCircle, FileImage, FolderNotchOpenIcon, UploadSimple } from '@phosphor-icons/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
+import { Badge } from '@/react/components/ui/badge'
+import { Button } from '@/react/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/react/components/ui/card'
+import { Input } from '@/react/components/ui/input'
+import { Label } from '@/react/components/ui/label'
+import { Tabs, TabsList, TabsTrigger } from '@/react/components/ui/tabs'
+import { Textarea } from '@/react/components/ui/textarea'
+
+type PublishPreviewItem = PreviewImageItem & {
+  id: string
+  objectUrl?: string
+}
+
+const nextId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+
+export function CcPublishWorkbench(props: {
+  mode: 'publish' | 'resource_edit'
+}) {
+  const { mode } = props
+  const [step, setStep] = useState<'1' | '2' | '3'>('1')
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [previewItems, setPreviewItems] = useState<PublishPreviewItem[]>([])
+  const [deletedStack, setDeletedStack] = useState<PublishPreviewItem[]>([])
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    return () => {
+      previewItems.forEach((item) => {
+        if (item.objectUrl) {
+          URL.revokeObjectURL(item.objectUrl)
+        }
+      })
+      deletedStack.forEach((item) => {
+        if (item.objectUrl) {
+          URL.revokeObjectURL(item.objectUrl)
+        }
+      })
+    }
+  }, [deletedStack, previewItems])
+
+  const title = mode === 'resource_edit' ? '更新资源工作台（首版）' : '资源发布工作台（首版）'
+  const hidePreviewInCurrentStepOnMobile = mode === 'resource_edit' && step === '1'
+
+  const previewCarouselItems = useMemo<PreviewImageItem[]>(() => previewItems.map((item) => ({ file: item.file, url: item.url })), [previewItems])
+
+  const appendPreviewFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const next: PublishPreviewItem[] = []
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith('image/')) return
+      const objectUrl = URL.createObjectURL(file)
+      next.push({
+        id: nextId(),
+        file: file.name,
+        url: objectUrl,
+        objectUrl
+      })
+    })
+    if (next.length === 0) return
+    setPreviewItems((prev) => [...prev, ...next])
+  }
+
+  const undoDelete = (targetId?: string) => {
+    setDeletedStack((prev) => {
+      if (prev.length === 0) return prev
+      const index = targetId ? prev.findIndex((item) => item.id === targetId) : 0
+      if (index < 0) return prev
+      const target = prev[index]
+      setPreviewItems((old) => [...old, target])
+      return [...prev.slice(0, index), ...prev.slice(index + 1)]
+    })
+  }
+
+  const deletePreviewAt = (index: number) => {
+    setPreviewItems((prev) => {
+      const target = prev[index]
+      if (!target) return prev
+      const next = prev.filter((_, i) => i !== index)
+      setDeletedStack((stack) => {
+        const updated = [target, ...stack].slice(0, 12)
+        return updated
+      })
+
+      toast('已删除预览图', {
+        description: target.file,
+        action: {
+          label: '撤销',
+          onClick: () => undoDelete(target.id)
+        }
+      })
+
+      return next
+    })
+  }
+
+  return (
+    <div className="w-full space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 pt-0">
+          <Tabs value={step} onValueChange={(value) => setStep(value as '1' | '2' | '3')}>
+            <TabsList className="grid w-full grid-cols-3 sm:w-[360px]">
+              <TabsTrigger value="1">1. 资源信息</TabsTrigger>
+              <TabsTrigger value="2">2. 预览图</TabsTrigger>
+              <TabsTrigger value="3">3. 提交</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[340px_minmax(0,1fr)]">
+            <section className="flex min-h-[360px] flex-col rounded-xl border border-border bg-card p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <FolderNotchOpenIcon size={14} weight="duotone" />
+                  文件树（首版）
+                </div>
+                <Badge variant="outline">持续扩展</Badge>
+              </div>
+              <div className="flex-1 overflow-auto rounded-md border border-border bg-muted/20 p-2 text-xs text-muted-foreground">
+                {previewItems.length === 0 ? (
+                  <div className="px-2 py-3">暂无文件，先在右侧上传预览图。</div>
+                ) : (
+                  <ul className="space-y-1">
+                    {previewItems.map((item) => (
+                      <li key={item.id} className="rounded border border-border bg-background px-2 py-1">{item.file}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">窄屏下该区域会尽量向底部延展到操作区上方。</div>
+            </section>
+
+            <section className="space-y-3 rounded-xl border border-border bg-card p-3">
+              {step === '1' ? (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="publish-name">资源名称</Label>
+                    <Input id="publish-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="输入资源名称" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="publish-desc">资源描述</Label>
+                    <Textarea id="publish-desc" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="输入资源描述" className="min-h-[120px]" />
+                  </div>
+
+                  <div className={hidePreviewInCurrentStepOnMobile ? 'hidden md:block' : ''}>
+                    <div className="text-xs text-muted-foreground">当前预览图（桌面预览）</div>
+                    <div className="mt-2">
+                      <PreviewImageCarousel items={previewCarouselItems} emptyText="暂无预览图" />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {step === '2' ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" onClick={() => fileInputRef.current?.click()}>
+                      <FileImage size={16} weight="duotone" />
+                      选择预览图
+                    </Button>
+                    <Button type="button" variant="outline" disabled={deletedStack.length === 0} onClick={() => undoDelete()}>
+                      <ArrowCounterClockwise size={16} weight="duotone" />
+                      撤销删除
+                    </Button>
+                    <span className="text-xs text-muted-foreground">删除历史：{deletedStack.length}</span>
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(event) => {
+                      appendPreviewFiles(event.target.files)
+                      event.currentTarget.value = ''
+                    }}
+                  />
+
+                  <PreviewImageCarousel items={previewCarouselItems} removable onRemove={deletePreviewAt} emptyText="请先添加预览图" />
+                </div>
+              ) : null}
+
+              {step === '3' ? (
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">资源名称：{name || '-'}</div>
+                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">描述长度：{description.trim().length}</div>
+                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">预览图数量：{previewItems.length}</div>
+                  <div className="rounded-md border border-dashed border-border px-3 py-2">提交流程、远程仓库写入、PR 创建将在下一批接入。</div>
+                </div>
+              ) : null}
+            </section>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
+            <Button variant="outline" disabled={step === '1'} onClick={() => setStep((prev) => (prev === '3' ? '2' : '1'))}>
+              上一步
+            </Button>
+            <Button
+              disabled={step === '3'}
+              onClick={() => setStep((prev) => (prev === '1' ? '2' : '3'))}
+            >
+              <UploadSimple size={16} weight="duotone" />
+              下一步
+            </Button>
+            <Button variant="default" disabled={step !== '3'}>
+              <CheckCircle size={16} weight="duotone" />
+              提交（下一批）
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
