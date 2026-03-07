@@ -13,7 +13,7 @@ import {
   UserCircle,
   X
 } from '@phosphor-icons/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CC_DEFAULT_ROUTE,
   CC_PATHS,
@@ -24,11 +24,6 @@ import {
   type CcSettingsSection,
   type CcTab
 } from '@/cc/route-config'
-import { CcRepositoriesPanel } from '@/react/apps/cc/CcRepositoriesPanel'
-import { CcPrReviewWorkbench } from '@/react/apps/cc/CcPrReviewWorkbench'
-import { CcPublishWorkbench } from '@/react/apps/cc/CcPublishWorkbench'
-import { CcPublishedPanel } from '@/react/apps/cc/CcPublishedPanel'
-import { CcSettingsPanel } from '@/react/apps/cc/CcSettingsPanel'
 import { CcTokenGate } from '@/react/cc/CcTokenGate'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
@@ -39,6 +34,12 @@ import { CcSessionProvider, useCcSession } from '@/react/hooks/useCcSession'
 import { useCcSettings } from '@/react/hooks/useCcSettings'
 import { useTheme } from '@/react/hooks/useTheme'
 import '@/cc/themes.css'
+
+const CcRepositoriesPanel = lazy(() => import('@/react/apps/cc/CcRepositoriesPanel').then((mod) => ({ default: mod.CcRepositoriesPanel })))
+const CcSettingsPanel = lazy(() => import('@/react/apps/cc/CcSettingsPanel').then((mod) => ({ default: mod.CcSettingsPanel })))
+const CcPrReviewWorkbench = lazy(() => import('@/react/apps/cc/CcPrReviewWorkbench').then((mod) => ({ default: mod.CcPrReviewWorkbench })))
+const CcPublishedPanel = lazy(() => import('@/react/apps/cc/CcPublishedPanel').then((mod) => ({ default: mod.CcPublishedPanel })))
+const CcPublishWorkbench = lazy(() => import('@/react/apps/cc/CcPublishWorkbench').then((mod) => ({ default: mod.CcPublishWorkbench })))
 
 const tabMeta: Array<{ tab: CcTab; label: string; shortLabel: string; icon: any }> = [
   { tab: 'publish', label: '资源发布', shortLabel: '发布', icon: UploadSimple },
@@ -339,18 +340,24 @@ function CcAuthenticatedApp() {
   const renderContent = () => {
     if (routeState.tab === 'repositories') {
       return (
-        <CcRepositoriesPanel
-          token={token}
-          currentUser={currentUser}
-          defaultTargetOwner={defaultTargetOwner}
-          defaultTargetRepo={defaultTargetRepo}
-          defaultCatalogPath={defaultCatalogPath}
-        />
+        <Suspense fallback={<PanelLoading />}>
+          <CcRepositoriesPanel
+            token={token}
+            currentUser={currentUser}
+            defaultTargetOwner={defaultTargetOwner}
+            defaultTargetRepo={defaultTargetRepo}
+            defaultCatalogPath={defaultCatalogPath}
+          />
+        </Suspense>
       )
     }
 
     if (routeState.tab === 'settings') {
-      return <CcSettingsPanel token={token} section={routeState.settingsSection} settings={ccSettings} onSectionChange={openSettingsSection} />
+      return (
+        <Suspense fallback={<PanelLoading />}>
+          <CcSettingsPanel token={token} section={routeState.settingsSection} settings={ccSettings} onSectionChange={openSettingsSection} />
+        </Suspense>
+      )
     }
 
     if (routeState.tab === 'review' || routeState.tab === 'pullrequest') {
@@ -359,57 +366,65 @@ function CcAuthenticatedApp() {
           ? routeState.pullRequestTargetRepo
           : defaultTargetRepo
       return (
-        <CcPrReviewWorkbench
-          owner={defaultTargetOwner}
-          repo={reviewTargetRepo}
-          token={token}
-          initialPrNumber={routeState.tab === 'pullrequest' ? Number(routeState.pullRequestNumber || 0) : 0}
-        />
+        <Suspense fallback={<PanelLoading />}>
+          <CcPrReviewWorkbench
+            owner={defaultTargetOwner}
+            repo={reviewTargetRepo}
+            token={token}
+            initialPrNumber={routeState.tab === 'pullrequest' ? Number(routeState.pullRequestNumber || 0) : 0}
+          />
+        </Suspense>
       )
     }
 
     if (routeState.tab === 'published') {
       return (
-        <CcPublishedPanel
-          token={token}
-          currentUser={currentUser}
-          defaultTargetOwner={defaultTargetOwner}
-          defaultTargetRepo={defaultTargetRepo}
-          defaultCatalogPath={defaultCatalogPath}
-          resourceDetailKey={routeState.resourceDetailKey || ''}
-          onResourceDetailKeyChange={openPublishedResourceDetail}
-        />
+        <Suspense fallback={<PanelLoading />}>
+          <CcPublishedPanel
+            token={token}
+            currentUser={currentUser}
+            defaultTargetOwner={defaultTargetOwner}
+            defaultTargetRepo={defaultTargetRepo}
+            defaultCatalogPath={defaultCatalogPath}
+            resourceDetailKey={routeState.resourceDetailKey || ''}
+            onResourceDetailKeyChange={openPublishedResourceDetail}
+          />
+        </Suspense>
       )
     }
 
     if (routeState.tab === 'publish') {
       return (
-        <CcPublishWorkbench
-          mode="publish"
-          token={token}
-          currentUser={currentUser}
-          defaultTargetOwner={defaultTargetOwner}
-          defaultTargetRepo={defaultTargetRepo}
-          defaultCatalogPath={defaultCatalogPath}
-        />
+        <Suspense fallback={<PanelLoading />}>
+          <CcPublishWorkbench
+            mode="publish"
+            token={token}
+            currentUser={currentUser}
+            defaultTargetOwner={defaultTargetOwner}
+            defaultTargetRepo={defaultTargetRepo}
+            defaultCatalogPath={defaultCatalogPath}
+          />
+        </Suspense>
       )
     }
 
     if (routeState.tab === 'resource_edit') {
       return (
-        <CcPublishWorkbench
-          mode="resource_edit"
-          token={token}
-          currentUser={currentUser}
-          defaultTargetOwner={defaultTargetOwner}
-          defaultTargetRepo={defaultTargetRepo}
-          defaultCatalogPath={defaultCatalogPath}
-          editContext={{
-            resourceId: routeState.editResourceId || '',
-            targetRepo: routeState.editTargetRepo || '',
-            user: routeState.editUser || ''
-          }}
-        />
+        <Suspense fallback={<PanelLoading />}>
+          <CcPublishWorkbench
+            mode="resource_edit"
+            token={token}
+            currentUser={currentUser}
+            defaultTargetOwner={defaultTargetOwner}
+            defaultTargetRepo={defaultTargetRepo}
+            defaultCatalogPath={defaultCatalogPath}
+            editContext={{
+              resourceId: routeState.editResourceId || '',
+              targetRepo: routeState.editTargetRepo || '',
+              user: routeState.editUser || ''
+            }}
+          />
+        </Suspense>
       )
     }
 
@@ -564,6 +579,17 @@ function CcAuthenticatedApp() {
 
       <Sonner />
     </div>
+  )
+}
+
+function PanelLoading() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>加载中</CardTitle>
+        <CardDescription>正在按需加载页面模块...</CardDescription>
+      </CardHeader>
+    </Card>
   )
 }
 
