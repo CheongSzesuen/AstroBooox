@@ -33,9 +33,10 @@ import {
 import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken } from '@/components/resourcePublishWorkbenchDeviceCatalog'
 import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
+import { LinkIconPickerDialog, PhosphorIconByName } from '@/react/components/cc/LinkIconPickerDialog'
 import { Button } from '@/react/components/ui/button'
 import { Badge } from '@/react/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/react/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/react/components/ui/dialog'
 import { Input } from '@/react/components/ui/input'
 import { Label } from '@/react/components/ui/label'
@@ -371,6 +372,9 @@ export function CcPublishWorkbench(props: {
   const [fileNameConflictMessage, setFileNameConflictMessage] = useState('')
   const [showSubmitVersionDialog, setShowSubmitVersionDialog] = useState(false)
   const [showRemoteFilePickerDialog, setShowRemoteFilePickerDialog] = useState(false)
+  const [showLinkIconPicker, setShowLinkIconPicker] = useState(false)
+  const [linkIconPickerIndex, setLinkIconPickerIndex] = useState<number | null>(null)
+  const [linkPickerInitialQuery, setLinkPickerInitialQuery] = useState('')
   const [remotePickerMode, setRemotePickerMode] = useState<RemotePickerMode>('preview')
   const [remotePickerDeviceId, setRemotePickerDeviceId] = useState('')
   const [remotePickerSelectedPaths, setRemotePickerSelectedPaths] = useState<string[]>([])
@@ -480,6 +484,9 @@ export function CcPublishWorkbench(props: {
     setFileNameConflictMessage('')
     setShowSubmitVersionDialog(false)
     setShowRemoteFilePickerDialog(false)
+    setShowLinkIconPicker(false)
+    setLinkIconPickerIndex(null)
+    setLinkPickerInitialQuery('')
     setRemotePickerMode('preview')
     setRemotePickerDeviceId('')
     setRemotePickerSelectedPaths([])
@@ -1944,13 +1951,35 @@ export function CcPublishWorkbench(props: {
 
   const removeLink = (index: number) => {
     setLinks((prev) => prev.filter((_, i) => i !== index))
+    if (linkIconPickerIndex === index) {
+      setShowLinkIconPicker(false)
+    }
+    setLinkIconPickerIndex((prev) => {
+      if (prev === null) return prev
+      if (prev === index) return null
+      if (prev > index) return prev - 1
+      return prev
+    })
   }
 
   const openLinkIconPicker = (index: number) => {
-    const current = links[index]?.icon || ''
-    const value = window.prompt('输入 phosphor 图标名（例如 github-logo）', current)
-    if (value === null) return
-    updateLink(index, { icon: value.trim() })
+    setLinkIconPickerIndex(index)
+    setLinkPickerInitialQuery(links[index]?.icon || '')
+    setShowLinkIconPicker(true)
+  }
+
+  const selectLinkIcon = (iconName: string) => {
+    if (linkIconPickerIndex === null || !links[linkIconPickerIndex]) return
+    updateLink(linkIconPickerIndex, { icon: iconName })
+    setShowLinkIconPicker(false)
+    setLinkIconPickerIndex(null)
+  }
+
+  const handleLinkIconPickerOpenChange = (nextOpen: boolean) => {
+    setShowLinkIconPicker(nextOpen)
+    if (!nextOpen) {
+      setLinkIconPickerIndex(null)
+    }
   }
 
   const addTag = () => {
@@ -3029,6 +3058,7 @@ export function CcPublishWorkbench(props: {
                   <Card className="border-border/70 shadow-none">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base">相关链接（links）</CardTitle>
+                      <CardDescription>icon 请填写 phosphor 图标名，可点击搜索按钮选择。</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3 pt-0">
                       {links.map((link, index) => (
@@ -3037,6 +3067,15 @@ export function CcPublishWorkbench(props: {
                             <div className="space-y-1.5">
                               <Label htmlFor={`link-icon-${index}`}>图标名（icon）</Label>
                               <div className="flex gap-2">
+                                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border">
+                                  <PhosphorIconByName
+                                    iconName={link.icon}
+                                    size={18}
+                                    className="text-foreground"
+                                    fallbackSize={16}
+                                    fallbackClassName="text-muted-foreground"
+                                  />
+                                </div>
                                 <Input id={`link-icon-${index}`} value={link.icon} onChange={(event) => updateLink(index, { icon: event.target.value })} placeholder="github-logo / house / globe" />
                                 <Button variant="outline" onClick={() => openLinkIconPicker(index)}>搜索图标</Button>
                               </div>
@@ -3616,6 +3655,13 @@ export function CcPublishWorkbench(props: {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <LinkIconPickerDialog
+        open={showLinkIconPicker}
+        initialQuery={linkPickerInitialQuery}
+        onOpenChange={handleLinkIconPickerOpenChange}
+        onSelect={selectLinkIcon}
+      />
     </div>
   )
 }
