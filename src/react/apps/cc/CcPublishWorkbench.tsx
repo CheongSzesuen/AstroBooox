@@ -2403,7 +2403,7 @@ export function CcPublishWorkbench(props: {
     const resourceName = name.trim() || '未命名资源'
     const resourceType = formatResourceTypeForTitle(restype)
     if (mode === 'publish') {
-      return `[ABoooxCC] Init ${resourceName} ${resourceType}`
+      return `[ABoooxCC] 发布 ${resourceName} ${resourceType}`
     }
     return `[ABoooxCC] 更新 ${resourceName} ${resourceType}`
   }
@@ -2412,7 +2412,7 @@ export function CcPublishWorkbench(props: {
     const shortHash = commitSha.trim() ? commitSha.trim().slice(0, 7) : '--'
     if (mode === 'publish') {
       return [
-        '## 初始化发布',
+        '## 发布内容',
         '',
         `- 提交流程：${submitModeLabel}`,
         `- 资源 ID：${resourceId.trim()}`,
