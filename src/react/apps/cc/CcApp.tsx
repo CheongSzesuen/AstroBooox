@@ -149,7 +149,13 @@ function CcAuthenticatedApp() {
 
   const { token, currentUser, avatarUrl, clearSession } = useCcSession()
   const ccSettings = useCcSettings()
-  const { defaultTargetOwner, defaultTargetRepo, defaultCatalogPath } = ccSettings
+  const {
+    defaultTargetOwner,
+    defaultTargetRepo,
+    defaultCatalogPath,
+    ownedDisplayPriority,
+    showV2FollowUpTag
+  } = ccSettings
 
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showMobileNavSheet, setShowMobileNavSheet] = useState(false)
@@ -323,10 +329,31 @@ function CcAuthenticatedApp() {
         resourceDetailKey: detailKey,
         pullRequestNumber: 0,
         pullRequestTargetRepo: '',
-        requireGhUser: false,
+        requireGhUser: Boolean(detailKey.trim()),
         editResourceId: '',
         editTargetRepo: '',
         editUser: ''
+      },
+      { withProgress: true }
+    )
+  }
+
+  const openResourceEditFromPublished = (payload: {
+    resourceId: string
+    targetRepo: string
+    user: string
+  }) => {
+    applyRouteState(
+      {
+        tab: 'resource_edit',
+        settingsSection: routeState.settingsSection,
+        resourceDetailKey: '',
+        pullRequestNumber: 0,
+        pullRequestTargetRepo: '',
+        requireGhUser: true,
+        editResourceId: payload.resourceId.trim(),
+        editTargetRepo: payload.targetRepo.trim().toLowerCase(),
+        editUser: payload.user.trim().toLowerCase()
       },
       { withProgress: true }
     )
@@ -419,8 +446,11 @@ function CcAuthenticatedApp() {
             defaultTargetOwner={defaultTargetOwner}
             defaultTargetRepo={defaultTargetRepo}
             defaultCatalogPath={defaultCatalogPath}
+            ownedDisplayPriority={ownedDisplayPriority}
+            showV2FollowUpTag={showV2FollowUpTag}
             resourceDetailKey={routeState.resourceDetailKey || ''}
             onResourceDetailKeyChange={openPublishedResourceDetail}
+            onStartEditResource={openResourceEditFromPublished}
           />
         </Suspense>
       )
