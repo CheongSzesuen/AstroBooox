@@ -2399,12 +2399,42 @@ export function CcPublishWorkbench(props: {
     return lines
   }
 
-  const buildAutoPrTitle = (): string =>
-    `[ABoooxCC] 更新 ${name.trim() || '未命名资源'} ${formatResourceTypeForTitle(restype)}`
+  const buildAutoPrTitle = (): string => {
+    const resourceName = name.trim() || '未命名资源'
+    const resourceType = formatResourceTypeForTitle(restype)
+    if (mode === 'publish') {
+      return `[ABoooxCC] Init ${resourceName} ${resourceType}`
+    }
+    return `[ABoooxCC] 更新 ${resourceName} ${resourceType}`
+  }
 
   const buildAutoPrBody = (repoUrl: string, commitSha: string): string => {
-    const changeLines = collectUpdateChangeLines()
     const shortHash = commitSha.trim() ? commitSha.trim().slice(0, 7) : '--'
+    if (mode === 'publish') {
+      return [
+        '## 初始化发布',
+        '',
+        `- 提交流程：${submitModeLabel}`,
+        `- 资源 ID：${resourceId.trim()}`,
+        `- 资源名称：${name.trim()}`,
+        `- 资源类型：${formatResourceTypeForTitle(restype)}`,
+        `- 预览图数量：${normalizedPreviewPaths.length}`,
+        `- 作者数量：${authors.filter((item) => item.name.trim()).length}`,
+        `- Links 数量：${links.filter((item) => item.icon.trim() || item.title.trim() || item.url.trim()).length}`,
+        `- Downloads 数量：${downloads.filter((item) => item.device.trim()).length}`,
+        `- Tags：${normalizedTagsText || '--'}`,
+        '',
+        '## 仓库信息',
+        '',
+        `- 资源仓库：${repoUrl}`,
+        `- 提交短哈希：\`${shortHash}\``,
+        '',
+        '---',
+        '此 PR 由 [AstroBooox Creator Console](https://astrobooox-ng.waijade.cn/cc/) 生成，如有问题前往 [AstroBooox 仓库](https://github.com/CheongSzesuen/AstroBooox) 提交 [Issue](https://github.com/CheongSzesuen/AstroBooox/issues)。'
+      ].join('\n')
+    }
+
+    const changeLines = collectUpdateChangeLines()
     return [
       '## 本次变更',
       '',
