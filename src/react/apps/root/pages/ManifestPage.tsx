@@ -244,7 +244,15 @@ export function ManifestPage() {
   }, [projectDirectory, showCustomAlert])
 
   const findManifest = useCallback(async () => {
-    if (!projectDirectory) return
+    if (!isFsaSupported) {
+      setShowEditPrompt(true)
+      return
+    }
+
+    if (!projectDirectory) {
+      showCustomAlert('操作失败', '请先选择项目目录')
+      return
+    }
 
     try {
       await projectDirectory.getFileHandle('manifest.json', { create: false })
@@ -254,7 +262,35 @@ export function ManifestPage() {
         showCustomAlert('读取失败', error.message || '读取 manifest.json 文件失败')
       }
     }
-  }, [projectDirectory, showCustomAlert])
+  }, [isFsaSupported, projectDirectory, showCustomAlert])
+
+  const loadManifestFromFileInput = useCallback(async () => {
+    const file = await new Promise<File | null>((resolve) => {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '.json,application/json'
+      input.onchange = () => {
+        const selected = input.files?.[0] || null
+        resolve(selected)
+      }
+      input.click()
+    })
+
+    if (!file) return
+
+    if (file.name !== 'manifest.json') {
+      showCustomAlert('文件错误', '请上传名为 manifest.json 的文件')
+      return
+    }
+
+    try {
+      const text = await readFileAsText(file)
+      const parsed = JSON.parse(text)
+      setManifest(toManifestData(parsed))
+    } catch {
+      showCustomAlert('解析失败', 'manifest.json 文件格式不正确，无法解析。请检查文件内容。')
+    }
+  }, [showCustomAlert])
 
   const performSave = useCallback(async () => {
     if (!projectDirectory) return
@@ -676,8 +712,12 @@ export function ManifestPage() {
 
   const confirmEditPrompt = useCallback(async () => {
     setShowEditPrompt(false)
+    if (isOPFSMode) {
+      await loadManifestFromFileInput()
+      return
+    }
     await loadManifestFromHandle()
-  }, [loadManifestFromHandle])
+  }, [isOPFSMode, loadManifestFromFileInput, loadManifestFromHandle])
 
   const resetManifest = useCallback(() => {
     setManifest(createEmptyManifest())
@@ -711,7 +751,7 @@ export function ManifestPage() {
               <div>
                 <DialogTitle>浏览器不支持 FSA API</DialogTitle>
                 <DialogDescription className="mt-2 text-sm leading-6">
-                  将使用降级模式，无法直接写回目录。建议使用 Chrome 或 Edge；当前模式请通过下载 manifest.json 的方式保存。
+                  将使用降级模式，无法直接写回目录。建议使用 Chrome 或 Edge；当前模式可导入已有 manifest.json 并通过下载方式保存。
                 </DialogDescription>
               </div>
             </div>
@@ -1021,9 +1061,15 @@ export function ManifestPage() {
             选择文件夹
           </Button>
           {isOPFSMode ? (
-            <p className="max-w-[520px] text-xs leading-6">
-              当前浏览器不支持目录写回，建议在桌面 Chrome/Edge 下使用。你仍可直接编辑内容并下载 `manifest.json`。
-            </p>
+            <>
+              <Button variant="outline" className="gap-2" onClick={() => setShowEditPrompt(true)}>
+                <MagnifyingGlass size={16} weight="bold" />
+                加载已有 manifest.json
+              </Button>
+              <p className="max-w-[520px] text-xs leading-6">
+                当前浏览器不支持目录写回，建议在桌面 Chrome/Edge 下使用。你仍可导入并编辑内容，再下载 `manifest.json`。
+              </p>
+            </>
           ) : null}
         </div>
       ) : null}
@@ -1042,27 +1088,34 @@ export function ManifestPage() {
             <h4 className="mb-3 mt-6 text-foreground">一、资源结构与清单合规性</h4>
             <ol className="m-0 list-decimal space-y-3 pl-6">
               <li>是否正确在 index.csv 行末添加自己的资源信息</li>
-              <li>csv 中添加的 icon/cover 链接是否可正常访问</li>
-              <li>csv 中兼容设备列表、tags 分隔符使用是否正确</li>
-              <li>csv 指向的资源 json 与目标仓库是否真实存在</li>
-              <li>manifest.json 内容是否合规，资源名称是否与 csv 保持一致</li>
-              <li>downloads 设备代号和文件名是否有效、是否真实存在</li>
-              <li>如有问题需在 PR 中公开透明沟通后再决定是否合并</li>
+              <li>csv 中添加的 icon 链接是否可正常访问</li>
+              <li>csv 中添加的 cover 链接是否可正常访问</li>
+              <li>csv 中的兼容设备列表、tags 的分隔符使用是否正确</li>
+              <li>csv 中指向的资源 json 是否真实存在</li>
+              <li>资源 json 所处的文件夹是否命名合理，json 本身是否命名合理</li>
+              <li>资源 json 指向的目标仓库是否真实存在</li>
+              <li>目标仓库中的 manifest.json 是否按要求填写，格式是否符合标准 json 规范</li>
+              <li>manifest.json 中的资源名称是否与 csv 中的资源名称完全相同</li>
+              <li>manifest.json中的downloads map中的设备代号是否真实存在，是否存在填了o66没填o66nfc之类的情况（类似情况可以先不merge，先提醒并得到确认）</li>
+              <li>downloads map中的目标文件名是否在仓库中真实存在（特别注意）</li>
+              <li>manifest.json中author数组中每个作者author_url的目标指向页面是否合规、是否存在不良内容</li>
+              <li>存在任何问题都必须直接在Pull Request中与提交者公开、透明地进行沟通，如无任何问题，可以继续进行资源质量检查。</li>
             </ol>
 
             <h4 className="mb-3 mt-6 text-foreground">二、资源质量与版权</h4>
             <ol className="m-0 list-decimal space-y-3 pl-6">
-              <li>资源不应为搬运/盗传，创意避免明显剽窃</li>
-              <li>icon/cover 质量应达标，低质量需反馈修改</li>
-              <li>资源在支持设备上应能正常运行</li>
-              <li>使用知名 IP 素材时应在 preview 中补充版权声明</li>
+              <li>资源不是搬运/转载/盗传</li>
+              <li>资源的创意没有明显的剽窃性（这属于主观判断，不要直接关闭Pull Request，由审核员共同探讨是否应该进行merge）</li>
+              <li>资源的icon与cover设计是否合理得当、符合大众审美（icon不要求死追严打，cover若出现低质、简陋的情况，直接在Pull Request中对提交者作出修改意见）</li>
+              <li>资源本体在支持的设备上基本功能是否运行正常（一般情况下适当测试一个设备即可，剩余问题用户会自己去拷打作者）</li>
+              <li>资源若使用了某些知名IP素材，必须在preview中留一张图来进行版权声明（这里不是要求提交者拥有素材版权，而是必须证明素材、IP本身与AstroBox以及小米无关）</li>
             </ol>
 
-            <h4 className="mb-3 mt-6 text-foreground">三、资源数量和付费资源（2025-07-06）</h4>
+            <h4 className="mb-3 mt-6 text-foreground">三、资源数量和付费资源（2025.7.6日公告）</h4>
             <ol className="m-0 list-decimal space-y-3 pl-6">
-              <li>作者免费资源数量需高于付费资源</li>
-              <li>应用内购买或试用资源必须标注为付费</li>
-              <li>付费资源将在首页显著标注并支持过滤</li>
+              <li>任何作者在 AstroBox 官方源上传的免费资源数量必须是付费资源的 2 倍以上</li>
+              <li>对于存在任何应用内购买或类型为试用的资源，必须标注为付费</li>
+              <li>付费资源将在首页被明显标注，并允许被用户一键过滤。</li>
             </ol>
 
             <h4 className="mt-6 text-right text-muted-foreground">文档来自官方</h4>
