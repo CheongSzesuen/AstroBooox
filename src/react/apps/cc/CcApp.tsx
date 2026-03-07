@@ -25,6 +25,7 @@ import {
   type CcTab
 } from '@/cc/route-config'
 import { CcRepositoriesPanel } from '@/react/apps/cc/CcRepositoriesPanel'
+import { CcPrReviewWorkbench } from '@/react/apps/cc/CcPrReviewWorkbench'
 import { CcSettingsPanel } from '@/react/apps/cc/CcSettingsPanel'
 import { CcTokenGate } from '@/react/cc/CcTokenGate'
 import { Button } from '@/react/components/ui/button'
@@ -361,6 +362,10 @@ function CcAuthenticatedApp() {
 
     if (routeState.tab === 'settings') {
       return <CcSettingsPanel token={token} section={routeState.settingsSection} settings={ccSettings} onSectionChange={openSettingsSection} />
+    }
+
+    if (routeState.tab === 'review') {
+      return <CcPrReviewWorkbench owner={defaultTargetOwner} repo={defaultTargetRepo} token={token} />
     }
 
     const workbenchMode = routeState.tab === 'published' ? 'published' : routeState.tab === 'pullrequest' ? 'review' : 'publish'
