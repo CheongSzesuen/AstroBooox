@@ -29,11 +29,12 @@ import {
   DialogTitle
 } from '@/react/components/ui/dialog'
 import { Input } from '@/react/components/ui/input'
-import { Label } from '@/react/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/react/components/ui/tabs'
-import { Textarea } from '@/react/components/ui/textarea'
-import { ResourceManifestOverview } from '@/react/components/cc/ResourceManifestOverview'
-import { parseManifestView, type ResourceManifestView } from '@/react/components/cc/resource-manifest'
+import { Tabs, TabsList, TabsTrigger } from '@/react/components/ui/tabs'
+import { PreviewImageCarousel } from '@/react/components/cc/PreviewImageCarousel'
+import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
+import { ReviewCommentComposer } from '@/react/components/review/ReviewCommentComposer'
+import { ReviewCommentTimeline } from '@/react/components/review/ReviewCommentTimeline'
+import { ReviewDetailHeader } from '@/react/components/review/ReviewDetailHeader'
 
 type ReviewState = 'waiting_review' | 'changes_requested' | 'fixed_waiting'
 
@@ -86,6 +87,48 @@ interface PullFileItem {
   patch?: string
 }
 
+interface DownloadItem {
+  device: string
+  version: string
+  file: string
+  raw: string
+}
+
+interface LinkItem {
+  title: string
+  type: string
+  url: string
+}
+
+interface SubmissionOverview {
+  resourceInfo: Array<{ key: string; value: string }>
+  supportedDevices: string[]
+  repoUrl: string
+  shortHash: string
+  images: {
+    icon: { file: string; url: string } | null
+    cover: { file: string; url: string } | null
+    previews: Array<{ file: string; url: string }>
+  }
+  downloads: DownloadItem[]
+  links: LinkItem[]
+}
+
+interface CsvV2Row {
+  id: string
+  name: string
+  restype: string
+  repo_owner: string
+  repo_name: string
+  repo_commit_hash: string
+  icon: string
+  cover: string
+  tags: string
+  device_vendors: string
+  devices: string
+  paid_type: string
+}
+
 type PickerTreeItem = {
   type: 'folder' | 'file'
   path: string
@@ -101,6 +144,19 @@ type RuleCheckItem = {
 
 const COMMENT_PATTERN = /^\s*\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]\s*(.*)$/i
 const SITE_DEFAULT_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim() ?? ''
+const knownDeviceIds = new Set([
+  'xmb9', 'xmb9p', 'xmb10', 'xmb10nfc',
+  'xmws3', 'xmws4', 'xmws4xring',
+  'xmrw5', 'xmrw5xring', 'xmrw6',
+  'vivowgt2'
+])
+
+const toNonEmptyString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
+
+const toStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return []
+  return value.map((item) => toNonEmptyString(item)).filter(Boolean)
+}
 
 const formatDate = (value?: string): string => {
   if (!value) return '-'
@@ -118,27 +174,218 @@ const decodeBase64Utf8 = (base64: string): string => {
   return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
 }
 
-const parseGitHubRepoFromUrl = (raw: string): { owner: string; repo: string } | null => {
-  const trimmed = raw.trim()
-  if (!trimmed) return null
-  const matched = trimmed.match(/^https?:\/\/github\.com\/([^/]+)\/([^/?#]+)(?:[/?#].*)?$/i)
+const splitCsvLine = (line: string): string[] => {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i]
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i += 1
+      } else {
+        inQuotes = !inQuotes
+      }
+      continue
+    }
+    if (char === ',' && !inQuotes) {
+      result.push(current)
+      current = ''
+      continue
+    }
+    current += char
+  }
+  result.push(current)
+  return result.map((value) => value.trim())
+}
+
+const parseCsvV2Row = (line: string): CsvV2Row | null => {
+  const cells = splitCsvLine(line)
+  if (cells.length >= 12) {
+    return {
+      id: cells[0],
+      name: cells[1],
+      restype: cells[2],
+      repo_owner: cells[3],
+      repo_name: cells[4],
+      repo_commit_hash: cells[5],
+      icon: cells[6],
+      cover: cells[7],
+      tags: cells[8],
+      device_vendors: cells[9],
+      devices: cells[10],
+      paid_type: cells[11]
+    }
+  }
+  if (cells.length >= 8) {
+    return {
+      id: '',
+      name: cells[0],
+      restype: cells[3],
+      repo_owner: '',
+      repo_name: '',
+      repo_commit_hash: '',
+      icon: cells[1],
+      cover: cells[2],
+      tags: cells[4],
+      device_vendors: '',
+      devices: cells[5],
+      paid_type: cells[7]
+    }
+  }
+  return null
+}
+
+const parseCsvRowsFromPrPatch = (files: PullFileItem[]): CsvV2Row[] => {
+  const rows: CsvV2Row[] = []
+  for (const file of files) {
+    if (!/(^|\/)index(_v2)?\.csv$/i.test(file.filename)) continue
+    if (!file.patch) continue
+    const addedLines = file.patch
+      .split('\n')
+      .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
+      .map((line) => line.slice(1).trim())
+      .filter((line) => line && !line.startsWith('id,') && line.includes(','))
+    for (const line of addedLines) {
+      const row = parseCsvV2Row(line)
+      if (row) rows.push(row)
+    }
+  }
+  return rows
+}
+
+const pickPreferredCsvRow = (rows: CsvV2Row[]): CsvV2Row | null => {
+  if (rows.length === 0) return null
+  const withRepo = rows.find((row) => row.repo_owner && row.repo_name)
+  return withRepo || rows[rows.length - 1]
+}
+
+const parseRawGithubUrl = (rawUrl: string): { owner: string; repo: string; ref: string; path: string } | null => {
+  const matched = rawUrl.match(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/i)
   if (!matched) return null
+  const decodeSafe = (value: string): string => {
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
+  }
+  const decodedRef = decodeSafe(matched[3])
+  const decodedPath = matched[4]
+    .split('/')
+    .map((segment) => decodeSafe(segment))
+    .join('/')
   return {
     owner: matched[1],
-    repo: matched[2].replace(/\.git$/i, '')
+    repo: matched[2],
+    ref: decodedRef,
+    path: decodedPath
   }
 }
 
-const parseRepoFromPrBody = (body: string): { owner: string; repo: string } | null => {
-  const lines = body.split('\n')
-  for (const line of lines) {
-    if (!line.toLowerCase().includes('github.com/')) continue
-    const matched = line.match(/https?:\/\/github\.com\/[^\s)]+/i)
-    if (!matched) continue
-    const parsed = parseGitHubRepoFromUrl(matched[0])
-    if (parsed) return parsed
+const getCsvAssetRepoPath = (value: string): string => {
+  const raw = value.trim()
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) {
+    const parsed = parseRawGithubUrl(raw)
+    return parsed?.path || ''
   }
-  return null
+  return raw
+}
+
+const buildManifestCandidatesByCsvRow = (repoPaths: string[], csvRow: CsvV2Row | null): string[] => {
+  const manifestPaths = repoPaths.filter((path) => /(^|\/)manifest_v2\.json$/i.test(path) || /(^|\/)manifest\.json$/i.test(path))
+  if (manifestPaths.length === 0) return []
+
+  const priorityDirs: string[] = []
+  const pushDirWithParents = (fullPath: string): void => {
+    let dir = fullPath.includes('/') ? fullPath.slice(0, fullPath.lastIndexOf('/')) : ''
+    while (true) {
+      if (!priorityDirs.includes(dir)) priorityDirs.push(dir)
+      if (!dir.includes('/')) break
+      dir = dir.slice(0, dir.lastIndexOf('/'))
+    }
+    if (!priorityDirs.includes('')) priorityDirs.push('')
+  }
+
+  if (csvRow) {
+    const iconPath = getCsvAssetRepoPath(csvRow.icon)
+    const coverPath = getCsvAssetRepoPath(csvRow.cover)
+    if (iconPath) pushDirWithParents(iconPath)
+    if (coverPath) pushDirWithParents(coverPath)
+  }
+  if (!priorityDirs.includes('')) priorityDirs.push('')
+
+  const ranked: string[] = []
+  for (const dir of priorityDirs) {
+    const manifestV2 = dir ? `${dir}/manifest_v2.json` : 'manifest_v2.json'
+    const manifestV1 = dir ? `${dir}/manifest.json` : 'manifest.json'
+    if (manifestPaths.includes(manifestV2)) ranked.push(manifestV2)
+    if (manifestPaths.includes(manifestV1)) ranked.push(manifestV1)
+  }
+
+  for (const path of manifestPaths) {
+    if (!ranked.includes(path)) ranked.push(path)
+  }
+  return ranked
+}
+
+const getPathDirname = (path: string): string => {
+  const normalized = path.trim().replace(/^\/+/, '')
+  const index = normalized.lastIndexOf('/')
+  return index >= 0 ? normalized.slice(0, index) : ''
+}
+
+const joinRepoPath = (baseDir: string, relativePath: string): string => {
+  const left = baseDir.replace(/^\/+|\/+$/g, '')
+  const right = relativePath.replace(/^\/+/, '')
+  if (!left) return right
+  if (!right) return left
+  return `${left}/${right}`
+}
+
+const isPrivateHost = (hostname: string): boolean => {
+  const host = hostname.toLowerCase()
+  if (host === 'localhost' || host.endsWith('.local')) return true
+  if (host.startsWith('127.') || host.startsWith('10.') || host.startsWith('192.168.')) return true
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return true
+  return false
+}
+
+const checkPublicUrl = (raw: string): { ok: boolean; reason: string } => {
+  if (!raw) return { ok: false, reason: '缺少链接' }
+  try {
+    const url = new URL(raw)
+    if (!/^https?:$/.test(url.protocol)) return { ok: false, reason: '链接协议不是 http/https' }
+    if (isPrivateHost(url.hostname)) return { ok: false, reason: '链接使用了私有域名/内网地址' }
+    return { ok: true, reason: '链接格式正常' }
+  } catch {
+    return { ok: false, reason: '链接格式无效' }
+  }
+}
+
+const checkRawGithubUrl = (raw: string): { ok: boolean; reason: string } => {
+  const base = checkPublicUrl(raw)
+  if (!base.ok) return base
+  try {
+    const url = new URL(raw)
+    if (url.hostname !== 'raw.githubusercontent.com') {
+      return { ok: false, reason: '不是 raw.githubusercontent.com 链接' }
+    }
+    return { ok: true, reason: 'Raw 链接格式正确' }
+  } catch {
+    return { ok: false, reason: '链接格式无效' }
+  }
+}
+
+const hasUrl = (value: string): boolean => /https?:\/\/[^\s)]+/.test(value)
+
+const renderTextWithLinks = (value: string): string => {
+  const escaped = escapeHtml(value)
+  return escaped.replace(/https?:\/\/[^\s<]+/g, (url) =>
+    `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline break-all">${url}</a>`
+  )
 }
 
 const buildReplyContextBlock = (comment: IssueCommentItem | null): string => {
@@ -318,9 +565,12 @@ export function CcPrReviewWorkbench(props: {
   const [detailsError, setDetailsError] = useState('')
   const [prComments, setPrComments] = useState<IssueCommentItem[]>([])
   const [prFiles, setPrFiles] = useState<PullFileItem[]>([])
+  const [csvRowFromPrDiff, setCsvRowFromPrDiff] = useState<CsvV2Row | null>(null)
   const [repoFiles, setRepoFiles] = useState<string[]>([])
   const [repoFilesError, setRepoFilesError] = useState('')
-  const [manifestView, setManifestView] = useState<ResourceManifestView | null>(null)
+  const [manifestData, setManifestData] = useState<Record<string, unknown> | null>(null)
+  const [manifestFilePath, setManifestFilePath] = useState('')
+  const [manifestLoadError, setManifestLoadError] = useState('')
 
   const [commentId, setCommentId] = useState('')
   const [commentMessage, setCommentMessage] = useState('')
@@ -350,7 +600,7 @@ export function CcPrReviewWorkbench(props: {
   const [pickerLoading, setPickerLoading] = useState(false)
   const [pickerError, setPickerError] = useState('')
 
-  const commentTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const commentComposerWrapperRef = useRef<HTMLDivElement | null>(null)
   const [commentCursorStart, setCommentCursorStart] = useState<number | null>(null)
   const [commentCursorEnd, setCommentCursorEnd] = useState<number | null>(null)
 
@@ -423,30 +673,201 @@ export function CcPrReviewWorkbench(props: {
     return numbers
   }, [pickerContentLines, pickerLineSearch])
 
+  const submissionOverview = useMemo<SubmissionOverview>(() => {
+    const manifest = manifestData || {}
+    const item = (manifest.item && typeof manifest.item === 'object') ? (manifest.item as Record<string, unknown>) : {}
+    const downloads = (manifest.downloads && typeof manifest.downloads === 'object') ? (manifest.downloads as Record<string, unknown>) : {}
+    const links = Array.isArray(manifest.links) ? (manifest.links as Array<Record<string, unknown>>) : []
+    const ownerValue = selectedPr?.resourceRepoOwner || selectedPr?.headOwner || ''
+    const repoValue = selectedPr?.resourceRepoName || selectedPr?.headRepo || ''
+    const refValue = selectedPr?.resourceRepoRef || selectedPr?.headRef || 'main'
+    const baseDir = getPathDirname(manifestFilePath)
+    const existingRepoPaths = new Set(repoFiles)
+
+    const toImageAsset = (pathValue: unknown): { file: string; url: string } | null => {
+      const raw = toNonEmptyString(pathValue)
+      if (!raw || raw === '--') return null
+      const file = raw.split('/').filter(Boolean).pop() || raw
+      if (/^https?:\/\//i.test(raw)) {
+        return { file, url: raw }
+      }
+      if (!ownerValue || !repoValue || !refValue) return null
+      const normalizedRaw = raw.replace(/^\/+/, '')
+      const normalizedByBase = joinRepoPath(baseDir, normalizedRaw)
+      const resolvedPath = existingRepoPaths.has(normalizedRaw)
+        ? normalizedRaw
+        : (existingRepoPaths.has(normalizedByBase) ? normalizedByBase : normalizedRaw)
+      return {
+        file,
+        url: buildRawGithubUrl(ownerValue, repoValue, refValue, resolvedPath)
+      }
+    }
+
+    const previewAssets = toStringArray(item.preview)
+      .map((path) => toImageAsset(path))
+      .filter((asset): asset is { file: string; url: string } => Boolean(asset))
+
+    const overview: SubmissionOverview = {
+      resourceInfo: [],
+      supportedDevices: [],
+      repoUrl: ownerValue && repoValue ? `https://github.com/${ownerValue}/${repoValue}` : '',
+      shortHash: toNonEmptyString(selectedPr?.resourceRepoRef || selectedPr?.headRef),
+      images: {
+        icon: toImageAsset(item.icon),
+        cover: toImageAsset(item.cover),
+        previews: previewAssets
+      },
+      downloads: [],
+      links: links
+        .map((link) => ({
+          title: toNonEmptyString(link.title),
+          type: toNonEmptyString(link.icon),
+          url: toNonEmptyString(link.url)
+        }))
+        .filter((link) => link.title || link.type || link.url)
+    }
+
+    const pushResourceInfo = (key: string, value: unknown): void => {
+      const normalized = toNonEmptyString(value)
+      if (!normalized) return
+      overview.resourceInfo.push({ key, value: normalized })
+    }
+
+    pushResourceInfo('资源名称', item.name)
+    pushResourceInfo('资源 ID', item.id)
+    pushResourceInfo('资源类型', item.restype)
+    pushResourceInfo('资源描述', item.description)
+
+    for (const [device, entry] of Object.entries(downloads)) {
+      const record = (entry && typeof entry === 'object') ? (entry as Record<string, unknown>) : {}
+      const file = toNonEmptyString(record.file_name) || toNonEmptyString(record.file)
+      const version = toNonEmptyString(record.version)
+      const raw = file && ownerValue && repoValue && refValue ? buildRawGithubUrl(ownerValue, repoValue, refValue, file) : ''
+      if (device) {
+        overview.supportedDevices.push(device)
+      }
+      overview.downloads.push({
+        device,
+        version,
+        file,
+        raw
+      })
+    }
+
+    return overview
+  }, [manifestData, manifestFilePath, repoFiles, selectedPr])
+
+  const groupedDownloads = useMemo<Array<{ raw: string; file: string; version: string; devices: string[] }>>(() => {
+    const map = new Map<string, { raw: string; file: string; version: string; devices: string[] }>()
+    for (const item of submissionOverview.downloads) {
+      const key = `${item.raw || ''}||${item.file || ''}||${item.version || ''}`
+      if (!map.has(key)) {
+        map.set(key, {
+          raw: item.raw || '',
+          file: item.file || '',
+          version: item.version || '',
+          devices: []
+        })
+      }
+      const target = map.get(key)
+      if (!target) continue
+      if (item.device && !target.devices.includes(item.device)) {
+        target.devices.push(item.device)
+      }
+    }
+    return Array.from(map.values())
+  }, [submissionOverview.downloads])
+
+  const hasSubmissionOverview = useMemo(
+    () =>
+      submissionOverview.resourceInfo.length > 0
+      || submissionOverview.supportedDevices.length > 0
+      || Boolean(submissionOverview.repoUrl)
+      || submissionOverview.downloads.length > 0
+      || submissionOverview.links.length > 0
+      || Boolean(submissionOverview.images.icon)
+      || Boolean(submissionOverview.images.cover)
+      || submissionOverview.images.previews.length > 0,
+    [submissionOverview]
+  )
+
   const ruleChecks = useMemo<RuleCheckItem[]>(() => {
     const checks: RuleCheckItem[] = []
+    const csvRow = csvRowFromPrDiff
+    const resourceName = csvRow?.name || submissionOverview.resourceInfo.find((entry) => entry.key === '资源名称')?.value || ''
+    const iconRaw = csvRow?.icon || ''
+    const coverRaw = csvRow?.cover || ''
+    const repoExists = !repoFilesError && repoFiles.length > 0
+    const manifestCandidates = buildManifestCandidatesByCsvRow(repoFiles, csvRow)
+
     checks.push({
-      title: 'PR 文件变更已加载',
-      status: prFiles.length > 0 ? 'pass' : 'warn',
-      detail: prFiles.length > 0 ? `共 ${prFiles.length} 个文件` : '未检测到文件变更'
+      title: 'index.csv / index_v2.csv 已新增资源行',
+      status: csvRow ? 'pass' : 'fail',
+      detail: csvRow ? `检测到新增行：${csvRow.id || csvRow.name}` : '未检测到 CSV 新增资源行（严重）'
     })
+
+    const iconCheck = checkRawGithubUrl(iconRaw)
     checks.push({
-      title: '资源仓库文件树可访问',
-      status: repoFilesError ? 'fail' : repoFiles.length > 0 ? 'pass' : 'warn',
-      detail: repoFilesError || (repoFiles.length > 0 ? `共 ${repoFiles.length} 个文件` : '未读取到仓库文件')
+      title: 'CSV icon 链接可访问且为 Raw，且非私有域名',
+      status: iconCheck.ok ? 'pass' : 'fail',
+      detail: iconCheck.reason
     })
+
+    const coverCheck = checkRawGithubUrl(coverRaw)
     checks.push({
-      title: 'manifest 解析',
-      status: manifestView ? 'pass' : 'warn',
-      detail: manifestView ? '已解析资源 manifest' : '未识别到 manifest_v2.json 或 manifest.json'
+      title: 'CSV cover 链接可访问且为 Raw，且非私有域名',
+      status: coverCheck.ok ? 'pass' : 'fail',
+      detail: coverCheck.reason
     })
+
     checks.push({
-      title: '资源内容合规（人工）',
+      title: '资源目标仓库真实存在',
+      status: repoExists ? 'pass' : 'fail',
+      detail: repoExists ? '已可访问并读取仓库文件树' : (repoFilesError || '仓库不可访问')
+    })
+
+    checks.push({
+      title: 'manifest 文件存在且 JSON 可解析',
+      status: manifestData ? 'pass' : (manifestCandidates.length > 0 ? 'warn' : 'fail'),
+      detail: manifestData ? 'manifest 解析成功' : (manifestLoadError || (manifestCandidates.length > 0 ? '存在 manifest 但未解析成功' : '仓库缺少 manifest_v2.json/manifest.json'))
+    })
+
+    const manifestName = toNonEmptyString((manifestData?.item as Record<string, unknown> | undefined)?.name)
+    checks.push({
+      title: 'manifest 名称与 CSV 名称一致',
+      status: manifestName && resourceName ? (manifestName === resourceName ? 'pass' : 'fail') : 'warn',
+      detail: manifestName && resourceName ? `manifest: ${manifestName} / csv: ${resourceName}` : '缺少可比对字段'
+    })
+
+    const downloads = manifestData?.downloads && typeof manifestData.downloads === 'object'
+      ? Object.entries(manifestData.downloads as Record<string, Record<string, unknown>>)
+      : []
+    const unknownDeviceIds = downloads
+      .map(([device]) => device)
+      .filter((device) => !knownDeviceIds.has(device))
+    checks.push({
+      title: 'manifest downloads 设备代号有效性',
+      status: downloads.length === 0 ? 'warn' : (unknownDeviceIds.length === 0 ? 'pass' : 'fail'),
+      detail: downloads.length === 0 ? '未检测到 downloads 字典' : (unknownDeviceIds.length === 0 ? '设备代号均在白名单内' : `未知设备代号：${unknownDeviceIds.join(', ')}`)
+    })
+
+    const missingDownloadFiles = downloads
+      .map(([, item]) => toNonEmptyString(item?.file_name) || toNonEmptyString(item?.file))
+      .filter((file) => file && !repoFiles.includes(file))
+    checks.push({
+      title: 'manifest downloads 文件存在性',
+      status: downloads.length === 0 ? 'warn' : (missingDownloadFiles.length === 0 ? 'pass' : 'fail'),
+      detail: downloads.length === 0 ? '未检测到 downloads 字典' : (missingDownloadFiles.length === 0 ? '下载文件均存在' : `缺失文件：${missingDownloadFiles.join(', ')}`)
+    })
+
+    checks.push({
+      title: '资源内容合规性（人工审核）',
       status: 'manual',
-      detail: '色情低俗/版权/可运行性仍需人工审核'
+      detail: '色情低俗/政治敏感/盗传/低质量/实际可运行等需人工确认'
     })
+
     return checks
-  }, [manifestView, prFiles.length, repoFiles.length, repoFilesError])
+  }, [csvRowFromPrDiff, manifestData, manifestLoadError, repoFiles, repoFilesError, submissionOverview.resourceInfo])
 
   const openResultDialog = (title: string, message: string) => {
     setResultDialogTitle(title)
@@ -536,14 +957,27 @@ export function CcPrReviewWorkbench(props: {
     return decodeBase64Utf8(file.content.replace(/\n/g, ''))
   }
 
-  const loadRepoFiles = async (targetPr: PullListItem): Promise<void> => {
+  const fetchRepoJsonFile = async (repoOwner: string, repoName: string, ref: string, path: string): Promise<Record<string, unknown> | null> => {
+    try {
+      const text = await readRepoTextFile(repoOwner, repoName, ref, path)
+      if (!text) return null
+      return JSON.parse(text) as Record<string, unknown>
+    } catch {
+      return null
+    }
+  }
+
+  const loadRepoFiles = async (targetPr: PullListItem, csvRow: CsvV2Row | null): Promise<void> => {
     setRepoFilesError('')
     setRepoFiles([])
-    setManifestView(null)
+    setManifestData(null)
+    setManifestFilePath('')
+    setManifestLoadError('')
 
     try {
       if (!targetPr.resourceRepoOwner || !targetPr.resourceRepoName) {
-        throw new Error('无法解析资源仓库信息')
+        setRepoFilesError('无法从 PR 文件解析资源仓库信息')
+        return
       }
 
       const repoBranch = targetPr.resourceRepoRef || 'main'
@@ -568,29 +1002,48 @@ export function CcPrReviewWorkbench(props: {
       setRepoFiles(files)
       setRepoPickerOpenFolders(getTopLevelFolders(files))
 
-      const manifestV2Exists = files.includes('manifest_v2.json')
-      const manifestV1Exists = files.includes('manifest.json')
-      if (!manifestV2Exists && !manifestV1Exists) {
+      const manifestCandidates = buildManifestCandidatesByCsvRow(files, csvRow)
+      if (manifestCandidates.length === 0) {
+        setManifestLoadError('仓库内未找到 manifest_v2.json 或 manifest.json')
         return
       }
 
-      const manifestPath = manifestV2Exists ? 'manifest_v2.json' : 'manifest.json'
-      const manifestText = await readRepoTextFile(targetPr.resourceRepoOwner, targetPr.resourceRepoName, repoBranch, manifestPath)
-      if (!manifestText) {
-        return
+      let bestManifest: Record<string, unknown> | null = null
+      let bestManifestPath = ''
+      let bestScore = -1
+
+      for (const path of manifestCandidates) {
+        const parsed = await fetchRepoJsonFile(targetPr.resourceRepoOwner, targetPr.resourceRepoName, repoBranch, path)
+        if (!parsed) continue
+        const item = (parsed.item && typeof parsed.item === 'object') ? (parsed.item as Record<string, unknown>) : {}
+        const itemId = toNonEmptyString(item.id)
+        const itemName = toNonEmptyString(item.name)
+        let score = 0
+        if (csvRow) {
+          if (csvRow.id && itemId && csvRow.id === itemId) score += 2
+          if (csvRow.name && itemName && csvRow.name === itemName) score += 2
+          if (csvRow.id && !itemId && csvRow.name && itemName && csvRow.name === itemName) score += 1
+        }
+        if (score > bestScore) {
+          bestScore = score
+          bestManifest = parsed
+          bestManifestPath = path
+        }
+        if (score >= 4) break
       }
 
-      const parsed = parseManifestView(
-        manifestText,
-        targetPr.resourceRepoOwner,
-        targetPr.resourceRepoName,
-        repoBranch
-      )
-      setManifestView(parsed)
+      if (bestManifest) {
+        setManifestData(bestManifest)
+        setManifestFilePath(bestManifestPath)
+      } else {
+        setManifestLoadError('manifest 文件不存在或不是有效 JSON')
+      }
     } catch (cause: unknown) {
       setRepoFilesError(cause instanceof Error ? cause.message : '加载资源仓库文件失败')
       setRepoFiles([])
-      setManifestView(null)
+      setManifestData(null)
+      setManifestFilePath('')
+      setManifestLoadError('')
     }
   }
 
@@ -604,6 +1057,7 @@ export function CcPrReviewWorkbench(props: {
     setPickerLineSearch('')
     setPickerMatchCursor(-1)
     setPickerError('')
+    setCsvRowFromPrDiff(null)
 
     try {
       const [pullDetail, comments, files] = await Promise.all([
@@ -613,16 +1067,18 @@ export function CcPrReviewWorkbench(props: {
       ])
 
       const resolvedBody = pullDetail.body || targetPr.body
-      const guessedRepo = parseRepoFromPrBody(resolvedBody)
-      const resourceRepoOwner = guessedRepo?.owner || targetPr.headOwner
-      const resourceRepoName = guessedRepo?.repo || targetPr.headRepo
-      const resourceRepoRef = targetPr.headRef || 'main'
+      const csvRows = parseCsvRowsFromPrPatch(files)
+      const resolvedCsvRow = pickPreferredCsvRow(csvRows)
+      const resourceRepoOwner = resolvedCsvRow?.repo_owner || targetPr.headOwner
+      const resourceRepoName = resolvedCsvRow?.repo_name || targetPr.headRepo
+      const resourceRepoRef = resolvedCsvRow?.repo_commit_hash || targetPr.headRef || 'main'
+      const review = deriveReviewStatus(comments)
 
       const updatedPr: PullListItem = {
         ...targetPr,
         body: resolvedBody,
-        review: deriveReviewStatus(comments),
-        status: deriveReviewStatus(comments).state,
+        review,
+        status: review.state,
         resourceRepoOwner,
         resourceRepoName,
         resourceRepoRef
@@ -631,16 +1087,20 @@ export function CcPrReviewWorkbench(props: {
       setSelectedPr(updatedPr)
       setPrComments(comments)
       setPrFiles(files)
+      setCsvRowFromPrDiff(resolvedCsvRow)
       setPrPickerOpenFolders(getTopLevelFolders(files.map((file) => file.filename)))
       setPullRequests((prev) => prev.map((item) => (item.number === updatedPr.number ? updatedPr : item)))
 
-      await loadRepoFiles(updatedPr)
+      await loadRepoFiles(updatedPr, resolvedCsvRow)
     } catch (cause: unknown) {
       setDetailsError(cause instanceof Error ? cause.message : '加载 PR 详情失败')
       setPrComments([])
       setPrFiles([])
+      setCsvRowFromPrDiff(null)
       setRepoFiles([])
-      setManifestView(null)
+      setManifestData(null)
+      setManifestFilePath('')
+      setManifestLoadError('')
     } finally {
       setDetailsLoading(false)
     }
@@ -678,7 +1138,6 @@ export function CcPrReviewWorkbench(props: {
           const headOwner = pr.head?.repo?.owner?.login || ''
           const headRepo = pr.head?.repo?.name || ''
           const headRef = pr.head?.ref || 'main'
-          const guessedRepo = parseRepoFromPrBody(pr.body || '')
           return {
             number: pr.number,
             title: pr.title,
@@ -690,8 +1149,8 @@ export function CcPrReviewWorkbench(props: {
             headOwner,
             headRepo,
             headRef,
-            resourceRepoOwner: guessedRepo?.owner || headOwner,
-            resourceRepoName: guessedRepo?.repo || headRepo,
+            resourceRepoOwner: headOwner,
+            resourceRepoName: headRepo,
             resourceRepoRef: headRef,
             status: review.state,
             review
@@ -711,8 +1170,11 @@ export function CcPrReviewWorkbench(props: {
         setSelectedPr(null)
         setPrComments([])
         setPrFiles([])
+        setCsvRowFromPrDiff(null)
         setRepoFiles([])
-        setManifestView(null)
+        setManifestData(null)
+        setManifestFilePath('')
+        setManifestLoadError('')
       }
     } catch (cause: unknown) {
       setErrorMessage(cause instanceof Error ? cause.message : '加载 PR 失败')
@@ -732,8 +1194,13 @@ export function CcPrReviewWorkbench(props: {
     await loadPrDetails(selectedPr)
   }
 
+  const getCommentTextareaElement = (): HTMLTextAreaElement | null => {
+    const element = commentComposerWrapperRef.current?.querySelector('textarea')
+    return element instanceof HTMLTextAreaElement ? element : null
+  }
+
   const syncCommentCursor = () => {
-    const textarea = commentTextareaRef.current
+    const textarea = getCommentTextareaElement()
     if (!textarea) return
     setCommentCursorStart(textarea.selectionStart)
     setCommentCursorEnd(textarea.selectionEnd)
@@ -769,7 +1236,7 @@ export function CcPrReviewWorkbench(props: {
     setCommentEditorTab('edit')
 
     window.requestAnimationFrame(() => {
-      const textarea = commentTextareaRef.current
+      const textarea = getCommentTextareaElement()
       if (!textarea) return
       textarea.focus()
       textarea.setSelectionRange(nextCursor, nextCursor)
@@ -1059,42 +1526,41 @@ export function CcPrReviewWorkbench(props: {
             </Card>
           ) : (
             <>
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-2">
-                      <CardTitle className="text-lg">#{selectedPr.number} {selectedPr.title}</CardTitle>
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        <Badge variant="secondary" className="h-6 gap-1.5 rounded-full px-2.5 text-xs">
-                          <GitPullRequest size={14} weight="duotone" className="shrink-0" />
-                          Open
-                        </Badge>
-                        <span className="inline-flex min-w-0 items-center gap-2">
-                          {selectedPr.authorAvatar ? (
-                            <img src={selectedPr.authorAvatar} className="h-6 w-6 shrink-0 rounded-full object-cover" loading="lazy" />
-                          ) : (
-                            <UserCircle size={16} weight="duotone" />
-                          )}
-                          <span className="truncate font-medium text-foreground">{selectedPr.author}</span>
-                          <span className="shrink-0">opened {formatDate(selectedPr.createdAt)}</span>
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" className="h-9 gap-1.5 px-3" disabled={detailsLoading} onClick={() => void refreshSelectedPrDetails()}>
-                        <ArrowsClockwise size={16} weight="bold" />
-                        刷新
-                      </Button>
-                      <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 px-3">
-                        <a href={selectedPr.url} target="_blank" rel="noopener noreferrer">
-                          <GithubLogo size={16} weight="duotone" />
-                          GitHub
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
+              <ReviewDetailHeader
+                title={selectedPr.title}
+                number={selectedPr.number}
+                meta={(
+                  <>
+                    <Badge variant="secondary" className="h-6 gap-1.5 rounded-full px-2.5 text-xs">
+                      <GitPullRequest size={14} weight="duotone" className="shrink-0" />
+                      Open
+                    </Badge>
+                    <span className="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                      {selectedPr.authorAvatar ? (
+                        <img src={selectedPr.authorAvatar} className="h-6 w-6 shrink-0 rounded-full object-cover" loading="lazy" />
+                      ) : (
+                        <UserCircle size={16} weight="duotone" />
+                      )}
+                      <span className="truncate font-medium text-foreground">{selectedPr.author}</span>
+                      <span className="shrink-0">opened {formatDate(selectedPr.createdAt)}</span>
+                    </span>
+                  </>
+                )}
+                actions={(
+                  <>
+                    <Button variant="outline" size="sm" className="h-9 gap-1.5 px-3" disabled={detailsLoading} onClick={() => void refreshSelectedPrDetails()}>
+                      <ArrowsClockwise size={16} weight="bold" />
+                      刷新
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 px-3">
+                      <a href={selectedPr.url} target="_blank" rel="noopener noreferrer">
+                        <GithubLogo size={16} weight="duotone" />
+                        GitHub
+                      </a>
+                    </Button>
+                  </>
+                )}
+              />
 
               <Card>
                 <CardHeader className="pb-3">
@@ -1105,132 +1571,63 @@ export function CcPrReviewWorkbench(props: {
                   {repoFilesError ? <div className="text-xs text-destructive">{repoFilesError}</div> : null}
                   {detailsLoading ? <div className="text-xs text-muted-foreground">正在加载文件变更...</div> : null}
 
-                  <div className="space-y-2 rounded-md border border-border bg-muted/10 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <LabelledSwitch label="启用 ABCC 标签" checked={commentTagEnabled} onCheckedChange={setCommentTagEnabled} />
-                      <Button size="sm" variant="outline" onClick={openFilePicker}>
-                        插入文件定位
-                      </Button>
-                    </div>
-
-                    {commentTagEnabled ? (
-                      <div className="space-y-1.5">
-                        <Label htmlFor="review-comment-id">评论 ID</Label>
-                        <Input
-                          id="review-comment-id"
-                          value={commentId}
-                          onChange={(event) => setCommentId(event.target.value)}
-                          placeholder="自定义 ID，例如 icon_png_check"
-                        />
-                      </div>
-                    ) : null}
-
-                    <Textarea
-                      id="review-comment-message"
-                      ref={commentTextareaRef}
-                      value={commentMessage}
-                      onChange={(event) => setCommentMessage(event.target.value)}
-                      onSelect={syncCommentCursor}
-                      onKeyUp={syncCommentCursor}
-                      onClick={syncCommentCursor}
-                      placeholder="评论说明（支持 Markdown）"
-                      className="min-h-[140px]"
+                  <div ref={commentComposerWrapperRef}>
+                    <ReviewCommentComposer
+                      avatarUrl={selectedPr.authorAvatar || ''}
+                      tagEnabled={commentTagEnabled}
+                      commentId={commentId}
+                      commentMessage={commentMessage}
+                      editorTab={commentEditorTab}
+                      previewHtml={renderedCommentPreviewHtml}
+                      canSubmit={canSubmitComment}
+                      submitting={commentSubmitting}
+                      submitButtonTitle={submitButtonTitle}
+                      submitText={editingCommentTarget ? '更新评论' : '发送评论'}
+                      showFilePickerButton
+                      idPlaceholder="自定义 ID，例如 icon_png_check"
+                      messagePlaceholder="评论说明（文件引用请用上方按钮插入）"
+                      textareaClass="min-h-[140px]"
+                      onCommentIdChange={setCommentId}
+                      onCommentMessageChange={setCommentMessage}
+                      onTagEnabledChange={setCommentTagEnabled}
+                      onEditorTabChange={setCommentEditorTab}
+                      onOpenFilePicker={openFilePicker}
+                      onSubmit={() => void submitPresetComment()}
+                      onCursorEvent={syncCommentCursor}
                     />
+                  </div>
 
-                    <Tabs value={commentEditorTab} onValueChange={(value) => setCommentEditorTab(value as 'edit' | 'preview')}>
-                      <TabsList className="grid w-[180px] grid-cols-2">
-                        <TabsTrigger value="edit">编辑</TabsTrigger>
-                        <TabsTrigger value="preview">预览</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="edit" className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-                        评论将以 Markdown 渲染。
-                      </TabsContent>
-                      <TabsContent value="preview" className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-                        <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: renderedCommentPreviewHtml }} />
-                      </TabsContent>
-                    </Tabs>
-
-                    {editingCommentTarget ? (
-                      <div className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-muted-foreground">
-                        <span className="truncate">正在编辑评论 #{editingCommentTarget.id}</span>
-                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={clearEditingComment}>
-                          取消编辑
-                        </Button>
-                      </div>
-                    ) : null}
-
-                    {replyTargetComment ? (
-                      <div className="flex items-center justify-between rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-                        <span className="truncate">正在回复 #{replyTargetComment.id} · @{replyTargetComment.user?.login || 'unknown'}</span>
-                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={clearReplyTarget}>
-                          取消回复
-                        </Button>
-                      </div>
-                    ) : null}
-
-                    <div className="flex items-center justify-end gap-2">
-                      <span className="text-xs text-muted-foreground">{submitButtonTitle}</span>
-                      <Button disabled={commentSubmitting || !canSubmitComment} onClick={() => void submitPresetComment()}>
-                        {commentSubmitting ? '提交中...' : editingCommentTarget ? '更新评论' : '发送评论'}
+                  {editingCommentTarget ? (
+                    <div className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-muted-foreground">
+                      <span className="truncate">正在编辑评论 #{editingCommentTarget.id}</span>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={clearEditingComment}>
+                        取消编辑
                       </Button>
                     </div>
-                  </div>
+                  ) : null}
+
+                  {replyTargetComment ? (
+                    <div className="flex items-center justify-between rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+                      <span className="truncate">正在回复 #{replyTargetComment.id} · @{replyTargetComment.user?.login || 'unknown'}</span>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={clearReplyTarget}>
+                        取消回复
+                      </Button>
+                    </div>
+                  ) : null}
 
                   <div className="pt-1 text-xs font-medium text-muted-foreground">最近评论</div>
-                  <div className="space-y-2">
-                    {prComments.length === 0 ? <div className="rounded-md border border-border bg-muted/10 px-3 py-3 text-xs text-muted-foreground">暂无评论</div> : null}
-                    {prComments.map((comment) => {
-                      const parsed = parseReviewCommentBody(comment.body || '')
-                      const tagTone =
-                        parsed.tagType === 'NEEDFIX'
-                          ? 'border-red-500/40 bg-red-500/10 text-red-700'
-                          : parsed.tagType === 'FIXED'
-                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
-                            : 'border-border bg-muted/20 text-muted-foreground'
-
-                      return (
-                        <article key={comment.id} data-review-comment-id={comment.id} className="rounded-md border border-border bg-card p-3">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-                              {comment.user?.avatar_url ? (
-                                <img src={comment.user.avatar_url} className="h-6 w-6 rounded-full object-cover" loading="lazy" />
-                              ) : (
-                                <UserCircle size={16} weight="duotone" />
-                              )}
-                              <span className="font-medium text-foreground">{comment.user?.login || 'unknown'}</span>
-                              <span>#{comment.id}</span>
-                              <span>{formatDate(comment.created_at)}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              {comment.html_url ? (
-                                <Button asChild size="sm" variant="ghost" className="h-7 px-2 text-xs">
-                                  <a href={comment.html_url} target="_blank" rel="noopener noreferrer">打开</a>
-                                </Button>
-                              ) : null}
-                              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onReplyComment(comment)}>
-                                回复
-                              </Button>
-                              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onEditComment(comment)}>
-                                编辑
-                              </Button>
-                              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive hover:text-destructive" onClick={() => onDeleteComment(comment)}>
-                                删除
-                              </Button>
-                            </div>
-                          </div>
-
-                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                            {parsed.tagId ? <span className={`rounded border px-2 py-0.5 ${tagTone}`}>{parsed.tagType} · {parsed.tagId}</span> : null}
-                            {parsed.replyTarget ? <span className="rounded border border-border bg-muted/20 px-2 py-0.5 text-muted-foreground">回复 {parsed.replyTarget}</span> : null}
-                          </div>
-
-                          {parsed.replyExcerpt ? <blockquote className="mt-2 rounded border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">{parsed.replyExcerpt}</blockquote> : null}
-
-                          <div className="prose prose-sm dark:prose-invert mt-2 max-w-none" dangerouslySetInnerHTML={{ __html: renderCommentMarkdownHtml(parsed.content || '(空内容)') }} />
-                        </article>
-                      )
-                    })}
-                  </div>
+                  <ReviewCommentTimeline
+                    comments={prComments}
+                    lineLeft={54}
+                    showOpenLink
+                    showReplyAction
+                    showEditAction
+                    showDeleteAction
+                    avatarRounded="full"
+                    onReply={onReplyComment}
+                    onEdit={onEditComment}
+                    onDelete={onDeleteComment}
+                  />
                 </CardContent>
               </Card>
 
@@ -1242,11 +1639,124 @@ export function CcPrReviewWorkbench(props: {
                   <div className="grid gap-2 sm:grid-cols-2">
                     <InfoCell label="资源仓库" value={`${selectedPr.resourceRepoOwner}/${selectedPr.resourceRepoName}`} />
                     <InfoCell label="资源分支" value={selectedPr.resourceRepoRef || '-'} />
-                    <InfoCell label="PR 文件数" value={String(prFiles.length)} />
-                    <InfoCell label="仓库文件数" value={String(repoFiles.length)} />
+                    <InfoCell label="CSV 新增行" value={csvRowFromPrDiff ? (csvRowFromPrDiff.id || csvRowFromPrDiff.name || '-') : '-'} />
+                    <InfoCell label="Manifest 路径" value={manifestFilePath || '-'} />
                   </div>
 
-                  {manifestView ? <ResourceManifestOverview manifestView={manifestView} /> : <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">未解析到 manifest，无法展示详细资源预览</div>}
+                  {manifestLoadError ? <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{manifestLoadError}</div> : null}
+                  {detailsLoading ? <div className="text-xs text-muted-foreground">正在加载文件变更...</div> : null}
+                  {!detailsLoading && !hasSubmissionOverview ? (
+                    <div className="rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">
+                      未在 PR 内容中识别到结构化资源信息
+                    </div>
+                  ) : null}
+
+                  {hasSubmissionOverview ? (
+                    <div className="space-y-3">
+                      <div className="grid gap-3 xl:grid-cols-2">
+                        <div className="rounded-md border border-border p-3">
+                          <div className="mb-2 text-xs font-semibold text-muted-foreground">资源信息</div>
+                          <div className="space-y-2">
+                            {submissionOverview.resourceInfo.map((item) => (
+                              <div key={item.key} className="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between">
+                                <span className="text-xs text-muted-foreground">{item.key}</span>
+                                {hasUrl(item.value) ? (
+                                  <span
+                                    className="min-w-0 break-all text-sm font-medium text-foreground"
+                                    dangerouslySetInnerHTML={{ __html: renderTextWithLinks(item.value || '-') }}
+                                  />
+                                ) : (
+                                  <span className="min-w-0 break-all text-sm font-medium text-foreground">{item.value || '-'}</span>
+                                )}
+                              </div>
+                            ))}
+                            <div className="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2 md:flex-row md:items-center md:justify-between">
+                              <span className="text-xs text-muted-foreground">仓库信息</span>
+                              {submissionOverview.repoUrl ? (
+                                <a href={submissionOverview.repoUrl} target="_blank" rel="noopener noreferrer" className="min-w-0 break-all text-sm font-medium text-primary hover:underline">
+                                  {submissionOverview.repoUrl}
+                                </a>
+                              ) : (
+                                <span className="text-sm font-medium text-foreground">-</span>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1 rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                              <span className="text-xs text-muted-foreground">链接（manifest_v2.links）</span>
+                              {submissionOverview.links.length > 0 ? (
+                                <div className="space-y-1 text-sm font-medium text-foreground">
+                                  {submissionOverview.links.map((link) => (
+                                    <a
+                                      key={`resource-links-${link.title}-${link.url}`}
+                                      href={link.url || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-primary hover:underline"
+                                    >
+                                      <span className="min-w-0 break-all text-foreground">{link.title || '-'}</span>
+                                      {link.type ? <span className="min-w-0 break-all text-muted-foreground">{link.type}</span> : null}
+                                      <span className="min-w-0 break-all">{link.url || '-'}</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-sm font-medium text-foreground">-</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-md border border-border p-3">
+                          <div className="mb-2 text-xs font-semibold text-muted-foreground">支持设备</div>
+                          <div className="space-y-2">
+                            {groupedDownloads.map((group) => (
+                              <div key={`${group.raw || group.file}-${group.version}`} className="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
+                                <div className="text-xs text-muted-foreground">支持设备：{group.devices.join(' / ') || '-'}</div>
+                                <div className="mt-1 text-xs text-muted-foreground">版本：{group.version || '-'}</div>
+                                <div className="mt-1 break-all text-xs text-muted-foreground">文件：{group.file || '-'}</div>
+                                {group.raw ? (
+                                  <a href={group.raw} target="_blank" rel="noopener noreferrer" className="mt-1 block break-all text-xs text-primary hover:underline">
+                                    {group.raw}
+                                  </a>
+                                ) : null}
+                              </div>
+                            ))}
+                            {groupedDownloads.length === 0 ? (
+                              <div className="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm text-foreground">
+                                {submissionOverview.supportedDevices.join(' / ') || '-'}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-md border border-border p-3">
+                        <div className="mb-2 text-xs font-semibold text-muted-foreground">图片资源（Raw）</div>
+                        <div className="space-y-3">
+                          {submissionOverview.images.icon || submissionOverview.images.cover ? (
+                            <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
+                              {submissionOverview.images.icon ? (
+                                <div className="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+                                  <div className="text-xs text-muted-foreground">Icon · {submissionOverview.images.icon.file}</div>
+                                  <a href={submissionOverview.images.icon.url} target="_blank" rel="noopener noreferrer" className="mt-2 mx-auto flex h-[200px] w-[200px] items-center justify-center overflow-hidden rounded-full border border-border/60 bg-background/70">
+                                    <img src={submissionOverview.images.icon.url} alt="Icon 预览" className="h-full w-full rounded-full object-contain p-3" loading="lazy" />
+                                  </a>
+                                </div>
+                              ) : null}
+                              {submissionOverview.images.cover ? (
+                                <div className="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+                                  <div className="text-xs text-muted-foreground">Cover · {submissionOverview.images.cover.file}</div>
+                                  <a href={submissionOverview.images.cover.url} target="_blank" rel="noopener noreferrer" className="mt-2 block overflow-hidden rounded-md border border-border/60 bg-background/70">
+                                    <img src={submissionOverview.images.cover.url} alt="Cover 预览" className="max-h-[30vh] w-full object-contain" loading="lazy" />
+                                  </a>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          <PreviewImageCarousel items={submissionOverview.images.previews} emptyText="未检测到预览图" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="space-y-2 rounded-md border border-border p-3">
                     <div className="text-xs font-semibold text-muted-foreground">规范自动检查</div>
@@ -1448,23 +1958,6 @@ export function CcPrReviewWorkbench(props: {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  )
-}
-
-function LabelledSwitch(props: { label: string; checked: boolean; onCheckedChange: (value: boolean) => void }) {
-  const { label, checked, onCheckedChange } = props
-  return (
-    <div className="inline-flex items-center gap-2">
-      <button
-        type="button"
-        className={`inline-flex h-5 w-9 items-center rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-primary' : 'bg-input'}`}
-        onClick={() => onCheckedChange(!checked)}
-        aria-label={label}
-      >
-        <span className={`h-4 w-4 rounded-full bg-background shadow transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
-      </button>
-      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   )
 }
