@@ -35,6 +35,7 @@ import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { ReviewCommentComposer } from '@/react/components/review/ReviewCommentComposer'
 import { ReviewCommentTimeline } from '@/react/components/review/ReviewCommentTimeline'
 import { ReviewDetailHeader } from '@/react/components/review/ReviewDetailHeader'
+import { deviceOptions } from '@/components/resourcePublishWorkbenchDeviceCatalog'
 
 type ReviewState = 'waiting_review' | 'changes_requested' | 'fixed_waiting'
 
@@ -144,12 +145,8 @@ type RuleCheckItem = {
 
 const COMMENT_PATTERN = /^\s*\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]\s*(.*)$/i
 const SITE_DEFAULT_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim() ?? ''
-const knownDeviceIds = new Set([
-  'xmb9', 'xmb9p', 'xmb10', 'xmb10nfc',
-  'xmws3', 'xmws4', 'xmws4xring',
-  'xmrw5', 'xmrw5xring', 'xmrw6',
-  'vivowgt2'
-])
+const deviceNameById = new Map(deviceOptions.map((device) => [device.id, device.name]))
+const knownDeviceIds = new Set(deviceOptions.map((device) => device.id))
 
 const toNonEmptyString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
 
@@ -157,6 +154,19 @@ const toStringArray = (value: unknown): string[] => {
   if (!Array.isArray(value)) return []
   return value.map((item) => toNonEmptyString(item)).filter(Boolean)
 }
+
+const formatDeviceLabel = (deviceId: string): string => {
+  const normalized = deviceId.trim()
+  if (!normalized) return ''
+  const name = deviceNameById.get(normalized)
+  return name ? `${name}（${normalized}）` : `未知设备（${normalized}）`
+}
+
+const formatDeviceLabels = (deviceIds: string[]): string =>
+  deviceIds
+    .map((id) => formatDeviceLabel(id))
+    .filter(Boolean)
+    .join(' / ')
 
 const formatDate = (value?: string): string => {
   if (!value) return '-'
@@ -1710,7 +1720,7 @@ export function CcPrReviewWorkbench(props: {
                           <div className="space-y-2">
                             {groupedDownloads.map((group) => (
                               <div key={`${group.raw || group.file}-${group.version}`} className="rounded-md border border-border/70 bg-muted/20 px-3 py-2">
-                                <div className="text-xs text-muted-foreground">支持设备：{group.devices.join(' / ') || '-'}</div>
+                                <div className="text-xs text-muted-foreground">支持设备：{formatDeviceLabels(group.devices) || '-'}</div>
                                 <div className="mt-1 text-xs text-muted-foreground">版本：{group.version || '-'}</div>
                                 <div className="mt-1 break-all text-xs text-muted-foreground">文件：{group.file || '-'}</div>
                                 {group.raw ? (
@@ -1722,7 +1732,7 @@ export function CcPrReviewWorkbench(props: {
                             ))}
                             {groupedDownloads.length === 0 ? (
                               <div className="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm text-foreground">
-                                {submissionOverview.supportedDevices.join(' / ') || '-'}
+                                {formatDeviceLabels(submissionOverview.supportedDevices) || '-'}
                               </div>
                             ) : null}
                           </div>
