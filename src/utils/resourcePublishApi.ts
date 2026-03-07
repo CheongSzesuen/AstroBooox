@@ -67,6 +67,7 @@ export interface OwnedResourceEntry {
   name: string
   restype: string
   icon: string
+  cover: string
   repo_owner: string
   repo_name: string
   repo_commit_hash: string
@@ -1260,6 +1261,7 @@ export const loadOwnedResources = async (params: {
         name: entry.name,
         restype: entry.restype,
         icon: entry.icon,
+        cover: entry.cover,
         repo_owner: entry.repo_owner,
         repo_name: entry.repo_name,
         repo_commit_hash: entry.repo_commit_hash,
@@ -1348,6 +1350,7 @@ export const loadOwnedResources = async (params: {
         name: entry.name,
         restype: entry.restype,
         icon: entry.icon,
+        cover: entry.cover,
         repo_owner: repoOwner,
         repo_name: repoName,
         repo_commit_hash: repoRef,

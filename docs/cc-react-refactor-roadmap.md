@@ -40,11 +40,12 @@
 ### P0：发布工作台（最重）
 - [x] 步骤导航、文件树、日志区迁移（首版）
 - [x] 本地 workspace / 远程 repo 文件选择与同步迁移（首版：远程回填）
-- [x] 资源信息表单迁移（首版：名称/描述）
-- [x] icon/cover/preview 上传与预览迁移（首版：preview）
+- [x] 资源信息表单迁移（已扩展：id/restype/icon/cover/tags/devices/paid_type）
+- [x] icon/cover/preview 上传与预览迁移（当前以 preview 上传为主）
 - [x] preview 轮播、删除、toast 撤销栈迁移（sonner）
 - [ ] 作者、links、下载设备矩阵迁移
-- [ ] 提交流程（上传、创建 PR、结果回显）迁移
+- [x] v2 提交流程（上传 repo 文件、更新 catalog、创建 PR、日志回显）迁移
+- [ ] v1 兼容提交流程（legacy index/resources）迁移
 
 ### P0：审核与资源管理
 - [x] `/cc/review` 列表、详情、评论流迁移（首版）
@@ -84,7 +85,7 @@
   - `feat(cc): 迁移资源管理与编辑`
 
 ## 当前遗留差异（必须补齐）
-- 发布工作台仍是首版：缺少 workspace 目录读写、远程仓库文件树同步、实际提交 PR 流程。
+- 发布工作台已接入 v2 实际提交链路，但仍缺作者/links/downloads 全字段编辑、v1 legacy 提交链路与 workspace 全量文件树能力。
 - review 二期已补文件定位器与资源提交信息规则检查区块，但细节交互与 Vue 仍有差异（搜索/自动滚动/数据命中率需继续对齐）。
 - pullrequest 已迁移独立“等待审核”面板，后续需继续补齐与 Vue `ResourcePublishWorkbench(mode=review)` 的细节行为差异。
-- resource/edit 当前为首版结构，尚未完成旧版完整“更新资源向导”字段与提交策略。
+- resource/edit 已接入与 publish 同一提交主链路，仍需补齐旧版“更新向导”细节交互与字段联动。
