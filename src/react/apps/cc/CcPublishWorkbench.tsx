@@ -708,7 +708,6 @@ export function CcPublishWorkbench(props: {
   ])
 
   const title = mode === 'resource_edit' ? '更新资源工作台' : '资源发布工作台'
-  const hidePreviewInCurrentStepOnMobile = mode === 'resource_edit' && step === '1'
   const isSubmitting = uploading || creatingPr
 
   const previewCarouselItems = useMemo<PreviewImageItem[]>(() => previewItems.map((item) => ({ file: item.file, url: item.url })), [previewItems])
@@ -3135,12 +3134,6 @@ export function CcPublishWorkbench(props: {
                     </CardContent>
                   </Card>
 
-                  <div className={hidePreviewInCurrentStepOnMobile ? 'hidden md:block' : ''}>
-                    <div className="text-xs text-muted-foreground">当前预览图（桌面预览）</div>
-                    <div className="mt-2">
-                      <PreviewImageCarousel items={previewCarouselItems} emptyText="暂无预览图" />
-                    </div>
-                  </div>
                 </div>
               ) : null}
 
