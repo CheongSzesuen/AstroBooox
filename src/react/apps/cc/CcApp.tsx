@@ -38,6 +38,7 @@ import '@/cc/themes.css'
 const CcRepositoriesPanel = lazy(() => import('@/react/apps/cc/CcRepositoriesPanel').then((mod) => ({ default: mod.CcRepositoriesPanel })))
 const CcSettingsPanel = lazy(() => import('@/react/apps/cc/CcSettingsPanel').then((mod) => ({ default: mod.CcSettingsPanel })))
 const CcPrReviewWorkbench = lazy(() => import('@/react/apps/cc/CcPrReviewWorkbench').then((mod) => ({ default: mod.CcPrReviewWorkbench })))
+const CcPullRequestPanel = lazy(() => import('@/react/apps/cc/CcPullRequestPanel').then((mod) => ({ default: mod.CcPullRequestPanel })))
 const CcPublishedPanel = lazy(() => import('@/react/apps/cc/CcPublishedPanel').then((mod) => ({ default: mod.CcPublishedPanel })))
 const CcPublishWorkbench = lazy(() => import('@/react/apps/cc/CcPublishWorkbench').then((mod) => ({ default: mod.CcPublishWorkbench })))
 
@@ -337,6 +338,23 @@ function CcAuthenticatedApp() {
     window.history.replaceState(null, '', CC_PATHS.login)
   }
 
+  const openPullRequestDetail = (prNumber: number, targetRepoName: string) => {
+    applyRouteState(
+      {
+        tab: 'pullrequest',
+        settingsSection: routeState.settingsSection,
+        resourceDetailKey: '',
+        pullRequestNumber: prNumber > 0 ? prNumber : 0,
+        pullRequestTargetRepo: targetRepoName.trim().toLowerCase(),
+        requireGhUser: false,
+        editResourceId: '',
+        editTargetRepo: '',
+        editUser: ''
+      },
+      { withProgress: true }
+    )
+  }
+
   const renderContent = () => {
     if (routeState.tab === 'repositories') {
       return (
@@ -360,18 +378,32 @@ function CcAuthenticatedApp() {
       )
     }
 
-    if (routeState.tab === 'review' || routeState.tab === 'pullrequest') {
+    if (routeState.tab === 'pullrequest') {
+      return (
+        <Suspense fallback={<PanelLoading />}>
+          <CcPullRequestPanel
+            token={token}
+            currentUser={currentUser}
+            targetOwner={defaultTargetOwner}
+            targetRepo={defaultTargetRepo}
+            catalogPath={defaultCatalogPath}
+            initialPrNumber={Number(routeState.pullRequestNumber || 0)}
+            onSelectPr={openPullRequestDetail}
+          />
+        </Suspense>
+      )
+    }
+
+    if (routeState.tab === 'review') {
       const reviewTargetRepo =
-        routeState.tab === 'pullrequest' && routeState.pullRequestTargetRepo
-          ? routeState.pullRequestTargetRepo
-          : defaultTargetRepo
+        routeState.pullRequestTargetRepo ? routeState.pullRequestTargetRepo : defaultTargetRepo
       return (
         <Suspense fallback={<PanelLoading />}>
           <CcPrReviewWorkbench
             owner={defaultTargetOwner}
             repo={reviewTargetRepo}
             token={token}
-            initialPrNumber={routeState.tab === 'pullrequest' ? Number(routeState.pullRequestNumber || 0) : 0}
+            initialPrNumber={0}
           />
         </Suspense>
       )
