@@ -35,7 +35,7 @@ import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { ReviewCommentComposer } from '@/react/components/review/ReviewCommentComposer'
 import { ReviewCommentTimeline } from '@/react/components/review/ReviewCommentTimeline'
 import { ReviewDetailHeader } from '@/react/components/review/ReviewDetailHeader'
-import { deviceOptions } from '@/components/resourcePublishWorkbenchDeviceCatalog'
+import { deviceOptions, normalizeDeviceToken } from '@/components/resourcePublishWorkbenchDeviceCatalog'
 
 type ReviewState = 'waiting_review' | 'changes_requested' | 'fixed_waiting'
 
@@ -146,7 +146,6 @@ type RuleCheckItem = {
 const COMMENT_PATTERN = /^\s*\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]\s*(.*)$/i
 const SITE_DEFAULT_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim() ?? ''
 const deviceNameById = new Map(deviceOptions.map((device) => [device.id, device.name]))
-const knownDeviceIds = new Set(deviceOptions.map((device) => device.id))
 
 const toNonEmptyString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
 
@@ -155,11 +154,21 @@ const toStringArray = (value: unknown): string[] => {
   return value.map((item) => toNonEmptyString(item)).filter(Boolean)
 }
 
-const formatDeviceLabel = (deviceId: string): string => {
-  const normalized = deviceId.trim()
+const resolveDeviceName = (deviceToken: string): string => {
+  const normalized = deviceToken.trim()
   if (!normalized) return ''
-  const name = deviceNameById.get(normalized)
-  return name ? `${name}（${normalized}）` : `未知设备（${normalized}）`
+  const canonicalId = normalizeDeviceToken(normalized)
+  return deviceNameById.get(canonicalId) || ''
+}
+
+const isKnownDeviceToken = (deviceToken: string): boolean => Boolean(resolveDeviceName(deviceToken))
+
+const formatDeviceLabel = (deviceToken: string): string => {
+  const normalized = deviceToken.trim()
+  if (!normalized) return ''
+  const name = resolveDeviceName(normalized)
+  if (!name) return `未知设备（${normalized}）`
+  return `${name}（${normalized}）`
 }
 
 const formatDeviceLabels = (deviceIds: string[]): string =>
@@ -210,6 +219,18 @@ const splitCsvLine = (line: string): string[] => {
   return result.map((value) => value.trim())
 }
 
+const extractUrlCandidate = (value: string): string => {
+  const raw = value.trim().replace(/^['"]|['"]$/g, '')
+  if (!raw) return ''
+  const markdownMatch = raw.match(/\[[^\]]*]\((https?:\/\/[^)\s]+)\)/i)
+  if (markdownMatch?.[1]) return markdownMatch[1]
+  const angleWrapped = raw.match(/^<\s*(https?:\/\/[^>\s]+)\s*>$/i)
+  if (angleWrapped?.[1]) return angleWrapped[1]
+  const directUrl = raw.match(/https?:\/\/[^\s)]+/i)
+  if (directUrl?.[0]) return directUrl[0]
+  return raw
+}
+
 const parseCsvV2Row = (line: string): CsvV2Row | null => {
   const cells = splitCsvLine(line)
   if (cells.length >= 12) {
@@ -247,6 +268,19 @@ const parseCsvV2Row = (line: string): CsvV2Row | null => {
   return null
 }
 
+const isCsvHeaderRow = (row: CsvV2Row): boolean => {
+  const id = row.id.trim().toLowerCase()
+  const name = row.name.trim().toLowerCase()
+  const restype = row.restype.trim().toLowerCase()
+  const icon = row.icon.trim().toLowerCase()
+  const cover = row.cover.trim().toLowerCase()
+  if (id === 'id') return true
+  if (name === 'name') return true
+  if (restype === 'restype') return true
+  if (icon === 'icon' && cover === 'cover') return true
+  return false
+}
+
 const parseCsvRowsFromPrPatch = (files: PullFileItem[]): CsvV2Row[] => {
   const rows: CsvV2Row[] = []
   for (const file of files) {
@@ -259,7 +293,7 @@ const parseCsvRowsFromPrPatch = (files: PullFileItem[]): CsvV2Row[] => {
       .filter((line) => line && !line.startsWith('id,') && line.includes(','))
     for (const line of addedLines) {
       const row = parseCsvV2Row(line)
-      if (row) rows.push(row)
+      if (row && !isCsvHeaderRow(row)) rows.push(row)
     }
   }
   return rows
@@ -267,8 +301,23 @@ const parseCsvRowsFromPrPatch = (files: PullFileItem[]): CsvV2Row[] => {
 
 const pickPreferredCsvRow = (rows: CsvV2Row[]): CsvV2Row | null => {
   if (rows.length === 0) return null
-  const withRepo = rows.find((row) => row.repo_owner && row.repo_name)
-  return withRepo || rows[rows.length - 1]
+  let best: CsvV2Row | null = null
+  let bestScore = -1
+
+  for (const row of rows) {
+    let score = 0
+    if (row.repo_owner && row.repo_name) score += 5
+    if (checkRawGithubUrl(row.icon).ok) score += 2
+    if (checkRawGithubUrl(row.cover).ok) score += 2
+    if (row.name.trim()) score += 1
+    if (['watchface', 'quickapp'].includes(row.restype.trim().toLowerCase())) score += 1
+    if (score >= bestScore) {
+      best = row
+      bestScore = score
+    }
+  }
+
+  return best || rows[rows.length - 1]
 }
 
 const parseRawGithubUrl = (rawUrl: string): { owner: string; repo: string; ref: string; path: string } | null => {
@@ -295,7 +344,7 @@ const parseRawGithubUrl = (rawUrl: string): { owner: string; repo: string; ref: 
 }
 
 const getCsvAssetRepoPath = (value: string): string => {
-  const raw = value.trim()
+  const raw = extractUrlCandidate(value)
   if (!raw) return ''
   if (/^https?:\/\//i.test(raw)) {
     const parsed = parseRawGithubUrl(raw)
@@ -364,9 +413,10 @@ const isPrivateHost = (hostname: string): boolean => {
 }
 
 const checkPublicUrl = (raw: string): { ok: boolean; reason: string } => {
-  if (!raw) return { ok: false, reason: '缺少链接' }
+  const urlText = extractUrlCandidate(raw)
+  if (!urlText) return { ok: false, reason: '缺少链接' }
   try {
-    const url = new URL(raw)
+    const url = new URL(urlText)
     if (!/^https?:$/.test(url.protocol)) return { ok: false, reason: '链接协议不是 http/https' }
     if (isPrivateHost(url.hostname)) return { ok: false, reason: '链接使用了私有域名/内网地址' }
     return { ok: true, reason: '链接格式正常' }
@@ -379,7 +429,7 @@ const checkRawGithubUrl = (raw: string): { ok: boolean; reason: string } => {
   const base = checkPublicUrl(raw)
   if (!base.ok) return base
   try {
-    const url = new URL(raw)
+    const url = new URL(extractUrlCandidate(raw))
     if (url.hostname !== 'raw.githubusercontent.com') {
       return { ok: false, reason: '不是 raw.githubusercontent.com 链接' }
     }
@@ -854,11 +904,11 @@ export function CcPrReviewWorkbench(props: {
       : []
     const unknownDeviceIds = downloads
       .map(([device]) => device)
-      .filter((device) => !knownDeviceIds.has(device))
+      .filter((device) => !isKnownDeviceToken(device))
     checks.push({
-      title: 'manifest downloads 设备代号有效性',
+      title: 'manifest downloads 设备标识有效性',
       status: downloads.length === 0 ? 'warn' : (unknownDeviceIds.length === 0 ? 'pass' : 'fail'),
-      detail: downloads.length === 0 ? '未检测到 downloads 字典' : (unknownDeviceIds.length === 0 ? '设备代号均在白名单内' : `未知设备代号：${unknownDeviceIds.join(', ')}`)
+      detail: downloads.length === 0 ? '未检测到 downloads 字典' : (unknownDeviceIds.length === 0 ? '设备标识均可识别（支持 v1 codename / v2 id）' : `未知设备标识：${unknownDeviceIds.join(', ')}`)
     })
 
     const missingDownloadFiles = downloads
