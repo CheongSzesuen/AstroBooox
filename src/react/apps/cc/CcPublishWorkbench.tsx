@@ -28,7 +28,7 @@ import {
   updateCatalogInForkBranch,
   updateLegacyCatalogAndResourceJsonInForkBranch
 } from '@/utils/resourcePublishApi'
-import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken } from '@/components/resourcePublishWorkbenchDeviceCatalog'
+import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken } from '@/react/apps/cc/resourcePublishWorkbenchDeviceCatalog'
 import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
 import { LinkIconPickerDialog, PhosphorIconByName } from '@/react/components/cc/LinkIconPickerDialog'

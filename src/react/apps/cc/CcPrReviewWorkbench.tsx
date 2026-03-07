@@ -35,7 +35,7 @@ import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { ReviewCommentComposer } from '@/react/components/review/ReviewCommentComposer'
 import { ReviewCommentTimeline } from '@/react/components/review/ReviewCommentTimeline'
 import { ReviewDetailHeader } from '@/react/components/review/ReviewDetailHeader'
-import { deviceOptions, normalizeDeviceToken } from '@/components/resourcePublishWorkbenchDeviceCatalog'
+import { deviceOptions, normalizeDeviceToken } from '@/react/apps/cc/resourcePublishWorkbenchDeviceCatalog'
 
 type ReviewState = 'waiting_review' | 'changes_requested' | 'fixed_waiting'
 
