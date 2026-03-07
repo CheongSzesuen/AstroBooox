@@ -1908,41 +1908,48 @@ export function CcPublishWorkbench(props: {
   }
 
   const undoDelete = (targetId?: string) => {
-    setDeletedStack((prev) => {
-      if (prev.length === 0) return prev
-      const index = targetId ? prev.findIndex((item) => item.id === targetId) : 0
-      if (index < 0) return prev
-      const target = prev[index]
-      setPreviewItems((old) => [...old, target])
-      return [...prev.slice(0, index), ...prev.slice(index + 1)]
-    })
+    const stack = deletedStackRef.current
+    if (stack.length === 0) return
+
+    const index = targetId ? stack.findIndex((item) => item.id === targetId) : 0
+    if (index < 0) return
+
+    const target = stack[index]
+    const nextStack = [...stack.slice(0, index), ...stack.slice(index + 1)]
+    const nextPreviewItems = [...previewItemsRef.current, target]
+
+    deletedStackRef.current = nextStack
+    previewItemsRef.current = nextPreviewItems
+    setDeletedStack(nextStack)
+    setPreviewItems(nextPreviewItems)
   }
 
   const deletePreviewAt = (index: number) => {
-    setPreviewItems((prev) => {
-      const target = prev[index]
-      if (!target) return prev
-      const next = prev.filter((_, i) => i !== index)
-      setDeletedStack((stack) => {
-        const merged = [target, ...stack]
-        const kept = merged.slice(0, PREVIEW_UNDO_LIMIT)
-        const dropped = merged.slice(PREVIEW_UNDO_LIMIT)
-        revokeLocalItems(dropped)
-        finalizeRemovedPreviewItems(dropped)
-        return kept
-      })
-      setIconPath((current) => (current.trim() === target.path ? '' : current))
-      setCoverPath((current) => (current.trim() === target.path ? '' : current))
+    const currentPreviewItems = previewItemsRef.current
+    const target = currentPreviewItems[index]
+    if (!target) return
 
-      toast('已删除预览图', {
-        description: target.file,
-        action: {
-          label: '撤销',
-          onClick: () => undoDelete(target.id)
-        }
-      })
+    const nextPreviewItems = currentPreviewItems.filter((_, i) => i !== index)
+    const mergedStack = [target, ...deletedStackRef.current]
+    const keptStack = mergedStack.slice(0, PREVIEW_UNDO_LIMIT)
+    const droppedStack = mergedStack.slice(PREVIEW_UNDO_LIMIT)
 
-      return next
+    previewItemsRef.current = nextPreviewItems
+    deletedStackRef.current = keptStack
+
+    setPreviewItems(nextPreviewItems)
+    setDeletedStack(keptStack)
+    revokeLocalItems(droppedStack)
+    finalizeRemovedPreviewItems(droppedStack)
+    setIconPath((current) => (current.trim() === target.path ? '' : current))
+    setCoverPath((current) => (current.trim() === target.path ? '' : current))
+
+    toast('已删除预览图', {
+      description: target.file,
+      action: {
+        label: '撤销',
+        onClick: () => undoDelete(target.id)
+      }
     })
   }
 
