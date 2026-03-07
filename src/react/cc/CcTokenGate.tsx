@@ -30,7 +30,7 @@ export function CcTokenGate({ onAuthenticated }: { onAuthenticated?: () => void 
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background lg:grid lg:min-h-[100dvh] lg:grid-cols-[1.18fr_0.82fr]">
+    <div className="relative min-h-screen overflow-hidden bg-background lg:grid lg:min-h-[100dvh] lg:grid-cols-[1.28fr_0.72fr]">
       <div className="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex lg:min-h-[100dvh]">
         <div className="absolute inset-0 bg-zinc-900" />
         <div className="relative z-20 flex items-center text-lg font-bold">
@@ -42,8 +42,8 @@ export function CcTokenGate({ onAuthenticated }: { onAuthenticated?: () => void 
 
         <div className="relative z-20 mt-auto space-y-4">
           <blockquote className="space-y-2">
-            <p className="text-lg leading-8">基于浏览器的AstroBooox Creator Console 需要GitHub API提供接口</p>
-            <p className="text-lg leading-8">所有填入的Token不会被上传，也不会被保存到浏览器本地，只用于当前会话</p>
+            <p className="cc-login-hero-line">基于浏览器的AstroBooox Creator Console 需要GitHub API提供接口</p>
+            <p className="cc-login-hero-line">所有填入的Token不会被上传，也不会被保存到浏览器本地，只用于当前会话</p>
             <footer className="text-sm text-zinc-300">Token Session Gate</footer>
           </blockquote>
         </div>

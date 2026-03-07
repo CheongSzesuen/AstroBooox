@@ -20,6 +20,12 @@
   --ring: 0 0% 3.9%;
 }
 
+.cc-login-hero-line {
+  white-space: nowrap;
+  font-size: clamp(13px, 1.2vw, 18px);
+  line-height: 1.5;
+}
+
 @media (min-width: 1024px) {
   .cc-login-panel {
     background: #18181b;
