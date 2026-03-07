@@ -345,6 +345,7 @@ export function CcPublishWorkbench(props: {
     defaultCatalogPath,
     editContext
   } = props
+  const defaultSubmitMode: SubmitMode = mode === 'publish' ? 'both' : 'v2'
 
   const [step, setStep] = useState<StepKey>(mode === 'publish' ? '0' : '1')
   const [workspaceBusy, setWorkspaceBusy] = useState(false)
@@ -377,7 +378,7 @@ export function CcPublishWorkbench(props: {
   const [links, setLinks] = useState<ManifestLinkDraft[]>([])
   const [downloads, setDownloads] = useState<ManifestDownloadDraft[]>([])
   const [deletedStack, setDeletedStack] = useState<DeletedPreviewEntry[]>([])
-  const [submitMode, setSubmitMode] = useState<SubmitMode>('v2')
+  const [submitMode, setSubmitMode] = useState<SubmitMode>(defaultSubmitMode)
   const [bootstrapLoading, setBootstrapLoading] = useState(false)
   const [bootstrapError, setBootstrapError] = useState('')
   const [submitError, setSubmitError] = useState('')
@@ -563,7 +564,7 @@ export function CcPublishWorkbench(props: {
     setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true }])
     setLinks([])
     setDownloads([])
-    setSubmitMode('v2')
+    setSubmitMode('both')
     setBootstrapError('')
     setSubmitError('')
     setSubmitLogs([])

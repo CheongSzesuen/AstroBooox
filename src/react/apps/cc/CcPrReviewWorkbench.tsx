@@ -219,15 +219,30 @@ const splitCsvLine = (line: string): string[] => {
   return result.map((value) => value.trim())
 }
 
+const normalizeUrlLikeText = (input: string): string => {
+  let next = input.trim()
+  if (!next) return ''
+
+  next = next.replace(/\\\//g, '/')
+  next = next.replace(/^https?:\\\\\/\\\\\//i, (matched) => (matched.toLowerCase().startsWith('https') ? 'https://' : 'http://'))
+  next = next.replace(/^https?:\\\/\\\//i, (matched) => (matched.toLowerCase().startsWith('https') ? 'https://' : 'http://'))
+  next = next.replace(/^['"`<]+|[>'"`]+$/g, '')
+  next = next.replace(/[),.;]+$/g, '')
+  if (/^raw\.githubusercontent\.com\//i.test(next)) {
+    next = `https://${next}`
+  }
+  return next
+}
+
 const extractUrlCandidate = (value: string): string => {
-  const raw = value.trim().replace(/^['"]|['"]$/g, '')
+  const raw = normalizeUrlLikeText(value)
   if (!raw) return ''
-  const markdownMatch = raw.match(/\[[^\]]*]\((https?:\/\/[^)\s]+)\)/i)
-  if (markdownMatch?.[1]) return markdownMatch[1]
-  const angleWrapped = raw.match(/^<\s*(https?:\/\/[^>\s]+)\s*>$/i)
-  if (angleWrapped?.[1]) return angleWrapped[1]
-  const directUrl = raw.match(/https?:\/\/[^\s)]+/i)
-  if (directUrl?.[0]) return directUrl[0]
+  const markdownMatch = raw.match(/\[[^\]]*]\(([^)\s]+)\)/i)
+  if (markdownMatch?.[1]) return normalizeUrlLikeText(markdownMatch[1])
+  const angleWrapped = raw.match(/^<\s*([^>\s]+)\s*>$/i)
+  if (angleWrapped?.[1]) return normalizeUrlLikeText(angleWrapped[1])
+  const directUrl = raw.match(/(?:https?:\/\/|raw\.githubusercontent\.com\/)[^\s)]+/i)
+  if (directUrl?.[0]) return normalizeUrlLikeText(directUrl[0])
   return raw
 }
 
