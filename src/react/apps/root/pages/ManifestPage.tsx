@@ -759,7 +759,7 @@ export function ManifestPage() {
   }, [])
 
   const disagreeDeclaration = useCallback(() => {
-    showCustomAlert('继续前请确认', '需要同意审核标准后才可继续使用 Manifest 编辑功能。')
+    showCustomAlert('什么？你不同意？', '？玩你的自定义工具去')
   }, [showCustomAlert])
 
   const confirmEditPrompt = useCallback(async () => {
@@ -803,7 +803,7 @@ export function ManifestPage() {
               <div>
                 <DialogTitle>浏览器不支持 FSA API</DialogTitle>
                 <DialogDescription className="mt-2 text-sm leading-6">
-                  将使用降级模式，无法直接写回目录。建议使用 Chrome 或 Edge；当前模式可导入已有 manifest.json 并通过下载方式保存。
+                  将使用 OPFS 模式，无法直接保存文件。建议使用 Chrome 或 Edge；当前模式需要将文件放在项目根目录。
                 </DialogDescription>
               </div>
             </div>
@@ -1246,9 +1246,11 @@ export function ManifestPage() {
       <Dialog open={showEditPrompt} onOpenChange={setShowEditPrompt}>
         <DialogContent className="max-w-[520px]">
           <DialogHeader>
-            <DialogTitle>{isFsaSupported ? '检测到 manifest.json' : '进入 manifest 编辑模式'}</DialogTitle>
+            <DialogTitle>{isFsaSupported ? '检测到manifest.json' : '进入manifest编辑模式'}</DialogTitle>
             <DialogDescription>
-              {isFsaSupported ? '目录中已存在 manifest.json 文件，是否加载并编辑现有文件？' : '是否加载并编辑现有的 manifest.json 文件？'}
+              {isFsaSupported
+                ? '项目目录中检测到 manifest.json 文件，是否加载并编辑？'
+                : '浏览器不支持自动读取目录。是否手动导入已有 manifest.json 继续编辑？'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
