@@ -269,9 +269,9 @@ export function ManifestPage() {
       setManifest(toManifestData(parsed))
     } catch (error) {
       if (error instanceof Error) {
-        showCustomAlert('读取失败', error.message || '读取 manifest.json 文件失败')
+        showCustomAlert('读取失败', error.message || '读取manifest.json文件失败')
       } else {
-        showCustomAlert('读取失败', '读取 manifest.json 文件失败')
+        showCustomAlert('读取失败', '读取manifest.json文件失败')
       }
     }
   }, [projectDirectory, showCustomAlert])
@@ -292,7 +292,7 @@ export function ManifestPage() {
       setShowEditPrompt(true)
     } catch (error) {
       if (error instanceof Error && error.name !== 'NotFoundError') {
-        showCustomAlert('读取失败', error.message || '读取 manifest.json 文件失败')
+        showCustomAlert('读取失败', error.message || '读取manifest.json文件失败')
       }
     }
   }, [isFsaSupported, projectDirectory, showCustomAlert])
@@ -312,7 +312,7 @@ export function ManifestPage() {
     if (!file) return
 
     if (file.name !== 'manifest.json') {
-      showCustomAlert('文件错误', '请上传名为 manifest.json 的文件')
+      showCustomAlert('文件错误', '请上传名为manifest.json的文件')
       return
     }
 
@@ -321,7 +321,7 @@ export function ManifestPage() {
       const parsed = JSON.parse(text)
       setManifest(toManifestData(parsed))
     } catch {
-      showCustomAlert('解析失败', 'manifest.json 文件格式不正确，无法解析。请检查文件内容。')
+      showCustomAlert('解析失败', 'manifest.json文件格式不正确，无法解析。请检查文件内容。')
     }
   }, [showCustomAlert])
 
@@ -333,9 +333,14 @@ export function ManifestPage() {
     await writable.close()
   }, [manifestJsonString, projectDirectory])
 
+  const continueWithOPFS = useCallback(() => {
+    setShowUnsupportedPrompt(false)
+    setProjectDirectory((current) => current ?? createOpfsVirtualDirectoryHandle())
+  }, [setProjectDirectory])
+
   const selectProjectDirectory = useCallback(async () => {
     if (!isFsaSupported) {
-      showCustomAlert('当前环境限制', '浏览器不支持 File System Access API，无法直接选择目录。可继续使用下载/上传方式。')
+      continueWithOPFS()
       return
     }
 
@@ -350,12 +355,7 @@ export function ManifestPage() {
         showCustomAlert('操作失败', error.message || '选择文件夹失败，请重试')
       }
     }
-  }, [isFsaSupported, showCustomAlert])
-
-  const continueWithOPFS = useCallback(() => {
-    setShowUnsupportedPrompt(false)
-    setProjectDirectory((current) => current ?? createOpfsVirtualDirectoryHandle())
-  }, [setProjectDirectory])
+  }, [continueWithOPFS, isFsaSupported, showCustomAlert])
 
   useEffect(() => {
     const updateType = () => {
@@ -502,7 +502,7 @@ export function ManifestPage() {
         })
       } catch (error) {
         if (error instanceof Error && error.name !== 'AbortError') {
-          showCustomAlert('操作失败', error.message || '选择文件失败，请重试')
+          showCustomAlert('操作失败', error.message || '选择文件失败，请检查控制台')
         }
       }
       return
@@ -578,7 +578,7 @@ export function ManifestPage() {
         })
       } catch (error) {
         if (error instanceof Error && error.name !== 'AbortError') {
-          showCustomAlert('操作失败', error.message || '选择文件失败，请重试')
+          showCustomAlert('操作失败', error.message || '选择文件失败，请检查控制台')
         }
       }
       return
@@ -692,7 +692,7 @@ export function ManifestPage() {
       setShowOverwriteDialog(true)
     } catch (error) {
       if (error instanceof Error && error.name !== 'NotFoundError') {
-        showCustomAlert('操作失败', error.message || '保存文件失败')
+        showCustomAlert('操作失败', error.message || '保存文件失败，请检查控制台')
         return
       }
 
@@ -701,9 +701,9 @@ export function ManifestPage() {
         showCustomAlert('操作成功', 'manifest.json 已成功保存')
       } catch (saveError) {
         if (saveError instanceof Error) {
-          showCustomAlert('操作失败', saveError.message || '保存文件失败')
+          showCustomAlert('操作失败', saveError.message || '保存文件失败，请检查控制台')
         } else {
-          showCustomAlert('操作失败', '保存文件失败')
+          showCustomAlert('操作失败', '保存文件失败，请检查控制台')
         }
       }
     }
@@ -716,9 +716,9 @@ export function ManifestPage() {
       showCustomAlert('操作成功', 'manifest.json 已成功覆盖')
     } catch (error) {
       if (error instanceof Error) {
-        showCustomAlert('操作失败', error.message || '覆盖文件失败')
+        showCustomAlert('操作失败', error.message || '覆盖文件失败，请检查控制台')
       } else {
-        showCustomAlert('操作失败', '覆盖文件失败')
+        showCustomAlert('操作失败', '覆盖文件失败，请检查控制台')
       }
     }
   }, [performSave, showCustomAlert])
@@ -741,7 +741,7 @@ export function ManifestPage() {
       showCustomAlert('操作成功', '已复制到剪贴板')
       return
     }
-    showCustomAlert('操作失败', '复制失败，请重试')
+    showCustomAlert('操作失败', '复制失败，请检查控制台')
   }, [manifestJsonString, showCustomAlert])
 
   const checkScrollPosition = useCallback((event: React.UIEvent<HTMLDivElement>) => {
@@ -1249,7 +1249,7 @@ export function ManifestPage() {
       <Dialog open={showAlert} onOpenChange={setShowAlert}>
         <DialogContent className="max-w-[520px]">
           <DialogHeader>
-            <DialogTitle>{alertTitle || '提示'}</DialogTitle>
+            <DialogTitle>{alertTitle}</DialogTitle>
             <DialogDescription>{alertMessage}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
