@@ -34,6 +34,7 @@ import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken } from '@/co
 import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
 import { Button } from '@/react/components/ui/button'
+import { Badge } from '@/react/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/react/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/react/components/ui/dialog'
 import { Input } from '@/react/components/ui/input'
@@ -196,6 +197,13 @@ const sanitizeRepoFolderPath = (folderPath: string): string =>
     .filter(Boolean)
     .join('/')
 
+const parseTagText = (raw: string): string[] => (
+  raw
+    .split(/[;；,，]/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+)
+
 const getVisibleTreeItems = (tree: RepoTreeItem[], collapsedPaths: string[]): VisibleTreeItem[] => {
   const collapsedSet = new Set(collapsedPaths)
   const stack: string[] = []
@@ -324,7 +332,8 @@ export function CcPublishWorkbench(props: {
   const [repoDescription, setRepoDescription] = useState('')
   const [iconPath, setIconPath] = useState('')
   const [coverPath, setCoverPath] = useState('')
-  const [tagsText, setTagsText] = useState('')
+  const [tags, setTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState('')
   const [deviceVendorsText, setDeviceVendorsText] = useState('')
   const [devicesText, setDevicesText] = useState('')
   const [paidType, setPaidType] = useState('')
@@ -429,7 +438,8 @@ export function CcPublishWorkbench(props: {
     setRepoDescription('')
     setIconPath('')
     setCoverPath('')
-    setTagsText('')
+    setTags([])
+    setTagInput('')
     setDeviceVendorsText('')
     setDevicesText('')
     setPaidType('')
@@ -612,7 +622,8 @@ export function CcPublishWorkbench(props: {
         setRestype(normalizeRestype(parsed.restype || target.restype))
         setIconPath(parsed.icon || target.icon || '')
         setCoverPath(parsed.cover || target.cover || '')
-        setTagsText(target.tags || '')
+        setTags(parseTagText(target.tags || ''))
+        setTagInput('')
         setDeviceVendorsText(target.device_vendors || '')
         setDevicesText(target.devices || '')
         setPaidType(target.paid_type || '')
@@ -909,6 +920,11 @@ export function CcPublishWorkbench(props: {
     [downloads]
   )
 
+  const normalizedTagsText = useMemo(
+    () => tags.map((tag) => tag.trim()).filter(Boolean).join(';'),
+    [tags]
+  )
+
   const areDownloadsComplete = useMemo(
     () => (
       selectedDeviceIds.length > 0 &&
@@ -925,7 +941,7 @@ export function CcPublishWorkbench(props: {
     name.trim() &&
     iconPath.trim() &&
     coverPath.trim() &&
-    tagsText.trim() &&
+    normalizedTagsText &&
     areDownloadsComplete &&
     !linksValidationMessage
   )
@@ -1504,11 +1520,7 @@ export function CcPublishWorkbench(props: {
     if (!first) return
     const path = normalizeRepoPath(first.path)
     upsertExtraFiles([{ path, file: first.file }])
-    setDownloads((prev) => prev.map((item) => (
-      item.device === deviceId
-        ? { ...item, file_name: path }
-        : item
-    )))
+    updateDownloadByDevice(deviceId, { file_name: path })
   }
 
   const openFileNameConflictDialog = (repoPath: string) => {
@@ -1799,11 +1811,7 @@ export function CcPublishWorkbench(props: {
         appendLog('下载文件选择失败：缺少设备标识')
         return
       }
-      setDownloads((prev) => prev.map((item) => (
-        item.device === deviceId
-          ? { ...item, file_name: remotePickerSelectedPaths[0] }
-          : item
-      )))
+      updateDownloadByDevice(deviceId, { file_name: remotePickerSelectedPaths[0] })
     } else {
       setPreviewItems((prev) => {
         const exists = new Set(prev.map((item) => item.path))
@@ -1938,16 +1946,47 @@ export function CcPublishWorkbench(props: {
     setLinks((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const addDownload = () => {
-    setDownloads((prev) => [...prev, { device: '', version: '1.0.0', file_name: '' }])
+  const openLinkIconPicker = (index: number) => {
+    const current = links[index]?.icon || ''
+    const value = window.prompt('输入 phosphor 图标名（例如 github-logo）', current)
+    if (value === null) return
+    updateLink(index, { icon: value.trim() })
   }
 
-  const updateDownload = (index: number, patch: Partial<ManifestDownloadDraft>) => {
-    setDownloads((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)))
+  const addTag = () => {
+    const value = tagInput.trim()
+    if (!value) return
+    setTags((prev) => (prev.includes(value) ? prev : [...prev, value]))
+    setTagInput('')
   }
 
-  const removeDownload = (index: number) => {
-    setDownloads((prev) => prev.filter((_, i) => i !== index))
+  const removeTag = (index: number) => {
+    setTags((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const ensureDownload = (deviceId: string) => {
+    const normalized = deviceId.trim()
+    if (!normalized) return
+    setDownloads((prev) => {
+      if (prev.some((item) => item.device === normalized)) return prev
+      return [...prev, { device: normalized, version: '1.0.0', file_name: '' }]
+    })
+  }
+
+  const updateDownloadByDevice = (deviceId: string, patch: Partial<ManifestDownloadDraft>) => {
+    const normalized = deviceId.trim()
+    if (!normalized) return
+    setDownloads((prev) => {
+      const exists = prev.some((item) => item.device === normalized)
+      if (!exists) {
+        return [...prev, { device: normalized, version: '1.0.0', file_name: '', ...patch }]
+      }
+      return prev.map((item) => (item.device === normalized ? { ...item, ...patch, device: normalized } : item))
+    })
+  }
+
+  const removeDevice = (deviceId: string) => {
+    setDownloads((prev) => prev.filter((item) => item.device !== deviceId))
   }
 
   const getDeviceById = (deviceId: string) => deviceOptions.find((item) => item.id === deviceId)
@@ -1964,6 +2003,9 @@ export function CcPublishWorkbench(props: {
     const preferred = device.aliases.find((alias) => /^[a-z]\d+([a-z]+)?$/i.test(alias))
     return preferred || device.id
   }
+
+  const getDownloadEntry = (deviceId: string): ManifestDownloadDraft =>
+    downloads.find((item) => item.device === deviceId) || { device: deviceId, version: '1.0.0', file_name: '' }
 
   const normalizedDevicesText = useMemo(
     () => selectedDeviceIds.join(';'),
@@ -1987,10 +2029,10 @@ export function CcPublishWorkbench(props: {
 
   const toggleDeviceSelection = (deviceId: string): void => {
     if (isDeviceSelected(deviceId)) {
-      setDownloads((prev) => prev.filter((item) => item.device !== deviceId))
+      removeDevice(deviceId)
       return
     }
-    setDownloads((prev) => [...prev, { device: deviceId, version: '1.0.0', file_name: '' }])
+    ensureDownload(deviceId)
   }
 
   const buildManifestV2Text = (): string => {
@@ -2206,7 +2248,7 @@ export function CcPublishWorkbench(props: {
       `- 作者数量：${authors.filter((item) => item.name.trim()).length}`,
       `- Links 数量：${links.filter((item) => item.icon.trim() || item.title.trim() || item.url.trim()).length}`,
       `- Downloads 数量：${downloads.filter((item) => item.device.trim()).length}`,
-      `- Tags：${tagsText.trim() || '--'}`,
+      `- Tags：${normalizedTagsText || '--'}`,
       '',
       '## 仓库信息',
       '',
@@ -2420,7 +2462,7 @@ export function CcPublishWorkbench(props: {
 
       const branchName = `astrobooox-submit-${Date.now()}`
       let forkResult: { forkOwner: string; forkRepo: string; branch: string } | null = null
-      const normalizedTags = tagsText.trim()
+      const normalizedTags = normalizedTagsText
       const normalizedDevices = devicesText.trim() || normalizedDevicesText
       const normalizedVendors = deviceVendorsText.trim() || normalizedDeviceVendorsText
 
@@ -2822,177 +2864,242 @@ export function CcPublishWorkbench(props: {
               ) : null}
 
               {step === '1' ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="publish-id">资源 ID</Label>
-                        <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setShowResourceIdGuide(true)}>这是什么？</Button>
-                      </div>
-                      <Input id="publish-id" value={resourceId} onChange={(event) => setResourceId(event.target.value)} placeholder="com.example.app" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="publish-name">资源名称</Label>
-                      <Input id="publish-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="输入资源名称" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="publish-restype">资源类型</Label>
-                      <Select value={restype} onValueChange={(value: Restype) => setRestype(value)}>
-                        <SelectTrigger id="publish-restype">
-                          <SelectValue placeholder="选择资源类型" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="quickapp">快应用</SelectItem>
-                          <SelectItem value="watchface">表盘</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {mode === 'publish' ? (
-                      <div className="space-y-1.5">
-                        <Label htmlFor="publish-repo">仓库名（可选）</Label>
-                        <Input id="publish-repo" value={repoNameInput} onChange={(event) => setRepoNameInput(event.target.value)} placeholder="默认自动生成" />
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <Label htmlFor="publish-repo-readonly">目标仓库</Label>
-                        <Input id="publish-repo-readonly" value={`${boundRepoOwner || '-'} / ${boundRepoName || '-'}`} readOnly />
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="publish-desc">资源描述</Label>
-                    <Textarea id="publish-desc" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="输入资源描述" className="min-h-[120px]" />
-                  </div>
-                  {mode === 'publish' ? (
-                    <div className="space-y-1.5">
-                      <Label htmlFor="publish-repo-desc">仓库描述（可选）</Label>
-                      <Input id="publish-repo-desc" value={repoDescription} onChange={(event) => setRepoDescription(event.target.value)} placeholder="资源仓库描述" />
-                    </div>
-                  ) : null}
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="publish-icon">Icon 路径</Label>
-                      <div className="flex gap-2 max-sm:flex-col">
-                        <Input id="publish-icon" value={iconPath} onChange={(event) => setIconPath(normalizeRepoPath(event.target.value))} placeholder="images/icon.png" />
-                        <Button variant="outline" onClick={() => (mode === 'resource_edit' ? openRemoteFilePicker('icon') : void selectIconFile())}>
-                          选择文件
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="publish-cover">Cover 路径</Label>
-                      <div className="flex gap-2 max-sm:flex-col">
-                        <Input id="publish-cover" value={coverPath} onChange={(event) => setCoverPath(normalizeRepoPath(event.target.value))} placeholder="images/cover.png" />
-                        <Button variant="outline" onClick={() => (mode === 'resource_edit' ? openRemoteFilePicker('cover') : void selectCoverFile())}>
-                          选择文件
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="publish-tags">Tags（分号分隔）</Label>
-                      <Input id="publish-tags" value={tagsText} onChange={(event) => setTagsText(event.target.value)} placeholder="tool;productivity" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="publish-paid">付费类型</Label>
-                      <Input id="publish-paid" value={paidType} onChange={(event) => setPaidType(event.target.value)} placeholder="free / paid / force_paid" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="publish-vendors">device_vendors</Label>
-                      <Input id="publish-vendors" value={deviceVendorsText} onChange={(event) => setDeviceVendorsText(event.target.value)} placeholder="huawei;xiaomi" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="publish-devices">devices</Label>
-                      <Input id="publish-devices" value={devicesText} onChange={(event) => setDevicesText(event.target.value)} placeholder="watch4;watch5" />
-                    </div>
-                  </div>
-
-                  <div className="rounded-md border border-border/70 bg-muted/20 p-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="text-xs font-medium text-foreground">作者（manifest.item.author）</div>
-                      <Button type="button" variant="outline" size="sm" onClick={addAuthor}>添加作者</Button>
-                    </div>
-                    <div className="space-y-2">
-                      {authors.map((author, index) => (
-                        <div key={`author-${index}`} className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
-                          <Input value={author.name} onChange={(event) => updateAuthor(index, { name: event.target.value })} placeholder="作者名" />
-                          <Input value={author.authorUrl} onChange={(event) => updateAuthor(index, { authorUrl: event.target.value })} placeholder="作者主页（可选）" />
-                          <label className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground">
-                            <input
-                              type="checkbox"
-                              checked={author.bindABAccount}
-                              onChange={(event) => updateAuthor(index, { bindABAccount: event.target.checked })}
-                            />
-                            绑定AB
-                          </label>
-                          <Button type="button" variant="outline" size="sm" onClick={() => removeAuthor(index)}>移除</Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-md border border-border/70 bg-muted/20 p-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="text-xs font-medium text-foreground">相关链接（manifest.links）</div>
-                      <Button type="button" variant="outline" size="sm" onClick={addLink}>添加链接</Button>
-                    </div>
-                    <div className="space-y-2">
-                      {links.length === 0 ? <div className="text-xs text-muted-foreground">暂无链接。</div> : null}
-                      {links.map((link, index) => (
-                        <div key={`link-${index}`} className="grid grid-cols-1 gap-2 md:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)_auto]">
-                          <Input value={link.icon} onChange={(event) => updateLink(index, { icon: event.target.value })} placeholder="icon 名称" />
-                          <Input value={link.title} onChange={(event) => updateLink(index, { title: event.target.value })} placeholder="标题" />
-                          <Input value={link.url} onChange={(event) => updateLink(index, { url: event.target.value })} placeholder="https://..." />
-                          <Button type="button" variant="outline" size="sm" onClick={() => removeLink(index)}>移除</Button>
-                        </div>
-                      ))}
-                    </div>
-                    {linksValidationMessage ? <div className="mt-2 text-xs text-destructive">{linksValidationMessage}</div> : null}
-                  </div>
-
-                  <div className="rounded-md border border-border/70 bg-muted/20 p-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="text-xs font-medium text-foreground">下载配置（manifest.downloads）</div>
-                      <div className="flex items-center gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={() => setShowDeviceSelector(true)}>+ 选择支持设备</Button>
-                        <Button type="button" variant="outline" size="sm" onClick={addDownload}>手动添加</Button>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      {downloads.length === 0 ? <div className="text-xs text-muted-foreground">暂无下载项。</div> : null}
-                      {downloads.map((row, index) => (
-                        <div key={`download-${index}`} className="grid grid-cols-1 gap-2 md:grid-cols-[120px_120px_minmax(0,1fr)_auto]">
-                          <Input value={row.device} onChange={(event) => updateDownload(index, { device: event.target.value })} placeholder="device id" />
-                          <Input value={row.version} onChange={(event) => updateDownload(index, { version: event.target.value })} placeholder="1.0.0" />
-                          <div className="flex gap-2">
-                            <Input value={row.file_name} onChange={(event) => updateDownload(index, { file_name: normalizeRepoPath(event.target.value) })} placeholder="dist/app.rpk" />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => (mode === 'resource_edit' ? openRemoteFilePicker('download', row.device) : void selectDownloadFile(row.device))}
-                            >
-                              选择
-                            </Button>
+                <div className="space-y-4">
+                  <Card className="border-border/70 shadow-none">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">应用信息</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4 pt-0">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor="item-id">资源 ID</Label>
+                            <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setShowResourceIdGuide(true)}>这是什么？</Button>
                           </div>
-                          <Button type="button" variant="outline" size="sm" onClick={() => removeDownload(index)}>移除</Button>
-                          {row.device.trim() ? <div className="col-span-full text-xs text-muted-foreground">{getDeviceLabel(row.device.trim())}</div> : null}
+                          <Input id="item-id" value={resourceId} onChange={(event) => setResourceId(event.target.value)} placeholder="com.example.app / 9798xxxxxx" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="item-name">资源名称</Label>
+                          <Input id="item-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="My Resource" />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="restype">资源类型</Label>
+                          <Select value={restype} onValueChange={(value: Restype) => setRestype(value)}>
+                            <SelectTrigger id="restype">
+                              <SelectValue placeholder="请选择资源类型" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="quickapp">快应用 (quickapp)</SelectItem>
+                              <SelectItem value="watchface">表盘 (watchface)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="paid-type">付费类型</Label>
+                          <Select value={paidType || 'free'} onValueChange={(value) => setPaidType(value === 'free' ? '' : value)}>
+                            <SelectTrigger id="paid-type">
+                              <SelectValue placeholder="免费（留空）" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="free">免费(感谢你作出的贡献)</SelectItem>
+                              <SelectItem value="paid">应用内付费(paid，体验版请选择此项)</SelectItem>
+                              <SelectItem value="force_paid">强制付费(force_paid)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="item-description">资源描述</Label>
+                        <Textarea
+                          id="item-description"
+                          value={description}
+                          onChange={(event) => setDescription(event.target.value)}
+                          className="min-h-[90px] resize-y overflow-auto"
+                          placeholder="填写资源描述（manifest_v2.item.description）"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/70 shadow-none">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">资源属性</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4 pt-0">
+                      <div className="space-y-2">
+                        <Label>标签</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {tags.map((tag, index) => (
+                            <Badge key={`${tag}-${index}`} variant="outline" className="gap-1">
+                              {tag}
+                              <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => removeTag(index)}>×</button>
+                            </Badge>
+                          ))}
+                          {tags.length === 0 ? <span className="text-xs text-muted-foreground">暂无标签</span> : null}
+                        </div>
+                        <div className="flex gap-2 max-sm:flex-col">
+                          <Input
+                            value={tagInput}
+                            onChange={(event) => setTagInput(event.target.value)}
+                            placeholder="输入标签后回车或点击添加"
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.preventDefault()
+                                addTag()
+                              }
+                            }}
+                          />
+                          <Button variant="default" className="font-semibold" onClick={addTag}>添加标签</Button>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="icon-path">图标</Label>
+                          <div className="flex gap-2 max-sm:flex-col">
+                            <Input id="icon-path" value={iconPath} readOnly placeholder="点击右侧按钮从工作区选择文件" />
+                            <Button variant="outline" onClick={() => (mode === 'resource_edit' ? openRemoteFilePicker('icon') : void selectIconFile())}>选择文件</Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">宽高比 1:1，大小不超过 200px × 200px</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="cover-path">封面</Label>
+                          <div className="flex gap-2 max-sm:flex-col">
+                            <Input id="cover-path" value={coverPath} readOnly placeholder="点击右侧按钮从工作区选择文件" />
+                            <Button variant="outline" onClick={() => (mode === 'resource_edit' ? openRemoteFilePicker('cover') : void selectCoverFile())}>选择文件</Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">宽高比 1.5，宽度不宜超过 2000px</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>预览图（支持多选）</Label>
+                        <PreviewImageCarousel items={previewCarouselItems} emptyText="暂无预览图" removable onRemove={deletePreviewAt} />
+                        {deletedStack.length > 0 ? (
+                          <div className="space-y-1.5 rounded-md border border-border/70 bg-muted/20 px-2.5 py-2 text-xs sm:px-3">
+                            <div className="font-medium text-foreground">最近删除（可撤销）</div>
+                            {deletedStack.slice(0, 3).map((entry) => (
+                              <div key={entry.id} className="flex items-center justify-between gap-2">
+                                <div className="min-w-0 break-all text-muted-foreground">{entry.path}</div>
+                                <Button variant="outline" size="sm" className="h-6 shrink-0 px-2 text-xs" onClick={() => undoDelete(entry.id)}>撤销</Button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                        <Button variant="default" className="font-semibold" onClick={() => (mode === 'resource_edit' ? openRemoteFilePicker('preview') : void selectMultiplePreviewFiles())}>
+                          + 添加预览图
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/70 shadow-none">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">作者信息</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 pt-0">
+                      {authors.map((author, index) => (
+                        <div key={`author-${index}`} className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+                          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                            <div className="space-y-1.5">
+                              <Label htmlFor={`author-name-${index}`}>作者名称</Label>
+                              <Input id={`author-name-${index}`} value={author.name} onChange={(event) => updateAuthor(index, { name: event.target.value })} placeholder="作者名" />
+                            </div>
+                            <Button variant="outline" onClick={() => removeAuthor(index)}>删除作者</Button>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`author-url-${index}`}>作者链接（仅 v1）</Label>
+                            <Input id={`author-url-${index}`} value={author.authorUrl} onChange={(event) => updateAuthor(index, { authorUrl: event.target.value })} placeholder="https://github.com/yourname" />
+                            <p className="text-xs text-muted-foreground">该字段仅用于生成 v1 的 `manifest.json`（author_url）。</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant={author.bindABAccount ? 'default' : 'outline'} size="sm" onClick={() => updateAuthor(index, { bindABAccount: true })}>绑定 AB 账号</Button>
+                            <Button variant={!author.bindABAccount ? 'default' : 'outline'} size="sm" onClick={() => updateAuthor(index, { bindABAccount: false })}>不绑定</Button>
+                          </div>
                         </div>
                       ))}
-                    </div>
-                  </div>
+                      <Button variant="default" className="font-semibold" onClick={addAuthor}>+ 添加作者</Button>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/70 shadow-none">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">相关链接（links）</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 pt-0">
+                      {links.map((link, index) => (
+                        <div key={`link-${index}`} className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+                          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+                            <div className="space-y-1.5">
+                              <Label htmlFor={`link-icon-${index}`}>图标名（icon）</Label>
+                              <div className="flex gap-2">
+                                <Input id={`link-icon-${index}`} value={link.icon} onChange={(event) => updateLink(index, { icon: event.target.value })} placeholder="github-logo / house / globe" />
+                                <Button variant="outline" onClick={() => openLinkIconPicker(index)}>搜索图标</Button>
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor={`link-title-${index}`}>标题（title）</Label>
+                              <Input id={`link-title-${index}`} value={link.title} onChange={(event) => updateLink(index, { title: event.target.value })} placeholder="开源地址" />
+                            </div>
+                            <Button variant="outline" onClick={() => removeLink(index)}>删除链接</Button>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`link-url-${index}`}>URL</Label>
+                            <Input id={`link-url-${index}`} value={link.url} onChange={(event) => updateLink(index, { url: event.target.value })} placeholder="https://github.com/xxx/yyy" />
+                          </div>
+                        </div>
+                      ))}
+                      <Button variant="default" className="font-semibold" onClick={addLink}>+ 添加链接</Button>
+                      {linksValidationMessage ? <p className="text-xs text-destructive">{linksValidationMessage}</p> : null}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/70 shadow-none">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">下载资源</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 pt-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="default" className="font-semibold" onClick={() => setShowDeviceSelector(true)}>+ 选择支持设备</Button>
+                        {selectedDeviceIds.length === 0 ? <span className="text-xs text-muted-foreground">尚未选择设备</span> : null}
+                      </div>
+                      {selectedDeviceIds.map((deviceId) => {
+                        const entry = getDownloadEntry(deviceId)
+                        return (
+                          <div key={`download-${deviceId}`} className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="text-sm font-semibold text-foreground">{getDeviceLabel(deviceId)}</div>
+                              <Button variant="outline" size="sm" onClick={() => removeDevice(deviceId)}>移除设备</Button>
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="space-y-1.5">
+                                <Label htmlFor={`download-version-${deviceId}`}>版本号</Label>
+                                <Input id={`download-version-${deviceId}`} value={entry.version} onChange={(event) => updateDownloadByDevice(deviceId, { version: event.target.value })} placeholder="1.0.0" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor={`download-file-${deviceId}`}>文件路径</Label>
+                                <div className="flex gap-2 max-sm:flex-col">
+                                  <Input id={`download-file-${deviceId}`} value={entry.file_name} readOnly placeholder="点击右侧按钮从工作区选择文件" />
+                                  <Button variant="outline" onClick={() => (mode === 'resource_edit' ? openRemoteFilePicker('download', deviceId) : void selectDownloadFile(deviceId))}>
+                                    选择文件
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </CardContent>
+                  </Card>
 
                   <div className={hidePreviewInCurrentStepOnMobile ? 'hidden md:block' : ''}>
                     <div className="text-xs text-muted-foreground">当前预览图（桌面预览）</div>
                     <div className="mt-2">
                       <PreviewImageCarousel items={previewCarouselItems} emptyText="暂无预览图" />
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" onClick={() => void selectMultiplePreviewFiles()}>+ 从工作区添加预览图</Button>
-                      {mode === 'resource_edit' ? (
-                        <Button variant="outline" onClick={() => openRemoteFilePicker('preview')}>+ 从远程仓库添加预览图</Button>
-                      ) : null}
                     </div>
                   </div>
                 </div>
