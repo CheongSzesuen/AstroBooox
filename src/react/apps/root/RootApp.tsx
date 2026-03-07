@@ -44,7 +44,7 @@ export function RootApp() {
           <Route path="*" element={<Navigate to="/manifest" replace />} />
         </Route>
       </Routes>
-      <Toaster position="top-center" />
+      <Toaster />
     </>
   )
 }

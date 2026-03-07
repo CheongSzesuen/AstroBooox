@@ -609,7 +609,7 @@ function CcAuthenticatedApp() {
         </section>
       </main>
 
-      <Toaster position="top-center" />
+      <Toaster />
     </div>
   )
 }
