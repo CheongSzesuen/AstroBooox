@@ -17,7 +17,7 @@ import {
   UserPlus,
   Users
 } from '@phosphor-icons/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type CcSettingsSection } from '@/cc/route-config'
 import { Badge } from '@/react/components/ui/badge'
 import { Button } from '@/react/components/ui/button'
@@ -89,9 +89,12 @@ export function CcSettingsPanel(props: {
   const [aboutCommitLoadingMore, setAboutCommitLoadingMore] = useState(false)
   const [aboutCommitError, setAboutCommitError] = useState('')
   const [aboutCommitHasMore, setAboutCommitHasMore] = useState(true)
-  const [aboutCommitPage, setAboutCommitPage] = useState(1)
   const [aboutCommitShowLoadMore, setAboutCommitShowLoadMore] = useState(false)
   const [aboutCommits, setAboutCommits] = useState<AboutCommitItem[]>([])
+  const aboutCommitPageRef = useRef(1)
+  const aboutCommitLoadingRef = useRef(false)
+  const aboutCommitLoadingMoreRef = useRef(false)
+  const aboutCommitHasMoreRef = useRef(true)
 
   const [savedHint, setSavedHint] = useState('')
   const [form, setForm] = useState<SettingsFormState>({
@@ -151,19 +154,22 @@ export function CcSettingsPanel(props: {
     async (options: { append?: boolean } = {}) => {
       const { append = false } = options
       if (append) {
-        if (aboutCommitLoading || aboutCommitLoadingMore || !aboutCommitHasMore) return
+        if (aboutCommitLoadingRef.current || aboutCommitLoadingMoreRef.current || !aboutCommitHasMoreRef.current) return
+        aboutCommitLoadingMoreRef.current = true
         setAboutCommitLoadingMore(true)
       } else {
-        if (aboutCommitLoading) return
+        if (aboutCommitLoadingRef.current) return
+        aboutCommitLoadingRef.current = true
         setAboutCommitLoading(true)
         setAboutCommitError('')
         setAboutCommitHasMore(true)
-        setAboutCommitPage(1)
+        aboutCommitHasMoreRef.current = true
+        aboutCommitPageRef.current = 1
         setAboutCommitShowLoadMore(false)
         setAboutCommits([])
       }
 
-      const currentPage = append ? aboutCommitPage : 1
+      const currentPage = append ? aboutCommitPageRef.current : 1
       try {
         const branch = (__BUILD_BRANCH__ || '').trim()
         const commitRef = (__BUILD_COMMIT_REF__ || '').trim()
@@ -214,8 +220,10 @@ export function CcSettingsPanel(props: {
         })
 
         setAboutCommits((prev) => (append ? [...prev, ...next] : next))
-        setAboutCommitPage(currentPage + 1)
-        setAboutCommitHasMore(payload.length >= ABOUT_COMMIT_PAGE_SIZE)
+        aboutCommitPageRef.current = currentPage + 1
+        const hasMore = payload.length >= ABOUT_COMMIT_PAGE_SIZE
+        aboutCommitHasMoreRef.current = hasMore
+        setAboutCommitHasMore(hasMore)
         if (append) {
           setAboutCommitShowLoadMore(false)
         }
@@ -226,13 +234,15 @@ export function CcSettingsPanel(props: {
         setAboutCommitError(cause instanceof Error ? cause.message : '加载提交记录失败')
       } finally {
         if (append) {
+          aboutCommitLoadingMoreRef.current = false
           setAboutCommitLoadingMore(false)
           return
         }
+        aboutCommitLoadingRef.current = false
         setAboutCommitLoading(false)
       }
     },
-    [aboutCommitHasMore, aboutCommitLoading, aboutCommitLoadingMore, aboutCommitPage, token]
+    [token]
   )
 
   useEffect(() => {
