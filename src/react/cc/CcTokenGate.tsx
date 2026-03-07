@@ -65,7 +65,7 @@ export function CcTokenGate({ onAuthenticated }: { onAuthenticated?: () => void 
           </div>
 
           <Card className="cc-login-card cc-login-light border-zinc-200 bg-white/95 text-zinc-900 shadow-xl backdrop-blur lg:border-zinc-700 lg:bg-zinc-900/90 lg:text-zinc-100">
-            <CardContent className="flex items-start gap-3 p-4 sm:p-6 sm:pt-0">
+            <CardContent className="flex items-start gap-3">
               <div className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50">
                 <GithubLogo size={18} weight="duotone" />
               </div>
