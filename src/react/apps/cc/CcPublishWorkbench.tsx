@@ -33,7 +33,6 @@ import {
 import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken } from '@/components/resourcePublishWorkbenchDeviceCatalog'
 import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
-import { Badge } from '@/react/components/ui/badge'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/react/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/react/components/ui/dialog'
@@ -2617,120 +2616,150 @@ export function CcPublishWorkbench(props: {
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">文件树</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <Tabs value={fileTreeTab} onValueChange={(value) => setFileTreeTab(value as 'workspace' | 'remote')} className="space-y-2">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="workspace">本地文件</TabsTrigger>
-                <TabsTrigger value="remote">GitHub仓库文件</TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            {fileTreeTab === 'workspace' ? (
-              <div className="space-y-2">
-                <p className="truncate px-1 text-[11px] text-muted-foreground">{workspaceDisplayPath || workspaceName || '未选择文件夹'}</p>
-                <div className="max-h-64 overflow-auto rounded-md border border-border bg-muted/20 p-2 text-xs text-muted-foreground">
-                  {visibleWorkspaceItems.length === 0 ? (
-                    <div className="px-2 py-3">当前文件夹暂无可识别文件。</div>
-                  ) : (
-                    <ul className="space-y-1">
-                      {visibleWorkspaceItems.map((item) => (
-                        <li key={`workspace-${item.path}`}>
-                          {item.type === 'folder' ? (
-                            <button
-                              type="button"
-                              className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-foreground hover:bg-muted/40"
-                              style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
-                              title={item.path}
-                              onClick={() => toggleWorkspaceFolder(item.path)}
-                            >
-                              {item.collapsed ? <CaretRight size={12} weight="bold" className="shrink-0 text-muted-foreground" /> : <CaretDown size={12} weight="bold" className="shrink-0 text-muted-foreground" />}
-                              <FolderNotchOpenIcon size={14} weight="duotone" className="shrink-0 text-muted-foreground" />
-                              <span className="truncate">{item.label}</span>
-                            </button>
-                          ) : (
-                            <div
-                              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-foreground hover:bg-muted/40"
-                              style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
-                              title={item.path}
-                            >
-                              <span className="w-3 shrink-0" />
-                              <File size={14} weight="duotone" className="shrink-0 text-muted-foreground" />
-                              <span className="truncate">{item.label}</span>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+        {(mode === 'resource_edit' || workspaceDisplayPath.trim() || workspaceTree.length > 0 || remoteWorkspacePath.trim() || remoteWorkspaceTree.length > 0) ? (
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">文件树</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {mode === 'resource_edit' ? (
+                <div className="space-y-2">
+                  <p className="truncate px-1 text-[11px] text-muted-foreground">{remoteWorkspacePath || '未同步远程仓库'}</p>
+                  <nav className="max-h-56 overflow-y-auto" aria-label="Remote File Tree">
+                    {remoteWorkspaceTree.length === 0 ? (
+                      <div className="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground">
+                        当前 GitHub 仓库暂无可识别文件
+                      </div>
+                    ) : (
+                      <ul className="space-y-1" role="tree" aria-label="Remote Tree">
+                        {visibleRemoteItems.map((item) => (
+                          <li key={`remote-${item.path}`} role="treeitem" aria-level={item.depth + 1}>
+                            {item.type === 'folder' ? (
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
+                                style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
+                                title={item.path}
+                                onClick={() => toggleRemoteFolder(item.path)}
+                              >
+                                {item.collapsed ? <CaretRight size={12} weight="bold" className="shrink-0 text-muted-foreground" /> : <CaretDown size={12} weight="bold" className="shrink-0 text-muted-foreground" />}
+                                <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0 text-muted-foreground" />
+                                <span className="truncate">{item.label}</span>
+                              </button>
+                            ) : (
+                              <div
+                                className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                                style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
+                                title={item.path}
+                              >
+                                <span className="w-3 shrink-0" />
+                                <File size={14} weight="duotone" className="shrink-0 text-muted-foreground" />
+                                <span className="truncate">{item.label}</span>
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </nav>
                 </div>
-              </div>
-            ) : null}
+              ) : (
+                <Tabs value={fileTreeTab} onValueChange={(value) => setFileTreeTab(value as 'workspace' | 'remote')} className="space-y-2">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="workspace">本地文件</TabsTrigger>
+                    <TabsTrigger value="remote">GitHub仓库文件</TabsTrigger>
+                  </TabsList>
 
-            {fileTreeTab === 'remote' ? (
-              <div className="space-y-2">
-                <p className="truncate px-1 text-[11px] text-muted-foreground">{remoteWorkspacePath || '未同步远程仓库'}</p>
-                <div className="max-h-64 overflow-auto rounded-md border border-border bg-muted/20 p-2 text-xs text-muted-foreground">
-                  {visibleRemoteItems.length === 0 ? (
-                    <div className="px-2 py-3">当前仓库暂无可识别文件。</div>
-                  ) : (
-                    <ul className="space-y-1">
-                      {visibleRemoteItems.map((item) => (
-                        <li key={`remote-${item.path}`}>
-                          {item.type === 'folder' ? (
-                            <button
-                              type="button"
-                              className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-foreground hover:bg-muted/40"
-                              style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
-                              title={item.path}
-                              onClick={() => toggleRemoteFolder(item.path)}
-                            >
-                              {item.collapsed ? <CaretRight size={12} weight="bold" className="shrink-0 text-muted-foreground" /> : <CaretDown size={12} weight="bold" className="shrink-0 text-muted-foreground" />}
-                              <FolderNotchOpenIcon size={14} weight="duotone" className="shrink-0 text-muted-foreground" />
-                              <span className="truncate">{item.label}</span>
-                            </button>
-                          ) : (
-                            <div
-                              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-foreground hover:bg-muted/40"
-                              style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
-                              title={item.path}
-                            >
-                              <span className="w-3 shrink-0" />
-                              <File size={14} weight="duotone" className="shrink-0 text-muted-foreground" />
-                              <span className="truncate">{item.label}</span>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            ) : null}
+                  {fileTreeTab === 'workspace' ? (
+                    <div className="mt-0">
+                      <p className="truncate px-1 text-[11px] text-muted-foreground">{workspaceDisplayPath || '未选择文件夹'}</p>
+                      <nav className="mt-2 max-h-56 overflow-y-auto" aria-label="Workspace File Tree">
+                        {workspaceTree.length === 0 ? (
+                          <div className="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground">
+                            当前文件夹暂无可识别文件
+                          </div>
+                        ) : (
+                          <ul className="space-y-1" role="tree" aria-label="Workspace Tree">
+                            {visibleWorkspaceItems.map((item) => (
+                              <li key={`workspace-${item.path}`} role="treeitem" aria-level={item.depth + 1}>
+                                {item.type === 'folder' ? (
+                                  <button
+                                    type="button"
+                                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
+                                    style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
+                                    title={item.path}
+                                    onClick={() => toggleWorkspaceFolder(item.path)}
+                                  >
+                                    {item.collapsed ? <CaretRight size={12} weight="bold" className="shrink-0 text-muted-foreground" /> : <CaretDown size={12} weight="bold" className="shrink-0 text-muted-foreground" />}
+                                    <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0 text-muted-foreground" />
+                                    <span className="truncate">{item.label}</span>
+                                  </button>
+                                ) : (
+                                  <div
+                                    className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                                    style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
+                                    title={item.path}
+                                  >
+                                    <span className="w-3 shrink-0" />
+                                    <File size={14} weight="duotone" className="shrink-0 text-muted-foreground" />
+                                    <span className="truncate">{item.label}</span>
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </nav>
+                    </div>
+                  ) : null}
 
-            <div className="mt-2">
-              <div className="mb-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <FolderNotchOpenIcon size={14} weight="duotone" />
-                待上传文件
-                <Badge variant="outline">持续扩展</Badge>
-              </div>
-              <div className="max-h-40 overflow-auto rounded-md border border-border bg-muted/20 p-2 text-xs text-muted-foreground">
-                {selectedUploadPaths.length === 0 ? (
-                  <div className="px-2 py-3">暂无待上传文件。</div>
-                ) : (
-                  <ul className="space-y-1">
-                    {selectedUploadPaths.map((path) => (
-                      <li key={path} className="rounded border border-border bg-background px-2 py-1">{path}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  {fileTreeTab === 'remote' ? (
+                    <div className="mt-0">
+                      <p className="truncate px-1 text-[11px] text-muted-foreground">{remoteWorkspacePath || '未同步远程仓库'}</p>
+                      <nav className="mt-2 max-h-56 overflow-y-auto" aria-label="Remote File Tree">
+                        {remoteWorkspaceTree.length === 0 ? (
+                          <div className="rounded-md border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground">
+                            当前 GitHub 仓库暂无可识别文件
+                          </div>
+                        ) : (
+                          <ul className="space-y-1" role="tree" aria-label="Remote Tree">
+                            {visibleRemoteItems.map((item) => (
+                              <li key={`remote-${item.path}`} role="treeitem" aria-level={item.depth + 1}>
+                                {item.type === 'folder' ? (
+                                  <button
+                                    type="button"
+                                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/40"
+                                    style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
+                                    title={item.path}
+                                    onClick={() => toggleRemoteFolder(item.path)}
+                                  >
+                                    {item.collapsed ? <CaretRight size={12} weight="bold" className="shrink-0 text-muted-foreground" /> : <CaretDown size={12} weight="bold" className="shrink-0 text-muted-foreground" />}
+                                    <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0 text-muted-foreground" />
+                                    <span className="truncate">{item.label}</span>
+                                  </button>
+                                ) : (
+                                  <div
+                                    className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                                    style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
+                                    title={item.path}
+                                  >
+                                    <span className="w-3 shrink-0" />
+                                    <File size={14} weight="duotone" className="shrink-0 text-muted-foreground" />
+                                    <span className="truncate">{item.label}</span>
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </nav>
+                    </div>
+                  ) : null}
+                </Tabs>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card className="hidden border-border bg-card xl:block">
           <CardHeader className="pb-2">
@@ -2753,16 +2782,6 @@ export function CcPublishWorkbench(props: {
             <CardTitle className="text-base">{title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pt-0">
-            <Tabs value={step} onValueChange={(value) => setStep(value as StepKey)}>
-              <TabsList className={`grid w-full ${mode === 'publish' ? 'grid-cols-5 sm:w-[680px]' : 'grid-cols-4 sm:w-[520px]'}`}>
-                {mode === 'publish' ? <TabsTrigger value="0">0. 文件夹</TabsTrigger> : null}
-                <TabsTrigger value="1">1. 资源信息</TabsTrigger>
-                <TabsTrigger value="2">2. 资源文件</TabsTrigger>
-                <TabsTrigger value="3">3. 上传</TabsTrigger>
-                <TabsTrigger value="4">4. 提交</TabsTrigger>
-              </TabsList>
-            </Tabs>
-
             {bootstrapLoading ? <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">正在加载待更新资源信息...</div> : null}
             {bootstrapError ? <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{bootstrapError}</div> : null}
 
