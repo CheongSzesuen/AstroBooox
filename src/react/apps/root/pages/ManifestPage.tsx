@@ -779,7 +779,7 @@ export function ManifestPage() {
 
   return (
     <div className="flex min-h-full w-full flex-col">
-      <Dialog open={showPhonePrompt}>
+      <Dialog open={showPhonePrompt} modal={false}>
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader className="gap-3">
             <div className="flex items-start gap-3">
@@ -795,7 +795,7 @@ export function ManifestPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showUnsupportedPrompt}>
+      <Dialog open={showUnsupportedPrompt} modal={false}>
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader className="gap-3">
             <div className="flex items-start gap-3">
@@ -838,12 +838,6 @@ export function ManifestPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {showPhonePrompt ? (
-        <div className="flex min-h-[16rem] items-center justify-center rounded-xl border border-dashed border-border bg-muted/25 px-6 text-center text-sm text-muted-foreground">
-          当前设备为手机，Manifest 编辑功能已禁用。
-        </div>
-      ) : null}
 
       {!showPhonePrompt && projectDirectory ? (
         <div className="flex min-h-[calc(100vh-12rem)] w-full flex-col gap-4">
