@@ -391,6 +391,7 @@ export function CcPublishWorkbench(props: {
   const [prBody, setPrBody] = useState('')
   const [boundRepoOwner, setBoundRepoOwner] = useState('')
   const [boundRepoName, setBoundRepoName] = useState('')
+  const [boundRepoBranch, setBoundRepoBranch] = useState('')
   const [boundRepoUrl, setBoundRepoUrl] = useState('')
   const [existingCommitSha, setExistingCommitSha] = useState('')
   const [baselineCatalogId, setBaselineCatalogId] = useState('')
@@ -575,6 +576,7 @@ export function CcPublishWorkbench(props: {
     setHasUploadedInFlow(false)
     setBoundRepoOwner('')
     setBoundRepoName('')
+    setBoundRepoBranch('')
     setBoundRepoUrl('')
     setExistingCommitSha('')
     setBaselineCatalogId('')
@@ -631,6 +633,7 @@ export function CcPublishWorkbench(props: {
       setUpdateChangeBaseline(null)
       setBoundRepoOwner('')
       setBoundRepoName('')
+      setBoundRepoBranch('')
       setBoundRepoUrl('')
       setExistingCommitSha('')
       setRemoteWorkspacePath('')
@@ -696,7 +699,8 @@ export function CcPublishWorkbench(props: {
         })
 
         const hasV2 = Boolean(detail.v2ManifestText)
-        const activeRef = hasV2 ? (detail.v2Ref || detail.defaultBranch) : (detail.v1Ref || detail.defaultBranch)
+        const defaultRepoBranch = detail.defaultBranch?.trim() || MAIN_BRANCH
+        const activeRef = hasV2 ? (detail.v2Ref || defaultRepoBranch) : (detail.v1Ref || defaultRepoBranch)
         const activeManifestText = hasV2 ? detail.v2ManifestText : detail.v1ManifestText
         const parsed = parseManifestDraft(activeManifestText)
         const manifestRoot = asRecord(parsed.rawObject)
@@ -757,6 +761,7 @@ export function CcPublishWorkbench(props: {
         setRepoDescription(`AstroBooox resource ${target.catalogId || target.name}`)
         setBoundRepoOwner(target.repo_owner || '')
         setBoundRepoName(target.repo_name || '')
+        setBoundRepoBranch(defaultRepoBranch)
         setBoundRepoUrl(`https://github.com/${target.repo_owner}/${target.repo_name}`)
         setExistingCommitSha(detail.latestCommitSha || target.repo_commit_hash || '')
         setBaselineCatalogId(target.catalogId || targetResourceId)
@@ -823,7 +828,7 @@ export function CcPublishWorkbench(props: {
           return []
         })
 
-        void syncRemoteWorkspace(target.repo_owner, target.repo_name, true)
+        void syncRemoteWorkspace(target.repo_owner, target.repo_name, defaultRepoBranch, true)
       } catch (cause: unknown) {
         if (cancelled) return
         setBootstrapError(cause instanceof Error ? cause.message : '加载更新资源信息失败')
@@ -1321,19 +1326,20 @@ export function CcPublishWorkbench(props: {
     return items
   }
 
-  const syncRemoteWorkspace = async (owner: string, repo: string, shouldLog = true) => {
+  const syncRemoteWorkspace = async (owner: string, repo: string, branch = MAIN_BRANCH, shouldLog = true) => {
     const accessToken = token.trim()
     const normalizedOwner = owner.trim()
     const normalizedRepo = repo.trim()
+    const normalizedBranch = branch.trim() || MAIN_BRANCH
     if (!accessToken || !normalizedOwner || !normalizedRepo) return
     try {
       const tree = await loadRepositoryTree({
         token: accessToken,
         owner: normalizedOwner,
         repo: normalizedRepo,
-        branch: MAIN_BRANCH
+        branch: normalizedBranch
       })
-      setRemoteWorkspacePath(`${normalizedOwner}/${normalizedRepo}@${MAIN_BRANCH}`)
+      setRemoteWorkspacePath(`${normalizedOwner}/${normalizedRepo}@${normalizedBranch}`)
       setRemoteWorkspaceTree(tree)
       if (shouldLog) appendLog('已同步远程仓库文件树')
     } catch (cause: unknown) {
@@ -1974,7 +1980,7 @@ export function CcPublishWorkbench(props: {
     return buildRawGithubUrl(
       boundRepoOwner || defaultTargetOwner || normalizeLower(currentUser),
       boundRepoName || resolvedRepoName || defaultTargetRepo,
-      MAIN_BRANCH,
+      boundRepoBranch || MAIN_BRANCH,
       normalizeRepoPath(path)
     )
   }
@@ -2314,13 +2320,6 @@ export function CcPublishWorkbench(props: {
     return JSON.stringify(manifestObject, null, 2)
   }
 
-  const encodeUrlPath = (path: string): string =>
-    path
-      .split('/')
-      .filter(Boolean)
-      .map((segment) => encodeURIComponent(segment))
-      .join('/')
-
   const resolveRepoNameForSubmit = (): string => {
     const value = resolvedRepoName.trim()
     if (!value) {
@@ -2332,7 +2331,7 @@ export function CcPublishWorkbench(props: {
   const getRawUrl = (path: string): string => {
     const owner = boundRepoOwner.trim() || normalizeLower(currentUser)
     const repo = boundRepoName.trim() || resolveRepoNameForSubmit()
-    return `https://raw.githubusercontent.com/${owner}/${repo}/${MAIN_BRANCH}/${encodeUrlPath(path)}`
+    return buildRawGithubUrl(owner, repo, boundRepoBranch.trim() || MAIN_BRANCH, normalizeRepoPath(path))
   }
 
   const buildManifestV1Text = (repoUrl: string): string => {
@@ -2836,16 +2835,18 @@ export function CcPublishWorkbench(props: {
 
       let repoOwner = ''
       let repoName = ''
+      let repoBranch = MAIN_BRANCH
       let repoUrl = ''
 
       if (mode === 'resource_edit') {
         repoOwner = boundRepoOwner.trim()
         repoName = boundRepoName.trim()
+        repoBranch = boundRepoBranch.trim() || MAIN_BRANCH
         repoUrl = boundRepoUrl.trim() || `https://github.com/${repoOwner}/${repoName}`
         if (!repoOwner || !repoName) {
           throw new Error('更新模式缺少目标仓库信息')
         }
-        appendLog(`更新模式：复用仓库 ${repoOwner}/${repoName}`)
+        appendLog(`更新模式：复用仓库 ${repoOwner}/${repoName}@${repoBranch}`)
       } else {
         const ensuredRepo = await ensureUserRepository({
           token: accessToken,
@@ -2855,8 +2856,9 @@ export function CcPublishWorkbench(props: {
         })
         repoOwner = ensuredRepo.owner
         repoName = ensuredRepo.name
+        repoBranch = ensuredRepo.defaultBranch?.trim() || MAIN_BRANCH
         repoUrl = ensuredRepo.htmlUrl
-        appendLog(`资源仓库就绪：${repoOwner}/${repoName}`)
+        appendLog(`资源仓库就绪：${repoOwner}/${repoName}@${repoBranch}`)
       }
 
       const uploadQueue: Array<{ path: string; file?: File; text?: string }> = []
@@ -2929,7 +2931,7 @@ export function CcPublishWorkbench(props: {
             owner: repoOwner,
             repo: repoName,
             path: item.path,
-            branch: MAIN_BRANCH,
+            branch: repoBranch,
             message: `sync: ${item.path}`,
             contentBase64
           })
@@ -2941,7 +2943,7 @@ export function CcPublishWorkbench(props: {
             (message.includes('sha') || message.includes('already exists') || message.includes('does not match'))
           if (!canRetry) throw cause
 
-          const oldFile = await fetchRepoFileOrNull(accessToken, repoOwner, repoName, item.path, MAIN_BRANCH)
+          const oldFile = await fetchRepoFileOrNull(accessToken, repoOwner, repoName, item.path, repoBranch)
           if (!oldFile?.sha) throw cause
 
           result = await putRepoFile({
@@ -2949,7 +2951,7 @@ export function CcPublishWorkbench(props: {
             owner: repoOwner,
             repo: repoName,
             path: item.path,
-            branch: MAIN_BRANCH,
+            branch: repoBranch,
             message: `sync: ${item.path}`,
             contentBase64,
             sha: oldFile.sha
@@ -2967,9 +2969,10 @@ export function CcPublishWorkbench(props: {
       setExistingCommitSha(latestCommitSha)
       setBoundRepoOwner(repoOwner)
       setBoundRepoName(repoName)
+      setBoundRepoBranch(repoBranch)
       setBoundRepoUrl(repoUrl)
       setHasUploadedInFlow(true)
-      void syncRemoteWorkspace(repoOwner, repoName, false)
+      void syncRemoteWorkspace(repoOwner, repoName, repoBranch, false)
 
       const autoTitle = buildAutoPrTitle()
       const autoBody = buildAutoPrBody(repoUrl, latestCommitSha)
