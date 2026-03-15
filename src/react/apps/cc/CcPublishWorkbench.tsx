@@ -1157,13 +1157,24 @@ export function CcPublishWorkbench(props: {
     [ownedRepoOptions, repoSearchDialogQuery]
   )
 
+  const exactMatchedOwnedRepo = useMemo(() => {
+    const normalizedInput = normalizeLower(repoNameInput)
+    if (!normalizedInput) return null
+    return ownedRepoOptions.find((repo) => normalizeLower(repo.name) === normalizedInput) || null
+  }, [ownedRepoOptions, repoNameInput])
+
+  useEffect(() => {
+    if (!exactMatchedOwnedRepo) return
+    setRepoDescription(exactMatchedOwnedRepo.description.trim())
+  }, [exactMatchedOwnedRepo])
+
   const selectOwnedRepo = (repo: GitHubOwnedRepositorySummary): void => {
     if (repoAutocompleteCloseTimerRef.current) {
       window.clearTimeout(repoAutocompleteCloseTimerRef.current)
       repoAutocompleteCloseTimerRef.current = null
     }
     setRepoNameInput(repo.name)
-    setRepoDescription((prev) => prev.trim() || repo.description.trim())
+    setRepoDescription(repo.description.trim())
     setSubmitError('')
     setRepoAutocompleteOpen(false)
     setRepoSearchDialogOpen(false)
@@ -4250,7 +4261,6 @@ export function CcPublishWorkbench(props: {
                             </Command>
                           </PopoverContent>
                         </Popover>
-                        <div className="text-xs text-muted-foreground">支持直接输入；输入时会联想已有仓库，右侧按钮可打开完整搜索面板。</div>
                       </div>
                       <div className="space-y-1.5">
                         <Label htmlFor="repo-desc">仓库描述（可选）</Label>
