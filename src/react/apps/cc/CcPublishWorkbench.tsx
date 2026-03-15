@@ -6,12 +6,15 @@ import {
   File,
   FolderNotchOpenIcon,
   FolderPlus,
+  GitBranch,
+  MagnifyingGlass,
   NotePencil,
   Trash,
   UploadSimple
 } from '@phosphor-icons/react'
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import {
   arrayBufferToBase64,
   base64ToText,
@@ -28,6 +31,7 @@ import {
   updateCatalogInForkBranch,
   updateLegacyCatalogAndResourceJsonInForkBranch
 } from '@/utils/resourcePublishApi'
+import { listAuthenticatedRepositories, type GitHubOwnedRepositorySummary } from '@/utils/githubGitApi'
 import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken } from '@/react/apps/cc/resourcePublishWorkbenchDeviceCatalog'
 import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
@@ -35,11 +39,13 @@ import { LinkIconPickerDialog, PhosphorIconByName } from '@/react/components/cc/
 import { Button } from '@/react/components/ui/button'
 import { Badge } from '@/react/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/react/components/ui/command'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/react/components/ui/context-menu'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/react/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/react/components/ui/dropdown-menu'
 import { Input } from '@/react/components/ui/input'
 import { Label } from '@/react/components/ui/label'
+import { Popover, PopoverAnchor, PopoverContent } from '@/react/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/react/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger } from '@/react/components/ui/tabs'
@@ -174,6 +180,8 @@ const normalizeRestype = (value: string): Restype => {
 const RELEASE_FOLDER_SUFFIX = '_AstroBox_Release'
 const MAX_GITHUB_REPO_NAME_LENGTH = 100
 const MAX_RELEASE_REPO_PREFIX_LENGTH = MAX_GITHUB_REPO_NAME_LENGTH - RELEASE_FOLDER_SUFFIX.length
+const REPO_AUTOCOMPLETE_LIMIT = 8
+const REPO_DIALOG_RESULT_LIMIT = 40
 
 const stripReleaseFolderSuffix = (raw: string): string =>
   raw
@@ -190,6 +198,105 @@ const toReleaseFolderName = (raw: string): string => {
     .replace(/^_+|_+$/g, '')
   const prefix = normalized || `Resource_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`
   return `${prefix}${RELEASE_FOLDER_SUFFIX}`
+}
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const tokenizeSearch = (value: string): string[] =>
+  value
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+
+const buildOwnedRepoKeywords = (repo: GitHubOwnedRepositorySummary): string => (
+  [
+    repo.name,
+    stripReleaseFolderSuffix(repo.name),
+    repo.fullName,
+    repo.description,
+    repo.defaultBranch
+  ]
+    .join(' ')
+    .toLowerCase()
+)
+
+const scoreOwnedRepoSearch = (repo: GitHubOwnedRepositorySummary, tokens: string[]): number => {
+  if (tokens.length === 0) return 0
+  const repoName = repo.name.toLowerCase()
+  const strippedRepoName = stripReleaseFolderSuffix(repo.name).toLowerCase()
+  const fullName = repo.fullName.toLowerCase()
+  const keywords = buildOwnedRepoKeywords(repo)
+  let score = 0
+
+  for (const token of tokens) {
+    if (!keywords.includes(token)) return -1
+    if (repoName === token) {
+      score += 260
+      continue
+    }
+    if (strippedRepoName === token) {
+      score += 220
+      continue
+    }
+    if (repoName.startsWith(token)) {
+      score += 180
+      continue
+    }
+    if (strippedRepoName.startsWith(token)) {
+      score += 160
+      continue
+    }
+    if (fullName.startsWith(token)) {
+      score += 130
+      continue
+    }
+    if (repo.description.toLowerCase().includes(token)) {
+      score += 70
+      continue
+    }
+    score += 40
+  }
+
+  return score
+}
+
+const filterOwnedRepositories = (repositories: GitHubOwnedRepositorySummary[], query: string): GitHubOwnedRepositorySummary[] => {
+  const tokens = tokenizeSearch(query)
+  return [...repositories]
+    .map((repo) => ({
+      repo,
+      score: scoreOwnedRepoSearch(repo, tokens)
+    }))
+    .filter((entry) => tokens.length === 0 || entry.score >= 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      const updatedDiff = (b.repo.updatedAt || '').localeCompare(a.repo.updatedAt || '')
+      if (updatedDiff !== 0) return updatedDiff
+      return a.repo.name.localeCompare(b.repo.name, 'zh-CN')
+    })
+    .map((entry) => entry.repo)
+}
+
+const highlightMatchedText = (text: string, query: string) => {
+  const tokens = Array.from(new Set(tokenizeSearch(query))).sort((a, b) => b.length - a.length)
+  if (!text || tokens.length === 0) return text
+  const pattern = new RegExp(`(${tokens.map((token) => escapeRegExp(token)).join('|')})`, 'ig')
+  return text.split(pattern).map((part, index) => {
+    const matched = tokens.some((token) => part.toLowerCase() === token)
+    if (!matched) return <span key={`${part}-${index}`}>{part}</span>
+    return (
+      <mark key={`${part}-${index}`} className="rounded bg-primary/15 px-0.5 text-foreground">
+        {part}
+      </mark>
+    )
+  })
+}
+
+const formatRepoUpdatedAt = (value: string): string => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '未知'
+  return date.toLocaleString('zh-CN', { hour12: false })
 }
 
 const validateGitHubRepoName = (name: string): string | null => {
@@ -365,6 +472,13 @@ export function CcPublishWorkbench(props: {
   const [description, setDescription] = useState('')
   const [repoNameInput, setRepoNameInput] = useState('')
   const [repoDescription, setRepoDescription] = useState('')
+  const [ownedRepoOptions, setOwnedRepoOptions] = useState<GitHubOwnedRepositorySummary[]>([])
+  const [ownedRepoLoading, setOwnedRepoLoading] = useState(false)
+  const [ownedRepoLoaded, setOwnedRepoLoaded] = useState(false)
+  const [ownedRepoError, setOwnedRepoError] = useState('')
+  const [repoAutocompleteOpen, setRepoAutocompleteOpen] = useState(false)
+  const [repoSearchDialogOpen, setRepoSearchDialogOpen] = useState(false)
+  const [repoSearchDialogQuery, setRepoSearchDialogQuery] = useState('')
   const [iconPath, setIconPath] = useState('')
   const [coverPath, setCoverPath] = useState('')
   const [tags, setTags] = useState<string[]>([])
@@ -433,6 +547,7 @@ export function CcPublishWorkbench(props: {
   const leftRailRef = useRef<HTMLDivElement | null>(null)
   const mainWorkbenchCardRef = useRef<HTMLDivElement | null>(null)
   const prBodyTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const repoAutocompleteCloseTimerRef = useRef<number | null>(null)
   const remotePickerLocalInputRef = useRef<HTMLInputElement | null>(null)
   const remotePickerRenameInputRef = useRef<HTMLInputElement | null>(null)
   const previewItemsRef = useRef<PublishPreviewItem[]>([])
@@ -451,6 +566,24 @@ export function CcPublishWorkbench(props: {
   useEffect(() => {
     opfsLocalPreviewUrlMapRef.current = opfsLocalPreviewUrlMap
   }, [opfsLocalPreviewUrlMap])
+
+  useEffect(() => {
+    return () => {
+      if (repoAutocompleteCloseTimerRef.current) {
+        window.clearTimeout(repoAutocompleteCloseTimerRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    setOwnedRepoOptions([])
+    setOwnedRepoLoading(false)
+    setOwnedRepoLoaded(false)
+    setOwnedRepoError('')
+    setRepoAutocompleteOpen(false)
+    setRepoSearchDialogOpen(false)
+    setRepoSearchDialogQuery('')
+  }, [currentUser, token])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -547,6 +680,13 @@ export function CcPublishWorkbench(props: {
     setDescription('')
     setRepoNameInput('')
     setRepoDescription('')
+    setOwnedRepoOptions([])
+    setOwnedRepoLoading(false)
+    setOwnedRepoLoaded(false)
+    setOwnedRepoError('')
+    setRepoAutocompleteOpen(false)
+    setRepoSearchDialogOpen(false)
+    setRepoSearchDialogQuery('')
     setIconPath('')
     setCoverPath('')
     setTags([])
@@ -636,6 +776,9 @@ export function CcPublishWorkbench(props: {
       setBoundRepoBranch('')
       setBoundRepoUrl('')
       setExistingCommitSha('')
+      setRepoAutocompleteOpen(false)
+      setRepoSearchDialogOpen(false)
+      setRepoSearchDialogQuery('')
       setRemoteWorkspacePath('')
       setRemoteWorkspaceTree([])
       return
@@ -977,6 +1120,104 @@ export function CcPublishWorkbench(props: {
     if (!fallbackPrefix) return ''
     return `${fallbackPrefix}${RELEASE_FOLDER_SUFFIX}`
   }, [name, repoNameInput, resourceId])
+
+  const ensureOwnedReposLoaded = async (): Promise<void> => {
+    if (mode === 'resource_edit') return
+    if (ownedRepoLoading || ownedRepoLoaded) return
+
+    const resolvedToken = token.trim()
+    const username = currentUser.trim()
+    if (!resolvedToken || !username) return
+
+    try {
+      setOwnedRepoLoading(true)
+      setOwnedRepoError('')
+      const repositories = await listAuthenticatedRepositories({
+        token: resolvedToken
+      })
+      const ownerLower = normalizeLower(username)
+      setOwnedRepoOptions(
+        repositories.filter((repo) => normalizeLower(repo.owner) === ownerLower)
+      )
+      setOwnedRepoLoaded(true)
+    } catch (cause: unknown) {
+      setOwnedRepoError(cause instanceof Error ? cause.message : '加载仓库列表失败')
+    } finally {
+      setOwnedRepoLoading(false)
+    }
+  }
+
+  const ownedRepoAutocompleteItems = useMemo(
+    () => filterOwnedRepositories(ownedRepoOptions, repoNameInput).slice(0, REPO_AUTOCOMPLETE_LIMIT),
+    [ownedRepoOptions, repoNameInput]
+  )
+
+  const ownedRepoDialogItems = useMemo(
+    () => filterOwnedRepositories(ownedRepoOptions, repoSearchDialogQuery).slice(0, REPO_DIALOG_RESULT_LIMIT),
+    [ownedRepoOptions, repoSearchDialogQuery]
+  )
+
+  const selectOwnedRepo = (repo: GitHubOwnedRepositorySummary): void => {
+    if (repoAutocompleteCloseTimerRef.current) {
+      window.clearTimeout(repoAutocompleteCloseTimerRef.current)
+      repoAutocompleteCloseTimerRef.current = null
+    }
+    setRepoNameInput(repo.name)
+    setRepoDescription((prev) => prev.trim() || repo.description.trim())
+    setSubmitError('')
+    setRepoAutocompleteOpen(false)
+    setRepoSearchDialogOpen(false)
+    setRepoSearchDialogQuery('')
+  }
+
+  const handleRepoNameInputChange = (value: string): void => {
+    setRepoNameInput(value)
+    setSubmitError('')
+    const nextOpen = Boolean(value.trim())
+    setRepoAutocompleteOpen(nextOpen)
+    if (nextOpen) {
+      void ensureOwnedReposLoaded()
+    }
+  }
+
+  const handleRepoNameInputFocus = (): void => {
+    if (repoAutocompleteCloseTimerRef.current) {
+      window.clearTimeout(repoAutocompleteCloseTimerRef.current)
+      repoAutocompleteCloseTimerRef.current = null
+    }
+    void ensureOwnedReposLoaded()
+    if (!repoNameInput.trim()) return
+    setRepoAutocompleteOpen(true)
+  }
+
+  const handleRepoNameInputBlur = (): void => {
+    if (repoAutocompleteCloseTimerRef.current) {
+      window.clearTimeout(repoAutocompleteCloseTimerRef.current)
+    }
+    repoAutocompleteCloseTimerRef.current = window.setTimeout(() => {
+      setRepoAutocompleteOpen(false)
+      repoAutocompleteCloseTimerRef.current = null
+    }, 120)
+  }
+
+  const handleOpenRepoSearchDialog = (): void => {
+    setRepoAutocompleteOpen(false)
+    setRepoSearchDialogQuery(repoNameInput.trim())
+    setRepoSearchDialogOpen(true)
+    void ensureOwnedReposLoaded()
+  }
+
+  const handleRepoSearchDialogOpenChange = (open: boolean): void => {
+    setRepoSearchDialogOpen(open)
+    if (!open) {
+      setRepoSearchDialogQuery('')
+      return
+    }
+    if (!repoSearchDialogQuery.trim()) {
+      setRepoSearchDialogQuery(repoNameInput.trim())
+    }
+    void ensureOwnedReposLoaded()
+  }
 
   const linksValidationMessage = useMemo(() => {
     const validate = (raw: string): string | null => {
@@ -3927,12 +4168,89 @@ export function CcPublishWorkbench(props: {
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="space-y-1.5">
                         <Label htmlFor="repo-name">资源仓库名（可选）</Label>
-                        <Input
-                          id="repo-name"
-                          value={repoNameInput}
-                          onChange={(event) => setRepoNameInput(event.target.value)}
-                          placeholder="留空时默认使用当前文件夹名"
-                        />
+                        <Popover open={repoAutocompleteOpen && Boolean(repoNameInput.trim())} onOpenChange={setRepoAutocompleteOpen}>
+                          <PopoverAnchor asChild>
+                            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                              <Input
+                                id="repo-name"
+                                value={repoNameInput}
+                                onChange={(event) => handleRepoNameInputChange(event.target.value)}
+                                onFocus={handleRepoNameInputFocus}
+                                onBlur={handleRepoNameInputBlur}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Escape') {
+                                    setRepoAutocompleteOpen(false)
+                                    return
+                                  }
+                                  if (event.key === 'Enter' && repoAutocompleteOpen && ownedRepoAutocompleteItems.length > 0) {
+                                    event.preventDefault()
+                                    selectOwnedRepo(ownedRepoAutocompleteItems[0])
+                                  }
+                                }}
+                                placeholder="留空时默认使用当前文件夹名"
+                              />
+                              <Button variant="outline" type="button" className="justify-center" onClick={handleOpenRepoSearchDialog}>
+                                <MagnifyingGlass size={16} weight="duotone" />
+                                搜索仓库
+                              </Button>
+                            </div>
+                          </PopoverAnchor>
+                          <PopoverContent
+                            align="start"
+                            className="w-[min(560px,calc(100vw-2rem))] p-0"
+                            onOpenAutoFocus={(event) => event.preventDefault()}
+                          >
+                            <Command shouldFilter={false}>
+                              <CommandList>
+                                {ownedRepoLoading ? (
+                                  <div className="px-3 py-4 text-xs text-muted-foreground">正在加载已有仓库...</div>
+                                ) : null}
+                                {!ownedRepoLoading && ownedRepoError ? (
+                                  <div className="px-3 py-4 text-xs text-destructive">{ownedRepoError}</div>
+                                ) : null}
+                                {!ownedRepoLoading && !ownedRepoError && ownedRepoAutocompleteItems.length === 0 ? (
+                                  <CommandEmpty>没有匹配仓库，继续输入会按当前名称创建或复用。</CommandEmpty>
+                                ) : null}
+                                {!ownedRepoLoading && !ownedRepoError && ownedRepoAutocompleteItems.length > 0 ? (
+                                  <CommandGroup heading="匹配仓库">
+                                    {ownedRepoAutocompleteItems.map((repo) => {
+                                      const selected = normalizeLower(resolvedRepoName) === normalizeLower(repo.name)
+                                      return (
+                                        <CommandItem
+                                          key={`repo-autocomplete-${repo.fullName}`}
+                                          value={repo.fullName}
+                                          onMouseDown={(event) => event.preventDefault()}
+                                          onSelect={() => selectOwnedRepo(repo)}
+                                        >
+                                          <FolderNotchOpenIcon size={16} weight="duotone" className="shrink-0 text-muted-foreground" />
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                              <span className="truncate font-medium text-foreground">{highlightMatchedText(repo.name, repoNameInput)}</span>
+                                              <Badge variant="secondary" className="gap-1">
+                                                <GitBranch size={12} weight="duotone" />
+                                                {repo.defaultBranch}
+                                              </Badge>
+                                            </div>
+                                            <div className="truncate text-xs text-muted-foreground">{highlightMatchedText(repo.fullName, repoNameInput)}</div>
+                                            {repo.description ? (
+                                              <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{highlightMatchedText(repo.description, repoNameInput)}</div>
+                                            ) : null}
+                                          </div>
+                                          <CheckCircle
+                                            size={16}
+                                            weight={selected ? 'fill' : 'regular'}
+                                            className={cn('shrink-0', selected ? 'text-primary' : 'text-muted-foreground/40')}
+                                          />
+                                        </CommandItem>
+                                      )
+                                    })}
+                                  </CommandGroup>
+                                ) : null}
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <div className="text-xs text-muted-foreground">支持直接输入；输入时会联想已有仓库，右侧按钮可打开完整搜索面板。</div>
                       </div>
                       <div className="space-y-1.5">
                         <Label htmlFor="repo-desc">仓库描述（可选）</Label>
@@ -4059,6 +4377,68 @@ export function CcPublishWorkbench(props: {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={repoSearchDialogOpen} onOpenChange={handleRepoSearchDialogOpenChange}>
+        <DialogContent className="w-[95vw] !max-w-[760px]">
+          <DialogHeader>
+            <DialogTitle>搜索已有仓库</DialogTitle>
+            <DialogDescription>从当前 GitHub 账号下的仓库中选择，选中后会自动回填资源仓库名。</DialogDescription>
+          </DialogHeader>
+          <Command shouldFilter={false} className="rounded-lg border border-border">
+            <CommandInput
+              value={repoSearchDialogQuery}
+              onValueChange={setRepoSearchDialogQuery}
+              placeholder="搜索仓库名、完整路径、描述或默认分支"
+            />
+            <CommandList>
+              {ownedRepoLoading ? (
+                <div className="px-3 py-6 text-sm text-muted-foreground">正在加载仓库列表...</div>
+              ) : null}
+              {!ownedRepoLoading && ownedRepoError ? (
+                <div className="px-3 py-6 text-sm text-destructive">{ownedRepoError}</div>
+              ) : null}
+              {!ownedRepoLoading && !ownedRepoError && ownedRepoDialogItems.length === 0 ? (
+                <CommandEmpty>没有匹配仓库</CommandEmpty>
+              ) : null}
+              {!ownedRepoLoading && !ownedRepoError && ownedRepoDialogItems.length > 0 ? (
+                <CommandGroup heading={`仓库候选（当前展示 ${ownedRepoDialogItems.length} 项）`}>
+                  {ownedRepoDialogItems.map((repo) => {
+                    const selected = normalizeLower(resolvedRepoName) === normalizeLower(repo.name)
+                    return (
+                      <CommandItem
+                        key={`repo-dialog-${repo.fullName}`}
+                        value={repo.fullName}
+                        className="items-start gap-3 py-3"
+                        onSelect={() => selectOwnedRepo(repo)}
+                      >
+                        <FolderNotchOpenIcon size={18} weight="duotone" className="mt-0.5 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-foreground">{highlightMatchedText(repo.name, repoSearchDialogQuery)}</span>
+                            <Badge variant="secondary" className="gap-1">
+                              <GitBranch size={12} weight="duotone" />
+                              {repo.defaultBranch}
+                            </Badge>
+                            {selected ? <Badge>当前选中</Badge> : null}
+                          </div>
+                          <div className="break-all text-xs text-muted-foreground">{highlightMatchedText(repo.fullName, repoSearchDialogQuery)}</div>
+                          <div className="text-xs text-muted-foreground">最近更新：{formatRepoUpdatedAt(repo.updatedAt)}</div>
+                          {repo.description ? (
+                            <div className="text-sm text-muted-foreground">{highlightMatchedText(repo.description, repoSearchDialogQuery)}</div>
+                          ) : null}
+                        </div>
+                      </CommandItem>
+                    )
+                  })}
+                </CommandGroup>
+              ) : null}
+            </CommandList>
+          </Command>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRepoSearchDialogOpen(false)}>关闭</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showDeviceSelector} onOpenChange={setShowDeviceSelector}>
         <DialogContent className="w-[95vw] !max-w-[1120px]">

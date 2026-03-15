@@ -28,10 +28,22 @@ export interface GitHubRepository {
   full_name: string
   default_branch: string
   html_url: string
+  description?: string | null
+  updated_at?: string
   owner: {
     login: string
     avatar_url?: string
   }
+}
+
+export interface GitHubOwnedRepositorySummary {
+  name: string
+  fullName: string
+  owner: string
+  htmlUrl: string
+  description: string
+  defaultBranch: string
+  updatedAt: string
 }
 
 export interface RepositoryFile {
@@ -176,6 +188,46 @@ export const createRepository = async (
       auto_init: true
     })
   })
+}
+
+export const listAuthenticatedRepositories = async (params: {
+  token: string
+  perPage?: number
+  maxPages?: number
+}): Promise<GitHubOwnedRepositorySummary[]> => {
+  const { token, perPage = 100, maxPages = 5 } = params
+  if (!token.trim()) throw new Error('Token 不能为空')
+
+  const resolvedPerPage = Math.min(Math.max(perPage, 1), 100)
+  const resolvedMaxPages = Math.min(Math.max(maxPages, 1), 10)
+  const repositories: GitHubOwnedRepositorySummary[] = []
+
+  for (let page = 1; page <= resolvedMaxPages; page++) {
+    const response = await requestJson<GitHubRepository[]>(
+      `/user/repos?affiliation=owner&sort=updated&per_page=${resolvedPerPage}&page=${page}`,
+      token
+    )
+
+    repositories.push(
+      ...response
+        .map((repo) => ({
+          name: repo.name || '',
+          fullName: repo.full_name || '',
+          owner: repo.owner?.login || '',
+          htmlUrl: repo.html_url || '',
+          description: repo.description?.trim() || '',
+          defaultBranch: repo.default_branch || 'main',
+          updatedAt: repo.updated_at || ''
+        }))
+        .filter((repo) => Boolean(repo.name && repo.owner))
+    )
+
+    if (response.length < resolvedPerPage) {
+      break
+    }
+  }
+
+  return repositories
 }
 
 export const inviteRepositoryCollaborator = async (params: {
