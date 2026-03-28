@@ -178,6 +178,11 @@ const normalizeRestype = (value: string): Restype => {
 }
 
 const RELEASE_FOLDER_SUFFIX = '_AstroBox_Release'
+
+const getDefaultV1AuthorUrl = (): string => {
+  if (typeof window === 'undefined') return ''
+  return `${window.location.origin}/publish`
+}
 const MAX_GITHUB_REPO_NAME_LENGTH = 100
 const MAX_RELEASE_REPO_PREFIX_LENGTH = MAX_GITHUB_REPO_NAME_LENGTH - RELEASE_FOLDER_SUFFIX.length
 const REPO_AUTOCOMPLETE_LIMIT = 8
@@ -703,7 +708,7 @@ export function CcPublishWorkbench(props: {
       return []
     })
     setExtraFiles([])
-    setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true }])
+    setAuthors([{ name: currentUser.trim(), authorUrl: getDefaultV1AuthorUrl(), bindABAccount: true }])
     setLinks([])
     setDownloads([])
     setSubmitMode('both')
@@ -761,7 +766,7 @@ export function CcPublishWorkbench(props: {
     if (authors.length !== 1) return
     if (authors[0].name.trim()) return
     if (!currentUser.trim()) return
-    setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true }])
+    setAuthors([{ name: currentUser.trim(), authorUrl: getDefaultV1AuthorUrl(), bindABAccount: true }])
   }, [authors, currentUser, mode])
 
   useEffect(() => {
@@ -1254,6 +1259,34 @@ export function CcPublishWorkbench(props: {
     return ''
   }, [links])
 
+  const v1AuthorValidationMessage = useMemo(() => {
+    if (!(submitMode === 'v1' || submitMode === 'both')) return ''
+
+    const rows = authors
+      .map((author, index) => ({
+        index,
+        name: author.name.trim(),
+        authorUrl: author.authorUrl.trim()
+      }))
+      .filter((row) => row.name || row.authorUrl)
+
+    if (rows.length === 0) return '提交 v1 时，至少要填写 1 条作者信息（name + author_url）'
+
+    for (const row of rows) {
+      if (!row.name) return `第 ${row.index + 1} 个作者缺少名称`
+      if (!row.authorUrl) return `第 ${row.index + 1} 个作者缺少 author_url`
+      try {
+        const parsed = new URL(row.authorUrl)
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          return `第 ${row.index + 1} 个作者的 author_url 仅支持 http/https`
+        }
+      } catch {
+        return `第 ${row.index + 1} 个作者的 author_url 格式不合法`
+      }
+    }
+    return ''
+  }, [authors, submitMode])
+
   const canUpload = useMemo(() => {
     const needV2Catalog = submitMode === 'v2' || submitMode === 'both'
     const baseReady = Boolean(
@@ -1267,7 +1300,7 @@ export function CcPublishWorkbench(props: {
       defaultTargetRepo.trim() &&
       (!needV2Catalog || defaultCatalogPath.trim())
     )
-    if (!baseReady || bootstrapLoading || isSubmitting || Boolean(linksValidationMessage)) return false
+    if (!baseReady || bootstrapLoading || isSubmitting || Boolean(linksValidationMessage) || Boolean(v1AuthorValidationMessage)) return false
 
     if (mode === 'resource_edit') {
       return Boolean(boundRepoOwner.trim() && boundRepoName.trim())
@@ -1291,7 +1324,8 @@ export function CcPublishWorkbench(props: {
     resourceId,
     submitMode,
     token,
-    linksValidationMessage
+    linksValidationMessage,
+    v1AuthorValidationMessage
   ])
 
   const canCreatePr = useMemo(
@@ -2583,17 +2617,23 @@ export function CcPublishWorkbench(props: {
   const getRawUrl = (path: string): string => {
     const owner = boundRepoOwner.trim() || normalizeLower(currentUser)
     const repo = boundRepoName.trim() || resolveRepoNameForSubmit()
-    return buildRawGithubUrl(owner, repo, boundRepoBranch.trim() || MAIN_BRANCH, normalizeRepoPath(path))
+    const encodedPath = normalizeRepoPath(path)
+      .split('/')
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join('/')
+    return `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/main/${encodedPath}`
   }
 
   const buildManifestV1Text = (repoUrl: string): string => {
+    const defaultAuthorUrl = getDefaultV1AuthorUrl()
     const normalizedAuthors = authors
       .map((author) => {
         const authorName = author.name.trim()
-        const authorUrl = author.authorUrl.trim()
+        const authorUrl = author.authorUrl.trim() || defaultAuthorUrl
         return {
           name: authorName,
-          ...(authorUrl ? { author_url: authorUrl } : {})
+          author_url: authorUrl
         }
       })
       .filter((author) => author.name)
@@ -2617,7 +2657,9 @@ export function CcPublishWorkbench(props: {
         icon: normalizeRepoPath(iconPath),
         cover: normalizeRepoPath(coverPath),
         source_url: repoUrl,
-        author: normalizedAuthors
+        author: normalizedAuthors.length > 0
+          ? normalizedAuthors
+          : [{ name: currentUser.trim(), author_url: defaultAuthorUrl }]
       },
       downloads: normalizedDownloads
     }
@@ -3079,6 +3121,9 @@ export function CcPublishWorkbench(props: {
     try {
       if (linksValidationMessage) {
         throw new Error(linksValidationMessage)
+      }
+      if (v1AuthorValidationMessage) {
+        throw new Error(v1AuthorValidationMessage)
       }
 
       appendLog('开始执行仓库上传')

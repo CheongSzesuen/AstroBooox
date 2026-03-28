@@ -1169,8 +1169,15 @@ function AnalysisTabContent(props: AnalysisTabContentProps) {
   const getFullImageUrl = useCallback(
     (relativePath: string): string => {
       if (!props.repoData?.repo_url || !relativePath) return ''
+      if (/^https?:\/\//i.test(relativePath)) return relativePath
       const repoPath = normalizeRepoPath(props.repoData.repo_url)
-      return `https://raw.githubusercontent.com/${repoPath}/main/${relativePath}`
+      const normalizedPath = relativePath
+        .replace(/^\/+/, '')
+        .split('/')
+        .filter(Boolean)
+        .map((segment) => encodeURIComponent(segment))
+        .join('/')
+      return `https://raw.githubusercontent.com/${repoPath}/refs/heads/main/${normalizedPath}`
     },
     [props.repoData]
   )
