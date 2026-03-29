@@ -336,6 +336,28 @@ const sanitizeRepoFolderPath = (folderPath: string): string =>
     .filter(Boolean)
     .join('/')
 
+const FOLDER_SEGMENT_PATTERN = /^[A-Za-z0-9._-]+$/
+
+const isValidEnglishFolderSegment = (segment: string): boolean =>
+  Boolean(segment) && FOLDER_SEGMENT_PATTERN.test(segment)
+
+const findInvalidFolderSegmentFromPath = (path: string): { folderPath: string; segment: string } | null => {
+  const normalized = normalizeRepoPath(path)
+  if (!normalized) return null
+  const segments = normalized.split('/').filter(Boolean)
+  if (segments.length <= 1) return null
+  const folderSegments = segments.slice(0, -1)
+  for (let i = 0; i < folderSegments.length; i++) {
+    const segment = folderSegments[i]
+    if (isValidEnglishFolderSegment(segment)) continue
+    return {
+      folderPath: folderSegments.slice(0, i + 1).join('/'),
+      segment
+    }
+  }
+  return null
+}
+
 const parseTagText = (raw: string): string[] => (
   raw
     .split(/[;；,，]/)
@@ -2093,8 +2115,8 @@ export function CcPublishWorkbench(props: {
       return
     }
     const newName = sanitizeRepoFileName(remotePickerRenamingName)
-    if (!newName) {
-      appendLog('文件夹名称不合法')
+    if (!newName || !isValidEnglishFolderSegment(newName)) {
+      appendLog('文件夹名称不合法：仅允许英文、数字、点号(.)、下划线(_)和连字符(-)，且不能包含空格')
       return
     }
     const parts = oldPath.split('/').filter(Boolean)
@@ -2136,7 +2158,7 @@ export function CcPublishWorkbench(props: {
   }
 
   const createRemotePickerFolder = (parentPath?: string) => {
-    const folderNameBase = '新建文件夹'
+    const folderNameBase = 'new-folder'
     const parent = sanitizeRepoFolderPath(parentPath ?? remotePickerTargetFolder)
     const taken = new Set([
       ...remoteWorkspaceTree.filter((item) => item.type === 'folder').map((item) => item.path),
@@ -2146,7 +2168,7 @@ export function CcPublishWorkbench(props: {
     let candidate = folderNameBase
     while (taken.has(parent ? `${parent}/${candidate}` : candidate)) {
       suffix += 1
-      candidate = `${folderNameBase} ${suffix + 1}`
+      candidate = `${folderNameBase}-${suffix + 1}`
     }
     const fullPath = parent ? `${parent}/${candidate}` : candidate
     setRemotePickerDraftFolders((prev) => [...prev, fullPath])
@@ -3124,6 +3146,13 @@ export function CcPublishWorkbench(props: {
       }
       if (v1AuthorValidationMessage) {
         throw new Error(v1AuthorValidationMessage)
+      }
+      if (mode === 'publish') {
+        for (const path of selectedUploadPaths) {
+          const invalid = findInvalidFolderSegmentFromPath(path)
+          if (!invalid) continue
+          throw new Error(`资源目录名不合法：${invalid.folderPath}（目录段“${invalid.segment}”仅允许英文、数字、点号(.)、下划线(_)和连字符(-)，且不能包含空格）`)
+        }
       }
 
       appendLog('开始执行仓库上传')
