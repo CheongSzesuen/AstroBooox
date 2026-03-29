@@ -1,15 +1,15 @@
 import MarkdownIt from 'markdown-it'
 
 export interface ParsedReviewComment {
-  tagType: 'NEEDFIX' | 'FIXED' | ''
+  tagType: 'NEEDFIX' | 'FIXED' | 'COLLAB_REQ' | 'COLLAB_APPROVED' | 'COLLAB_REJECTED' | ''
   tagId: string
   replyTarget: string
   replyExcerpt: string
   content: string
 }
 
-const COMMENT_TAG_PATTERN = /^\s*\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]\s*([\s\S]*)$/i
-const LEADING_TAG_PATTERN = /^\s*\[ABCC_(?:NEEDFIX|FIXED)_[^\]]+\]\s*/i
+const COMMENT_TAG_PATTERN = /^\s*\[ABCC_([A-Z_]+)_([^\]]+)\]\s*([\s\S]*)$/i
+const LEADING_TAG_PATTERN = /^\s*\[ABCC_(?:[A-Z_]+)_[^\]]+\]\s*/i
 
 export const escapeHtml = (value: string): string =>
   value
@@ -102,7 +102,15 @@ export const renderCommentMarkdownInlineHtml = (source: string): string => {
 export const parseReviewCommentBody = (body: string): ParsedReviewComment => {
   const normalized = body || ''
   const tagMatch = normalized.match(COMMENT_TAG_PATTERN)
-  const tagType = (tagMatch?.[1]?.toUpperCase() as 'NEEDFIX' | 'FIXED' | undefined) || ''
+  const rawTagType = (tagMatch?.[1] || '').toUpperCase()
+  const tagType =
+    rawTagType === 'NEEDFIX'
+      || rawTagType === 'FIXED'
+      || rawTagType === 'COLLAB_REQ'
+      || rawTagType === 'COLLAB_APPROVED'
+      || rawTagType === 'COLLAB_REJECTED'
+      ? rawTagType
+      : ''
   const tagId = tagMatch?.[2]?.trim() || ''
   const rawContent = (tagMatch?.[3] || normalized).trim()
   const normalizedContent = rawContent.replace(LEADING_TAG_PATTERN, '').trim()

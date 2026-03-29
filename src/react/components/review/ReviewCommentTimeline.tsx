@@ -125,6 +125,9 @@ export function ReviewCommentTimeline(props: {
   const getTagBadgeClass = (tagType: ParsedReviewComment['tagType']): string => {
     if (tagType === 'NEEDFIX') return 'border-red-500/40 bg-red-500/15 text-red-700'
     if (tagType === 'FIXED') return 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700'
+    if (tagType === 'COLLAB_REQ') return 'border-amber-500/40 bg-amber-500/15 text-amber-700'
+    if (tagType === 'COLLAB_APPROVED') return 'border-sky-500/40 bg-sky-500/15 text-sky-700'
+    if (tagType === 'COLLAB_REJECTED') return 'border-slate-500/40 bg-slate-500/15 text-slate-700'
     return 'border-border bg-muted/30 text-muted-foreground'
   }
 

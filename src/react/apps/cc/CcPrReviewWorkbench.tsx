@@ -14,7 +14,7 @@ import {
   UserCircle,
   WarningCircle
 } from '@phosphor-icons/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createGitHubClient, normalizeGitHubError } from '@/utils/githubOctokitClient'
 import { escapeHtml, parseReviewCommentBody, renderCommentMarkdownHtml, renderCommentMarkdownInlineHtml } from '@/utils/reviewComment'
 import { Badge } from '@/react/components/ui/badge'
@@ -635,6 +635,12 @@ const buildCommentPreviewCardHtml = (body: string): string => {
       ? 'border-red-500/40 bg-red-500/15 text-red-700'
       : parsed.tagType === 'FIXED'
         ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700'
+        : parsed.tagType === 'COLLAB_REQ'
+          ? 'border-amber-500/40 bg-amber-500/15 text-amber-700'
+          : parsed.tagType === 'COLLAB_APPROVED'
+            ? 'border-sky-500/40 bg-sky-500/15 text-sky-700'
+            : parsed.tagType === 'COLLAB_REJECTED'
+              ? 'border-slate-500/40 bg-slate-500/15 text-slate-700'
         : 'border-border bg-muted/30 text-muted-foreground'
 
   const tag = parsed.tagId
@@ -723,9 +729,10 @@ export function CcPrReviewWorkbench(props: {
   owner: string
   repo: string
   token: string
+  currentUser: string
   initialPrNumber?: number
 }) {
-  const { owner, repo, token, initialPrNumber = 0 } = props
+  const { owner, repo, token, currentUser, initialPrNumber = 0 } = props
   const resolvedToken = (token || '').trim() || SITE_DEFAULT_TOKEN
 
   const [loading, setLoading] = useState(false)
@@ -760,6 +767,12 @@ export function CcPrReviewWorkbench(props: {
   const [resultDialogOpen, setResultDialogOpen] = useState(false)
   const [resultDialogTitle, setResultDialogTitle] = useState('')
   const [resultDialogMessage, setResultDialogMessage] = useState('')
+  const [collabRequestDialogOpen, setCollabRequestDialogOpen] = useState(false)
+  const [collabRequestSubmitting, setCollabRequestSubmitting] = useState(false)
+  const [collabPermissionLoading, setCollabPermissionLoading] = useState(false)
+  const [canRequestCollaboratorPermission, setCanRequestCollaboratorPermission] = useState(false)
+  const [collabPermissionMessage, setCollabPermissionMessage] = useState('')
+  const [collabConfirmText, setCollabConfirmText] = useState('')
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTargetComment, setDeleteTargetComment] = useState<IssueCommentItem | null>(null)
@@ -787,7 +800,10 @@ export function CcPrReviewWorkbench(props: {
   const [pickerMatchCursor, setPickerMatchCursor] = useState(-1)
 
   const canLoad = Boolean(owner.trim() && repo.trim() && resolvedToken)
+  const normalizedCurrentUser = currentUser.trim().toLowerCase()
   const normalizedCommentId = useMemo(() => normalizeCommentId(commentId), [commentId])
+  const collabConfirmSentence = '我已了解风险并确认申请'
+  const canSubmitCollabRequest = useMemo(() => collabConfirmText.trim() === collabConfirmSentence, [collabConfirmText])
 
   const submitCommentBody = useMemo(() => {
     const bodyParts = [commentMessage.trim(), buildReplyContextBlock(replyTargetComment)].filter(Boolean)
@@ -1183,6 +1199,64 @@ export function CcPrReviewWorkbench(props: {
     setResultDialogOpen(true)
   }
 
+  const loadCollaboratorPermissionAvailability = useCallback(async (targetPr: PullListItem | null): Promise<void> => {
+    if (!targetPr) {
+      setCanRequestCollaboratorPermission(false)
+      setCollabPermissionMessage('')
+      return
+    }
+    const repoOwner = (targetPr.resourceRepoOwner || '').trim()
+    const repoName = (targetPr.resourceRepoName || '').trim()
+    if (!repoOwner || !repoName) {
+      setCanRequestCollaboratorPermission(false)
+      setCollabPermissionMessage('未识别到资源仓库信息')
+      return
+    }
+
+    try {
+      setCollabPermissionLoading(true)
+      setCollabPermissionMessage('')
+      const repoInfo = await githubGet<{
+        permissions?: {
+          push?: boolean
+          admin?: boolean
+          maintain?: boolean
+        }
+      }>(`/repos/${repoOwner}/${repoName}`)
+      const permissions = repoInfo.permissions || {}
+      const canManage = Boolean(permissions.push || permissions.admin || permissions.maintain)
+      setCanRequestCollaboratorPermission(canManage)
+      if (!canManage) {
+        setCollabPermissionMessage('你对目标仓库无协作权限，无法发起该申请')
+      }
+    } catch (cause: unknown) {
+      setCanRequestCollaboratorPermission(false)
+      setCollabPermissionMessage(cause instanceof Error ? cause.message : '仓库权限校验失败')
+    } finally {
+      setCollabPermissionLoading(false)
+    }
+  }, [])
+
+  const buildCollaboratorPermissionRequestBody = (targetPr: PullListItem, requestId: string): string => {
+    const resourceName = parsedCsvRow?.name || targetPr.title || '-'
+    const resourceId = parsedCsvRow?.id || ''
+    return [
+      `[ABCC_COLLAB_REQ_${requestId}]`,
+      `requester=${normalizedCurrentUser || 'unknown'}`,
+      `target_user=${(targetPr.resourceRepoOwner || '').trim().toLowerCase()}`,
+      `repo_owner=${(targetPr.resourceRepoOwner || '').trim().toLowerCase()}`,
+      `repo_name=${(targetPr.resourceRepoName || '').trim().toLowerCase()}`,
+      `resource_id=${resourceId}`,
+      `resource_name=${resourceName}`,
+      '',
+      '### 协作者权限申请（高危）',
+      `仓库管理员 @${normalizedCurrentUser || 'unknown'} 请求获取该资源仓库的协作者权限，以便直接操作仓库。`,
+      '',
+      '- 风险提示：同意后，对方将获得仓库写入能力。',
+      '- 如不确认身份与用途，请勿同意。'
+    ].join('\n')
+  }
+
   const githubGet = async <T,>(path: string): Promise<T> => {
     try {
       const { rest } = createGitHubClient(resolvedToken)
@@ -1573,6 +1647,10 @@ export function CcPrReviewWorkbench(props: {
   }, [initialPrNumber, owner, repo, token])
 
   useEffect(() => {
+    void loadCollaboratorPermissionAvailability(selectedPr)
+  }, [loadCollaboratorPermissionAvailability, selectedPr])
+
+  useEffect(() => {
     imageBlobUrlMapRef.current = imageBlobUrlMap
   }, [imageBlobUrlMap])
 
@@ -1842,6 +1920,33 @@ export function CcPrReviewWorkbench(props: {
     }
   }
 
+  const submitCollaboratorPermissionRequest = async (): Promise<void> => {
+    if (!selectedPr) return
+    if (!canRequestCollaboratorPermission) {
+      openResultDialog('无法申请', '你对目标仓库无协作权限，不能发起此申请。')
+      return
+    }
+    if (!canSubmitCollabRequest) {
+      openResultDialog('确认失败', `请输入完整确认语句：${collabConfirmSentence}`)
+      return
+    }
+
+    const requestId = `pr${selectedPr.number}_${Date.now().toString(36)}`
+    const body = buildCollaboratorPermissionRequestBody(selectedPr, requestId)
+    try {
+      setCollabRequestSubmitting(true)
+      await githubPost<IssueCommentItem>(`/repos/${owner}/${repo}/issues/${selectedPr.number}/comments`, { body })
+      await refreshPrCommentsAndStatus(selectedPr)
+      setCollabRequestDialogOpen(false)
+      setCollabConfirmText('')
+      openResultDialog('申请已发送', '已在评论区发布协作者权限申请，等待对方确认。')
+    } catch (cause: unknown) {
+      openResultDialog('申请失败', cause instanceof Error ? cause.message : '提交申请失败')
+    } finally {
+      setCollabRequestSubmitting(false)
+    }
+  }
+
   const sidebarClass = useMemo(
     () =>
       [
@@ -1976,6 +2081,23 @@ export function CcPrReviewWorkbench(props: {
                   {detailsError ? <div className="text-xs text-destructive">{detailsError}</div> : null}
                   {repoFilesError ? <div className="text-xs text-destructive">{repoFilesError}</div> : null}
                   {detailsLoading ? <div className="text-xs text-muted-foreground">正在加载文件变更...</div> : null}
+                  {!detailsLoading && collabPermissionLoading ? <div className="text-xs text-muted-foreground">正在校验仓库权限...</div> : null}
+                  {!detailsLoading && !collabPermissionLoading && canRequestCollaboratorPermission ? (
+                    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+                      <div className="text-xs font-semibold text-amber-700 dark:text-amber-300">高危操作：协作者权限申请</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        将在评论区发送特殊申请，等待对方确认后再授予仓库权限。
+                      </div>
+                      <div className="mt-2">
+                        <Button size="sm" variant="outline" onClick={() => setCollabRequestDialogOpen(true)}>
+                          申请当前审核者为仓库协作者
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                  {!detailsLoading && !collabPermissionLoading && !canRequestCollaboratorPermission && collabPermissionMessage ? (
+                    <div className="text-xs text-muted-foreground">{collabPermissionMessage}</div>
+                  ) : null}
 
                   <div ref={commentComposerWrapperRef}>
                     <ReviewCommentComposer
@@ -2365,6 +2487,44 @@ export function CcPrReviewWorkbench(props: {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={collabRequestDialogOpen}
+        onOpenChange={(open) => {
+          setCollabRequestDialogOpen(open)
+          if (!open) setCollabConfirmText('')
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认发起协作者权限申请</DialogTitle>
+            <DialogDescription>
+              这是高危操作，申请会写入 PR 评论区并请求对方授予仓库协作者权限。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+            <div>风险提示：对方同意后，申请人将获得目标仓库写入权限。</div>
+            <div>请确保身份可信、用途明确，再继续操作。</div>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground">请输入以下确认语句：</div>
+            <div className="rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs font-medium">{collabConfirmSentence}</div>
+            <Input
+              value={collabConfirmText}
+              onChange={(event) => setCollabConfirmText(event.target.value)}
+              placeholder="请输入确认语句"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={collabRequestSubmitting} onClick={() => setCollabRequestDialogOpen(false)}>
+              取消
+            </Button>
+            <Button variant="destructive" disabled={!canSubmitCollabRequest || collabRequestSubmitting} onClick={() => void submitCollaboratorPermissionRequest()}>
+              {collabRequestSubmitting ? '提交中...' : '确认并发起申请'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

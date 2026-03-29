@@ -87,6 +87,17 @@ export interface GitHubUserSearchResult {
   htmlUrl: string
 }
 
+export interface RepositoryPermissionInfo {
+  owner: string
+  repo: string
+  fullName: string
+  canPull: boolean
+  canPush: boolean
+  canAdmin: boolean
+  canMaintain: boolean
+  canTriage: boolean
+}
+
 interface GitHubApiError extends Error {
   status?: number
 }
@@ -334,6 +345,44 @@ export const searchGitHubUsers = async (params: {
   } catch (error: unknown) {
     const normalized = normalizeGitHubError(error)
     throw makeApiError(normalized.status || 500, normalized.message)
+  }
+}
+
+export const getRepositoryPermissionInfo = async (params: {
+  token: string
+  owner: string
+  repo: string
+}): Promise<RepositoryPermissionInfo> => {
+  const { token, owner, repo } = params
+  const resolvedOwner = owner.trim()
+  const resolvedRepo = repo.trim()
+  if (!token.trim()) throw new Error('Token 不能为空')
+  if (!resolvedOwner) throw new Error('仓库 Owner 不能为空')
+  if (!resolvedRepo) throw new Error('仓库名不能为空')
+
+  const data = await requestJson<{
+    name?: string
+    full_name?: string
+    owner?: { login?: string }
+    permissions?: {
+      pull?: boolean
+      push?: boolean
+      admin?: boolean
+      maintain?: boolean
+      triage?: boolean
+    }
+  }>(`/repos/${resolvedOwner}/${resolvedRepo}`, token)
+
+  const permissions = data.permissions || {}
+  return {
+    owner: data.owner?.login || resolvedOwner,
+    repo: data.name || resolvedRepo,
+    fullName: data.full_name || `${resolvedOwner}/${resolvedRepo}`,
+    canPull: Boolean(permissions.pull),
+    canPush: Boolean(permissions.push),
+    canAdmin: Boolean(permissions.admin),
+    canMaintain: Boolean(permissions.maintain),
+    canTriage: Boolean(permissions.triage)
   }
 }
 

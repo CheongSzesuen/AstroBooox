@@ -1,9 +1,20 @@
 import { ArrowsClockwise, CheckCircle, ClockCounterClockwise, Sparkle, TrendUp, WarningCircle } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { loadInProgressResources, loadOwnedResources, type OwnedResourceEntry, type PublishingResource } from '@/utils/resourcePublishApi'
+import { inviteRepositoryCollaborator, getRepositoryPermissionInfo } from '@/utils/githubGitApi'
+import {
+  createPullRequestIssueComment,
+  loadInProgressResources,
+  loadOwnedResources,
+  loadPendingCollaboratorPermissionRequests,
+  type CollaboratorPermissionRequest,
+  type OwnedResourceEntry,
+  type PublishingResource
+} from '@/utils/resourcePublishApi'
 import { Badge } from '@/react/components/ui/badge'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/react/components/ui/dialog'
+import { Input } from '@/react/components/ui/input'
 
 type OwnedMergedItem = {
   key: string
@@ -13,6 +24,10 @@ type OwnedMergedItem = {
   commitDate: string
   sources: Array<'v1' | 'v2'>
   v2NeedsFollowUp: boolean
+}
+
+type VisiblePermissionRequest = CollaboratorPermissionRequest & {
+  permissionLevel: 'admin' | 'maintain' | 'push'
 }
 
 const reviewStateText = (state: PublishingResource['status']): string => {
@@ -53,7 +68,14 @@ export function CcHomePanel(props: {
   const [loading, setLoading] = useState(false)
   const [ownedItems, setOwnedItems] = useState<OwnedResourceEntry[]>([])
   const [reviewItems, setReviewItems] = useState<PublishingResource[]>([])
+  const [permissionRequests, setPermissionRequests] = useState<VisiblePermissionRequest[]>([])
+  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false)
+  const [permissionDialogRequest, setPermissionDialogRequest] = useState<VisiblePermissionRequest | null>(null)
+  const [permissionConfirmText, setPermissionConfirmText] = useState('')
+  const [permissionSubmitting, setPermissionSubmitting] = useState(false)
+  const [permissionActionError, setPermissionActionError] = useState('')
   const canLoad = Boolean(token.trim() && currentUser.trim())
+  const permissionConfirmSentence = '我已了解风险并同意授权'
 
   const requireToken = useCallback((): string => {
     const value = token.trim()
@@ -119,20 +141,61 @@ export function CcHomePanel(props: {
         key: `v2-${item.key}`,
         title: item.name || item.catalogId || item.repo_name,
         kind: 'v2' as const
+      })),
+      ...permissionRequests.slice(0, 3).map((item) => ({
+        key: `collab-${item.requestId}`,
+        title: `${item.requester} 请求 ${item.resourceName || item.resourceId || `${item.repoOwner}/${item.repoName}`} 仓库权限`,
+        kind: 'v2' as const
       }))
     ],
-    [needFixPrItems, v2FollowUpItems]
+    [needFixPrItems, permissionRequests, v2FollowUpItems]
   )
+
+  const loadVisiblePermissionRequests = useCallback(async (): Promise<VisiblePermissionRequest[]> => {
+    const pending = await loadPendingCollaboratorPermissionRequests({
+      token: requireToken(),
+      targetOwner: defaultTargetOwner.trim(),
+      targetRepo: defaultTargetRepo.trim(),
+      currentUser: currentUser.trim()
+    })
+
+    const permissionCache = new Map<string, VisiblePermissionRequest['permissionLevel'] | ''>()
+    const result: VisiblePermissionRequest[] = []
+    for (const item of pending) {
+      const key = `${item.repoOwner}/${item.repoName}`
+      let level = permissionCache.get(key)
+      if (level === undefined) {
+        try {
+          const info = await getRepositoryPermissionInfo({
+            token: requireToken(),
+            owner: item.repoOwner,
+            repo: item.repoName
+          })
+          level = info.canAdmin ? 'admin' : (info.canMaintain ? 'maintain' : (info.canPush ? 'push' : ''))
+        } catch {
+          level = ''
+        }
+        permissionCache.set(key, level)
+      }
+      if (!level) continue
+      result.push({
+        ...item,
+        permissionLevel: level
+      })
+    }
+    return result
+  }, [currentUser, defaultTargetOwner, defaultTargetRepo, requireToken])
 
   const loadDashboard = useCallback(async () => {
     if (!canLoad) {
       setOwnedItems([])
       setReviewItems([])
+      setPermissionRequests([])
       return
     }
     try {
       setLoading(true)
-      const [owned, review] = await Promise.all([
+      const [owned, review, requests] = await Promise.all([
         loadOwnedResources({
           token: requireToken(),
           username: currentUser.trim(),
@@ -147,18 +210,83 @@ export function CcHomePanel(props: {
           targetOwner: defaultTargetOwner.trim(),
           targetRepo: defaultTargetRepo.trim(),
           catalogPath: defaultCatalogPath.trim()
-        })
+        }),
+        loadVisiblePermissionRequests()
       ])
       setOwnedItems(owned)
       setReviewItems(review)
+      setPermissionRequests(requests)
     } finally {
       setLoading(false)
     }
-  }, [canLoad, currentUser, defaultCatalogPath, defaultTargetOwner, defaultTargetRepo, requireToken])
+  }, [canLoad, currentUser, defaultCatalogPath, defaultTargetOwner, defaultTargetRepo, loadVisiblePermissionRequests, requireToken])
 
   useEffect(() => {
     void loadDashboard()
   }, [loadDashboard])
+
+  const openPermissionDialog = (request: VisiblePermissionRequest): void => {
+    setPermissionDialogRequest(request)
+    setPermissionConfirmText('')
+    setPermissionActionError('')
+    setPermissionDialogOpen(true)
+  }
+
+  const buildPermissionApprovedComment = (request: VisiblePermissionRequest): string => {
+    return [
+      `[ABCC_COLLAB_APPROVED_${request.requestId}]`,
+      `requester=${request.requester}`,
+      `target_user=${request.targetUser}`,
+      `repo_owner=${request.repoOwner}`,
+      `repo_name=${request.repoName}`,
+      `resource_id=${request.resourceId}`,
+      `resource_name=${request.resourceName}`,
+      '',
+      '### 协作者权限申请已同意',
+      `@${request.requester} 的协作者权限申请已确认，可继续仓库相关操作。`
+    ].join('\n')
+  }
+
+  const approvePermissionRequest = useCallback(async (): Promise<void> => {
+    const request = permissionDialogRequest
+    if (!request) return
+    if (permissionConfirmText.trim() !== permissionConfirmSentence) return
+
+    try {
+      setPermissionSubmitting(true)
+      setPermissionActionError('')
+      await inviteRepositoryCollaborator({
+        token: requireToken(),
+        owner: request.repoOwner,
+        repo: request.repoName,
+        username: request.requester,
+        permission: 'push'
+      })
+      await createPullRequestIssueComment({
+        token: requireToken(),
+        owner: defaultTargetOwner.trim(),
+        repo: defaultTargetRepo.trim(),
+        prNumber: request.prNumber,
+        body: buildPermissionApprovedComment(request)
+      })
+      setPermissionDialogOpen(false)
+      setPermissionDialogRequest(null)
+      setPermissionConfirmText('')
+      await loadDashboard()
+    } catch (error: unknown) {
+      setPermissionActionError(error instanceof Error ? error.message : '处理失败')
+    } finally {
+      setPermissionSubmitting(false)
+    }
+  }, [
+    defaultTargetOwner,
+    defaultTargetRepo,
+    loadDashboard,
+    permissionConfirmSentence,
+    permissionConfirmText,
+    permissionDialogRequest,
+    requireToken
+  ])
 
   return (
     <div className="relative space-y-5">
@@ -304,6 +432,33 @@ export function CcHomePanel(props: {
       </div>
 
       <Card className="relative z-10 border bg-card/75 shadow-sm backdrop-blur">
+        <CardHeader>
+          <CardTitle className="text-base">协作者权限申请</CardTitle>
+          <CardDescription>评论区特殊申请，需你确认后才会授权</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {permissionRequests.length === 0 ? (
+            <p className="text-muted-foreground">当前没有待确认申请。</p>
+          ) : (
+            permissionRequests.slice(0, 5).map((item) => (
+              <div key={item.requestId} className="rounded-xl border bg-background/55 px-3.5 py-2.5 shadow-xs">
+                <div className="text-sm text-foreground">
+                  仓库管理员 {item.requester} 请求你的 {item.resourceName || item.resourceId || `${item.repoOwner}/${item.repoName}`} 资源仓库权限，以便直接操作仓库。
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  仓库：{item.repoOwner}/{item.repoName} · PR #{item.prNumber}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => onOpenPullRequest(item.prNumber, '')}>查看 PR</Button>
+                  <Button size="sm" variant="destructive" onClick={() => openPermissionDialog(item)}>同意并授权</Button>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="relative z-10 border bg-card/75 shadow-sm backdrop-blur">
         <CardContent className="flex flex-wrap items-center gap-4 px-6 py-4 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1"><WarningCircle size={14} weight="duotone" /> 需改 PR：{needFixPrItems.length}</span>
           <span className="inline-flex items-center gap-1"><ClockCounterClockwise size={14} weight="duotone" /> 待审核 PR：{reviewItems.filter((item) => item.status !== 'changes_requested').length}</span>
@@ -311,6 +466,50 @@ export function CcHomePanel(props: {
           {reviewItems[0]?.createdAt ? <span>最新 PR 时间：{formatDate(reviewItems[0].createdAt)}</span> : null}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={permissionDialogOpen}
+        onOpenChange={(open) => {
+          setPermissionDialogOpen(open)
+          if (!open) {
+            setPermissionConfirmText('')
+            setPermissionActionError('')
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认同意仓库权限申请</DialogTitle>
+            <DialogDescription>
+              这是高危操作。同意后，对方将获得仓库写入权限。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+            <div>请先确认申请人身份与用途。</div>
+            <div>若误授权，可能导致仓库内容被直接修改。</div>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground">请输入以下确认语句：</div>
+            <div className="rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs font-medium">{permissionConfirmSentence}</div>
+            <Input
+              value={permissionConfirmText}
+              onChange={(event) => setPermissionConfirmText(event.target.value)}
+              placeholder="请输入确认语句"
+            />
+            {permissionActionError ? <div className="text-xs text-destructive">{permissionActionError}</div> : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={permissionSubmitting} onClick={() => setPermissionDialogOpen(false)}>取消</Button>
+            <Button
+              variant="destructive"
+              disabled={permissionSubmitting || permissionConfirmText.trim() !== permissionConfirmSentence}
+              onClick={() => void approvePermissionRequest()}
+            >
+              {permissionSubmitting ? '处理中...' : '确认并授权'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

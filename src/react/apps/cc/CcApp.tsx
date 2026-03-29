@@ -512,6 +512,7 @@ function CcAuthenticatedApp() {
             owner={defaultTargetOwner}
             repo={reviewTargetRepo}
             token={token}
+            currentUser={currentUser}
             initialPrNumber={0}
           />
         </Suspense>

@@ -44,6 +44,22 @@ export interface PullRequestIssueComment {
   }
 }
 
+export interface CollaboratorPermissionRequest {
+  requestId: string
+  prNumber: number
+  prTitle: string
+  prUrl: string
+  requester: string
+  targetUser: string
+  repoOwner: string
+  repoName: string
+  resourceName: string
+  resourceId: string
+  commentId: number
+  commentHtmlUrl: string
+  createdAt: string
+}
+
 export interface RepoFileData {
   sha: string
   content?: string
@@ -978,6 +994,39 @@ const isCatalogFile = (filename: string | undefined, catalogPath: string): boole
 }
 
 const ABCC_TAG_PATTERN = /\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]/ig
+const COLLAB_REQUEST_TAG_PATTERN = /\[ABCC_COLLAB_REQ_([^\]]+)\]/i
+const COLLAB_APPROVED_TAG_PATTERN = /\[ABCC_COLLAB_APPROVED_([^\]]+)\]/i
+const COLLAB_REJECTED_TAG_PATTERN = /\[ABCC_COLLAB_REJECTED_([^\]]+)\]/i
+
+const parseCollabRequestMeta = (body: string): {
+  requestId: string
+  requester: string
+  targetUser: string
+  repoOwner: string
+  repoName: string
+  resourceName: string
+  resourceId: string
+} | null => {
+  const matched = body.match(COLLAB_REQUEST_TAG_PATTERN)
+  const requestId = (matched?.[1] || '').trim()
+  if (!requestId) return null
+
+  const readLine = (key: string): string => {
+    const pattern = new RegExp(`^\\s*${key}\\s*=\\s*(.+)\\s*$`, 'im')
+    const line = body.match(pattern)?.[1] || ''
+    return line.trim()
+  }
+
+  return {
+    requestId,
+    requester: readLine('requester').toLowerCase(),
+    targetUser: readLine('target_user').toLowerCase(),
+    repoOwner: readLine('repo_owner').toLowerCase(),
+    repoName: readLine('repo_name').toLowerCase(),
+    resourceName: readLine('resource_name'),
+    resourceId: readLine('resource_id')
+  }
+}
 
 const deriveAbccTagSummary = (comments: Array<{ body?: string }>): {
   unresolvedTagIds: string[]
@@ -1129,6 +1178,83 @@ export const loadPullRequestIssueComments = async (params: {
     `/repos/${owner}/${repo}/issues/${prNumber}/comments?per_page=100`,
     token
   )
+}
+
+export const loadPendingCollaboratorPermissionRequests = async (params: {
+  token: string
+  targetOwner: string
+  targetRepo: string
+  currentUser: string
+}): Promise<CollaboratorPermissionRequest[]> => {
+  const { token, targetOwner, targetRepo, currentUser } = params
+  const normalizedCurrentUser = currentUser.trim().toLowerCase()
+  if (!normalizedCurrentUser) return []
+
+  const pulls = await githubFetch<
+    Array<{
+      number: number
+      title: string
+      html_url: string
+    }>
+  >(`/repos/${targetOwner}/${targetRepo}/pulls?state=open&per_page=50`, token)
+
+  const approvedOrRejectedIds = new Set<string>()
+  const pendingItems = new Map<string, CollaboratorPermissionRequest>()
+
+  for (const pr of pulls) {
+    let comments: PullRequestIssueComment[] = []
+    try {
+      comments = await loadPullRequestIssueComments({
+        token,
+        owner: targetOwner,
+        repo: targetRepo,
+        prNumber: pr.number
+      })
+    } catch {
+      continue
+    }
+
+    const sorted = [...comments].sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
+    for (const comment of sorted) {
+      const body = comment.body || ''
+      const approvedMatch = body.match(COLLAB_APPROVED_TAG_PATTERN)
+      if (approvedMatch?.[1]) {
+        approvedOrRejectedIds.add(approvedMatch[1].trim())
+        pendingItems.delete(approvedMatch[1].trim())
+        continue
+      }
+      const rejectedMatch = body.match(COLLAB_REJECTED_TAG_PATTERN)
+      if (rejectedMatch?.[1]) {
+        approvedOrRejectedIds.add(rejectedMatch[1].trim())
+        pendingItems.delete(rejectedMatch[1].trim())
+        continue
+      }
+
+      const parsed = parseCollabRequestMeta(body)
+      if (!parsed) continue
+      if (approvedOrRejectedIds.has(parsed.requestId)) continue
+      if (parsed.targetUser !== normalizedCurrentUser) continue
+      if (!parsed.repoOwner || !parsed.repoName || !parsed.requester) continue
+
+      pendingItems.set(parsed.requestId, {
+        requestId: parsed.requestId,
+        prNumber: pr.number,
+        prTitle: pr.title || '',
+        prUrl: pr.html_url || '',
+        requester: parsed.requester,
+        targetUser: parsed.targetUser,
+        repoOwner: parsed.repoOwner,
+        repoName: parsed.repoName,
+        resourceName: parsed.resourceName,
+        resourceId: parsed.resourceId,
+        commentId: comment.id,
+        commentHtmlUrl: comment.html_url || '',
+        createdAt: comment.created_at || ''
+      })
+    }
+  }
+
+  return Array.from(pendingItems.values()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
 }
 
 export const createPullRequestIssueComment = async (params: {

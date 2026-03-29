@@ -64,6 +64,12 @@ const buildReviewCommentPreviewCardHtml = (body: string): string => {
       ? 'border-red-500/40 bg-red-500/15 text-red-700'
       : parsed.tagType === 'FIXED'
         ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700'
+        : parsed.tagType === 'COLLAB_REQ'
+          ? 'border-amber-500/40 bg-amber-500/15 text-amber-700'
+          : parsed.tagType === 'COLLAB_APPROVED'
+            ? 'border-sky-500/40 bg-sky-500/15 text-sky-700'
+            : parsed.tagType === 'COLLAB_REJECTED'
+              ? 'border-slate-500/40 bg-slate-500/15 text-slate-700'
         : 'border-border bg-muted/30 text-muted-foreground'
   const tag = parsed.tagId
     ? `<span class="mr-1 inline-flex items-center rounded border px-2 py-0.5 text-[11px] ${tagClass}">${escapeHtml(parsed.tagType || 'COMMENT')} · ${escapeHtml(parsed.tagId)}</span>`
