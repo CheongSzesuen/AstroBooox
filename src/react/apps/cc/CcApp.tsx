@@ -31,6 +31,7 @@ import { CcTokenGate } from '@/react/cc/CcTokenGate'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
 import { Sheet, SheetClose, SheetContent } from '@/react/components/ui/sheet'
+import { Skeleton } from '@/react/components/ui/skeleton'
 import { Toaster } from '@/react/components/ui/sonner'
 import { useCcTheme } from '@/react/hooks/useCcTheme'
 import { CcSessionProvider, useCcSession } from '@/react/hooks/useCcSession'
@@ -730,11 +731,15 @@ function CcAuthenticatedApp() {
 
 function PanelLoading() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>加载中</CardTitle>
-        <CardDescription>正在按需加载页面模块...</CardDescription>
+    <Card className="border-border bg-card/80">
+      <CardHeader className="space-y-3">
+        <Skeleton className="h-6 w-36" />
+        <Skeleton className="h-4 w-64 max-w-full" />
       </CardHeader>
+      <CardContent className="space-y-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-5/6" />
+      </CardContent>
     </Card>
   )
 }

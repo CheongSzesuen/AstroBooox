@@ -12,6 +12,7 @@ import {
 import { Input } from '@/react/components/ui/input'
 import { Label } from '@/react/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react/components/ui/select'
+import { Skeleton } from '@/react/components/ui/skeleton'
 import {
   inviteRepositoryCollaborator,
   listRepositoryCollaborators,
@@ -397,7 +398,26 @@ export function CcRepositoriesPanel(props: {
         <p className="mt-1 text-sm text-muted-foreground">展示当前账号在发布目录中出现过的资源仓库。</p>
       </div>
 
-      {loading ? <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">正在加载仓库列表...</div> : null}
+      {loading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, index) => (
+            <div key={`repo-skeleton-${index}`} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-5 w-64 max-w-full" />
+                  <Skeleton className="h-4 w-56 max-w-full" />
+                </div>
+                <Skeleton className="h-8 w-24 rounded-md" />
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
       {error ? <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{error}</div> : null}
       {!loading && !error && repositories.length === 0 ? <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">暂无可展示仓库</div> : null}
 

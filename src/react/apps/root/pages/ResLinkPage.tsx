@@ -14,6 +14,7 @@ import {
 import { Input } from '@/react/components/ui/input'
 import { Label } from '@/react/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/react/components/ui/radio-group'
+import { Skeleton } from '@/react/components/ui/skeleton'
 
 type BadgeStyle = 'standard' | 'rounded' | 'linked'
 type BadgeColor = 'black' | 'gray' | 'white'
@@ -487,7 +488,17 @@ export function ResLinkPage() {
               <div className="col-[1/-1] p-8 text-center text-sm text-muted-foreground">没有找到匹配的资源</div>
             ) : null}
             {loadingResources ? (
-              <div className="col-[1/-1] p-8 text-center text-sm text-muted-foreground">资源列表加载中...</div>
+              <div className="col-[1/-1] grid gap-2 p-4">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={`res-skeleton-${index}`} className="rounded-lg border border-border bg-background px-3.5 py-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <Skeleton className="h-5 w-40 max-w-[70%]" />
+                      <Skeleton className="h-5 w-14 rounded-md" />
+                    </div>
+                    <Skeleton className="h-3.5 w-44 max-w-full" />
+                  </div>
+                ))}
+              </div>
             ) : null}
           </div>
           <DialogFooter>

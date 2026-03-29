@@ -24,6 +24,7 @@ import { Button } from '@/react/components/ui/button'
 import { Input } from '@/react/components/ui/input'
 import { Label } from '@/react/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react/components/ui/select'
+import { Skeleton } from '@/react/components/ui/skeleton'
 import { Switch } from '@/react/components/ui/switch'
 import { CC_THEMES, useCcTheme, type CcTheme } from '@/react/hooks/useCcTheme'
 import { type CcSettingsState } from '@/react/hooks/useCcSettings'
@@ -453,7 +454,22 @@ export function CcSettingsPanel(props: {
                 <h3 className="text-sm font-semibold text-foreground">账号信息</h3>
                 <p className="mt-1 text-xs text-muted-foreground">基于当前 Token 拉取并展示 GitHub /user 信息。</p>
               </div>
-              {accountProfileLoading ? <div className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted-foreground">正在加载账号信息...</div> : null}
+              {accountProfileLoading ? (
+                <div className="space-y-3 rounded-md border border-border bg-card/80 p-3">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-14 w-14 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-56 max-w-full" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Skeleton className="h-14 w-full" />
+                    <Skeleton className="h-14 w-full" />
+                    <Skeleton className="h-14 w-full" />
+                  </div>
+                </div>
+              ) : null}
               {accountProfileError ? <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{accountProfileError}</div> : null}
               {accountProfile ? (
                 <div className="space-y-3">

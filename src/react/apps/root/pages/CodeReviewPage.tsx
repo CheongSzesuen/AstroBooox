@@ -30,6 +30,7 @@ import {
   DialogTitle
 } from '@/react/components/ui/dialog'
 import { Input } from '@/react/components/ui/input'
+import { Skeleton } from '@/react/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/react/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/dateUtils'
@@ -508,7 +509,21 @@ function PullRequestSidebar(props: SidebarProps) {
       </div>
 
       {props.loading ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">加载中...</div>
+        <div className={cn('space-y-2 px-2 py-3', props.isCollapsed ? 'flex flex-col items-center' : '')}>
+          {Array.from({ length: 5 }).map((_, index) => (
+            props.isCollapsed ? (
+              <Skeleton key={`pr-mini-skeleton-${index}`} className="h-10 w-10 rounded-md" />
+            ) : (
+              <div key={`pr-list-skeleton-${index}`} className="flex items-center gap-2.5 rounded-lg border border-border px-2.5 py-2">
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              </div>
+            )
+          ))}
+        </div>
       ) : null}
 
       {!props.loading && props.pullRequests.length === 0 ? (
@@ -1659,8 +1674,17 @@ export function CodeReviewPage() {
               <PullRequestHeader pr={selectedPR} onRefresh={refreshSelectedPR} />
 
               {loadingDetails ? (
-                <div className="rounded-xl border border-border bg-card px-4 py-3 text-center text-sm text-muted-foreground">
-                  加载 PR 详情中...
+                <div className="space-y-3 rounded-xl border border-border bg-card px-4 py-3">
+                  <div className="flex gap-2">
+                    <Skeleton className="h-9 w-24 rounded-md" />
+                    <Skeleton className="h-9 w-24 rounded-md" />
+                  </div>
+                  <div className="space-y-2 rounded-lg border border-border p-3">
+                    <Skeleton className="h-4 w-52 max-w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">

@@ -48,6 +48,7 @@ import { Label } from '@/react/components/ui/label'
 import { Popover, PopoverAnchor, PopoverContent } from '@/react/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/react/components/ui/sheet'
+import { Skeleton } from '@/react/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/react/components/ui/tabs'
 import { Textarea } from '@/react/components/ui/textarea'
 
@@ -3959,7 +3960,12 @@ export function CcPublishWorkbench(props: {
             <CardTitle className="text-base">{title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pt-0 sm:p-3 sm:pt-0">
-            {bootstrapLoading ? <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">正在加载待更新资源信息...</div> : null}
+            {bootstrapLoading ? (
+              <div className="space-y-2 rounded-md border border-border bg-card/80 px-3 py-2">
+                <Skeleton className="h-3 w-44" />
+                <Skeleton className="h-3 w-60 max-w-full" />
+              </div>
+            ) : null}
             {bootstrapError ? <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{bootstrapError}</div> : null}
 
             <section className="space-y-3 rounded-xl border border-border bg-card p-3">
