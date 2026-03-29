@@ -161,17 +161,18 @@ export function CcHomePanel(props: {
   }, [loadDashboard])
 
   return (
-    <div className="space-y-4">
-      <Card className="relative overflow-hidden">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-45"
-          style={{
-            backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--foreground) / 0.16) 1px, transparent 0)',
-            backgroundSize: '14px 14px'
-          }}
-        />
-        <CardHeader className="relative">
+    <div className="relative space-y-4">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--foreground) / 0.15) 1px, transparent 0)',
+          backgroundSize: '14px 14px'
+        }}
+      />
+
+      <Card className="relative z-10">
+        <CardHeader>
           <CardTitle>Creator Console 首页</CardTitle>
           <CardDescription>快速查看我的资源待办、PR 状态和 v2 跟进情况。</CardDescription>
           <div className="flex flex-wrap gap-2">
@@ -186,7 +187,7 @@ export function CcHomePanel(props: {
         </CardHeader>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="relative z-10 grid gap-3 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>需要更改</CardDescription>
@@ -207,7 +208,7 @@ export function CcHomePanel(props: {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="relative z-10 grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="text-base">需要更改</CardTitle>
@@ -276,7 +277,7 @@ export function CcHomePanel(props: {
         </Card>
       </div>
 
-      <Card>
+      <Card className="relative z-10">
         <CardContent className="flex flex-wrap items-center gap-4 px-6 py-4 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1"><WarningCircle size={14} weight="duotone" /> 需改 PR：{needFixPrItems.length}</span>
           <span className="inline-flex items-center gap-1"><ClockCounterClockwise size={14} weight="duotone" /> 待审核 PR：{reviewItems.filter((item) => item.status !== 'changes_requested').length}</span>
