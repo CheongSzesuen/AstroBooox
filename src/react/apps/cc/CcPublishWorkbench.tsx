@@ -36,6 +36,7 @@ import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken } from '@/re
 import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
 import { LinkIconPickerDialog, PhosphorIconByName } from '@/react/components/cc/LinkIconPickerDialog'
+import { WatchfaceIdEditor } from '@/react/components/cc/WatchfaceIdEditor'
 import { Button } from '@/react/components/ui/button'
 import { Badge } from '@/react/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
@@ -1282,6 +1283,15 @@ export function CcPublishWorkbench(props: {
     return ''
   }, [links])
 
+  const resourceIdValidationMessage = useMemo(() => {
+    const value = resourceId.trim()
+    if (!value) return '请填写资源 ID'
+    if (restype === 'watchface' && !/^\d{12}$/.test(value)) {
+      return '表盘资源 ID 必须是 12 位纯数字'
+    }
+    return ''
+  }, [resourceId, restype])
+
   const v1AuthorValidationMessage = useMemo(() => {
     if (!(submitMode === 'v1' || submitMode === 'both')) return ''
 
@@ -1315,7 +1325,7 @@ export function CcPublishWorkbench(props: {
     const baseReady = Boolean(
       token.trim() &&
       currentUser.trim() &&
-      resourceId.trim() &&
+      !resourceIdValidationMessage &&
       name.trim() &&
       iconPath.trim() &&
       coverPath.trim() &&
@@ -1344,7 +1354,7 @@ export function CcPublishWorkbench(props: {
     name,
     workspaceHandle,
     resolvedRepoName,
-    resourceId,
+    resourceIdValidationMessage,
     submitMode,
     token,
     linksValidationMessage,
@@ -1418,7 +1428,7 @@ export function CcPublishWorkbench(props: {
   )
 
   const isResourceInfoStepDone = Boolean(
-    resourceId.trim() &&
+    !resourceIdValidationMessage &&
     name.trim() &&
     iconPath.trim() &&
     coverPath.trim() &&
@@ -1494,7 +1504,7 @@ export function CcPublishWorkbench(props: {
 
   const openSubmitVersionDialog = () => {
     const issues: string[] = []
-    if (!resourceId.trim()) issues.push('请填写资源 ID')
+    if (resourceIdValidationMessage) issues.push(resourceIdValidationMessage)
     if (!name.trim()) issues.push('请填写资源名称')
     if (!iconPath.trim()) issues.push('请选择图标文件')
     if (!coverPath.trim()) issues.push('请选择封面文件')
@@ -4017,7 +4027,13 @@ export function CcPublishWorkbench(props: {
                             <Label htmlFor="item-id">资源 ID</Label>
                             <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setShowResourceIdGuide(true)}>这是什么？</Button>
                           </div>
-                          <Input id="item-id" value={resourceId} onChange={(event) => setResourceId(event.target.value)} placeholder="com.example.app / 9798xxxxxx" />
+                          <Input
+                            id="item-id"
+                            value={resourceId}
+                            onChange={(event) => setResourceId(event.target.value)}
+                            placeholder={restype === 'watchface' ? '输入 12 位纯数字表盘 ID' : '例如：com.example.app'}
+                          />
+                          {resourceId.trim() && resourceIdValidationMessage ? <p className="text-xs text-destructive">{resourceIdValidationMessage}</p> : null}
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="item-name">资源名称</Label>
@@ -4052,6 +4068,10 @@ export function CcPublishWorkbench(props: {
                           </Select>
                         </div>
                       </div>
+
+                      {mode === 'publish' && restype === 'watchface' ? (
+                        <WatchfaceIdEditor resourceId={resourceId} onApplyResourceId={setResourceId} />
+                      ) : null}
 
                       <div className="space-y-1.5">
                         <Label htmlFor="item-description">资源描述</Label>
@@ -4572,7 +4592,7 @@ export function CcPublishWorkbench(props: {
           </DialogHeader>
           <div className="space-y-3 text-sm leading-6 text-foreground">
             <p>1. 快应用：填写应用包名，如 `com.searchstars.hyperbilibili`。</p>
-            <p>2. 表盘：使用 `9798` 开头的占位 ID（12 位），例如 `979808741600`。</p>
+            <p>2. 表盘：填写 12 位纯数字表盘 ID；若需改 `.bin` / `.face` 内置 ID，可直接使用下方工具并自动同步。</p>
             <p>3. 资源名、资源类型必须与 manifest_v2.json 中保持一致。</p>
           </div>
           <DialogFooter>
