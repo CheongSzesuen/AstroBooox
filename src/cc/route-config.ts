@@ -1,4 +1,4 @@
-export type CcTab = 'publish' | 'pullrequest' | 'published' | 'resource_edit' | 'review' | 'repositories' | 'settings'
+export type CcTab = 'home' | 'publish' | 'pullrequest' | 'published' | 'resource_edit' | 'review' | 'repositories' | 'settings'
 export type CcSettingsSection = 'defaults' | 'account' | 'about'
 
 export type CcRouteState = {
@@ -16,6 +16,7 @@ export type CcRouteState = {
 export const CC_PATHS = {
   root: '/',
   login: '/login',
+  home: '/home',
   publish: '/publish',
   pullRequest: '/pullrequest',
   review: '/review',
@@ -28,7 +29,7 @@ export const CC_PATHS = {
 } as const
 
 export const CC_DEFAULT_ROUTE: CcRouteState = {
-  tab: 'publish',
+  tab: 'home',
   settingsSection: 'defaults',
   resourceDetailKey: '',
   pullRequestNumber: 0,
@@ -60,6 +61,7 @@ export const buildCcPath = (state: CcRouteState): string => {
     return CC_PATHS.published
   }
   if (state.tab === 'repositories') return CC_PATHS.repositories
+  if (state.tab === 'home') return CC_PATHS.home
   if (state.tab === 'publish') return CC_PATHS.publish
   if (state.tab === 'pullrequest') {
     const prNumber = Number(state.pullRequestNumber || 0)
@@ -76,7 +78,8 @@ export const resolveCcRouteFromPath = (pathname: string): CcRouteState => {
   const normalized = normalizeCcPath(pathname)
   const segments = normalized.split('/').filter(Boolean)
   const routeSegments = segments[0] === 'cc' ? segments.slice(1) : segments
-  const section = routeSegments[0] || 'publish'
+  const section = routeSegments[0] || 'home'
+  if (section === 'home') return { tab: 'home', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'publish') return { tab: 'publish', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'pullrequest') {
     const rawPrNumber = Number(routeSegments[1] || 0)

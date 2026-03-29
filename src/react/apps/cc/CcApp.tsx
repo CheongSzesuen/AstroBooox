@@ -5,6 +5,7 @@ import {
   ClockCounterClockwise,
   FolderNotchOpenIcon,
   GearSix,
+  HouseSimple,
   List,
   Moon,
   SignOut,
@@ -20,6 +21,7 @@ import {
   CC_PATHS,
   buildCcPath,
   isCcLoginPath,
+  normalizeCcPath,
   resolveCcRouteFromPath,
   type CcRouteState,
   type CcSettingsSection,
@@ -42,8 +44,10 @@ const CcPrReviewWorkbench = lazy(() => import('@/react/apps/cc/CcPrReviewWorkben
 const CcPullRequestPanel = lazy(() => import('@/react/apps/cc/CcPullRequestPanel').then((mod) => ({ default: mod.CcPullRequestPanel })))
 const CcPublishedPanel = lazy(() => import('@/react/apps/cc/CcPublishedPanel').then((mod) => ({ default: mod.CcPublishedPanel })))
 const CcPublishWorkbench = lazy(() => import('@/react/apps/cc/CcPublishWorkbench').then((mod) => ({ default: mod.CcPublishWorkbench })))
+const CcHomePanel = lazy(() => import('@/react/apps/cc/CcHomePanel').then((mod) => ({ default: mod.CcHomePanel })))
 
 const tabMeta: Array<{ tab: CcTab; label: string; shortLabel: string; icon: any }> = [
+  { tab: 'home', label: '首页', shortLabel: '首页', icon: HouseSimple },
   { tab: 'publish', label: '资源发布', shortLabel: '发布', icon: UploadSimple },
   { tab: 'pullrequest', label: '等待审核', shortLabel: '待审', icon: ClockCounterClockwise },
   { tab: 'published', label: '资源管理', shortLabel: '管理', icon: Archive },
@@ -72,7 +76,7 @@ const sanitizeCcRedirectPath = (rawPath: string | null): string => {
 const buildLoginUrl = (targetPath: string, expectedUser: string): string => {
   const params = new URLSearchParams()
   const normalizedPath = targetPath.trim()
-  if (normalizedPath && normalizedPath !== CC_PATHS.publish) {
+  if (normalizedPath && normalizedPath !== CC_PATHS.home) {
     params.set('cc_path', normalizedPath)
   }
   if (expectedUser) {
@@ -281,6 +285,16 @@ function CcAuthenticatedApp() {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [currentUser])
 
+  useEffect(() => {
+    if (routeState.tab !== 'home') return
+    if (normalizeCcPath(window.location.pathname) !== CC_PATHS.root) return
+    const targetUrl = buildCcUrlWithUser(CC_PATHS.home, routeState, currentUser)
+    const currentUrl = `${window.location.pathname}${window.location.search}`
+    if (targetUrl !== currentUrl) {
+      window.history.replaceState(null, '', targetUrl)
+    }
+  }, [currentUser, routeState])
+
   const syncHeaderNavOverflow = () => {
     if (typeof window === 'undefined') return
     const viewport = headerNavViewportRef.current
@@ -431,6 +445,24 @@ function CcAuthenticatedApp() {
   }
 
   const renderContent = () => {
+    if (routeState.tab === 'home') {
+      return (
+        <Suspense fallback={<PanelLoading />}>
+          <CcHomePanel
+            token={token}
+            currentUser={currentUser}
+            defaultTargetOwner={defaultTargetOwner}
+            defaultTargetRepo={defaultTargetRepo}
+            defaultCatalogPath={defaultCatalogPath}
+            ownedDisplayPriority={ownedDisplayPriority}
+            onOpenPublish={() => navigateToTab('publish')}
+            onOpenPullRequest={openPullRequestDetail}
+            onOpenPublished={() => navigateToTab('published')}
+          />
+        </Suspense>
+      )
+    }
+
     if (routeState.tab === 'repositories') {
       return (
         <Suspense fallback={<PanelLoading />}>
