@@ -183,10 +183,10 @@ export function CcHomePanel(props: {
               mission control
             </div>
             <CardTitle className="text-2xl font-semibold tracking-tight md:text-4xl">
-              CC 首页总览
+              你好，{currentUser}。
             </CardTitle>
             <CardDescription className="max-w-[680px] text-sm leading-6 md:text-[15px]">
-              快速聚焦需要修改的资源、待处理 PR 与 v2 跟进项，优先级在一屏内完成判断。
+              看看你有哪些待处理的。
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2 md:justify-end">
