@@ -212,7 +212,7 @@ export function CcHomePanel(props: {
             </div>
           </CardHeader>
         </Card>
-        <Card className="md:col-span-2 border bg-gradient-to-br from-amber-300/12 via-amber-200/6 to-card shadow-sm dark:from-amber-500/16 dark:via-amber-400/10">
+        <Card className="md:col-span-2 border bg-gradient-to-br from-sky-300/12 via-sky-200/6 to-card shadow-sm dark:from-sky-500/16 dark:via-sky-400/10">
           <CardHeader className="pb-2">
             <CardDescription className="text-xs tracking-wide uppercase">待处理 PR</CardDescription>
             <CardTitle className="text-3xl font-semibold tabular-nums">{reviewItems.length}</CardTitle>
@@ -222,7 +222,7 @@ export function CcHomePanel(props: {
             </div>
           </CardHeader>
         </Card>
-        <Card className="md:col-span-1 border bg-gradient-to-br from-amber-300/12 via-amber-200/6 to-card shadow-sm dark:from-amber-500/16 dark:via-amber-400/10">
+        <Card className="md:col-span-1 border bg-gradient-to-br from-emerald-300/12 via-emerald-200/6 to-card shadow-sm dark:from-emerald-500/16 dark:via-emerald-400/10">
           <CardHeader className="pb-2">
             <CardDescription className="text-xs tracking-wide uppercase">v2 需要跟进</CardDescription>
             <CardTitle className="text-3xl font-semibold tabular-nums">{v2FollowUpItems.length}</CardTitle>
