@@ -36,7 +36,7 @@ import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken } from '@/re
 import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
 import { LinkIconPickerDialog, PhosphorIconByName } from '@/react/components/cc/LinkIconPickerDialog'
-import { WatchfaceIdEditor } from '@/react/components/cc/WatchfaceIdEditor'
+import { WatchfaceIdEditor, type WatchfaceEditorFileOption } from '@/react/components/cc/WatchfaceIdEditor'
 import { Button } from '@/react/components/ui/button'
 import { Badge } from '@/react/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
@@ -148,6 +148,10 @@ type WorkspaceFileHandle = {
   kind: 'file'
   name: string
   getFile: () => Promise<File>
+  createWritable?: () => Promise<{
+    write: (data: Blob | BufferSource | string) => Promise<void>
+    close: () => Promise<void>
+  }>
 }
 
 type WorkspaceDirectoryHandle = {
@@ -319,6 +323,11 @@ const validateGitHubRepoName = (name: string): string | null => {
 const isImagePath = (path: string): boolean => {
   const normalized = path.trim().toLowerCase()
   return IMAGE_FILE_EXTENSIONS.some((ext) => normalized.endsWith(ext))
+}
+
+const isWatchfaceBinaryPath = (path: string): boolean => {
+  const normalized = path.trim().toLowerCase()
+  return normalized.endsWith('.bin') || normalized.endsWith('.face')
 }
 
 const sanitizeRepoFileName = (name: string, fallback = ''): string => {
@@ -1599,6 +1608,26 @@ export function CcPublishWorkbench(props: {
     }
   }
 
+  const writeFileByPath = async (root: WorkspaceDirectoryHandle, relativePath: string, file: globalThis.File): Promise<void> => {
+    const parts = relativePath.split('/').filter(Boolean)
+    if (parts.length === 0) {
+      throw new Error('文件路径为空')
+    }
+
+    let current = root
+    for (let i = 0; i < parts.length - 1; i++) {
+      current = await current.getDirectoryHandle(parts[i], { create: true })
+    }
+
+    const handle = await current.getFileHandle(parts[parts.length - 1], { create: true })
+    if (typeof handle.createWritable !== 'function') {
+      throw new Error('当前工作区不支持写入该文件')
+    }
+    const writable = await handle.createWritable()
+    await writable.write(file)
+    await writable.close()
+  }
+
   const collectWorkspaceTree = async (
     dir: WorkspaceDirectoryHandle,
     depth = 0,
@@ -2574,6 +2603,78 @@ export function CcPublishWorkbench(props: {
     () => selectedDeviceIds.map(getLegacyDeviceCode).filter(Boolean).join(';'),
     [selectedDeviceIds]
   )
+
+  const watchfaceEditorFileOptions = useMemo<WatchfaceEditorFileOption[]>(() => {
+    if (restype !== 'watchface') return []
+
+    const pathToDevices = new Map<string, string[]>()
+    selectedDeviceIds.forEach((deviceId) => {
+      const entry = getDownloadEntry(deviceId)
+      const path = normalizeRepoPath(entry.file_name)
+      if (!path || !isWatchfaceBinaryPath(path)) return
+      const devices = pathToDevices.get(path) || []
+      devices.push(getDeviceLabel(deviceId))
+      pathToDevices.set(path, devices)
+    })
+
+    selectedUploadPaths.forEach((path) => {
+      const normalizedPath = normalizeRepoPath(path)
+      if (!normalizedPath || !isWatchfaceBinaryPath(normalizedPath) || pathToDevices.has(normalizedPath)) return
+      pathToDevices.set(normalizedPath, [])
+    })
+
+    return [...pathToDevices.entries()]
+      .map(([path, devices]) => ({
+        path,
+        label: devices.length > 0 ? `${devices.join(' / ')} · ${basenameFromPath(path)}` : basenameFromPath(path)
+      }))
+      .sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'))
+  }, [restype, selectedDeviceIds, selectedUploadPaths, downloads])
+
+  const loadWatchfaceEditorFile = async (repoPath: string): Promise<globalThis.File | null> => {
+    const normalizedPath = normalizeRepoPath(repoPath)
+    if (!normalizedPath) return null
+
+    if (opfsLocalPathSet[normalizedPath]) {
+      return await readFileFromOpfs(normalizedPath)
+    }
+
+    const localExtra = extraFiles.find((item) => item.path === normalizedPath)?.fileObject || null
+    if (localExtra) return localExtra
+
+    const workspace = workspaceHandle || await ensureWorkspaceHandle()
+    if (!workspace) return null
+    return await readFileByPath(workspace, normalizedPath)
+  }
+
+  const saveWatchfaceEditorFile = async (repoPath: string, file: globalThis.File): Promise<void> => {
+    const normalizedPath = normalizeRepoPath(repoPath)
+    if (!normalizedPath) {
+      throw new Error('目标文件路径为空')
+    }
+
+    if (opfsLocalPathSet[normalizedPath]) {
+      await writeFileToOpfs(normalizedPath, file)
+    } else {
+      const workspace = workspaceHandle || await ensureWorkspaceHandle()
+      if (!workspace) {
+        throw new Error('缺少工作区写入权限，无法原地替换文件')
+      }
+      await writeFileByPath(workspace, normalizedPath, file)
+      await scanWorkspace(workspace, false)
+    }
+
+    setExtraFiles((prev) => prev.map((item) => (
+      item.path === normalizedPath
+        ? {
+            ...item,
+            fileName: file.name,
+            fileObject: file
+          }
+        : item
+    )))
+    appendLog(`已原地更新表盘文件: ${normalizedPath}`)
+  }
 
   const isDeviceSelected = (deviceId: string): boolean =>
     selectedDeviceIds.includes(deviceId)
@@ -4069,10 +4170,6 @@ export function CcPublishWorkbench(props: {
                         </div>
                       </div>
 
-                      {mode === 'publish' && restype === 'watchface' ? (
-                        <WatchfaceIdEditor resourceId={resourceId} onApplyResourceId={setResourceId} />
-                      ) : null}
-
                       <div className="space-y-1.5">
                         <Label htmlFor="item-description">资源描述</Label>
                         <Textarea
@@ -4266,6 +4363,16 @@ export function CcPublishWorkbench(props: {
                       })}
                     </CardContent>
                   </Card>
+
+                  {mode === 'publish' && restype === 'watchface' ? (
+                    <WatchfaceIdEditor
+                      resourceId={resourceId}
+                      fileOptions={watchfaceEditorFileOptions}
+                      loadFile={loadWatchfaceEditorFile}
+                      saveFile={saveWatchfaceEditorFile}
+                      onApplyResourceId={setResourceId}
+                    />
+                  ) : null}
 
                 </div>
               ) : null}
