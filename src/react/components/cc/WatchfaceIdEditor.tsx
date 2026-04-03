@@ -80,8 +80,9 @@ export function WatchfaceIdEditor(props: {
   saveFile: (path: string, file: globalThis.File) => Promise<void>
   onApplyResourceId: (value: string) => void
   onScrollToDownloads?: () => void
+  onValidationChange?: (message: string) => void
 }) {
-  const { resourceId, fileOptions, loadFile, saveFile, onApplyResourceId, onScrollToDownloads } = props
+  const { resourceId, fileOptions, loadFile, saveFile, onApplyResourceId, onScrollToDownloads, onValidationChange } = props
   const [draftId, setDraftId] = useState('')
   const [inspectRows, setInspectRows] = useState<WatchfaceInspectRow[]>([])
   const [detectError, setDetectError] = useState('')
@@ -161,6 +162,10 @@ export function WatchfaceIdEditor(props: {
     }
     void inspectFiles(true)
   }, [fileOptions, hasFileOptions])
+
+  useEffect(() => {
+    onValidationChange?.(detectError)
+  }, [detectError, onValidationChange])
 
   const handleGenerateRandomId = (): void => {
     setDraftId(generateRandomWatchfaceId())

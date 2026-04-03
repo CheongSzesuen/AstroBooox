@@ -32,6 +32,7 @@ import {
   updateLegacyCatalogAndResourceJsonInForkBranch
 } from '@/utils/resourcePublishApi'
 import { listAuthenticatedRepositories, type GitHubOwnedRepositorySummary } from '@/utils/githubGitApi'
+import { isRpkManifestAutoValidationSupported, readRpkManifestInfo } from '@/utils/rpkManifest'
 import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken } from '@/react/apps/cc/resourcePublishWorkbenchDeviceCatalog'
 import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
@@ -91,6 +92,11 @@ type ManifestDownloadDraft = {
   device: string
   version: string
   file_name: string
+}
+
+type QuickappPackageCheckResult = {
+  packageName: string
+  error: string
 }
 
 type RemotePickerMode = 'icon' | 'cover' | 'preview' | 'download'
@@ -333,6 +339,8 @@ const isWatchfaceBinaryPath = (path: string): boolean => {
   return normalized.endsWith('.bin') || normalized.endsWith('.face')
 }
 
+const isQuickappRpkPath = (path: string): boolean => path.trim().toLowerCase().endsWith('.rpk')
+
 const sanitizeRepoFileName = (name: string, fallback = ''): string => {
   const normalized = name
     .trim()
@@ -424,6 +432,12 @@ const ensureValidResourceId = (value: string, restype: Restype): string => {
   const error = getResourceIdValidationMessage(normalized, restype)
   if (error) throw new Error(error)
   return normalized
+}
+
+const formatQuickappValidationDeviceLabel = (deviceId: string): string => {
+  const device = deviceOptions.find((item) => item.id === deviceId)
+  if (!device) return deviceId
+  return `${device.name} (${device.id})`
 }
 
 const formatResourceTypeForTitle = (value: Restype): string => (value === 'watchface' ? '表盘' : '快应用')
@@ -602,6 +616,8 @@ export function CcPublishWorkbench(props: {
   const [opfsLocalPathSet, setOpfsLocalPathSet] = useState<Record<string, true>>({})
   const [opfsLocalPreviewUrlMap, setOpfsLocalPreviewUrlMap] = useState<Record<string, string>>({})
   const [desktopPrBodyMinHeight, setDesktopPrBodyMinHeight] = useState(DESKTOP_PR_BODY_MIN_HEIGHT)
+  const [quickappPackageChecks, setQuickappPackageChecks] = useState<Record<string, QuickappPackageCheckResult>>({})
+  const [watchfaceIdValidationNotice, setWatchfaceIdValidationNotice] = useState('')
   const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return window.matchMedia('(max-width: 767px)').matches
@@ -618,6 +634,7 @@ export function CcPublishWorkbench(props: {
   const opfsLocalPreviewUrlMapRef = useRef<Record<string, string>>({})
   const deletedStackRef = useRef<DeletedPreviewEntry[]>([])
   const previousModeRef = useRef(mode)
+  const quickappPackageCheckRequestIdRef = useRef(0)
 
   useEffect(() => {
     previewItemsRef.current = previewItems
@@ -1350,73 +1367,6 @@ export function CcPublishWorkbench(props: {
     return ''
   }, [authors, submitMode])
 
-  const canUpload = useMemo(() => {
-    const needV2Catalog = submitMode === 'v2' || submitMode === 'both'
-    const baseReady = Boolean(
-      token.trim() &&
-      currentUser.trim() &&
-      !resourceIdValidationMessage &&
-      name.trim() &&
-      iconPath.trim() &&
-      coverPath.trim() &&
-      defaultTargetOwner.trim() &&
-      defaultTargetRepo.trim() &&
-      (!needV2Catalog || defaultCatalogPath.trim())
-    )
-    if (!baseReady || bootstrapLoading || isSubmitting || Boolean(linksValidationMessage) || Boolean(v1AuthorValidationMessage)) return false
-
-    if (mode === 'resource_edit') {
-      return Boolean(boundRepoOwner.trim() && boundRepoName.trim())
-    }
-    return Boolean(resolvedRepoName && workspaceHandle)
-  }, [
-    bootstrapLoading,
-    boundRepoName,
-    boundRepoOwner,
-    coverPath,
-    currentUser,
-    defaultCatalogPath,
-    defaultTargetOwner,
-    defaultTargetRepo,
-    iconPath,
-    isSubmitting,
-    mode,
-    name,
-    workspaceHandle,
-    resolvedRepoName,
-    resourceIdValidationMessage,
-    submitMode,
-    token,
-    linksValidationMessage,
-    v1AuthorValidationMessage
-  ])
-
-  const canCreatePr = useMemo(
-    () => Boolean(
-      canUpload &&
-      hasUploadedInFlow &&
-      boundRepoOwner.trim() &&
-      boundRepoName.trim() &&
-      existingCommitSha.trim() &&
-      defaultTargetOwner.trim() &&
-      defaultTargetRepo.trim() &&
-      (submitMode === 'v1' || defaultCatalogPath.trim()) &&
-      prTitle.trim()
-    ),
-    [
-      boundRepoName,
-      boundRepoOwner,
-      canUpload,
-      defaultCatalogPath,
-      defaultTargetOwner,
-      defaultTargetRepo,
-      existingCommitSha,
-      hasUploadedInFlow,
-      prTitle,
-      submitMode
-    ]
-  )
-
   const submitModeLabel = useMemo(() => {
     if (submitMode === 'both') return 'v1 + v2'
     if (submitMode === 'v1') return '仅 v1'
@@ -1465,8 +1415,120 @@ export function CcPublishWorkbench(props: {
     [downloads, selectedDeviceIds]
   )
 
+  const quickappDownloadEntries = useMemo(
+    () => selectedDeviceIds.map((deviceId) => {
+      const entry = downloads.find((item) => item.device.trim() === deviceId) || { device: deviceId, version: '1.0.0', file_name: '' }
+      return {
+        deviceId,
+        filePath: normalizeRepoPath(entry.file_name)
+      }
+    }),
+    [downloads, selectedDeviceIds]
+  )
+
+  const quickappPackageValidationUnavailable = useMemo(
+    () => restype === 'quickapp' && quickappDownloadEntries.some((item) => isQuickappRpkPath(item.filePath)) && !isRpkManifestAutoValidationSupported(),
+    [quickappDownloadEntries, restype]
+  )
+
+  const quickappPackageValidationNotice = useMemo(() => {
+    if (!quickappPackageValidationUnavailable) return ''
+    return '当前浏览器不支持解析 RPK 并读取包名，无法自动校验资源 ID 与实际包名是否一致'
+  }, [quickappPackageValidationUnavailable])
+
+  const quickappPackageValidationMessage = useMemo(() => {
+    if (restype !== 'quickapp') return ''
+    if (quickappPackageValidationUnavailable) return ''
+
+    const normalizedResourceId = resourceId.trim()
+    if (!normalizedResourceId) return ''
+
+    for (const item of quickappDownloadEntries) {
+      if (!item.filePath || !isQuickappRpkPath(item.filePath)) continue
+      const check = quickappPackageChecks[item.filePath]
+      if (!check) continue
+      if (check.error) {
+        return `${formatQuickappValidationDeviceLabel(item.deviceId)} 的 RPK 校验失败：${check.error}`
+      }
+      if (check.packageName && check.packageName !== normalizedResourceId) {
+        return `${formatQuickappValidationDeviceLabel(item.deviceId)} 的 RPK 包名为 ${check.packageName}，与当前资源 ID ${normalizedResourceId} 不一致`
+      }
+    }
+    return ''
+  }, [quickappDownloadEntries, quickappPackageChecks, quickappPackageValidationUnavailable, resourceId, restype])
+
+  const canUpload = useMemo(() => {
+    const needV2Catalog = submitMode === 'v2' || submitMode === 'both'
+    const baseReady = Boolean(
+      token.trim() &&
+      currentUser.trim() &&
+      !resourceIdValidationMessage &&
+      !quickappPackageValidationMessage &&
+      name.trim() &&
+      iconPath.trim() &&
+      coverPath.trim() &&
+      defaultTargetOwner.trim() &&
+      defaultTargetRepo.trim() &&
+      (!needV2Catalog || defaultCatalogPath.trim())
+    )
+    if (!baseReady || bootstrapLoading || isSubmitting || Boolean(linksValidationMessage) || Boolean(v1AuthorValidationMessage)) return false
+
+    if (mode === 'resource_edit') {
+      return Boolean(boundRepoOwner.trim() && boundRepoName.trim())
+    }
+    return Boolean(resolvedRepoName && workspaceHandle)
+  }, [
+    bootstrapLoading,
+    boundRepoName,
+    boundRepoOwner,
+    coverPath,
+    currentUser,
+    defaultCatalogPath,
+    defaultTargetOwner,
+    defaultTargetRepo,
+    iconPath,
+    isSubmitting,
+    mode,
+    name,
+    workspaceHandle,
+    resolvedRepoName,
+    resourceIdValidationMessage,
+    quickappPackageValidationMessage,
+    submitMode,
+    token,
+    linksValidationMessage,
+    v1AuthorValidationMessage
+  ])
+
+  const canCreatePr = useMemo(
+    () => Boolean(
+      canUpload &&
+      hasUploadedInFlow &&
+      boundRepoOwner.trim() &&
+      boundRepoName.trim() &&
+      existingCommitSha.trim() &&
+      defaultTargetOwner.trim() &&
+      defaultTargetRepo.trim() &&
+      (submitMode === 'v1' || defaultCatalogPath.trim()) &&
+      prTitle.trim()
+    ),
+    [
+      boundRepoName,
+      boundRepoOwner,
+      canUpload,
+      defaultCatalogPath,
+      defaultTargetOwner,
+      defaultTargetRepo,
+      existingCommitSha,
+      hasUploadedInFlow,
+      prTitle,
+      submitMode
+    ]
+  )
+
   const isResourceInfoStepDone = Boolean(
     !resourceIdValidationMessage &&
+    !quickappPackageValidationMessage &&
     name.trim() &&
     iconPath.trim() &&
     coverPath.trim() &&
@@ -1543,6 +1605,7 @@ export function CcPublishWorkbench(props: {
   const openSubmitVersionDialog = () => {
     const issues: string[] = []
     if (resourceIdValidationMessage) issues.push(resourceIdValidationMessage)
+    if (quickappPackageValidationMessage) issues.push(quickappPackageValidationMessage)
     if (!name.trim()) issues.push('请填写资源名称')
     if (!iconPath.trim()) issues.push('请选择图标文件')
     if (!coverPath.trim()) issues.push('请选择封面文件')
@@ -2660,7 +2723,7 @@ export function CcPublishWorkbench(props: {
       .sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'))
   }, [restype, selectedDeviceIds, selectedUploadPaths, downloads])
 
-  const loadWatchfaceEditorFile = async (repoPath: string): Promise<globalThis.File | null> => {
+  const loadExistingRepoFile = async (repoPath: string): Promise<globalThis.File | null> => {
     const normalizedPath = normalizeRepoPath(repoPath)
     if (!normalizedPath) return null
 
@@ -2670,6 +2733,16 @@ export function CcPublishWorkbench(props: {
 
     const localExtra = extraFiles.find((item) => item.path === normalizedPath)?.fileObject || null
     if (localExtra) return localExtra
+    if (!workspaceHandle) return null
+    return await readFileByPath(workspaceHandle, normalizedPath)
+  }
+
+  const loadWatchfaceEditorFile = async (repoPath: string): Promise<globalThis.File | null> => {
+    const normalizedPath = normalizeRepoPath(repoPath)
+    if (!normalizedPath) return null
+
+    const existingFile = await loadExistingRepoFile(normalizedPath)
+    if (existingFile) return existingFile
 
     const workspace = workspaceHandle || await ensureWorkspaceHandle()
     if (!workspace) return null
@@ -2707,6 +2780,53 @@ export function CcPublishWorkbench(props: {
 
   const isDeviceSelected = (deviceId: string): boolean =>
     selectedDeviceIds.includes(deviceId)
+
+  useEffect(() => {
+    if (restype !== 'quickapp' || quickappPackageValidationUnavailable) {
+      setQuickappPackageChecks({})
+      return
+    }
+
+    const targetPaths = [...new Set(
+      quickappDownloadEntries
+        .map((item) => item.filePath)
+        .filter((path) => Boolean(path) && isQuickappRpkPath(path))
+    )]
+
+    if (targetPaths.length === 0) {
+      setQuickappPackageChecks({})
+      return
+    }
+
+    const currentRequestId = ++quickappPackageCheckRequestIdRef.current
+    void (async () => {
+      const nextChecks: Record<string, QuickappPackageCheckResult> = {}
+      for (const path of targetPaths) {
+        const file = await loadExistingRepoFile(path)
+        if (!file) continue
+        try {
+          const manifestInfo = await readRpkManifestInfo(file)
+          nextChecks[path] = {
+            packageName: manifestInfo.packageName,
+            error: ''
+          }
+        } catch (cause: unknown) {
+          nextChecks[path] = {
+            packageName: '',
+            error: cause instanceof Error ? cause.message : '未知错误'
+          }
+        }
+      }
+      if (currentRequestId !== quickappPackageCheckRequestIdRef.current) return
+      setQuickappPackageChecks(nextChecks)
+    })()
+  }, [extraFiles, opfsLocalPathSet, quickappDownloadEntries, quickappPackageValidationUnavailable, restype, workspaceHandle])
+
+  useEffect(() => {
+    if (restype !== 'watchface') {
+      setWatchfaceIdValidationNotice('')
+    }
+  }, [restype])
 
   const toggleDeviceSelection = (deviceId: string): void => {
     if (isDeviceSelected(deviceId)) {
@@ -3205,6 +3325,20 @@ export function CcPublishWorkbench(props: {
         ? normalizedLinks.map((link) => `- ${link.title || '--'}（${link.icon || '--'}）：${link.url || '--'}`)
         : ['- 为空']
 
+      const quickappValidationLines = quickappPackageValidationUnavailable
+        ? [
+            '## 自动校验说明',
+            '',
+            '- 用户的浏览器不支持解析 RPK，因此无法实现自动校验 CSV 的资源 ID 和实际包名是否对应'
+          ]
+        : []
+      const watchfaceValidationLines = watchfaceIdValidationNotice
+        ? [
+            ...(quickappValidationLines.length === 0 ? ['## 自动校验说明', ''] : []),
+            `- 表盘文件无法完成 ID 自动校验：${watchfaceIdValidationNotice}`
+          ]
+        : []
+
       return [
         '## 资源信息',
         '',
@@ -3231,7 +3365,9 @@ export function CcPublishWorkbench(props: {
         '## 下载资源（downloads）',
         '',
         ...downloadLines,
-        '',
+        ...quickappValidationLines,
+        ...watchfaceValidationLines,
+        ...(quickappValidationLines.length > 0 || watchfaceValidationLines.length > 0 ? [''] : []),
         '## 链接（manifest_v2.links）',
         '',
         ...linkLines,
@@ -3245,6 +3381,19 @@ export function CcPublishWorkbench(props: {
     const resourceTypeText = restype === 'watchface' ? '表盘（watch_face）' : '快应用（quick_app）'
     const tagsText = tags.map((tag) => tag.trim()).filter(Boolean).join(' / ') || '--'
     const paidTypeText = formatPaidTypeLabel(paidType)
+    const quickappValidationLines = quickappPackageValidationUnavailable
+      ? [
+          '## 自动校验说明',
+          '',
+          '- 用户的浏览器不支持解析 RPK，因此无法实现自动校验 CSV 的资源 ID 和实际包名是否对应'
+        ]
+      : []
+    const watchfaceValidationLines = watchfaceIdValidationNotice
+      ? [
+          ...(quickappValidationLines.length === 0 ? ['## 自动校验说明', ''] : []),
+          `- 表盘文件无法完成 ID 自动校验：${watchfaceIdValidationNotice}`
+        ]
+      : []
     return [
       '## 资源信息',
       '',
@@ -3258,6 +3407,9 @@ export function CcPublishWorkbench(props: {
       '',
       ...(changeLines.length > 0 ? changeLines : ['- 未检测到字段变化（仅同步仓库文件）']),
       '',
+      ...quickappValidationLines,
+      ...watchfaceValidationLines,
+      ...(quickappValidationLines.length > 0 || watchfaceValidationLines.length > 0 ? [''] : []),
       '## 仓库信息',
       '',
       `- 资源仓库：${repoUrl}`,
@@ -3284,6 +3436,9 @@ export function CcPublishWorkbench(props: {
 
     try {
       const catalogId = ensureValidResourceId(resourceId, restype)
+      if (quickappPackageValidationMessage) {
+        throw new Error(quickappPackageValidationMessage)
+      }
       if (linksValidationMessage) {
         throw new Error(linksValidationMessage)
       }
@@ -4168,6 +4323,8 @@ export function CcPublishWorkbench(props: {
                             placeholder={restype === 'watchface' ? '例如：979812345678' : '例如：com.example.app'}
                           />
                           {resourceId.trim() && resourceIdValidationMessage ? <p className="text-xs text-destructive">{resourceIdValidationMessage}</p> : null}
+                          {quickappPackageValidationNotice ? <p className="text-xs text-amber-600">{quickappPackageValidationNotice}</p> : null}
+                          {quickappPackageValidationMessage ? <p className="text-xs text-destructive">{quickappPackageValidationMessage}</p> : null}
                           {restype === 'watchface' ? (
                             <p className="text-xs text-muted-foreground">
                               表盘 ID 需为 12 位纯数字，建议以 <code>{WATCHFACE_ID_RECOMMENDED_PREFIX}</code> 开头。
@@ -4227,6 +4384,7 @@ export function CcPublishWorkbench(props: {
                           saveFile={saveWatchfaceEditorFile}
                           onApplyResourceId={(value) => setResourceId(normalizeWatchfaceIdInput(value))}
                           onScrollToDownloads={scrollToDownloadsSection}
+                          onValidationChange={setWatchfaceIdValidationNotice}
                         />
                       ) : null}
                     </CardContent>
@@ -4405,6 +4563,26 @@ export function CcPublishWorkbench(props: {
                                     选择文件
                                   </Button>
                                 </div>
+                                {restype === 'quickapp' && isQuickappRpkPath(entry.file_name) ? (
+                                  (() => {
+                                    const check = quickappPackageChecks[normalizeRepoPath(entry.file_name)]
+                                    if (quickappPackageValidationUnavailable) {
+                                      return <p className="text-xs text-amber-600">当前浏览器不支持解析 RPK 包名，无法自动校验资源 ID 与实际包名是否一致</p>
+                                    }
+                                    if (!check) {
+                                      return <p className="text-xs text-muted-foreground">正在读取 RPK 包名…</p>
+                                    }
+                                    if (check.error) {
+                                      return <p className="text-xs text-destructive">RPK 校验失败：{check.error}</p>
+                                    }
+                                    const mismatch = resourceId.trim() && check.packageName !== resourceId.trim()
+                                    return (
+                                      <p className={`text-xs ${mismatch ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                        RPK manifest.package：{check.packageName}
+                                      </p>
+                                    )
+                                  })()
+                                ) : null}
                               </div>
                             </div>
                           </div>
