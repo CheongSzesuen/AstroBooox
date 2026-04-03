@@ -701,6 +701,7 @@ const appendOrReplaceCatalogRow = (
   }
 ): string => {
   const targetId = (options?.matchId || entry.id).trim()
+  const nextEntryId = entry.id.trim()
   const rows = existingCsv.split(/\r?\n/).filter(line => line.trim().length > 0)
   const header = rows[0] || CATALOG_CSV_HEADER
   const body = rows.slice(1)
@@ -720,24 +721,36 @@ const appendOrReplaceCatalogRow = (
     entry.paid_type
   ].join(',')
 
-  let replaced = false
-  for (let i = 0; i < body.length; i++) {
-    const row = body[i]
-    const parsed = parseCatalogRow(row)
-    if (!parsed) continue
-    if (parsed.id.trim() !== targetId) continue
-    body[i] = rowString
-    replaced = true
-    break
-  }
+  const parsedRows = body
+    .map((row, index) => ({
+      row,
+      index,
+      parsed: parseCatalogRow(row)
+    }))
+    .filter((item): item is { row: string; index: number; parsed: CatalogEntry } => Boolean(item.parsed))
 
-  if (!replaced) {
-    if (options?.requireExisting) {
+  const targetMatches = parsedRows.filter((item) => item.parsed.id.trim() === targetId)
+  const entryMatches = parsedRows.filter((item) => item.parsed.id.trim() === nextEntryId)
+
+  if (options?.requireExisting) {
+    if (!targetMatches.length) {
       throw new Error(`未在 catalog 中找到待更新的资源行: ${targetId}`)
     }
-    body.push(rowString)
+    if (targetMatches.length > 1) {
+      throw new Error(`index_v2.csv 中资源 ID 存在重复，无法安全更新: ${targetId}`)
+    }
+    if (nextEntryId !== targetId && entryMatches.length > 0) {
+      throw new Error(`index_v2.csv 中已存在重复资源 ID: ${nextEntryId}`)
+    }
+    body[targetMatches[0].index] = rowString
+    return [header, ...body].join('\n')
   }
 
+  if (entryMatches.length > 0) {
+    throw new Error(`index_v2.csv 中已存在重复资源 ID: ${nextEntryId}`)
+  }
+
+  body.push(rowString)
   return [header, ...body].join('\n')
 }
 

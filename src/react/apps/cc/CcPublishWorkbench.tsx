@@ -115,6 +115,9 @@ const PREVIEW_UNDO_LIMIT = 12
 const REMOTE_PICKER_LOCAL_OPFS_ROOT = 'astrobooox-local'
 const IMAGE_FILE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.avif']
 const DESKTOP_PR_BODY_MIN_HEIGHT = 120
+const WATCHFACE_ID_LENGTH = 12
+const WATCHFACE_ID_RECOMMENDED_PREFIX = '9798'
+const WATCHFACE_ID_PATTERN = /^\d{12}$/
 
 type Restype = 'quickapp' | 'watchface'
 type StepKey = '0' | '1' | '2' | '3'
@@ -401,6 +404,27 @@ const getVisibleTreeItems = (tree: RepoTreeItem[], collapsedPaths: string[]): Vi
 
 const formatCatalogRestype = (value: Restype): string => (value === 'watchface' ? 'watchface' : 'quick_app')
 const formatLegacyRestype = (value: Restype): string => (value === 'watchface' ? 'watchface' : 'quickapp')
+
+const normalizeWatchfaceIdInput = (value: string): string =>
+  value
+    .replace(/\D+/g, '')
+    .slice(0, WATCHFACE_ID_LENGTH)
+
+const getResourceIdValidationMessage = (value: string, restype: Restype): string => {
+  const normalized = value.trim()
+  if (!normalized) return '请填写资源 ID'
+  if (restype === 'watchface' && !WATCHFACE_ID_PATTERN.test(normalized)) {
+    return `表盘资源 ID 必须是 ${WATCHFACE_ID_LENGTH} 位纯数字`
+  }
+  return ''
+}
+
+const ensureValidResourceId = (value: string, restype: Restype): string => {
+  const normalized = value.trim()
+  const error = getResourceIdValidationMessage(normalized, restype)
+  if (error) throw new Error(error)
+  return normalized
+}
 
 const formatResourceTypeForTitle = (value: Restype): string => (value === 'watchface' ? '表盘' : '快应用')
 const formatPaidTypeLabel = (value: string): string => {
@@ -1293,12 +1317,7 @@ export function CcPublishWorkbench(props: {
   }, [links])
 
   const resourceIdValidationMessage = useMemo(() => {
-    const value = resourceId.trim()
-    if (!value) return '请填写资源 ID'
-    if (restype === 'watchface' && !/^\d{12}$/.test(value)) {
-      return '表盘资源 ID 必须是 12 位纯数字'
-    }
-    return ''
+    return getResourceIdValidationMessage(resourceId, restype)
   }, [resourceId, restype])
 
   const v1AuthorValidationMessage = useMemo(() => {
@@ -2690,6 +2709,7 @@ export function CcPublishWorkbench(props: {
   const buildManifestV2Text = (): string => {
     const base = cloneManifestObject(existingManifestObject)
     const item = asRecord(base.item)
+    const normalizedResourceId = ensureValidResourceId(resourceId, restype)
 
     const normalizedAuthors = authors
       .map((entry) => ({
@@ -2721,7 +2741,7 @@ export function CcPublishWorkbench(props: {
       ...base,
       item: {
         ...item,
-        id: resourceId.trim(),
+        id: normalizedResourceId,
         restype: formatCatalogRestype(restype),
         name: name.trim(),
         description: description.trim(),
@@ -3242,7 +3262,6 @@ export function CcPublishWorkbench(props: {
 
     const accessToken = token.trim()
     const username = normalizeLower(currentUser)
-    const catalogId = resourceId.trim()
     if (!accessToken || !username) return
 
     setSubmitError('')
@@ -3253,6 +3272,7 @@ export function CcPublishWorkbench(props: {
     setSubmitLogs([])
 
     try {
+      const catalogId = ensureValidResourceId(resourceId, restype)
       if (linksValidationMessage) {
         throw new Error(linksValidationMessage)
       }
@@ -3439,7 +3459,6 @@ export function CcPublishWorkbench(props: {
 
     const accessToken = token.trim()
     const username = normalizeLower(currentUser)
-    const catalogId = resourceId.trim()
     const repoOwner = boundRepoOwner.trim()
     const repoName = boundRepoName.trim()
     const repoUrl = boundRepoUrl.trim() || `https://github.com/${repoOwner}/${repoName}`
@@ -3448,6 +3467,7 @@ export function CcPublishWorkbench(props: {
     if (!accessToken || !username || !repoOwner || !repoName || !latestCommitSha) return
 
     try {
+      const catalogId = ensureValidResourceId(resourceId, restype)
       setSubmitError('')
       setCreatingPr(true)
       appendLog('开始更新 catalog 并创建 PR')
@@ -4131,10 +4151,17 @@ export function CcPublishWorkbench(props: {
                           <Input
                             id="item-id"
                             value={resourceId}
-                            onChange={(event) => setResourceId(event.target.value)}
-                            placeholder={restype === 'watchface' ? '输入 12 位纯数字表盘 ID' : '例如：com.example.app'}
+                            onChange={(event) => setResourceId(restype === 'watchface' ? normalizeWatchfaceIdInput(event.target.value) : event.target.value)}
+                            inputMode={restype === 'watchface' ? 'numeric' : undefined}
+                            maxLength={restype === 'watchface' ? WATCHFACE_ID_LENGTH : undefined}
+                            placeholder={restype === 'watchface' ? '例如：979812345678' : '例如：com.example.app'}
                           />
                           {resourceId.trim() && resourceIdValidationMessage ? <p className="text-xs text-destructive">{resourceIdValidationMessage}</p> : null}
+                          {restype === 'watchface' ? (
+                            <p className="text-xs text-muted-foreground">
+                              表盘 ID 需为 12 位纯数字，建议以 <code>{WATCHFACE_ID_RECOMMENDED_PREFIX}</code> 开头。
+                            </p>
+                          ) : null}
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="item-name">资源名称</Label>
@@ -4370,7 +4397,7 @@ export function CcPublishWorkbench(props: {
                       fileOptions={watchfaceEditorFileOptions}
                       loadFile={loadWatchfaceEditorFile}
                       saveFile={saveWatchfaceEditorFile}
-                      onApplyResourceId={setResourceId}
+                      onApplyResourceId={(value) => setResourceId(normalizeWatchfaceIdInput(value))}
                     />
                   ) : null}
 
@@ -4699,7 +4726,7 @@ export function CcPublishWorkbench(props: {
           </DialogHeader>
           <div className="space-y-3 text-sm leading-6 text-foreground">
             <p>1. 快应用：填写应用包名，如 `com.searchstars.hyperbilibili`。</p>
-            <p>2. 表盘：填写 12 位纯数字表盘 ID；若需改 `.bin` / `.face` 内置 ID，可直接使用下方工具并自动同步。</p>
+            <p>2. 表盘：填写 12 位纯数字表盘 ID，建议以 <code>{WATCHFACE_ID_RECOMMENDED_PREFIX}</code> 开头；若需改 `.bin` / `.face` 内置 ID，可直接使用下方工具并自动同步。</p>
             <p>3. 资源名、资源类型必须与 manifest_v2.json 中保持一致。</p>
           </div>
           <DialogFooter>

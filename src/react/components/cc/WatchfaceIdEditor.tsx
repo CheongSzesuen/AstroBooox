@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const WATCHFACE_ID_LENGTH = 12
 const WATCHFACE_ID_OFFSET = 40
+const WATCHFACE_ID_RECOMMENDED_PREFIX = '9798'
 
 const getWatchfaceIdError = (value: string): string => {
   const normalized = value.trim()
@@ -17,6 +18,11 @@ const getWatchfaceIdError = (value: string): string => {
   if (normalized.length !== WATCHFACE_ID_LENGTH) return '表盘 ID 长度必须是 12 位。'
   return ''
 }
+
+const normalizeWatchfaceIdInput = (value: string): string =>
+  value
+    .replace(/\D+/g, '')
+    .slice(0, WATCHFACE_ID_LENGTH)
 
 const parseWatchfaceIdFromFile = async (file: globalThis.File): Promise<string> => {
   const buffer = new Uint8Array(await file.arrayBuffer())
@@ -45,9 +51,10 @@ const replaceWatchfaceIdInFile = async (file: globalThis.File, nextId: string): 
 }
 
 const generateRandomWatchfaceId = (): string => {
-  const random = new Uint32Array(WATCHFACE_ID_LENGTH)
+  const randomLength = WATCHFACE_ID_LENGTH - WATCHFACE_ID_RECOMMENDED_PREFIX.length
+  const random = new Uint32Array(randomLength)
   crypto.getRandomValues(random)
-  return Array.from(random, (value, index) => String(index === 0 ? (value % 9) + 1 : value % 10)).join('')
+  return `${WATCHFACE_ID_RECOMMENDED_PREFIX}${Array.from(random, (value) => String(value % 10)).join('')}`
 }
 
 export type WatchfaceEditorFileOption = {
@@ -199,13 +206,16 @@ export function WatchfaceIdEditor(props: {
             <Input
               id="watchface-id-editor-id"
               value={draftId}
-              onChange={(event) => setDraftId(event.target.value)}
+              onChange={(event) => setDraftId(normalizeWatchfaceIdInput(event.target.value))}
               inputMode="numeric"
               maxLength={WATCHFACE_ID_LENGTH}
-              placeholder="例如：740616000000"
+              placeholder="例如：979812345678"
               disabled={!hasFileOptions || saving}
             />
             {idError ? <p className="text-xs text-destructive">{idError}</p> : null}
+            <p className="text-xs text-muted-foreground">
+              建议使用以 <code>{WATCHFACE_ID_RECOMMENDED_PREFIX}</code> 开头的 12 位数字 ID；随机生成功能会默认按该前缀生成。
+            </p>
           </div>
         </div>
 
