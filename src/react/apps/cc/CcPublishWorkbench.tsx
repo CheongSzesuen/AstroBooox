@@ -3193,7 +3193,7 @@ export function CcPublishWorkbench(props: {
 
       const linkLines = normalizedLinks.length > 0
         ? normalizedLinks.map((link) => `- ${link.title || '--'}（${link.icon || '--'}）：${link.url || '--'}`)
-        : ['- --']
+        : ['- 为空']
 
       return [
         '## 资源信息',
