@@ -2714,8 +2714,7 @@ export function CcPublishWorkbench(props: {
     const normalizedAuthors = authors
       .map((entry) => ({
         name: entry.name.trim(),
-        bindABAccount: Boolean(entry.bindABAccount),
-        ...(entry.authorUrl.trim() ? { author_url: entry.authorUrl.trim() } : {})
+        bindABAccount: Boolean(entry.bindABAccount)
       }))
       .filter((entry) => Boolean(entry.name))
 
@@ -2780,6 +2779,7 @@ export function CcPublishWorkbench(props: {
   }
 
   const buildManifestV1Text = (repoUrl: string): string => {
+    const normalizedResourceId = ensureValidResourceId(resourceId, restype)
     const defaultAuthorUrl = getDefaultV1AuthorUrl()
     const normalizedAuthors = authors
       .map((author) => {
@@ -2805,6 +2805,7 @@ export function CcPublishWorkbench(props: {
 
     const manifestObject = {
       item: {
+        id: normalizedResourceId,
         name: name.trim(),
         description: description.trim(),
         preview: normalizedPreviewPaths,
