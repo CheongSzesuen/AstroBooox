@@ -1,11 +1,10 @@
-import { DiceFive, PencilSimpleLine } from '@phosphor-icons/react'
+import { ArrowsClockwise, DiceFive, PencilSimpleLine } from '@phosphor-icons/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
 import { Input } from '@/react/components/ui/input'
 import { Label } from '@/react/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react/components/ui/select'
 
 const WATCHFACE_ID_LENGTH = 12
 const WATCHFACE_ID_OFFSET = 40
@@ -62,6 +61,18 @@ export type WatchfaceEditorFileOption = {
   label: string
 }
 
+type WatchfaceInspectRow = {
+  path: string
+  fileName: string
+  originalId: string
+  error: string
+}
+
+const basenameFromPath = (path: string): string => {
+  const segments = path.split('/').filter(Boolean)
+  return segments[segments.length - 1] || path
+}
+
 export function WatchfaceIdEditor(props: {
   resourceId: string
   fileOptions: WatchfaceEditorFileOption[]
@@ -70,9 +81,8 @@ export function WatchfaceIdEditor(props: {
   onApplyResourceId: (value: string) => void
 }) {
   const { resourceId, fileOptions, loadFile, saveFile, onApplyResourceId } = props
-  const [selectedPath, setSelectedPath] = useState('')
   const [draftId, setDraftId] = useState('')
-  const [originalId, setOriginalId] = useState('')
+  const [inspectRows, setInspectRows] = useState<WatchfaceInspectRow[]>([])
   const [detectError, setDetectError] = useState('')
   const [detecting, setDetecting] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -80,27 +90,59 @@ export function WatchfaceIdEditor(props: {
 
   const idError = useMemo(() => getWatchfaceIdError(draftId), [draftId])
   const hasFileOptions = fileOptions.length > 0
+  const originalIds = useMemo(
+    () => [...new Set(inspectRows.map((row) => row.originalId).filter(Boolean))],
+    [inspectRows]
+  )
 
-  const inspectFile = async (path: string, syncResourceIdWhenEmpty: boolean): Promise<void> => {
+  const inspectFiles = async (syncResourceIdWhenEmpty: boolean): Promise<void> => {
     const currentRequestId = ++requestIdRef.current
     setDetecting(true)
     setDetectError('')
-    setOriginalId('')
+    setInspectRows([])
     try {
-      const file = await loadFile(path)
-      if (!file) {
-        throw new Error('未找到目标表盘文件，请先确认下载资源路径有效。')
-      }
-      const detectedId = await parseWatchfaceIdFromFile(file)
+      const results = await Promise.all(
+        fileOptions.map(async (option) => {
+          const row: WatchfaceInspectRow = {
+            path: option.path,
+            fileName: basenameFromPath(option.path),
+            originalId: '',
+            error: ''
+          }
+          try {
+            const file = await loadFile(option.path)
+            if (!file) {
+              throw new Error('未找到文件')
+            }
+            row.originalId = await parseWatchfaceIdFromFile(file)
+          } catch (cause: unknown) {
+            row.error = cause instanceof Error ? cause.message : '读取失败'
+          }
+          return row
+        })
+      )
       if (currentRequestId !== requestIdRef.current) return
-      setOriginalId(detectedId)
-      setDraftId(detectedId)
-      if (syncResourceIdWhenEmpty && !resourceId.trim()) {
-        onApplyResourceId(detectedId)
+
+      setInspectRows(results)
+      const uniqueIds = [...new Set(results.map((row) => row.originalId).filter(Boolean))]
+      const failedRows = results.filter((row) => row.error)
+      if (failedRows.length > 0) {
+        setDetectError(`有 ${failedRows.length} 个表盘文件读取失败，请检查文件是否有效。`)
       }
-    } catch (cause: unknown) {
-      if (currentRequestId !== requestIdRef.current) return
-      setDetectError(cause instanceof Error ? cause.message : '读取原始 ID 失败')
+      if (uniqueIds.length === 1) {
+        setDraftId(uniqueIds[0])
+        if (syncResourceIdWhenEmpty && !resourceId.trim()) {
+          onApplyResourceId(uniqueIds[0])
+        }
+        return
+      }
+
+      if (!resourceId.trim()) {
+        setDraftId('')
+      }
+      if (uniqueIds.length > 1) {
+        setDetectError('检测到多个不同的表盘 ID，请确认后统一同步所有表盘文件。')
+      }
     } finally {
       if (currentRequestId === requestIdRef.current) {
         setDetecting(false)
@@ -110,32 +152,22 @@ export function WatchfaceIdEditor(props: {
 
   useEffect(() => {
     if (!hasFileOptions) {
-      setSelectedPath('')
       setDraftId('')
-      setOriginalId('')
+      setInspectRows([])
       setDetectError('')
       setDetecting(false)
       return
     }
-    if (selectedPath && fileOptions.some((option) => option.path === selectedPath)) return
-    const nextPath = fileOptions[0].path
-    setSelectedPath(nextPath)
-    void inspectFile(nextPath, true)
-  }, [fileOptions, hasFileOptions, selectedPath])
-
-  const handleSelectPath = (path: string): void => {
-    setSelectedPath(path)
-    void inspectFile(path, true)
-  }
+    void inspectFiles(true)
+  }, [fileOptions, hasFileOptions])
 
   const handleGenerateRandomId = (): void => {
     setDraftId(generateRandomWatchfaceId())
   }
 
   const handleReplaceInPlace = async (): Promise<void> => {
-    const path = selectedPath.trim()
-    if (!path) {
-      toast('请先选择表盘文件')
+    if (!hasFileOptions) {
+      toast('请先准备表盘文件')
       return
     }
     if (idError || draftId.trim().length !== WATCHFACE_ID_LENGTH) {
@@ -147,21 +179,27 @@ export function WatchfaceIdEditor(props: {
 
     try {
       setSaving(true)
-      const sourceFile = await loadFile(path)
-      if (!sourceFile) {
-        throw new Error('未找到目标表盘文件，请重新选择。')
-      }
       const nextId = draftId.trim()
-      const nextFile = await replaceWatchfaceIdInFile(sourceFile, nextId)
-      await saveFile(path, nextFile)
-      setOriginalId(nextId)
+      for (const option of fileOptions) {
+        const sourceFile = await loadFile(option.path)
+        if (!sourceFile) {
+          throw new Error(`未找到目标表盘文件：${option.path}`)
+        }
+        const nextFile = await replaceWatchfaceIdInFile(sourceFile, nextId)
+        await saveFile(option.path, nextFile)
+      }
+      setInspectRows((prev) => prev.map((row) => ({
+        ...row,
+        originalId: nextId,
+        error: ''
+      })))
       setDetectError('')
       onApplyResourceId(nextId)
-      toast('已替换表盘文件', {
-        description: `文件保持原名，资源 ID 已同步为 ${nextId}`
+      toast('已同步表盘 ID', {
+        description: `已更新 ${fileOptions.length} 个表盘文件，资源 ID 已同步为 ${nextId}`
       })
     } catch (cause: unknown) {
-      toast('替换表盘文件失败', {
+      toast('同步表盘 ID 失败', {
         description: cause instanceof Error ? cause.message : '未知错误'
       })
     } finally {
@@ -172,35 +210,39 @@ export function WatchfaceIdEditor(props: {
   return (
     <Card className="border-dashed border-primary/40 bg-primary/[0.03] shadow-none">
       <CardHeader className="pb-3 sm:p-4 sm:pb-3">
-        <CardTitle className="text-sm">表盘 ID 修改工具</CardTitle>
-        <CardDescription>直接读取操作区已选的表盘文件，自动识别原始 ID，并原地替换回同一路径同名文件。</CardDescription>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-sm">表盘 ID 修改工具</CardTitle>
+          <Button type="button" variant="outline" size="sm" onClick={() => void inspectFiles(false)} disabled={!hasFileOptions || detecting || saving}>
+            <ArrowsClockwise data-icon="inline-start" weight="duotone" />
+            刷新
+          </Button>
+        </div>
+        <CardDescription>会批量读取当前工作区中的所有表盘 `.bin` / `.face` 文件，并统一同步为同一个 ID。</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 pt-0 sm:p-4 sm:pt-0">
         <div className="space-y-1.5">
-          <Label htmlFor="watchface-id-editor-target">操作区表盘文件</Label>
-          <Select value={selectedPath} onValueChange={handleSelectPath} disabled={!hasFileOptions || detecting || saving}>
-            <SelectTrigger id="watchface-id-editor-target">
-              <SelectValue placeholder={hasFileOptions ? '请选择表盘文件' : '请先在下载资源里选择 .bin / .face 文件'} />
-            </SelectTrigger>
-            <SelectContent>
-              {fileOptions.map((option) => (
-                <SelectItem key={option.path} value={option.path}>
-                  {option.label}
-                </SelectItem>
+          <Label>表盘文件原始 ID</Label>
+          <div className="rounded-md border border-border bg-background/80 px-3 py-2 text-sm">
+            {hasFileOptions ? `${fileOptions.length} 个文件` : '暂无可同步的表盘文件'}
+          </div>
+          {hasFileOptions ? (
+            <div className="max-h-40 overflow-y-auto rounded-md border border-border/70 bg-background/60 text-xs">
+              {inspectRows.map((row) => (
+                <div key={row.path} className="grid grid-cols-[minmax(0,1fr)_minmax(120px,auto)] gap-3 border-b border-border/60 px-3 py-2 last:border-b-0">
+                  <div className="min-w-0 truncate text-foreground" title={row.path}>{row.fileName}</div>
+                  <div className={`text-right ${row.error ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    {detecting && !row.originalId && !row.error ? '读取中...' : (row.originalId || row.error || '--')}
+                  </div>
+                </div>
               ))}
-            </SelectContent>
-          </Select>
-          {!hasFileOptions ? <p className="text-xs text-muted-foreground">先在“下载资源”区域给设备选择 `.bin` 或 `.face` 文件，这里才会出现可操作目标。</p> : null}
-          {selectedPath ? <p className="text-xs text-muted-foreground">当前路径：{selectedPath}</p> : null}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">先在“下载资源”区域给设备选择 `.bin` 或 `.face` 文件，工具会自动批量同步这些表盘文件。</p>
+          )}
+          {originalIds.length > 1 ? <p className="text-xs text-destructive">当前检测到多个不同的原始 ID，建议先统一后再提交。</p> : null}
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="watchface-id-editor-original">检测到的原始 ID</Label>
-            <Input id="watchface-id-editor-original" value={detecting ? '正在读取...' : originalId} readOnly placeholder="选择文件后自动检测" />
-            {detectError ? <p className="text-xs text-destructive">{detectError}</p> : null}
-          </div>
-
+        <div className="rounded-lg border border-primary/40 bg-background/80 p-3 shadow-sm">
           <div className="space-y-1.5">
             <Label htmlFor="watchface-id-editor-id">新表盘 ID</Label>
             <Input
@@ -219,6 +261,8 @@ export function WatchfaceIdEditor(props: {
           </div>
         </div>
 
+        {detectError ? <p className="text-xs text-destructive">{detectError}</p> : null}
+
         <div className="flex flex-wrap items-center gap-3">
           <Button type="button" variant="outline" onClick={handleGenerateRandomId} disabled={!hasFileOptions || saving}>
             <DiceFive data-icon="inline-start" weight="duotone" />
@@ -226,7 +270,7 @@ export function WatchfaceIdEditor(props: {
           </Button>
           <Button type="button" onClick={() => void handleReplaceInPlace()} disabled={!hasFileOptions || detecting || saving || Boolean(idError) || !draftId.trim()}>
             <PencilSimpleLine data-icon="inline-start" weight="duotone" />
-            原地替换并同步 ID
+            批量替换并同步 ID
           </Button>
           {resourceId.trim() ? <span className="text-xs text-muted-foreground">当前资源 ID：{resourceId.trim()}</span> : null}
         </div>

@@ -4208,6 +4208,16 @@ export function CcPublishWorkbench(props: {
                           placeholder="填写资源描述（manifest_v2.item.description）"
                         />
                       </div>
+
+                      {restype === 'watchface' ? (
+                        <WatchfaceIdEditor
+                          resourceId={resourceId}
+                          fileOptions={watchfaceEditorFileOptions}
+                          loadFile={loadWatchfaceEditorFile}
+                          saveFile={saveWatchfaceEditorFile}
+                          onApplyResourceId={(value) => setResourceId(normalizeWatchfaceIdInput(value))}
+                        />
+                      ) : null}
                     </CardContent>
                   </Card>
 
@@ -4391,16 +4401,6 @@ export function CcPublishWorkbench(props: {
                       })}
                     </CardContent>
                   </Card>
-
-                  {mode === 'publish' && restype === 'watchface' ? (
-                    <WatchfaceIdEditor
-                      resourceId={resourceId}
-                      fileOptions={watchfaceEditorFileOptions}
-                      loadFile={loadWatchfaceEditorFile}
-                      saveFile={saveWatchfaceEditorFile}
-                      onApplyResourceId={(value) => setResourceId(normalizeWatchfaceIdInput(value))}
-                    />
-                  ) : null}
 
                 </div>
               ) : null}
