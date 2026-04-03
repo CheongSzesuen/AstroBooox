@@ -592,6 +592,9 @@ export function CcPublishWorkbench(props: {
   const [showOutOfWorkspaceFileDialog, setShowOutOfWorkspaceFileDialog] = useState(false)
   const [showImageValidationDialog, setShowImageValidationDialog] = useState(false)
   const [imageValidationMessage, setImageValidationMessage] = useState('')
+  const [showPackageValidationDialog, setShowPackageValidationDialog] = useState(false)
+  const [packageValidationDialogTitle, setPackageValidationDialogTitle] = useState('')
+  const [packageValidationDialogMessage, setPackageValidationDialogMessage] = useState('')
   const [showFolderNameValidationDialog, setShowFolderNameValidationDialog] = useState(false)
   const [folderNameValidationMessage, setFolderNameValidationMessage] = useState('')
   const [showFileNameConflictDialog, setShowFileNameConflictDialog] = useState(false)
@@ -2048,6 +2051,12 @@ export function CcPublishWorkbench(props: {
     setShowImageValidationDialog(true)
   }
 
+  const openPackageValidationDialog = (title: string, message: string) => {
+    setPackageValidationDialogTitle(title)
+    setPackageValidationDialogMessage(message)
+    setShowPackageValidationDialog(true)
+  }
+
   const validateIconImage = async (file: File): Promise<boolean> => {
     try {
       const { width, height } = await getImageSize(file)
@@ -2150,6 +2159,46 @@ export function CcPublishWorkbench(props: {
     const path = normalizeRepoPath(first.path)
     upsertExtraFiles([{ path, file: first.file }])
     updateDownloadByDevice(deviceId, { file_name: path })
+
+    if (restype !== 'quickapp' || !isQuickappRpkPath(path)) return
+
+    if (!isRpkManifestAutoValidationSupported()) {
+      openPackageValidationDialog(
+        '资源包自动校验不可用',
+        '当前浏览器不支持解析 RPK 并读取快应用包名，无法自动校验资源 ID 与实际包名是否一致。该说明也会写入自动生成的 PR 详情。'
+      )
+      return
+    }
+
+    try {
+      const manifestInfo = await readRpkManifestInfo(first.file)
+      setQuickappPackageChecks((prev) => ({
+        ...prev,
+        [path]: {
+          packageName: manifestInfo.packageName,
+          error: ''
+        }
+      }))
+      if (resourceId.trim() && manifestInfo.packageName !== resourceId.trim()) {
+        openPackageValidationDialog(
+          '快应用包名与资源 ID 不一致',
+          `已导入文件的快应用包名为 ${manifestInfo.packageName}，当前填写的资源 ID 为 ${resourceId.trim()}。请确认后再提交。`
+        )
+      }
+    } catch (cause: unknown) {
+      const message = cause instanceof Error ? cause.message : '未知错误'
+      setQuickappPackageChecks((prev) => ({
+        ...prev,
+        [path]: {
+          packageName: '',
+          error: message
+        }
+      }))
+      openPackageValidationDialog(
+        '快应用包名读取失败',
+        `已导入的 RPK 无法读取快应用包名：${message}`
+      )
+    }
   }
 
   const openFileNameConflictDialog = (repoPath: string) => {
@@ -4573,12 +4622,12 @@ export function CcPublishWorkbench(props: {
                                       return <p className="text-xs text-muted-foreground">正在读取 RPK 包名…</p>
                                     }
                                     if (check.error) {
-                                      return <p className="text-xs text-destructive">RPK 校验失败：{check.error}</p>
+                                      return <p className="text-xs text-destructive">快应用包名读取失败：{check.error}</p>
                                     }
                                     const mismatch = resourceId.trim() && check.packageName !== resourceId.trim()
                                     return (
                                       <p className={`text-xs ${mismatch ? 'text-destructive' : 'text-muted-foreground'}`}>
-                                        RPK manifest.package：{check.packageName}
+                                        快应用包名：{check.packageName}
                                       </p>
                                     )
                                   })()
@@ -4871,6 +4920,20 @@ export function CcPublishWorkbench(props: {
           </Command>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRepoSearchDialogOpen(false)}>关闭</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPackageValidationDialog} onOpenChange={setShowPackageValidationDialog}>
+        <DialogContent className="w-[92vw] max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>{packageValidationDialogTitle || '资源包自动校验提示'}</DialogTitle>
+            <DialogDescription className="whitespace-pre-wrap break-words">
+              {packageValidationDialogMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowPackageValidationDialog(false)}>我知道了</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
