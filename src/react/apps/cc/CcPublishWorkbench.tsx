@@ -608,6 +608,7 @@ export function CcPublishWorkbench(props: {
   })
   const leftRailRef = useRef<HTMLDivElement | null>(null)
   const mainWorkbenchCardRef = useRef<HTMLDivElement | null>(null)
+  const downloadsCardRef = useRef<HTMLDivElement | null>(null)
   const prBodyTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const repoAutocompleteCloseTimerRef = useRef<number | null>(null)
   const remotePickerLocalInputRef = useRef<HTMLInputElement | null>(null)
@@ -1420,6 +1421,13 @@ export function CcPublishWorkbench(props: {
     if (submitMode === 'v1') return '仅 v1'
     return '仅 v2'
   }, [submitMode])
+
+  const scrollToDownloadsSection = (): void => {
+    downloadsCardRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    })
+  }
 
   const submitModeOptions = useMemo<Array<{ value: SubmitMode; label: string; variant: 'default' | 'outline' }>>(
     () => [
@@ -4216,12 +4224,13 @@ export function CcPublishWorkbench(props: {
                           loadFile={loadWatchfaceEditorFile}
                           saveFile={saveWatchfaceEditorFile}
                           onApplyResourceId={(value) => setResourceId(normalizeWatchfaceIdInput(value))}
+                          onScrollToDownloads={scrollToDownloadsSection}
                         />
                       ) : null}
                     </CardContent>
                   </Card>
 
-                  <Card className="border-border/70 shadow-none">
+                  <Card ref={downloadsCardRef} className="border-border/70 shadow-none">
                     <CardHeader className="pb-3 sm:p-3 sm:pb-3">
                       <CardTitle className="text-base">资源属性</CardTitle>
                     </CardHeader>

@@ -79,8 +79,9 @@ export function WatchfaceIdEditor(props: {
   loadFile: (path: string) => Promise<globalThis.File | null>
   saveFile: (path: string, file: globalThis.File) => Promise<void>
   onApplyResourceId: (value: string) => void
+  onScrollToDownloads?: () => void
 }) {
-  const { resourceId, fileOptions, loadFile, saveFile, onApplyResourceId } = props
+  const { resourceId, fileOptions, loadFile, saveFile, onApplyResourceId, onScrollToDownloads } = props
   const [draftId, setDraftId] = useState('')
   const [inspectRows, setInspectRows] = useState<WatchfaceInspectRow[]>([])
   const [detectError, setDetectError] = useState('')
@@ -209,7 +210,7 @@ export function WatchfaceIdEditor(props: {
 
   return (
     <Card className="border-dashed border-primary/40 bg-primary/[0.03] shadow-none">
-      <CardHeader className="pb-3 sm:p-4 sm:pb-3">
+      <CardHeader className="pb-2 sm:p-4 sm:pb-2">
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="text-sm">表盘 ID 修改工具</CardTitle>
           <Button type="button" variant="outline" size="sm" onClick={() => void inspectFiles(false)} disabled={!hasFileOptions || detecting || saving}>
@@ -217,24 +218,32 @@ export function WatchfaceIdEditor(props: {
             刷新
           </Button>
         </div>
-        <CardDescription>会批量读取当前工作区中的所有表盘 `.bin` / `.face` 文件，并统一同步为同一个 ID。</CardDescription>
+        <CardDescription className="text-xs">
+          会批量读取当前工作区中的所有表盘 `.bin` / `.face` 文件，并统一同步为同一个 ID。
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 pt-0 sm:p-4 sm:pt-0">
         <div className="space-y-1.5">
-          <Label>表盘文件原始 ID</Label>
-          <div className="rounded-md border border-border bg-background/80 px-3 py-2 text-sm">
-            {hasFileOptions ? `${fileOptions.length} 个文件` : '暂无可同步的表盘文件'}
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-sm font-semibold text-foreground">表盘文件原始 ID</Label>
+            {hasFileOptions ? <span className="text-xs text-muted-foreground">{fileOptions.length} 个文件</span> : null}
           </div>
           {hasFileOptions ? (
-            <div className="max-h-40 overflow-y-auto rounded-md border border-border/70 bg-background/60 text-xs">
+            <div className="overflow-hidden rounded-md border border-border/70 bg-background/70">
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(132px,auto)] gap-3 border-b border-border/70 bg-muted/40 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                <div>表盘文件</div>
+                <div className="text-right">原始 ID</div>
+              </div>
+              <div className="max-h-48 overflow-y-auto">
               {inspectRows.map((row) => (
-                <div key={row.path} className="grid grid-cols-[minmax(0,1fr)_minmax(120px,auto)] gap-3 border-b border-border/60 px-3 py-2 last:border-b-0">
-                  <div className="min-w-0 truncate text-foreground" title={row.path}>{row.fileName}</div>
-                  <div className={`text-right ${row.error ? 'text-destructive' : 'text-muted-foreground'}`}>
+                <div key={row.path} className="grid grid-cols-[minmax(0,1fr)_minmax(132px,auto)] gap-3 border-b border-border/60 px-3 py-2.5 last:border-b-0">
+                  <div className="min-w-0 truncate text-sm font-medium text-foreground" title={row.path}>{row.fileName}</div>
+                  <div className={`text-right text-sm font-semibold ${row.error ? 'text-destructive' : 'text-foreground'}`}>
                     {detecting && !row.originalId && !row.error ? '读取中...' : (row.originalId || row.error || '--')}
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">先在“下载资源”区域给设备选择 `.bin` 或 `.face` 文件，工具会自动批量同步这些表盘文件。</p>
@@ -264,6 +273,9 @@ export function WatchfaceIdEditor(props: {
         {detectError ? <p className="text-xs text-destructive">{detectError}</p> : null}
 
         <div className="flex flex-wrap items-center gap-3">
+          <Button type="button" variant="secondary" onClick={onScrollToDownloads} disabled={!onScrollToDownloads}>
+            添加表盘文件
+          </Button>
           <Button type="button" variant="outline" onClick={handleGenerateRandomId} disabled={!hasFileOptions || saving}>
             <DiceFive data-icon="inline-start" weight="duotone" />
             随机生成 ID
