@@ -609,6 +609,7 @@ export function CcPublishWorkbench(props: {
   const leftRailRef = useRef<HTMLDivElement | null>(null)
   const mainWorkbenchCardRef = useRef<HTMLDivElement | null>(null)
   const downloadsCardRef = useRef<HTMLDivElement | null>(null)
+  const downloadsBottomRef = useRef<HTMLDivElement | null>(null)
   const prBodyTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const repoAutocompleteCloseTimerRef = useRef<number | null>(null)
   const remotePickerLocalInputRef = useRef<HTMLInputElement | null>(null)
@@ -1423,9 +1424,10 @@ export function CcPublishWorkbench(props: {
   }, [submitMode])
 
   const scrollToDownloadsSection = (): void => {
-    downloadsCardRef.current?.scrollIntoView({
+    const target = downloadsBottomRef.current ?? downloadsCardRef.current
+    target?.scrollIntoView({
       behavior: 'smooth',
-      block: 'start'
+      block: downloadsBottomRef.current ? 'end' : 'start'
     })
   }
 
@@ -4230,7 +4232,7 @@ export function CcPublishWorkbench(props: {
                     </CardContent>
                   </Card>
 
-                  <Card ref={downloadsCardRef} className="border-border/70 shadow-none">
+                  <Card className="border-border/70 shadow-none">
                     <CardHeader className="pb-3 sm:p-3 sm:pb-3">
                       <CardTitle className="text-base">资源属性</CardTitle>
                     </CardHeader>
@@ -4302,7 +4304,7 @@ export function CcPublishWorkbench(props: {
                     </CardContent>
                   </Card>
 
-                  <Card className="border-border/70 shadow-none">
+                  <Card ref={downloadsCardRef} className="border-border/70 shadow-none">
                     <CardHeader className="pb-3 sm:p-3 sm:pb-3">
                       <CardTitle className="text-base">作者信息</CardTitle>
                     </CardHeader>
@@ -4408,6 +4410,7 @@ export function CcPublishWorkbench(props: {
                           </div>
                         )
                       })}
+                      <div ref={downloadsBottomRef} />
                     </CardContent>
                   </Card>
 
