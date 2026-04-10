@@ -31,7 +31,7 @@ import {
 import { Input } from '@/react/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/react/components/ui/tabs'
 import { PreviewImageCarousel } from '@/react/components/cc/PreviewImageCarousel'
-import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
+import { buildRawGithubUrl, getManifestV2Downloads, getManifestV2Ext } from '@/react/components/cc/resource-manifest'
 import { ReviewCommentComposer } from '@/react/components/review/ReviewCommentComposer'
 import { ReviewCommentTimeline } from '@/react/components/review/ReviewCommentTimeline'
 import { ReviewDetailHeader } from '@/react/components/review/ReviewDetailHeader'
@@ -940,7 +940,8 @@ export function CcPrReviewWorkbench(props: {
   const submissionOverview = useMemo<SubmissionOverview>(() => {
     const manifest = manifestData || {}
     const item = (manifest.item && typeof manifest.item === 'object') ? (manifest.item as Record<string, unknown>) : {}
-    const downloads = (manifest.downloads && typeof manifest.downloads === 'object') ? (manifest.downloads as Record<string, unknown>) : {}
+    const downloads = getManifestV2Downloads(manifest)
+    const ext = getManifestV2Ext(manifest)
     const links = Array.isArray(manifest.links) ? (manifest.links as Array<Record<string, unknown>>) : []
     const ownerValue = selectedPr?.resourceRepoOwner || selectedPr?.headOwner || ''
     const repoValue = selectedPr?.resourceRepoName || selectedPr?.headRepo || ''
@@ -1001,6 +1002,7 @@ export function CcPrReviewWorkbench(props: {
     pushResourceInfo('资源 ID', item.id)
     pushResourceInfo('资源类型', item.restype)
     pushResourceInfo('资源描述', item.description)
+    pushResourceInfo('AstroBoxCreator 加密功能', ext.enableAstroBoxCreatorFeatures ? '开启' : '关闭')
 
     for (const [device, entry] of Object.entries(downloads)) {
       const record = (entry && typeof entry === 'object') ? (entry as Record<string, unknown>) : {}
@@ -1163,9 +1165,7 @@ export function CcPrReviewWorkbench(props: {
       detail: manifestName && resourceName ? `manifest: ${manifestName} / csv: ${resourceName}` : '缺少可比对字段'
     })
 
-    const downloads = manifestData?.downloads && typeof manifestData.downloads === 'object'
-      ? Object.entries(manifestData.downloads as Record<string, Record<string, unknown>>)
-      : []
+    const downloads = manifestData ? Object.entries(getManifestV2Downloads(manifestData)) : []
     const unknownDeviceIds = downloads
       .map(([device]) => device)
       .filter((device) => !isKnownDeviceToken(device))
@@ -1176,7 +1176,7 @@ export function CcPrReviewWorkbench(props: {
     })
 
     const missingDownloadFiles = downloads
-      .map(([, item]) => toNonEmptyString(item?.file_name) || toNonEmptyString(item?.file))
+      .map(([, item]) => toNonEmptyString(item?.file_name))
       .filter((file) => file && !repoFiles.includes(file))
     checks.push({
       title: 'manifest downloads 文件存在性',

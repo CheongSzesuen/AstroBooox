@@ -390,8 +390,11 @@ const parseManifestDownloads = (text: string): Array<{ version: string; file_nam
   try {
     const parsed = JSON.parse(text) as {
       downloads?: Record<string, { version?: unknown; file_name?: unknown }>
+      ext?: {
+        downloads?: Record<string, { version?: unknown; file_name?: unknown }>
+      }
     }
-    const downloads = parsed.downloads || {}
+    const downloads = Object.keys(parsed.downloads || {}).length > 0 ? parsed.downloads || {} : (parsed.ext?.downloads || {})
     return Object.values(downloads).map(item => ({
       version: typeof item?.version === 'string' ? item.version.trim() : '',
       file_name: typeof item?.file_name === 'string' ? item.file_name.trim() : ''

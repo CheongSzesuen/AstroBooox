@@ -11,6 +11,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { loadOwnedResourceDetail, loadOwnedResources, type OwnedResourceDetail, type OwnedResourceEntry } from '@/utils/resourcePublishApi'
 import { PreviewImageCarousel } from '@/react/components/cc/PreviewImageCarousel'
+import { getManifestV2Downloads, getManifestV2Ext } from '@/react/components/cc/resource-manifest'
 import { ReviewDetailHeader } from '@/react/components/review/ReviewDetailHeader'
 import { Badge } from '@/react/components/ui/badge'
 import { Button } from '@/react/components/ui/button'
@@ -366,8 +367,9 @@ export function CcPublishedPanel(props: {
   const ownedSubmissionOverview = useMemo<OwnedSubmissionOverview>(() => {
     const manifest = ownedManifestObject
     const item = (manifest.item && typeof manifest.item === 'object') ? manifest.item as Record<string, any> : {}
-    const downloads = (manifest.downloads && typeof manifest.downloads === 'object') ? manifest.downloads as Record<string, any> : {}
+    const downloads = getManifestV2Downloads(manifest)
     const linksInput = Array.isArray(manifest.links) ? manifest.links as Array<Record<string, any>> : []
+    const ext = getManifestV2Ext(manifest)
 
     const links = linksInput
       .map((link) => ({
@@ -381,6 +383,7 @@ export function CcPublishedPanel(props: {
       { key: '资源名称', value: String(item.name || selectedOwnedItem?.name || '').trim() },
       { key: '资源类型', value: formatOwnedRestype(String(item.restype || selectedOwnedItem?.restype || '').trim()) },
       { key: '资源描述', value: String(item.description || selectedOwnedItem?.description || '').trim() },
+      { key: 'AstroBoxCreator 加密功能', value: ext.enableAstroBoxCreatorFeatures ? '开启' : '关闭' },
       { key: 'V2 Hash', value: ownedDetail?.v2Ref || '-' }
     ]
 

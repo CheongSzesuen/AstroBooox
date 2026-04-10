@@ -38,6 +38,7 @@ import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
 import { LinkIconPickerDialog, PhosphorIconByName } from '@/react/components/cc/LinkIconPickerDialog'
 import { WatchfaceIdEditor, type WatchfaceEditorFileOption } from '@/react/components/cc/WatchfaceIdEditor'
+import { getManifestV2Downloads, getManifestV2Ext } from '@/react/components/cc/resource-manifest'
 import { Button } from '@/react/components/ui/button'
 import { Badge } from '@/react/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
@@ -51,6 +52,7 @@ import { Popover, PopoverAnchor, PopoverContent } from '@/react/components/ui/po
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/react/components/ui/sheet'
 import { Skeleton } from '@/react/components/ui/skeleton'
+import { Switch } from '@/react/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/react/components/ui/tabs'
 import { Textarea } from '@/react/components/ui/textarea'
 
@@ -112,6 +114,10 @@ const nextId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 
 const normalizeLower = (value: string): string => value.trim().toLowerCase()
 const normalizeRepoPath = (value: string): string => value.trim().replace(/^\/+/, '')
+const canEnableAstroBoxCreatorFeatures = (paidType: string): boolean => {
+  const normalized = paidType.trim()
+  return normalized === 'paid' || normalized === 'force_paid'
+}
 const MAIN_BRANCH = 'main'
 const MANIFEST_FILE = 'manifest_v2.json'
 const LEGACY_MANIFEST_FILE = 'manifest.json'
@@ -144,6 +150,7 @@ type UpdateChangeBaseline = {
   description: string
   restype: string
   paidType: string
+  enableAstroBoxCreatorFeatures: boolean
   icon: string
   cover: string
   previews: string[]
@@ -562,6 +569,7 @@ export function CcPublishWorkbench(props: {
   const [deviceVendorsText, setDeviceVendorsText] = useState('')
   const [devicesText, setDevicesText] = useState('')
   const [paidType, setPaidType] = useState('')
+  const [enableAstroBoxCreatorFeatures, setEnableAstroBoxCreatorFeatures] = useState(false)
   const [previewItems, setPreviewItems] = useState<PublishPreviewItem[]>([])
   const [extraFiles, setExtraFiles] = useState<ExtraUploadFile[]>([])
   const [authors, setAuthors] = useState<ManifestAuthorDraft[]>([{ name: '', authorUrl: '', bindABAccount: true }])
@@ -668,6 +676,12 @@ export function CcPublishWorkbench(props: {
     setRepoSearchDialogOpen(false)
     setRepoSearchDialogQuery('')
   }, [currentUser, token])
+
+  useEffect(() => {
+    if (canEnableAstroBoxCreatorFeatures(paidType)) return
+    if (!enableAstroBoxCreatorFeatures) return
+    setEnableAstroBoxCreatorFeatures(false)
+  }, [enableAstroBoxCreatorFeatures, paidType])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -778,6 +792,7 @@ export function CcPublishWorkbench(props: {
     setDeviceVendorsText('')
     setDevicesText('')
     setPaidType('')
+    setEnableAstroBoxCreatorFeatures(false)
     setPreviewItems((prev) => {
       revokeLocalItems(prev)
       return []
@@ -952,16 +967,16 @@ export function CcPublishWorkbench(props: {
             }
           })
           .filter((entry) => Boolean(entry.icon || entry.title || entry.url))
-        const parsedDownloads = Object.entries(asRecord(manifestRoot.downloads))
+        const parsedDownloads = Object.entries(getManifestV2Downloads(manifestRoot))
           .map(([device, entry]) => {
-            const row = asRecord(entry)
             return {
               device: device.trim(),
-              version: toString(row.version),
-              file_name: normalizeRepoPath(toString(row.file_name))
+              version: toString(entry.version),
+              file_name: normalizeRepoPath(toString(entry.file_name))
             }
           })
           .filter((entry) => Boolean(entry.device))
+        const parsedExt = getManifestV2Ext(manifestRoot)
 
         if (cancelled) return
 
@@ -983,7 +998,10 @@ export function CcPublishWorkbench(props: {
         setTagInput('')
         setDeviceVendorsText(target.device_vendors || '')
         setDevicesText(target.devices || '')
-        setPaidType(target.paid_type || '')
+        const nextPaidType = target.paid_type || ''
+        const nextEnableAstroBoxCreatorFeatures = Boolean(parsedExt.enableAstroBoxCreatorFeatures) && canEnableAstroBoxCreatorFeatures(nextPaidType)
+        setPaidType(nextPaidType)
+        setEnableAstroBoxCreatorFeatures(nextEnableAstroBoxCreatorFeatures)
         setRepoNameInput(target.repo_name || '')
         setRepoDescription(`AstroBooox resource ${target.catalogId || target.name}`)
         setBoundRepoOwner(target.repo_owner || '')
@@ -998,6 +1016,7 @@ export function CcPublishWorkbench(props: {
           description: (parsed.description || target.description || '').trim(),
           restype: nextRestype.trim(),
           paidType: (target.paid_type || '').trim(),
+          enableAstroBoxCreatorFeatures: Boolean(nextEnableAstroBoxCreatorFeatures),
           icon: (parsed.icon || target.icon || '').trim(),
           cover: (parsed.cover || target.cover || '').trim(),
           previews: parsed.previewPaths.map((path) => path.trim()).filter(Boolean),
@@ -1822,17 +1841,19 @@ export function CcPublishWorkbench(props: {
             }
           })
           .filter((entry) => Boolean(entry.icon || entry.title || entry.url))
-        const parsedDownloads = Object.entries(asRecord(root.downloads))
+        const parsedDownloads = Object.entries(getManifestV2Downloads(root))
           .map(([rawDeviceId, entry]) => {
-            const row = asRecord(entry)
             const normalizedId = normalizeDeviceToken(rawDeviceId)
             return {
               device: normalizedId,
-              version: toString(row.version) || '1.0.0',
-              file_name: normalizeRepoPath(toString(row.file_name))
+              version: toString(entry.version) || '1.0.0',
+              file_name: normalizeRepoPath(toString(entry.file_name))
             }
           })
           .filter((entry) => Boolean(entry.device))
+        const parsedExt = getManifestV2Ext(root)
+        const nextPaidType = paidType.trim()
+        const nextEnableAstroBoxCreatorFeatures = Boolean(parsedExt.enableAstroBoxCreatorFeatures) && canEnableAstroBoxCreatorFeatures(nextPaidType)
 
         if (forceSync || !resourceId.trim()) setResourceId(parsed.id)
         if (forceSync || !name.trim()) setName(parsed.name)
@@ -1845,6 +1866,7 @@ export function CcPublishWorkbench(props: {
         }
         if (forceSync || links.length === 0) setLinks(parsedLinks)
         if (forceSync || downloads.length === 0) setDownloads(parsedDownloads)
+        if (forceSync || !enableAstroBoxCreatorFeatures) setEnableAstroBoxCreatorFeatures(nextEnableAstroBoxCreatorFeatures)
         if (forceSync || previewItems.length === 0) {
           setPreviewItems(parsed.previewPaths.map((path) => ({
             id: nextId(),
@@ -2914,6 +2936,14 @@ export function CcPublishWorkbench(props: {
       }
       return acc
     }, {})
+    const baseExt = asRecord(base.ext)
+    const normalizedExtDownloads = Object.entries(normalizedDownloads).reduce<Record<string, { version: string; file_name: string }>>((acc, [device, entry]) => {
+      acc[device] = {
+        version: entry.version,
+        file_name: entry.file_name
+      }
+      return acc
+    }, {})
 
     const manifestObject: Record<string, unknown> = {
       ...base,
@@ -2932,7 +2962,11 @@ export function CcPublishWorkbench(props: {
       },
       links: normalizedLinks,
       downloads: normalizedDownloads,
-      ext: asRecord(base.ext)
+      ext: {
+        ...baseExt,
+        enableAstroBoxCreatorFeatures: enableAstroBoxCreatorFeatures && canEnableAstroBoxCreatorFeatures(paidType),
+        downloads: normalizedExtDownloads
+      }
     }
 
     return JSON.stringify(manifestObject, null, 2)
@@ -3162,6 +3196,11 @@ export function CcPublishWorkbench(props: {
     pushIfChanged('资源描述', normalizeTextValue(baseline.description), normalizeTextValue(description))
     pushIfChanged('资源类型', normalizeTextValue(baseline.restype), normalizeTextValue(restype))
     pushIfChanged('付费类型', normalizeTextValue(baseline.paidType), normalizeTextValue(paidType))
+    pushIfChanged(
+      'AstroBoxCreator 加密功能',
+      baseline.enableAstroBoxCreatorFeatures ? '开启' : '关闭',
+      enableAstroBoxCreatorFeatures ? '开启' : '关闭'
+    )
     pushIfChanged('图标', normalizeTextValue(baseline.icon), normalizeTextValue(iconPath))
     pushIfChanged('封面', normalizeTextValue(baseline.cover), normalizeTextValue(coverPath))
 
@@ -3316,6 +3355,7 @@ export function CcPublishWorkbench(props: {
       const submitVersionText = submitMode === 'both' ? 'v1 + v2' : submitMode === 'v1' ? 'v1' : 'v2'
       const tagsText = tags.map((tag) => tag.trim()).filter(Boolean).join(' / ') || '--'
       const paidTypeText = paidType.trim() || '免费'
+      const creatorFeatureText = enableAstroBoxCreatorFeatures ? '开启' : '关闭'
 
       const deviceLines = selectedDeviceIds.length > 0
         ? selectedDeviceIds.map((deviceId) => `- ${formatDeviceForPr(deviceId)}`)
@@ -3396,6 +3436,7 @@ export function CcPublishWorkbench(props: {
         `- 资源类型：${resourceTypeText}`,
         `- 提交版本：${submitVersionText}`,
         `- 付费类型：${paidTypeText}`,
+        `- AstroBoxCreator 加密功能：${creatorFeatureText}`,
         `- 标签：${tagsText}`,
         '',
         '## 支持设备',
@@ -4412,6 +4453,30 @@ export function CcPublishWorkbench(props: {
                             </SelectContent>
                           </Select>
                         </div>
+                      </div>
+
+                      <div className="space-y-1.5 rounded-lg border border-border bg-muted/20 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <Label htmlFor="creator-feature-switch" className="text-sm font-medium">
+                              是否开启 AstroBoxCreator 加密功能
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              仅在付费类型为“应用内付费”或“强制付费”时可用，保存到 `manifest_v2.json.ext.enableAstroBoxCreatorFeatures`。
+                            </p>
+                          </div>
+                          <Switch
+                            id="creator-feature-switch"
+                            checked={enableAstroBoxCreatorFeatures}
+                            disabled={!canEnableAstroBoxCreatorFeatures(paidType)}
+                            onCheckedChange={(value) => setEnableAstroBoxCreatorFeatures(Boolean(value))}
+                          />
+                        </div>
+                        {!canEnableAstroBoxCreatorFeatures(paidType) ? (
+                          <p className="text-xs text-amber-600">
+                            当前付费类型不支持该功能，开关已禁用。
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="space-y-1.5">

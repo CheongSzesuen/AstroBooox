@@ -6,6 +6,16 @@ export type ResourceManifestLink = {
   url: string
 }
 
+export type ResourceManifestDownload = {
+  version: string
+  file_name: string
+}
+
+export type ResourceManifestExt = {
+  enableAstroBoxCreatorFeatures?: boolean
+  downloads?: Record<string, ResourceManifestDownload>
+}
+
 export type ResourceManifestView = {
   name: string
   description: string
@@ -44,6 +54,37 @@ const toImageAsset = (rawPath: string, owner: string, repo: string, ref: string)
     url: buildRawGithubUrl(owner, repo, ref, raw.replace(/^\/+/, ''))
   }
 }
+
+const toDownloadMap = (value: unknown): Record<string, ResourceManifestDownload> => {
+  const downloads = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  return Object.entries(downloads).reduce<Record<string, ResourceManifestDownload>>((acc, [key, entry]) => {
+    const row = entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : {}
+    const device = key.trim()
+    if (!device) return acc
+    acc[device] = {
+      version: toNonEmptyString(row.version),
+      file_name: toNonEmptyString(row.file_name)
+    }
+    return acc
+  }, {})
+}
+
+export const getManifestV2Ext = (manifest: Record<string, unknown>): ResourceManifestExt => {
+  const ext = manifest.ext && typeof manifest.ext === 'object' ? (manifest.ext as Record<string, unknown>) : {}
+  return {
+    enableAstroBoxCreatorFeatures: Boolean(ext.enableAstroBoxCreatorFeatures),
+    downloads: toDownloadMap(ext.downloads)
+  }
+}
+
+export const getManifestV2Downloads = (manifest: Record<string, unknown>): Record<string, ResourceManifestDownload> => {
+  const topLevelDownloads = toDownloadMap(manifest.downloads)
+  if (Object.keys(topLevelDownloads).length > 0) return topLevelDownloads
+  return getManifestV2Ext(manifest).downloads || {}
+}
+
+export const isAstroBoxCreatorFeatureEnabled = (manifest: Record<string, unknown>): boolean =>
+  Boolean(getManifestV2Ext(manifest).enableAstroBoxCreatorFeatures)
 
 export const parseManifestView = (
   manifestText: string,
