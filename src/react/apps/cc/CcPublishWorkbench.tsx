@@ -118,6 +118,7 @@ const canEnableAstroBoxCreatorFeatures = (paidType: string): boolean => {
   const normalized = paidType.trim()
   return normalized === 'paid' || normalized === 'force_paid'
 }
+const EXT_FIELDS_TEMP_DISABLED = true
 const MAIN_BRANCH = 'main'
 const MANIFEST_FILE = 'manifest_v2.json'
 const LEGACY_MANIFEST_FILE = 'manifest.json'
@@ -4530,17 +4531,21 @@ export function CcPublishWorkbench(props: {
                               是否开启 AstroBoxCreator 加密功能
                             </Label>
                             <p className="text-xs text-muted-foreground">
-                              仅在付费类型为“应用内付费”或“强制付费”时可用，保存到 `manifest_v2.json.ext.enableAstroBoxCreatorFeatures`。
+                              `ext` 字段暂未开放编辑，当前仅保留展示。后续补齐详细规则后再开放配置。
                             </p>
                           </div>
                           <Switch
                             id="creator-feature-switch"
                             checked={enableAstroBoxCreatorFeatures}
-                            disabled={!canEnableAstroBoxCreatorFeatures(paidType)}
-                            onCheckedChange={(value) => setEnableAstroBoxCreatorFeatures(Boolean(value))}
+                            disabled={EXT_FIELDS_TEMP_DISABLED || !canEnableAstroBoxCreatorFeatures(paidType)}
+                            onCheckedChange={EXT_FIELDS_TEMP_DISABLED ? undefined : (value) => setEnableAstroBoxCreatorFeatures(Boolean(value))}
                           />
                         </div>
-                        {!canEnableAstroBoxCreatorFeatures(paidType) ? (
+                        {EXT_FIELDS_TEMP_DISABLED ? (
+                          <p className="text-xs text-amber-600">
+                            `ext` 相关配置已临时禁用，当前不可操作。
+                          </p>
+                        ) : !canEnableAstroBoxCreatorFeatures(paidType) ? (
                           <p className="text-xs text-amber-600">
                             当前付费类型不支持该功能，开关已禁用。
                           </p>
