@@ -482,15 +482,6 @@ const basenameFromPath = (path: string): string => {
   return normalized[normalized.length - 1] || path
 }
 
-const cloneManifestObject = (value: Record<string, unknown> | null): Record<string, unknown> => {
-  if (!value) return {}
-  try {
-    return JSON.parse(JSON.stringify(value)) as Record<string, unknown>
-  } catch {
-    return {}
-  }
-}
-
 const parseManifestDraft = (manifestText: string): ManifestDraft => {
   const fallback: ManifestDraft = {
     rawObject: null,
@@ -614,7 +605,6 @@ export function CcPublishWorkbench(props: {
   const [boundRepoUrl, setBoundRepoUrl] = useState('')
   const [existingCommitSha, setExistingCommitSha] = useState('')
   const [baselineCatalogId, setBaselineCatalogId] = useState('')
-  const [existingManifestObject, setExistingManifestObject] = useState<Record<string, unknown> | null>(null)
   const [updateChangeBaseline, setUpdateChangeBaseline] = useState<UpdateChangeBaseline | null>(null)
   const [showDeviceSelector, setShowDeviceSelector] = useState(false)
   const [showResourceIdGuide, setShowResourceIdGuide] = useState(false)
@@ -840,7 +830,6 @@ export function CcPublishWorkbench(props: {
     setBoundRepoUrl('')
     setExistingCommitSha('')
     setBaselineCatalogId('')
-    setExistingManifestObject(null)
     setUpdateChangeBaseline(null)
     setShowDeviceSelector(false)
     setShowResourceIdGuide(false)
@@ -888,7 +877,6 @@ export function CcPublishWorkbench(props: {
     if (mode !== 'resource_edit') {
       setBootstrapLoading(false)
       setBootstrapError('')
-      setExistingManifestObject(null)
       setBaselineCatalogId('')
       setUpdateChangeBaseline(null)
       setBoundRepoOwner('')
@@ -1031,7 +1019,6 @@ export function CcPublishWorkbench(props: {
         setBoundRepoUrl(`https://github.com/${target.repo_owner}/${target.repo_name}`)
         setExistingCommitSha(detail.latestCommitSha || target.repo_commit_hash || '')
         setBaselineCatalogId(target.catalogId || targetResourceId)
-        setExistingManifestObject(parsed.rawObject)
         setUpdateChangeBaseline({
           name: (parsed.name || target.name).trim(),
           description: (parsed.description || target.description || '').trim(),
@@ -2972,8 +2959,6 @@ export function CcPublishWorkbench(props: {
   }
 
   const buildManifestV2Text = (): string => {
-    const base = cloneManifestObject(existingManifestObject)
-    const item = asRecord(base.item)
     const normalizedResourceId = ensureValidResourceId(resourceId, restype)
 
     const normalizedAuthors = authors
@@ -3000,19 +2985,13 @@ export function CcPublishWorkbench(props: {
       }
       return acc
     }, {})
-    const baseExt = asRecord(base.ext)
-    const normalizedExtDownloads = Object.entries(normalizedDownloads).reduce<Record<string, { version: string; file_name: string }>>((acc, [device, entry]) => {
-      acc[device] = {
-        version: entry.version,
-        file_name: entry.file_name
-      }
-      return acc
-    }, {})
+    const normalizedExt: Record<string, unknown> = {}
+    if (enableAstroBoxCreatorFeatures && canEnableAstroBoxCreatorFeatures(paidType)) {
+      normalizedExt.enableAstroBoxCreatorFeatures = true
+    }
 
     const manifestObject: Record<string, unknown> = {
-      ...base,
       item: {
-        ...item,
         id: normalizedResourceId,
         restype: formatCatalogRestype(restype),
         name: name.trim(),
@@ -3026,11 +3005,7 @@ export function CcPublishWorkbench(props: {
       },
       links: normalizedLinks,
       downloads: normalizedDownloads,
-      ext: {
-        ...baseExt,
-        enableAstroBoxCreatorFeatures: enableAstroBoxCreatorFeatures && canEnableAstroBoxCreatorFeatures(paidType),
-        downloads: normalizedExtDownloads
-      }
+      ext: normalizedExt
     }
 
     return JSON.stringify(manifestObject, null, 2)
