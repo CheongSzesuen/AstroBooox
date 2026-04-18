@@ -3938,21 +3938,18 @@ export function CcPublishWorkbench(props: {
                             className="flex w-full items-center gap-1 pr-1"
                             style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
                           >
-                            <button
-                              type="button"
-                              className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
-                                remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                              }`}
-                              onClick={() => selectRemotePickerFolder(item.path)}
-                              onDoubleClick={() => toggleRemoteFolder(item.path)}
-                            >
-                              {item.collapsed ? (
-                                <CaretRight size={12} weight="bold" className="shrink-0" />
-                              ) : (
-                                <CaretDown size={12} weight="bold" className="shrink-0" />
-                              )}
-                              <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0" />
-                              {remotePickerRenamingPath === item.path ? (
+                            {remotePickerRenamingPath === item.path ? (
+                              <div
+                                className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs ${
+                                  remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
+                                }`}
+                              >
+                                {item.collapsed ? (
+                                  <CaretRight size={12} weight="bold" className="shrink-0" />
+                                ) : (
+                                  <CaretDown size={12} weight="bold" className="shrink-0" />
+                                )}
+                                <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0" />
                                 <Input
                                   ref={remotePickerRenameInputRef}
                                   value={remotePickerRenamingName}
@@ -3970,15 +3967,35 @@ export function CcPublishWorkbench(props: {
                                   }}
                                   onBlur={commitRenameDraftFolder}
                                 />
-                              ) : (
+                                {remotePickerTargetFolder === item.path ? (
+                                  <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
+                                    目标文件夹
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
+                                  remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
+                                }`}
+                                onClick={() => selectRemotePickerFolder(item.path)}
+                                onDoubleClick={() => toggleRemoteFolder(item.path)}
+                              >
+                                {item.collapsed ? (
+                                  <CaretRight size={12} weight="bold" className="shrink-0" />
+                                ) : (
+                                  <CaretDown size={12} weight="bold" className="shrink-0" />
+                                )}
+                                <FolderNotchOpenIcon size={14} weight="fill" className="shrink-0" />
                                 <span className="truncate">{item.label}</span>
-                              )}
-                              {remotePickerTargetFolder === item.path ? (
-                                <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
-                                  目标文件夹
-                                </span>
-                              ) : null}
-                            </button>
+                                {remotePickerTargetFolder === item.path ? (
+                                  <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
+                                    目标文件夹
+                                  </span>
+                                ) : null}
+                              </button>
+                            )}
                             <DropdownMenu modal={false}>
                               <DropdownMenuTrigger asChild>
                                 <Button
@@ -3991,7 +4008,13 @@ export function CcPublishWorkbench(props: {
                                   <DotsThreeVertical size={12} />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent side="bottom" align="end" sideOffset={6} className="min-w-[150px]">
+                              <DropdownMenuContent
+                                side="bottom"
+                                align="end"
+                                sideOffset={6}
+                                className="min-w-[150px]"
+                                onCloseAutoFocus={(event) => event.preventDefault()}
+                              >
                                 <DropdownMenuItem className="gap-2" onSelect={() => createRemotePickerFolder(item.path)}>
                                   <FolderPlus size={14} weight="duotone" />
                                   新建子文件夹
@@ -4008,7 +4031,10 @@ export function CcPublishWorkbench(props: {
                             </DropdownMenu>
                           </div>
                         </ContextMenuTrigger>
-                        <ContextMenuContent className="min-w-[150px]">
+                        <ContextMenuContent
+                          className="min-w-[150px]"
+                          onCloseAutoFocus={(event) => event.preventDefault()}
+                        >
                           <ContextMenuItem className="gap-2" onSelect={() => createRemotePickerFolder(item.path)}>
                             <FolderPlus size={14} weight="duotone" />
                             新建子文件夹
