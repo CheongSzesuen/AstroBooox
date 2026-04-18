@@ -185,6 +185,7 @@ type PickedWorkspaceFile = {
 }
 
 type VisibleTreeItem = RepoTreeItem & { collapsed: boolean }
+type RemotePickerDisplayItem = VisibleTreeItem & { isDraft: boolean }
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
@@ -415,6 +416,26 @@ const getVisibleTreeItems = (tree: RepoTreeItem[], collapsedPaths: string[]): Vi
     }
   }
   return visible
+}
+
+const collectDraftFolderPaths = (folderPaths: string[], filePaths: string[]): string[] => {
+  const folders = new Set<string>()
+  folderPaths.forEach((path) => {
+    const segments = normalizeRepoPath(path).split('/').filter(Boolean)
+    if (segments.length === 0) return
+    for (let i = 0; i < segments.length; i++) {
+      const folderPath = segments.slice(0, i + 1).join('/')
+      if (folderPath) folders.add(folderPath)
+    }
+  })
+  filePaths.forEach((path) => {
+    const segments = normalizeRepoPath(path).split('/').filter(Boolean)
+    for (let i = 0; i < segments.length - 1; i++) {
+      const folderPath = segments.slice(0, i + 1).join('/')
+      if (folderPath) folders.add(folderPath)
+    }
+  })
+  return [...folders].sort((a, b) => a.localeCompare(b, 'zh-CN'))
 }
 
 const formatCatalogRestype = (value: Restype): string => (value === 'watchface' ? 'watchface' : 'quick_app')
@@ -1161,9 +1182,23 @@ export function CcPublishWorkbench(props: {
     [remotePickerMode, remotePickerStep]
   )
 
-  const remotePickerFolderItems = useMemo(() => {
+  const remotePickerDraftFilePaths = useMemo(
+    () => Object.keys(opfsLocalPathSet).sort((a, b) => a.localeCompare(b, 'zh-CN')),
+    [opfsLocalPathSet]
+  )
+
+  const remotePickerDraftFolderPaths = useMemo(
+    () => collectDraftFolderPaths(remotePickerDraftFolders, remotePickerDraftFilePaths),
+    [remotePickerDraftFilePaths, remotePickerDraftFolders]
+  )
+
+  const remotePickerFolderItems = useMemo<RemotePickerDisplayItem[]>(() => {
+    const remoteFolderPathSet = new Set(remoteWorkspaceTree.filter((item) => item.type === 'folder').map((item) => item.path))
+    const draftFolderPathSet = new Set(
+      remotePickerDraftFolderPaths.filter((path) => !remoteFolderPathSet.has(path))
+    )
     const fromRemote = remoteWorkspaceTree.filter((item) => item.type === 'folder')
-    const fromDraft: RepoTreeItem[] = remotePickerDraftFolders.map((path) => {
+    const fromDraft: RepoTreeItem[] = [...draftFolderPathSet].map((path) => {
       const segments = path.split('/').filter(Boolean)
       return {
         type: 'folder',
@@ -1179,33 +1214,63 @@ export function CcPublishWorkbench(props: {
       }
     })
     const folderTree = [...dedup.values()].sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'))
-    return getVisibleTreeItems(folderTree, collapsedRemoteFolders)
-  }, [collapsedRemoteFolders, remotePickerDraftFolders, remoteWorkspaceTree])
+    return getVisibleTreeItems(folderTree, collapsedRemoteFolders).map((item) => ({
+      ...item,
+      isDraft: draftFolderPathSet.has(item.path)
+    }))
+  }, [collapsedRemoteFolders, remotePickerDraftFolderPaths, remoteWorkspaceTree])
 
-  const remotePickerTreeItems = useMemo(
-    () => visibleRemoteItems.filter((item) => {
-      if (item.type === 'folder') return true
+  const remotePickerTreeItems = useMemo<RemotePickerDisplayItem[]>(() => {
+    const remoteFolderPathSet = new Set(remoteWorkspaceTree.filter((item) => item.type === 'folder').map((item) => item.path))
+    const remoteFilePathSet = new Set(remoteWorkspaceTree.filter((item) => item.type === 'file').map((item) => item.path))
+    const draftFolderPathSet = new Set(
+      remotePickerDraftFolderPaths.filter((path) => !remoteFolderPathSet.has(path))
+    )
+    const draftFileCandidates = remotePickerDraftFilePaths.filter((path) => {
+      if (remoteFilePathSet.has(path)) return false
       if (remotePickerMode === 'icon' || remotePickerMode === 'cover' || remotePickerMode === 'preview') {
-        return isImagePath(item.path) || Boolean(opfsLocalPreviewUrlMap[item.path])
+        return isImagePath(path) || Boolean(opfsLocalPreviewUrlMap[path])
       }
       return true
-    }),
-    [opfsLocalPreviewUrlMap, remotePickerMode, visibleRemoteItems]
-  )
+    })
+    const mergedTree: RepoTreeItem[] = [
+      ...remoteWorkspaceTree,
+      ...[...draftFolderPathSet].map((path) => {
+        const segments = path.split('/').filter(Boolean)
+        return {
+          type: 'folder' as const,
+          path,
+          label: segments[segments.length - 1] || path,
+          depth: Math.max(0, segments.length - 1)
+        }
+      }),
+      ...draftFileCandidates.map((path) => {
+        const segments = path.split('/').filter(Boolean)
+        return {
+          type: 'file' as const,
+          path,
+          label: segments[segments.length - 1] || path,
+          depth: Math.max(0, segments.length - 1)
+        }
+      })
+    ]
+    const dedup = new Map<string, RepoTreeItem>()
+    mergedTree.forEach((item) => {
+      if (!dedup.has(item.path)) {
+        dedup.set(item.path, item)
+      }
+    })
+    const visibleItems = getVisibleTreeItems(
+      [...dedup.values()].sort((a, b) => a.path.localeCompare(b.path, 'zh-CN')),
+      collapsedRemoteFolders
+    )
+    return visibleItems.map((item) => ({
+      ...item,
+      isDraft: item.type === 'folder' ? draftFolderPathSet.has(item.path) : !remoteFilePathSet.has(item.path)
+    }))
+  }, [collapsedRemoteFolders, opfsLocalPreviewUrlMap, remotePickerDraftFilePaths, remotePickerDraftFolderPaths, remotePickerMode, remoteWorkspaceTree])
 
   const remotePickerPreviewPath = useMemo(() => remotePickerSelectedPaths[0] || '', [remotePickerSelectedPaths])
-
-  const remotePickerLocalItems = useMemo(
-    () => Object.keys(opfsLocalPathSet)
-      .filter((path) => {
-        if (remotePickerMode === 'icon' || remotePickerMode === 'cover' || remotePickerMode === 'preview') {
-          return isImagePath(path) || Boolean(opfsLocalPreviewUrlMap[path])
-        }
-        return true
-      })
-      .sort((a, b) => a.localeCompare(b, 'zh-CN')),
-    [opfsLocalPathSet, opfsLocalPreviewUrlMap, remotePickerMode]
-  )
 
   const resolvedRepoName = useMemo(() => {
     const normalizePrefix = (raw: string): string =>
@@ -2463,7 +2528,6 @@ export function CcPublishWorkbench(props: {
     setRemotePickerSelectedPaths([])
     setRemotePickerUploadFileName('')
     setRemotePickerStep(1)
-    setRemotePickerDraftFolders([])
     setRemotePickerTargetFolder('')
     setRemotePickerRenamingPath('')
     setRemotePickerRenamingName('')
@@ -3922,7 +3986,7 @@ export function CcPublishWorkbench(props: {
                 暂无可选文件夹
               </div>
             ) : null}
-            {remotePickerStep === 2 && remotePickerTreeItems.length === 0 && remotePickerLocalItems.length === 0 ? (
+            {remotePickerStep === 2 && remotePickerTreeItems.length === 0 ? (
               <div className="px-3 py-4 text-center text-xs text-muted-foreground">
                 暂无可选文件
               </div>
@@ -3940,9 +4004,9 @@ export function CcPublishWorkbench(props: {
                           >
                             {remotePickerRenamingPath === item.path ? (
                               <div
-                                className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs ${
-                                  remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                                }`}
+                                className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs ${
+                                  remotePickerTargetFolder === item.path ? 'border-primary/40 bg-primary/10 text-foreground' : 'border-transparent text-muted-foreground'
+                                } ${item.isDraft ? 'border-dashed border-primary/40 bg-primary/5' : ''}`}
                               >
                                 {item.collapsed ? (
                                   <CaretRight size={12} weight="bold" className="shrink-0" />
@@ -3972,13 +4036,18 @@ export function CcPublishWorkbench(props: {
                                     目标文件夹
                                   </span>
                                 ) : null}
+                                {item.isDraft ? (
+                                  <span className="rounded border border-dashed border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
+                                    未提交
+                                  </span>
+                                ) : null}
                               </div>
                             ) : (
                               <button
                                 type="button"
-                                className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
-                                  remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                                }`}
+                                className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs ${
+                                  remotePickerTargetFolder === item.path ? 'border-primary/40 bg-primary/10 text-foreground' : 'border-transparent text-muted-foreground hover:bg-muted/30'
+                                } ${item.isDraft ? 'border-dashed border-primary/40 bg-primary/5' : ''}`}
                                 onClick={() => selectRemotePickerFolder(item.path)}
                                 onDoubleClick={() => toggleRemoteFolder(item.path)}
                               >
@@ -3992,6 +4061,11 @@ export function CcPublishWorkbench(props: {
                                 {remotePickerTargetFolder === item.path ? (
                                   <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
                                     目标文件夹
+                                  </span>
+                                ) : null}
+                                {item.isDraft ? (
+                                  <span className="rounded border border-dashed border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
+                                    未提交
                                   </span>
                                 ) : null}
                               </button>
@@ -4056,9 +4130,9 @@ export function CcPublishWorkbench(props: {
                       >
                         <button
                           type="button"
-                          className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
-                            remotePickerTargetFolder === item.path ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                          }`}
+                          className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs ${
+                            remotePickerTargetFolder === item.path ? 'border-primary/40 bg-primary/10 text-foreground' : 'border-transparent text-muted-foreground hover:bg-muted/30'
+                          } ${item.isDraft ? 'border-dashed border-primary/40 bg-primary/5' : ''}`}
                           onClick={() => selectRemotePickerFolder(item.path)}
                           onDoubleClick={() => toggleRemoteFolder(item.path)}
                         >
@@ -4072,6 +4146,11 @@ export function CcPublishWorkbench(props: {
                           {remotePickerTargetFolder === item.path ? (
                             <span className="ml-auto rounded border border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
                               目标文件夹
+                            </span>
+                          ) : null}
+                          {item.isDraft ? (
+                            <span className="rounded border border-dashed border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
+                              未提交
                             </span>
                           ) : null}
                         </button>
@@ -4089,39 +4168,27 @@ export function CcPublishWorkbench(props: {
                   ) : (
                     <button
                       type="button"
-                      className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 pr-3 text-left text-xs hover:bg-muted/30 ${
-                        remotePickerSelectedPaths.includes(item.path) ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                      }`}
+                      className={`flex w-full items-center gap-1.5 rounded-md border px-2 py-1.5 pr-3 text-left text-xs ${
+                        remotePickerSelectedPaths.includes(item.path)
+                          ? 'border-primary/40 bg-primary/10 text-foreground'
+                          : 'border-transparent text-muted-foreground hover:bg-muted/30'
+                      } ${item.isDraft ? 'border-dashed border-primary/40 bg-primary/5' : ''}`}
                       style={{ paddingLeft: `${0.5 + item.depth * 0.9}rem` }}
                       onClick={() => toggleRemotePickerPath(item.path)}
                     >
                       <span className="w-3 shrink-0" />
                       <File size={14} weight="duotone" className="shrink-0" />
                       <span className="truncate">{item.label}</span>
+                      {item.isDraft ? (
+                        <span className="ml-auto rounded border border-dashed border-primary/40 px-1.5 py-0.5 text-[10px] text-primary">
+                          未提交
+                        </span>
+                      ) : null}
                     </button>
                   )}
                 </div>
               ))}
             </div>
-
-            {remotePickerStep === 2 && remotePickerLocalItems.length > 0 ? (
-              <div className="space-y-1 border-t border-border bg-muted/20 p-2">
-                <p className="px-1 text-[11px] text-muted-foreground">本地上传（OPFS）</p>
-                {remotePickerLocalItems.map((path) => (
-                  <button
-                    key={`local-picker-${path}`}
-                    type="button"
-                    className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/30 ${
-                      remotePickerSelectedPaths.includes(path) ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                    }`}
-                    onClick={() => toggleRemotePickerPath(path)}
-                  >
-                    <File size={14} weight="duotone" className="shrink-0" />
-                    <span className="truncate">{path}</span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
           </div>
         </div>
 
