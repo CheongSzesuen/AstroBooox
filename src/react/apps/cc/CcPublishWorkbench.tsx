@@ -1737,6 +1737,38 @@ export function CcPublishWorkbench(props: {
   const confirmSubmitMode = (modeValue: SubmitMode) => {
     setSubmitMode(modeValue)
     setShowSubmitVersionDialog(false)
+    if (modeValue === 'v1' || modeValue === 'both') {
+      const rows = authors
+        .map((author, index) => ({
+          index,
+          name: author.name.trim(),
+          authorUrl: author.authorUrl.trim()
+        }))
+        .filter((row) => row.name || row.authorUrl)
+      let msg = ''
+      if (rows.length === 0) {
+        msg = '提交 v1 时，至少要填写 1 条作者信息（name + author_url）'
+      } else {
+        for (const row of rows) {
+          if (!row.name) { msg = `第 ${row.index + 1} 个作者缺少名称`; break }
+          if (!row.authorUrl) { msg = `第 ${row.index + 1} 个作者缺少 author_url`; break }
+          try {
+            const parsed = new URL(row.authorUrl)
+            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+              msg = `第 ${row.index + 1} 个作者的 author_url 仅支持 http/https`; break
+            }
+          } catch {
+            msg = `第 ${row.index + 1} 个作者的 author_url 格式不合法`; break
+          }
+        }
+      }
+      if (msg) {
+        setResourceInfoValidationIssues([msg])
+        setShowResourceInfoValidationDialog(true)
+        appendLog(`请先完成资源信息：${msg}`)
+        return
+      }
+    }
     goToStep('2')
   }
 
