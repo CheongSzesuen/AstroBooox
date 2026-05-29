@@ -975,6 +975,30 @@ export function CcPublishWorkbench(props: {
             }
           })
           .filter((entry) => Boolean(entry.name))
+        if (detail.v1ManifestText) {
+          try {
+            const v1Root = asRecord(JSON.parse(detail.v1ManifestText))
+            const v1Item = asRecord(v1Root.item)
+            const v1Authors = (Array.isArray(v1Item.author) ? v1Item.author : [])
+              .map((entry) => {
+                const row = asRecord(entry)
+                return { name: toString(row.name), authorUrl: toString(row.author_url) }
+              })
+              .filter((entry) => entry.name)
+            if (parsedAuthors.length === 0 && v1Authors.length > 0) {
+              for (const a of v1Authors) {
+                parsedAuthors.push({ name: a.name, authorUrl: a.authorUrl, bindABAccount: true })
+              }
+            } else if (parsedAuthors.length > 0 && hasV2) {
+              const v1AuthorMap = new Map(v1Authors.map((a) => [a.name, a.authorUrl]))
+              for (const author of parsedAuthors) {
+                if (!author.authorUrl && v1AuthorMap.has(author.name)) {
+                  author.authorUrl = v1AuthorMap.get(author.name) || ''
+                }
+              }
+            }
+          } catch {}
+        }
         const parsedLinks = (Array.isArray(manifestRoot.links) ? manifestRoot.links : [])
           .map((entry) => {
             const row = asRecord(entry)
