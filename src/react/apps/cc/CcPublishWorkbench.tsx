@@ -609,6 +609,8 @@ export function CcPublishWorkbench(props: {
   const [boundRepoUrl, setBoundRepoUrl] = useState('')
   const [existingCommitSha, setExistingCommitSha] = useState('')
   const [baselineCatalogId, setBaselineCatalogId] = useState('')
+  const [hasV1Manifest, setHasV1Manifest] = useState<boolean | null>(null)
+  const [hasV2Manifest, setHasV2Manifest] = useState<boolean | null>(null)
   const [updateChangeBaseline, setUpdateChangeBaseline] = useState<UpdateChangeBaseline | null>(null)
   const [showDeviceSelector, setShowDeviceSelector] = useState(false)
   const [showResourceIdGuide, setShowResourceIdGuide] = useState(false)
@@ -953,7 +955,10 @@ export function CcPublishWorkbench(props: {
           ...(v2Ref ? { v2Ref } : {})
         })
 
+        const hasV1 = Boolean(detail.v1ManifestText)
         const hasV2 = Boolean(detail.v2ManifestText)
+        setHasV1Manifest(hasV1)
+        setHasV2Manifest(hasV2)
         const defaultRepoBranch = detail.defaultBranch?.trim() || MAIN_BRANCH
         const activeRef = hasV2 ? (detail.v2Ref || defaultRepoBranch) : (detail.v1Ref || defaultRepoBranch)
         const activeManifestText = hasV2 ? detail.v2ManifestText : detail.v1ManifestText
@@ -1050,7 +1055,7 @@ export function CcPublishWorkbench(props: {
           }))
         })
         setHasUploadedInFlow(false)
-        setSubmitMode('v2')
+        setSubmitMode(hasV1 && hasV2 ? 'both' : hasV2 ? 'v2' : 'v1')
         setFileTreeTab('remote')
         setAuthors(nextAuthors)
         setLinks(nextLinks)
@@ -1459,13 +1464,24 @@ export function CcPublishWorkbench(props: {
     })
   }
 
-  const submitModeOptions = useMemo<Array<{ value: SubmitMode; label: string; variant: 'default' | 'outline' }>>(
-    () => [
-      { value: 'both', label: mode === 'resource_edit' ? '同时更新 v1 + v2（推荐）' : '同时提交 v1 + v2（推荐）', variant: 'default' },
-      { value: 'v2', label: mode === 'resource_edit' ? '仅更新 v2' : '仅提交 v2', variant: 'outline' },
-      { value: 'v1', label: mode === 'resource_edit' ? '仅更新 v1' : '仅提交 v1', variant: 'outline' }
-    ],
-    [mode]
+  const submitModeOptions = useMemo<Array<{ value: SubmitMode; label: string; variant: 'default' | 'outline'; disabled?: boolean }>>(
+    () => {
+      if (mode === 'resource_edit') {
+        const v1Available = hasV1Manifest !== false
+        const v2Available = hasV2Manifest !== false
+        return [
+          { value: 'both', label: '同时更新 v1 + v2（推荐）', variant: 'default', disabled: !v1Available || !v2Available },
+          { value: 'v2', label: '仅更新 v2', variant: 'outline', disabled: !v2Available },
+          { value: 'v1', label: '仅更新 v1', variant: 'outline', disabled: !v1Available }
+        ]
+      }
+      return [
+        { value: 'both', label: '同时提交 v1 + v2（推荐）', variant: 'default' },
+        { value: 'v2', label: '仅提交 v2', variant: 'outline' },
+        { value: 'v1', label: '仅提交 v1', variant: 'outline' }
+      ]
+    },
+    [mode, hasV1Manifest, hasV2Manifest]
   )
 
   const isWorkspaceStepDone = mode === 'resource_edit'
@@ -3844,7 +3860,7 @@ export function CcPublishWorkbench(props: {
           matchPath: legacyRelativePath,
           requireExisting: mode === 'resource_edit'
         })
-        forkResult = v1Result
+        if (!forkResult) forkResult = v1Result
         appendLog(`v1 Catalog 更新完成: ${v1Result.forkOwner}/${v1Result.forkRepo}@${v1Result.branch}`)
       }
 
@@ -5229,6 +5245,7 @@ export function CcPublishWorkbench(props: {
                 key={`submit-mode-option-${option.value}`}
                 variant={option.variant}
                 className="justify-start"
+                disabled={option.disabled}
                 onClick={() => confirmSubmitMode(option.value)}
               >
                 {option.label}
