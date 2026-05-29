@@ -583,7 +583,6 @@ export function CcPublishWorkbench(props: {
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [deviceVendorsText, setDeviceVendorsText] = useState('')
-  const [devicesText, setDevicesText] = useState('')
   const [paidType, setPaidType] = useState('')
   const [enableAstroBoxCreatorFeatures, setEnableAstroBoxCreatorFeatures] = useState(false)
   const [previewItems, setPreviewItems] = useState<PublishPreviewItem[]>([])
@@ -609,6 +608,7 @@ export function CcPublishWorkbench(props: {
   const [boundRepoUrl, setBoundRepoUrl] = useState('')
   const [existingCommitSha, setExistingCommitSha] = useState('')
   const [baselineCatalogId, setBaselineCatalogId] = useState('')
+  const [baselineV1Path, setBaselineV1Path] = useState('')
   const [hasV1Manifest, setHasV1Manifest] = useState<boolean | null>(null)
   const [hasV2Manifest, setHasV2Manifest] = useState<boolean | null>(null)
   const [updateChangeBaseline, setUpdateChangeBaseline] = useState<UpdateChangeBaseline | null>(null)
@@ -807,7 +807,6 @@ export function CcPublishWorkbench(props: {
     setTags([])
     setTagInput('')
     setDeviceVendorsText('')
-    setDevicesText('')
     setPaidType('')
     setEnableAstroBoxCreatorFeatures(false)
     setPreviewItems((prev) => {
@@ -944,6 +943,10 @@ export function CcPublishWorkbench(props: {
           throw new Error('未找到要更新的资源，请检查 edit 参数')
         }
 
+        const matchedV1Entry = matchedByRepo.find((item) => item.source === 'v1' && item.repo_owner === target.repo_owner && item.repo_name === target.repo_name)
+        const extractedV1Path = matchedV1Entry?.key.startsWith('v1:') ? matchedV1Entry.key.slice(3).split(':')[0] : ''
+        setBaselineV1Path(extractedV1Path)
+
         const v1Ref = target.source === 'v1' ? target.repo_commit_hash : undefined
         const v2Ref = target.source === 'v2' ? target.repo_commit_hash : undefined
 
@@ -1039,7 +1042,6 @@ export function CcPublishWorkbench(props: {
         setTags(nextTags)
         setTagInput('')
         setDeviceVendorsText(target.device_vendors || '')
-        setDevicesText(target.devices || '')
         const nextPaidType = target.paid_type || ''
         const nextEnableAstroBoxCreatorFeatures = Boolean(parsedExt.enableAstroBoxCreatorFeatures) && canEnableAstroBoxCreatorFeatures(nextPaidType)
         setPaidType(nextPaidType)
@@ -3846,7 +3848,8 @@ export function CcPublishWorkbench(props: {
       const branchName = `astrobooox-submit-${Date.now()}`
       let forkResult: { forkOwner: string; forkRepo: string; branch: string } | null = null
       const normalizedTags = normalizedTagsText
-      const normalizedDevices = devicesText.trim() || normalizedDevicesText
+      const normalizedV2Devices = normalizedDevicesText
+      const normalizedV1Devices = normalizedLegacyDevicesText || normalizedDevicesText
       const normalizedVendors = deviceVendorsText.trim() || normalizedDeviceVendorsText
 
       if (submitMode === 'v2' || submitMode === 'both') {
@@ -3872,7 +3875,7 @@ export function CcPublishWorkbench(props: {
             cover: normalizeRepoPath(coverPath),
             tags: normalizedTags,
             device_vendors: normalizedVendors,
-            devices: normalizedDevices,
+            devices: normalizedV2Devices,
             paid_type: paidType.trim()
           }
         })
@@ -3889,7 +3892,7 @@ export function CcPublishWorkbench(props: {
           cover: getRawUrl(normalizeRepoPath(coverPath)),
           restype: formatLegacyRestype(restype),
           tags: normalizedTags,
-          devices: normalizedLegacyDevicesText || normalizedDevices,
+          devices: normalizedV1Devices,
           path: `${legacyAuthorFolder}/${legacyFileName}`,
           paid_type: paidType.trim()
         }
@@ -3913,7 +3916,7 @@ export function CcPublishWorkbench(props: {
           resourceJsonPath: `${LEGACY_RESOURCES_DIR}/${legacyRelativePath}`,
           legacyEntry,
           resourceManifestJson: legacyManifestRef,
-          matchPath: legacyRelativePath,
+          matchPath: mode === 'resource_edit' && baselineV1Path ? baselineV1Path : legacyRelativePath,
           requireExisting: mode === 'resource_edit'
         })
         if (!forkResult) forkResult = v1Result
