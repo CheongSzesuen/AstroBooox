@@ -14,7 +14,7 @@ import {
   UserCircle,
   WarningCircle
 } from '@phosphor-icons/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createGitHubClient, normalizeGitHubError } from '@/utils/githubOctokitClient'
 import { escapeHtml, parseReviewCommentBody, renderCommentMarkdownHtml, renderCommentMarkdownInlineHtml } from '@/utils/reviewComment'
 import { Badge } from '@/react/components/ui/badge'
@@ -35,7 +35,7 @@ import { buildRawGithubUrl, getManifestV2Downloads, getManifestV2Ext } from '@/r
 import { ReviewCommentComposer } from '@/react/components/review/ReviewCommentComposer'
 import { ReviewCommentTimeline } from '@/react/components/review/ReviewCommentTimeline'
 import { ReviewDetailHeader } from '@/react/components/review/ReviewDetailHeader'
-import { deviceOptions, normalizeDeviceToken } from '@/react/apps/cc/resourcePublishWorkbenchDeviceCatalog'
+import { deviceOptions, normalizeDeviceToken, subscribeToCatalog, fetchAndUpdateCatalog } from '@/react/apps/cc/resourcePublishWorkbenchDeviceCatalog'
 
 type ReviewState = 'waiting_review' | 'changes_requested' | 'fixed_waiting'
 
@@ -145,7 +145,6 @@ type RuleCheckItem = {
 
 const COMMENT_PATTERN = /^\s*\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]\s*(.*)$/i
 const SITE_DEFAULT_TOKEN = import.meta.env.VITE_GITHUB_TOKEN?.trim() ?? ''
-const deviceNameById = new Map(deviceOptions.map((device) => [device.id, device.name]))
 
 const toNonEmptyString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
 
@@ -160,7 +159,7 @@ const resolveDeviceName = (deviceToken: string): string => {
   const normalized = deviceToken.trim()
   if (!normalized) return ''
   const canonicalId = normalizeDeviceToken(normalized)
-  return deviceNameById.get(canonicalId) || ''
+  return deviceOptions.find((d) => d.id === canonicalId)?.name || ''
 }
 
 const isKnownDeviceToken = (deviceToken: string): boolean => Boolean(resolveDeviceName(deviceToken))
@@ -754,6 +753,11 @@ export function CcPrReviewWorkbench(props: {
   const [manifestFilePath, setManifestFilePath] = useState('')
   const [manifestLoadError, setManifestLoadError] = useState('')
   const [imageMetaMap, setImageMetaMap] = useState<Record<string, { width?: number; height?: number }>>({})
+
+  useSyncExternalStore(subscribeToCatalog, () => deviceOptions, () => deviceOptions)
+  useEffect(() => {
+    fetchAndUpdateCatalog()
+  }, [])
   const [imageBlobUrlMap, setImageBlobUrlMap] = useState<Record<string, string>>({})
 
   const [commentId, setCommentId] = useState('')
