@@ -608,6 +608,7 @@ export function CcPublishWorkbench(props: {
   const [boundRepoUrl, setBoundRepoUrl] = useState('')
   const [existingCommitSha, setExistingCommitSha] = useState('')
   const [baselineCatalogId, setBaselineCatalogId] = useState('')
+  const [baselineV1Path, setBaselineV1Path] = useState('')
   const [hasV1Manifest, setHasV1Manifest] = useState<boolean | null>(null)
   const [hasV2Manifest, setHasV2Manifest] = useState<boolean | null>(null)
   const [updateChangeBaseline, setUpdateChangeBaseline] = useState<UpdateChangeBaseline | null>(null)
@@ -941,6 +942,10 @@ export function CcPublishWorkbench(props: {
         if (!target) {
           throw new Error('未找到要更新的资源，请检查 edit 参数')
         }
+
+        const matchedV1Entry = matchedByRepo.find((item) => item.source === 'v1' && item.repo_owner === target.repo_owner && item.repo_name === target.repo_name)
+        const extractedV1Path = matchedV1Entry?.key.startsWith('v1:') ? matchedV1Entry.key.slice(3).split(':')[0] : ''
+        setBaselineV1Path(extractedV1Path)
 
         const v1Ref = target.source === 'v1' ? target.repo_commit_hash : undefined
         const v2Ref = target.source === 'v2' ? target.repo_commit_hash : undefined
@@ -3911,7 +3916,7 @@ export function CcPublishWorkbench(props: {
           resourceJsonPath: `${LEGACY_RESOURCES_DIR}/${legacyRelativePath}`,
           legacyEntry,
           resourceManifestJson: legacyManifestRef,
-          matchPath: legacyRelativePath,
+          matchPath: mode === 'resource_edit' && baselineV1Path ? baselineV1Path : legacyRelativePath,
           requireExisting: mode === 'resource_edit'
         })
         if (!forkResult) forkResult = v1Result
