@@ -733,6 +733,8 @@ export function CcPrReviewWorkbench(props: {
 }) {
   const { owner, repo, token, currentUser, initialPrNumber = 0 } = props
   const resolvedToken = (token || '').trim() || SITE_DEFAULT_TOKEN
+  const resolvedTokenRef = useRef(resolvedToken)
+  resolvedTokenRef.current = resolvedToken
 
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -1263,7 +1265,7 @@ export function CcPrReviewWorkbench(props: {
 
   const githubGet = async <T,>(path: string): Promise<T> => {
     try {
-      const { rest } = createGitHubClient(resolvedToken)
+      const { rest } = createGitHubClient(resolvedTokenRef.current)
       const response = await rest.request(`GET ${path}`)
       return response.data as T
     } catch (cause: unknown) {
@@ -1274,7 +1276,7 @@ export function CcPrReviewWorkbench(props: {
 
   const githubPost = async <T,>(path: string, body: Record<string, unknown>): Promise<T> => {
     try {
-      const { rest } = createGitHubClient(resolvedToken)
+      const { rest } = createGitHubClient(resolvedTokenRef.current)
       const response = await rest.request(`POST ${path}`, { data: body })
       return response.data as T
     } catch (cause: unknown) {
@@ -1285,7 +1287,7 @@ export function CcPrReviewWorkbench(props: {
 
   const githubPatch = async <T,>(path: string, body: Record<string, unknown>): Promise<T> => {
     try {
-      const { rest } = createGitHubClient(resolvedToken)
+      const { rest } = createGitHubClient(resolvedTokenRef.current)
       const response = await rest.request(`PATCH ${path}`, { data: body })
       return response.data as T
     } catch (cause: unknown) {
@@ -1296,7 +1298,7 @@ export function CcPrReviewWorkbench(props: {
 
   const githubDelete = async (path: string): Promise<void> => {
     try {
-      const { rest } = createGitHubClient(resolvedToken)
+      const { rest } = createGitHubClient(resolvedTokenRef.current)
       await rest.request(`DELETE ${path}`)
     } catch (cause: unknown) {
       const normalized = normalizeGitHubError(cause)
