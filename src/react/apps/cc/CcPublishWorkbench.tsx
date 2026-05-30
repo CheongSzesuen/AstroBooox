@@ -840,6 +840,7 @@ export function CcPublishWorkbench(props: {
     setBoundRepoUrl('')
     setExistingCommitSha('')
     setBaselineCatalogId('')
+    setBaselineV1Path('')
     setUpdateChangeBaseline(null)
     setShowDeviceSelector(false)
     setShowResourceIdGuide(false)
