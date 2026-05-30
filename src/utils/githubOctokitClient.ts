@@ -22,8 +22,14 @@ export interface GitHubRequestErrorLike extends Error {
   }
 }
 
+const clientCache = new Map<string, GitHubClientBundle>()
+
 export const createGitHubClient = (token = ''): GitHubClientBundle => {
   const auth = token.trim()
+  const cacheKey = auth || '__default__'
+
+  const cached = clientCache.get(cacheKey)
+  if (cached) return cached
 
   const rest = new EnhancedOctokit({
     ...(auth ? { auth } : {}),
@@ -56,10 +62,9 @@ export const createGitHubClient = (token = ''): GitHubClientBundle => {
       : {}
   )
 
-  return {
-    rest,
-    graphql: graph
-  }
+  const bundle: GitHubClientBundle = { rest, graphql: graph }
+  clientCache.set(cacheKey, bundle)
+  return bundle
 }
 
 export const normalizeGitHubError = (error: unknown): GitHubRequestErrorLike => {
