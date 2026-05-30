@@ -110,6 +110,7 @@ export function CcRepositoriesPanel(props: {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     const run = async () => {
       try {
         setLoading(true)
@@ -129,6 +130,8 @@ export function CcRepositoriesPanel(props: {
           upstreamBranch: 'main',
           catalogPath: defaultCatalogPath.trim()
         })
+
+        if (cancelled) return
 
         const grouped = new Map<
           string,
@@ -192,6 +195,8 @@ export function CcRepositoriesPanel(props: {
           }))
           .sort((a, b) => (b.latestCommitDate || '').localeCompare(a.latestCommitDate || ''))
 
+        if (cancelled) return
+
         const resolvedToken = token.trim()
         if (!resolvedToken || baseList.length === 0) {
           setRepositories(baseList)
@@ -219,6 +224,8 @@ export function CcRepositoriesPanel(props: {
           })
         )
 
+        if (cancelled) return
+
         const collaboratorMap = new Map(collaboratorEntries.map((item) => [item.fullName, item.collaborators]))
         setRepositories(
           baseList.map((repo) => ({
@@ -227,13 +234,17 @@ export function CcRepositoriesPanel(props: {
           }))
         )
       } catch (cause: unknown) {
+        if (cancelled) return
         setError(cause instanceof Error ? cause.message : '加载仓库失败')
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     }
 
     void run()
+    return () => { cancelled = true }
   }, [currentUser, defaultCatalogPath, defaultTargetOwner, defaultTargetRepo, token])
 
   const inviteDialogTitle = useMemo(() => {
