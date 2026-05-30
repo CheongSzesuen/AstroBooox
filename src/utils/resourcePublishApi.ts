@@ -1175,7 +1175,8 @@ export const loadInProgressResources = async (params: {
             prAuthorAvatar: pr.user?.avatar_url || ''
           })
       }
-    } catch {
+    } catch (cause) {
+      console.warn(`[resourcePublishApi] 加载 PR #${pr.number} 数据失败，已跳过:`, cause)
       continue
     }
   }
@@ -1226,7 +1227,8 @@ export const loadPendingCollaboratorPermissionRequests = async (params: {
         repo: targetRepo,
         prNumber: pr.number
       })
-    } catch {
+    } catch (cause) {
+      console.warn(`[resourcePublishApi] 加载 PR #${pr.number} 协作者请求评论失败，已跳过:`, cause)
       continue
     }
 
