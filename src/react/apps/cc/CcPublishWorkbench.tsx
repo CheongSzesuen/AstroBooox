@@ -1075,7 +1075,8 @@ export function CcPublishWorkbench(props: {
           authors: nextAuthors.map((author) => ({
             name: author.name.trim(),
             authorUrl: author.authorUrl.trim(),
-            bindABAccount: Boolean(author.bindABAccount)
+            bindABAccount: Boolean(author.bindABAccount),
+            isPurchaseLink: Boolean(author.isPurchaseLink)
           })),
           downloads: nextDownloads.map((entry) => ({
             device: entry.device.trim(),

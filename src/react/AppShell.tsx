@@ -17,6 +17,7 @@ function RouteProgressBar() {
     }
 
     let finished = false
+    let hideTimer: number | undefined
     setVisible(true)
     setProgress(16)
 
@@ -28,7 +29,7 @@ function RouteProgressBar() {
       finished = true
       window.clearInterval(timer)
       setProgress(100)
-      window.setTimeout(() => {
+      hideTimer = window.setTimeout(() => {
         setVisible(false)
         setProgress(0)
       }, 220)
@@ -37,6 +38,9 @@ function RouteProgressBar() {
     return () => {
       window.clearTimeout(complete)
       window.clearInterval(timer)
+      if (hideTimer !== undefined) {
+        window.clearTimeout(hideTimer)
+      }
       if (!finished) {
         setVisible(false)
         setProgress(0)
