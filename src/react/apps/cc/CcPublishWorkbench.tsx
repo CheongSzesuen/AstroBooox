@@ -873,11 +873,13 @@ export function CcPublishWorkbench(props: {
 
   useEffect(() => {
     if (mode !== 'publish') return
-    if (authors.length !== 1) return
-    if (authors[0].name.trim()) return
     if (!currentUser.trim()) return
-    setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true, isPurchaseLink: false }])
-  }, [authors, currentUser, mode])
+    setAuthors((prev) => {
+      if (prev.length !== 1) return prev
+      if (prev[0].name.trim()) return prev
+      return [{ name: currentUser.trim(), authorUrl: '', bindABAccount: true, isPurchaseLink: false }]
+    })
+  }, [currentUser, mode])
 
   useEffect(() => {
     if (mode !== 'resource_edit') {
