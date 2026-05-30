@@ -1497,8 +1497,8 @@ export function CcPublishWorkbench(props: {
   const submitModeOptions = useMemo<Array<{ value: SubmitMode; label: string; variant: 'default' | 'outline'; disabled?: boolean }>>(
     () => {
       if (mode === 'resource_edit') {
-        const v1Available = hasV1Manifest !== false
-        const v2Available = hasV2Manifest !== false
+        const v1Available = hasV1Manifest === true
+        const v2Available = hasV2Manifest === true
         return [
           { value: 'both', label: '同时更新 v1 + v2（推荐）', variant: 'default', disabled: !v1Available || !v2Available },
           { value: 'v2', label: '仅更新 v2', variant: 'outline', disabled: !v2Available },
