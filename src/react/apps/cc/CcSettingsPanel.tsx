@@ -177,19 +177,32 @@ export function CcSettingsPanel(props: {
         const endpoint = new URL('https://api.github.com/repos/CheongSzesuen/AstroBooox/commits')
         endpoint.searchParams.set('per_page', String(ABOUT_COMMIT_PAGE_SIZE))
         endpoint.searchParams.set('page', String(currentPage))
-        if (branch && branch.toLowerCase() !== 'head' && branch.toLowerCase() !== 'unknown') {
-          endpoint.searchParams.set('sha', branch)
-        } else if (commitRef && commitRef.toLowerCase() !== 'local') {
-          endpoint.searchParams.set('sha', commitRef)
+        const usedSha =
+          branch && branch.toLowerCase() !== 'head' && branch.toLowerCase() !== 'unknown'
+            ? branch
+            : commitRef && commitRef.toLowerCase() !== 'local'
+              ? commitRef
+              : ''
+        if (usedSha) {
+          endpoint.searchParams.set('sha', usedSha)
         }
 
         const resolvedToken = token.trim()
-        const response = await fetch(endpoint.toString(), {
-          headers: {
-            Accept: 'application/vnd.github+json',
-            ...(resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {})
-          }
-        })
+        const doFetch = async (url: string): Promise<Response> => {
+          return fetch(url, {
+            headers: {
+              Accept: 'application/vnd.github+json',
+              ...(resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {})
+            }
+          })
+        }
+
+        let response = await doFetch(endpoint.toString())
+
+        if (response.status === 404 && usedSha) {
+          endpoint.searchParams.delete('sha')
+          response = await doFetch(endpoint.toString())
+        }
 
         if (!response.ok) {
           if (response.status === 403) {
