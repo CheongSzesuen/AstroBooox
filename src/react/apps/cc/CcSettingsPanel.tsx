@@ -98,6 +98,7 @@ export function CcSettingsPanel(props: {
   const aboutCommitHasMoreRef = useRef(true)
 
   const [savedHint, setSavedHint] = useState('')
+  const savedHintTimerRef = useRef<number | null>(null)
   const [form, setForm] = useState<SettingsFormState>({
     defaultTargetRepo: settings.defaultTargetRepo,
     defaultCatalogPath: settings.defaultCatalogPath,
@@ -266,8 +267,22 @@ export function CcSettingsPanel(props: {
       customAvatarUrl: form.customAvatarUrl
     })
     setSavedHint('已保存')
-    window.setTimeout(() => setSavedHint(''), 1200)
+    if (savedHintTimerRef.current !== null) {
+      window.clearTimeout(savedHintTimerRef.current)
+    }
+    savedHintTimerRef.current = window.setTimeout(() => {
+      setSavedHint('')
+      savedHintTimerRef.current = null
+    }, 1200)
   }
+
+  useEffect(() => {
+    return () => {
+      if (savedHintTimerRef.current !== null) {
+        window.clearTimeout(savedHintTimerRef.current)
+      }
+    }
+  }, [])
 
   const aboutInfoEntries = useMemo(
     () => [
