@@ -576,6 +576,8 @@ export function CcPublishWorkbench(props: {
   const [ownedRepoLoading, setOwnedRepoLoading] = useState(false)
   const [ownedRepoLoaded, setOwnedRepoLoaded] = useState(false)
   const [ownedRepoError, setOwnedRepoError] = useState('')
+  const ownedRepoRequestIdRef = useRef(0)
+  const ownedRepoLoadedForRef = useRef('')
   const [repoAutocompleteOpen, setRepoAutocompleteOpen] = useState(false)
   const [repoSearchDialogOpen, setRepoSearchDialogOpen] = useState(false)
   const [repoSearchDialogQuery, setRepoSearchDialogQuery] = useState('')
@@ -800,6 +802,7 @@ export function CcPublishWorkbench(props: {
     setOwnedRepoLoading(false)
     setOwnedRepoLoaded(false)
     setOwnedRepoError('')
+    ownedRepoLoadedForRef.current = ''
     setRepoAutocompleteOpen(false)
     setRepoSearchDialogOpen(false)
     setRepoSearchDialogQuery('')
@@ -1319,27 +1322,36 @@ export function CcPublishWorkbench(props: {
 
   const ensureOwnedReposLoaded = async (): Promise<void> => {
     if (mode === 'resource_edit') return
-    if (ownedRepoLoading || ownedRepoLoaded) return
+    if (ownedRepoLoading) return
 
     const resolvedToken = token.trim()
     const username = currentUser.trim()
     if (!resolvedToken || !username) return
 
+    const loadedFor = `${resolvedToken}:${username}`
+    if (ownedRepoLoaded && ownedRepoLoadedForRef.current === loadedFor) return
+
+    const requestId = ++ownedRepoRequestIdRef.current
     try {
       setOwnedRepoLoading(true)
       setOwnedRepoError('')
       const repositories = await listAuthenticatedRepositories({
         token: resolvedToken
       })
+      if (ownedRepoRequestIdRef.current !== requestId) return
       const ownerLower = normalizeLower(username)
       setOwnedRepoOptions(
         repositories.filter((repo) => normalizeLower(repo.owner) === ownerLower)
       )
       setOwnedRepoLoaded(true)
+      ownedRepoLoadedForRef.current = loadedFor
     } catch (cause: unknown) {
+      if (ownedRepoRequestIdRef.current !== requestId) return
       setOwnedRepoError(cause instanceof Error ? cause.message : '加载仓库列表失败')
     } finally {
-      setOwnedRepoLoading(false)
+      if (ownedRepoRequestIdRef.current === requestId) {
+        setOwnedRepoLoading(false)
+      }
     }
   }
 
