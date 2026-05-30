@@ -803,8 +803,8 @@ function CcAppContent() {
         pendingLoginUserRef.current = expected
         window.history.replaceState(null, '', buildLoginUrl(targetPath, expected))
       } else {
-        pendingLoginRouteRef.current = resolveRouteFromLocation(currentUser)
-        pendingLoginUserRef.current = resolveExpectedUserFromLocation()
+        pendingLoginRouteRef.current = null
+        pendingLoginUserRef.current = ''
       }
       return
     }
