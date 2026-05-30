@@ -209,6 +209,7 @@ function CcAuthenticatedApp() {
   const [hideHeaderTitleForNav, setHideHeaderTitleForNav] = useState(true)
 
   const routeProgressTimerRef = useRef<number | null>(null)
+  const routeProgressHideTimerRef = useRef<number | null>(null)
   const userMenuRootRef = useRef<HTMLDivElement | null>(null)
   const headerNavViewportRef = useRef<HTMLDivElement | null>(null)
   const headerNavInnerRef = useRef<HTMLDivElement | null>(null)
@@ -220,6 +221,10 @@ function CcAuthenticatedApp() {
       if (routeProgressTimerRef.current !== null) {
         window.clearInterval(routeProgressTimerRef.current)
         routeProgressTimerRef.current = null
+      }
+      if (routeProgressHideTimerRef.current !== null) {
+        window.clearTimeout(routeProgressHideTimerRef.current)
+        routeProgressHideTimerRef.current = null
       }
     }
   }, [])
@@ -265,10 +270,15 @@ function CcAuthenticatedApp() {
       window.clearInterval(routeProgressTimerRef.current)
       routeProgressTimerRef.current = null
     }
+    if (routeProgressHideTimerRef.current !== null) {
+      window.clearTimeout(routeProgressHideTimerRef.current)
+      routeProgressHideTimerRef.current = null
+    }
     setRouteProgress(100)
-    window.setTimeout(() => {
+    routeProgressHideTimerRef.current = window.setTimeout(() => {
       setRouteProgressVisible(false)
       setRouteProgress(0)
+      routeProgressHideTimerRef.current = null
     }, 220)
   }
 
