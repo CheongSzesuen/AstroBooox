@@ -16,9 +16,13 @@ const applyCcTheme = (theme: CcTheme): void => {
 }
 
 const resolveSavedTheme = (): CcTheme => {
-  const saved = window.localStorage.getItem(STORAGE_KEY)
-  if (saved === 'claude' || saved === 'supabase' || saved === 'vercel') {
-    return saved
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEY)
+    if (saved === 'claude' || saved === 'supabase' || saved === 'vercel') {
+      return saved
+    }
+  } catch {
+    // localStorage 不可用时静默回退到默认主题
   }
   return DEFAULT_THEME
 }
@@ -35,7 +39,11 @@ export function useCcTheme() {
   const setCcTheme = (next: CcTheme) => {
     setActiveCcTheme(next)
     applyCcTheme(next)
-    window.localStorage.setItem(STORAGE_KEY, next)
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next)
+    } catch {
+      // localStorage 不可用时静默忽略
+    }
   }
 
   return useMemo(

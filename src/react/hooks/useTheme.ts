@@ -22,12 +22,16 @@ export function useTheme() {
   themeModeRef.current = themeMode
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY)
-    const mode: ThemeMode = saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system'
-    const resolved = resolveThemeFromMode(mode)
-    setThemeModeState(mode)
-    setThemeState(resolved)
-    applyTheme(resolved)
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY)
+      const mode: ThemeMode = saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system'
+      const resolved = resolveThemeFromMode(mode)
+      setThemeModeState(mode)
+      setThemeState(resolved)
+      applyTheme(resolved)
+    } catch {
+      applyTheme('light')
+    }
   }, [])
 
   useEffect(() => {
@@ -47,7 +51,11 @@ export function useTheme() {
     setThemeModeState(nextMode)
     setThemeState(resolved)
     applyTheme(resolved)
-    window.localStorage.setItem(STORAGE_KEY, nextMode)
+    try {
+      window.localStorage.setItem(STORAGE_KEY, nextMode)
+    } catch {
+      // localStorage 不可用时静默忽略
+    }
   }, [])
 
   const toggleTheme = useCallback(() => {
