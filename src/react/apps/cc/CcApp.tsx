@@ -14,7 +14,7 @@ import {
   UserCircle,
   X
 } from '@phosphor-icons/react'
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, Component, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CC_DEFAULT_ROUTE,
@@ -38,6 +38,39 @@ import { CcSessionProvider, useCcSession } from '@/react/hooks/useCcSession'
 import { useCcSettings } from '@/react/hooks/useCcSettings'
 import { useTheme } from '@/react/hooks/useTheme'
 import '@/cc/themes.css'
+
+type PanelErrorBoundaryProps = { children: ReactNode }
+type PanelErrorBoundaryState = { hasError: boolean; error: Error | null }
+
+class PanelErrorBoundary extends Component<PanelErrorBoundaryProps, PanelErrorBoundaryState> {
+  constructor(props: PanelErrorBoundaryProps) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error: Error): PanelErrorBoundaryState {
+    return { hasError: true, error }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+          <p className="text-sm text-muted-foreground">面板加载失败</p>
+          <p className="max-w-md text-xs text-destructive">{this.state.error?.message}</p>
+          <button
+            type="button"
+            className="mt-2 rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-accent"
+            onClick={() => this.setState({ hasError: false, error: null })}
+          >
+            重试
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const CcRepositoriesPanel = lazy(() => import('@/react/apps/cc/CcRepositoriesPanel').then((mod) => ({ default: mod.CcRepositoriesPanel })))
 const CcSettingsPanel = lazy(() => import('@/react/apps/cc/CcSettingsPanel').then((mod) => ({ default: mod.CcSettingsPanel })))
@@ -448,7 +481,7 @@ function CcAuthenticatedApp() {
   const renderContent = () => {
     if (routeState.tab === 'home') {
       return (
-        <Suspense fallback={<PanelLoading />}>
+        <PanelErrorBoundary><Suspense fallback={<PanelLoading />}>
           <CcHomePanel
             token={token}
             currentUser={currentUser}
@@ -460,13 +493,13 @@ function CcAuthenticatedApp() {
             onOpenPullRequest={openPullRequestDetail}
             onOpenPublished={() => navigateToTab('published')}
           />
-        </Suspense>
+        </Suspense></PanelErrorBoundary>
       )
     }
 
     if (routeState.tab === 'repositories') {
       return (
-        <Suspense fallback={<PanelLoading />}>
+        <PanelErrorBoundary><Suspense fallback={<PanelLoading />}>
           <CcRepositoriesPanel
             token={token}
             currentUser={currentUser}
@@ -474,22 +507,22 @@ function CcAuthenticatedApp() {
             defaultTargetRepo={defaultTargetRepo}
             defaultCatalogPath={defaultCatalogPath}
           />
-        </Suspense>
+        </Suspense></PanelErrorBoundary>
       )
     }
 
     if (routeState.tab === 'settings') {
       return (
-        <Suspense fallback={<PanelLoading />}>
+        <PanelErrorBoundary><Suspense fallback={<PanelLoading />}>
           <CcSettingsPanel token={token} section={routeState.settingsSection} settings={ccSettings} onSectionChange={openSettingsSection} />
-        </Suspense>
+        </Suspense></PanelErrorBoundary>
       )
     }
 
     if (routeState.tab === 'pullrequest') {
       const pullRequestTargetRepo = routeState.pullRequestTargetRepo ? routeState.pullRequestTargetRepo : defaultTargetRepo
       return (
-        <Suspense fallback={<PanelLoading />}>
+        <PanelErrorBoundary><Suspense fallback={<PanelLoading />}>
           <CcPullRequestPanel
             token={token}
             currentUser={currentUser}
@@ -499,7 +532,7 @@ function CcAuthenticatedApp() {
             initialPrNumber={Number(routeState.pullRequestNumber || 0)}
             onSelectPr={openPullRequestDetail}
           />
-        </Suspense>
+        </Suspense></PanelErrorBoundary>
       )
     }
 
@@ -507,7 +540,7 @@ function CcAuthenticatedApp() {
       const reviewTargetRepo =
         routeState.pullRequestTargetRepo ? routeState.pullRequestTargetRepo : defaultTargetRepo
       return (
-        <Suspense fallback={<PanelLoading />}>
+        <PanelErrorBoundary><Suspense fallback={<PanelLoading />}>
           <CcPrReviewWorkbench
             owner={defaultTargetOwner}
             repo={reviewTargetRepo}
@@ -515,13 +548,13 @@ function CcAuthenticatedApp() {
             currentUser={currentUser}
             initialPrNumber={0}
           />
-        </Suspense>
+        </Suspense></PanelErrorBoundary>
       )
     }
 
     if (routeState.tab === 'published') {
       return (
-        <Suspense fallback={<PanelLoading />}>
+        <PanelErrorBoundary><Suspense fallback={<PanelLoading />}>
           <CcPublishedPanel
             token={token}
             currentUser={currentUser}
@@ -534,13 +567,13 @@ function CcAuthenticatedApp() {
             onResourceDetailKeyChange={openPublishedResourceDetail}
             onStartEditResource={openResourceEditFromPublished}
           />
-        </Suspense>
+        </Suspense></PanelErrorBoundary>
       )
     }
 
     if (routeState.tab === 'publish') {
       return (
-        <Suspense fallback={<PanelLoading />}>
+        <PanelErrorBoundary><Suspense fallback={<PanelLoading />}>
           <CcPublishWorkbench
             mode="publish"
             token={token}
@@ -549,13 +582,13 @@ function CcAuthenticatedApp() {
             defaultTargetRepo={defaultTargetRepo}
             defaultCatalogPath={defaultCatalogPath}
           />
-        </Suspense>
+        </Suspense></PanelErrorBoundary>
       )
     }
 
     if (routeState.tab === 'resource_edit') {
       return (
-        <Suspense fallback={<PanelLoading />}>
+        <PanelErrorBoundary><Suspense fallback={<PanelLoading />}>
           <CcPublishWorkbench
             mode="resource_edit"
             token={token}
@@ -569,7 +602,7 @@ function CcAuthenticatedApp() {
               user: routeState.editUser || ''
             }}
           />
-        </Suspense>
+        </Suspense></PanelErrorBoundary>
       )
     }
 
