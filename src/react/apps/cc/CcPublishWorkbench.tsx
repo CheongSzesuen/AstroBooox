@@ -2508,7 +2508,7 @@ export function CcPublishWorkbench(props: {
     let candidate = folderNameBase
     while (taken.has(parent ? `${parent}/${candidate}` : candidate)) {
       suffix += 1
-      candidate = `${folderNameBase}-${suffix + 1}`
+      candidate = `${folderNameBase}-${suffix}`
     }
     const fullPath = parent ? `${parent}/${candidate}` : candidate
     setRemotePickerDraftFolders((prev) => [...prev, fullPath])
