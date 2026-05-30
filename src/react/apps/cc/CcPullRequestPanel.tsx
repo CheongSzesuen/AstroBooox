@@ -98,6 +98,7 @@ export function CcPullRequestPanel(props: {
 }) {
   const { token, currentUser, targetOwner, targetRepo, catalogPath, initialPrNumber = 0, onSelectPr } = props
   const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewError, setReviewError] = useState('')
   const [reviewItems, setReviewItems] = useState<PublishingResource[]>([])
   const [selectedReviewItem, setSelectedReviewItem] = useState<PublishingResource | null>(null)
   const [reviewCommentsLoading, setReviewCommentsLoading] = useState(false)
@@ -191,11 +192,12 @@ export function CcPullRequestPanel(props: {
   const loadReviewList = useCallback(async (): Promise<void> => {
     if (!canLoadList) {
       setReviewItems([])
-      setSelectedReviewItem(null)
+      setReviewError('')
       return
     }
     try {
       setReviewLoading(true)
+      setReviewError('')
       const items = await loadInProgressResources({
         token: requireToken(),
         username: currentUser.trim(),
@@ -209,8 +211,10 @@ export function CcPullRequestPanel(props: {
         const matched = items.find((item) => item.prNumber === prev.prNumber && item.id === prev.id)
         return matched || prev
       })
-    } catch {
+      setReviewError('')
+    } catch (cause) {
       setReviewItems([])
+      setReviewError(cause instanceof Error ? cause.message : '加载审核列表失败')
     } finally {
       setReviewLoading(false)
     }
@@ -426,7 +430,12 @@ export function CcPullRequestPanel(props: {
               <CardDescription>查看你提交后处于审核中的资源。</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
-              {reviewItems.length === 0 ? (
+              {reviewError ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {reviewError}
+                </div>
+              ) : null}
+              {!reviewError && reviewItems.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
                   暂无数据
                 </div>

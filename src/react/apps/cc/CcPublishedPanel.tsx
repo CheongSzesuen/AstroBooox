@@ -122,6 +122,7 @@ export function CcPublishedPanel(props: {
   } = props
 
   const [ownedLoading, setOwnedLoading] = useState(false)
+  const [ownedError, setOwnedError] = useState('')
   const [ownedItems, setOwnedItems] = useState<OwnedResourceEntry[]>([])
   const [ownedTypeFilter, setOwnedTypeFilter] = useState<'all' | 'quickapp' | 'watchface'>('all')
   const [ownedSupportFilter, setOwnedSupportFilter] = useState<'all' | 'v1_only' | 'v2_only' | 'both'>('all')
@@ -255,6 +256,7 @@ export function CcPublishedPanel(props: {
     if (!canLoadList) return
     try {
       setOwnedLoading(true)
+      setOwnedError('')
       const next = await loadOwnedResources({
         token: requireToken(),
         username: currentUser.trim(),
@@ -264,6 +266,8 @@ export function CcPublishedPanel(props: {
         catalogPath: defaultCatalogPath.trim()
       })
       setOwnedItems(next)
+    } catch (cause) {
+      setOwnedError(cause instanceof Error ? cause.message : '加载已发布资源失败')
     } finally {
       setOwnedLoading(false)
     }
@@ -523,7 +527,12 @@ export function CcPublishedPanel(props: {
               <CardDescription>查看当前账号已发布到目录的资源并统一管理。</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
-              {filteredOwnedItems.length === 0 ? (
+              {ownedError ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {ownedError}
+                </div>
+              ) : null}
+              {!ownedError && filteredOwnedItems.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
                   暂无数据
                 </div>
