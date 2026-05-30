@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 type ResolvedTheme = 'light' | 'dark'
@@ -18,6 +18,8 @@ const resolveThemeFromMode = (mode: ThemeMode): ResolvedTheme => (mode === 'syst
 export function useTheme() {
   const [themeMode, setThemeModeState] = useState<ThemeMode>('system')
   const [theme, setThemeState] = useState<ResolvedTheme>('light')
+  const themeModeRef = useRef<ThemeMode>('system')
+  themeModeRef.current = themeMode
 
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY)
@@ -31,13 +33,10 @@ export function useTheme() {
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const handleChange = () => {
-      setThemeModeState((currentMode) => {
-        if (currentMode !== 'system') return currentMode
-        const resolved = resolveSystemTheme()
-        setThemeState(resolved)
-        applyTheme(resolved)
-        return currentMode
-      })
+      if (themeModeRef.current !== 'system') return
+      const resolved = resolveSystemTheme()
+      setThemeState(resolved)
+      applyTheme(resolved)
     }
     media.addEventListener('change', handleChange)
     return () => media.removeEventListener('change', handleChange)
