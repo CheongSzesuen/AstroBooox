@@ -96,7 +96,14 @@ export const resolveCcRouteFromPath = (pathname: string): CcRouteState => {
   if (section === 'repositories') return { tab: 'repositories', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'resource' && routeSegments[1] === 'edit') return { tab: 'resource_edit', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   if (section === 'resource') {
-    const detailKey = routeSegments[1] ? decodeURIComponent(routeSegments[1]) : ''
+    let detailKey = ''
+    if (routeSegments[1]) {
+      try {
+        detailKey = decodeURIComponent(routeSegments[1])
+      } catch {
+        detailKey = routeSegments[1]
+      }
+    }
     return { tab: 'published', settingsSection: 'defaults', resourceDetailKey: detailKey, pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
   }
   if (section === 'published') return { tab: 'published', settingsSection: 'defaults', resourceDetailKey: '', pullRequestNumber: 0, pullRequestTargetRepo: '', requireGhUser: false }
