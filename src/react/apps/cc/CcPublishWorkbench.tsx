@@ -82,6 +82,7 @@ type ManifestAuthorDraft = {
   name: string
   authorUrl: string
   bindABAccount: boolean
+  isPurchaseLink: boolean
 }
 
 type ManifestLinkDraft = {
@@ -587,7 +588,7 @@ export function CcPublishWorkbench(props: {
   const [enableAstroBoxCreatorFeatures, setEnableAstroBoxCreatorFeatures] = useState(false)
   const [previewItems, setPreviewItems] = useState<PublishPreviewItem[]>([])
   const [extraFiles, setExtraFiles] = useState<ExtraUploadFile[]>([])
-  const [authors, setAuthors] = useState<ManifestAuthorDraft[]>([{ name: '', authorUrl: '', bindABAccount: true }])
+  const [authors, setAuthors] = useState<ManifestAuthorDraft[]>([{ name: '', authorUrl: '', bindABAccount: true, isPurchaseLink: false }])
   const [links, setLinks] = useState<ManifestLinkDraft[]>([])
   const [downloads, setDownloads] = useState<ManifestDownloadDraft[]>([])
   const [deletedStack, setDeletedStack] = useState<DeletedPreviewEntry[]>([])
@@ -818,7 +819,7 @@ export function CcPublishWorkbench(props: {
       return []
     })
     setExtraFiles([])
-    setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true }])
+    setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true, isPurchaseLink: false }])
     setLinks([])
     setDownloads([])
     setSubmitMode('both')
@@ -875,7 +876,7 @@ export function CcPublishWorkbench(props: {
     if (authors.length !== 1) return
     if (authors[0].name.trim()) return
     if (!currentUser.trim()) return
-    setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true }])
+    setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true, isPurchaseLink: false }])
   }, [authors, currentUser, mode])
 
   useEffect(() => {
@@ -974,7 +975,8 @@ export function CcPublishWorkbench(props: {
             return {
               name: toString(row.name),
               authorUrl: toString(row.author_url),
-              bindABAccount: row.bindABAccount === false ? false : true
+              bindABAccount: row.bindABAccount === false ? false : true,
+              isPurchaseLink: false
             }
           })
           .filter((entry) => Boolean(entry.name))
@@ -985,12 +987,13 @@ export function CcPublishWorkbench(props: {
             const v1Authors = (Array.isArray(v1Item.author) ? v1Item.author : [])
               .map((entry) => {
                 const row = asRecord(entry)
-                return { name: toString(row.name), authorUrl: toString(row.author_url) }
+                const url = toString(row.author_url)
+                return { name: toString(row.name), authorUrl: url, isPurchaseLink: Boolean(url) }
               })
               .filter((entry) => entry.name)
             if (parsedAuthors.length === 0 && v1Authors.length > 0) {
               for (const a of v1Authors) {
-                parsedAuthors.push({ name: a.name, authorUrl: a.authorUrl, bindABAccount: true })
+                parsedAuthors.push({ name: a.name, authorUrl: a.authorUrl, bindABAccount: true, isPurchaseLink: a.isPurchaseLink })
               }
             } else if (parsedAuthors.length > 0 && hasV2) {
               const v1AuthorMap = new Map(v1Authors.map((a) => [a.name, a.authorUrl]))
@@ -1029,7 +1032,7 @@ export function CcPublishWorkbench(props: {
         const nextTags = parseTagText(target.tags || '')
         const nextAuthors = parsedAuthors.length > 0
           ? parsedAuthors
-          : [{ name: target.repo_owner || '', authorUrl: '', bindABAccount: true }]
+          : [{ name: target.repo_owner || '', authorUrl: '', bindABAccount: true, isPurchaseLink: false }]
         const nextLinks = parsedLinks
         const nextDownloads = parsedDownloads
 
@@ -1957,7 +1960,8 @@ export function CcPublishWorkbench(props: {
             return {
               name: toString(row.name),
               authorUrl: toString(row.author_url),
-              bindABAccount: row.bindABAccount === false ? false : true
+              bindABAccount: row.bindABAccount === false ? false : true,
+              isPurchaseLink: false
             }
           })
           .filter((entry) => Boolean(entry.name))
@@ -1992,7 +1996,7 @@ export function CcPublishWorkbench(props: {
         if (forceSync || !coverPath.trim()) setCoverPath(parsed.cover)
         if (forceSync || !restype.trim()) setRestype(normalizeRestype(parsed.restype || 'quickapp'))
         if (forceSync || authors.length === 0 || !authors.some((entry) => entry.name.trim())) {
-          setAuthors(parsedAuthors.length > 0 ? parsedAuthors : [{ name: currentUser.trim(), authorUrl: '', bindABAccount: true }])
+          setAuthors(parsedAuthors.length > 0 ? parsedAuthors : [{ name: currentUser.trim(), authorUrl: '', bindABAccount: true, isPurchaseLink: false }])
         }
         if (forceSync || links.length === 0) setLinks(parsedLinks)
         if (forceSync || downloads.length === 0) setDownloads(parsedDownloads)
@@ -2768,7 +2772,7 @@ export function CcPublishWorkbench(props: {
   }
 
   const addAuthor = () => {
-    setAuthors((prev) => [...prev, { name: '', authorUrl: '', bindABAccount: true }])
+    setAuthors((prev) => [...prev, { name: '', authorUrl: '', bindABAccount: true, isPurchaseLink: false }])
   }
 
   const updateAuthor = (index: number, patch: Partial<ManifestAuthorDraft>) => {
@@ -2778,7 +2782,7 @@ export function CcPublishWorkbench(props: {
   const removeAuthor = (index: number) => {
     setAuthors((prev) => {
       if (prev.length <= 1) {
-        return [{ name: '', authorUrl: '', bindABAccount: true }]
+        return [{ name: '', authorUrl: '', bindABAccount: true, isPurchaseLink: false }]
       }
       return prev.filter((_, i) => i !== index)
     })
@@ -2803,6 +2807,21 @@ export function CcPublishWorkbench(props: {
       if (prev > index) return prev - 1
       return prev
     })
+  }
+
+  const copyAuthorUrlToLinks = (authorIndex: number) => {
+    const author = authors[authorIndex]
+    if (!author || !author.authorUrl.trim()) return
+    const normalizedUrl = author.authorUrl.trim()
+    const exists = links.some((link) => link.url.trim() === normalizedUrl)
+    if (exists) {
+      appendLog('该链接已在「相关链接」中，无需重复添加')
+      return
+    }
+    const matchedIcon = normalizedUrl.includes('github.com') ? 'github-logo' : ''
+    const suggestedTitle = author.isPurchaseLink ? '购买链接' : '相关链接'
+    setLinks((prev) => [...prev, { icon: matchedIcon, title: suggestedTitle, url: normalizedUrl }])
+    appendLog(`已将链接复制到「相关链接」: ${normalizedUrl}`)
   }
 
   const openLinkIconPicker = (index: number) => {
@@ -4744,8 +4763,33 @@ export function CcPublishWorkbench(props: {
                           <div className="space-y-1.5">
                             <Label htmlFor={`author-url-${index}`}>作者链接（仅 v1）</Label>
                             <Input id={`author-url-${index}`} value={author.authorUrl} onChange={(event) => updateAuthor(index, { authorUrl: event.target.value })} placeholder="https://github.com/yourname" />
-                            <p className="text-xs text-muted-foreground">该字段仅用于生成 v1 的 `manifest.json`（author_url）。</p>
+                            <p className="text-xs text-muted-foreground">该字段仅用于生成 v1 的 `manifest.json`（author_url），不会出现在 v2 的 author 字段中。</p>
                           </div>
+                          <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-background/40 px-3 py-2">
+                            <div className="space-y-0.5">
+                              <Label className="text-sm font-normal">购买链接</Label>
+                              <p className="text-xs text-muted-foreground">开启后提示将链接添加到「相关链接」</p>
+                            </div>
+                            <Switch
+                              checked={author.isPurchaseLink}
+                              onCheckedChange={(checked) => updateAuthor(index, { isPurchaseLink: checked })}
+                              aria-label="标记为购买链接"
+                            />
+                          </div>
+                          {author.isPurchaseLink && author.authorUrl.trim() ? (
+                            <div className="space-y-1.5 rounded-md border border-amber-500/30 bg-amber-50/10 px-3 py-2 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-950/20 dark:text-amber-400">
+                              <p>购买链接不会出现在 v2 manifest 中，请将其添加到下方「相关链接」。如果已添加完毕，可在此保留该链接以用于 v1 或清空。</p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="mt-1 h-7 text-xs"
+                                onClick={() => copyAuthorUrlToLinks(index)}
+                                disabled={!author.authorUrl.trim()}
+                              >
+                                复制到相关链接
+                              </Button>
+                            </div>
+                          ) : null}
                           <div className="flex flex-wrap gap-2">
                             <Button variant={author.bindABAccount ? 'default' : 'outline'} size="sm" onClick={() => updateAuthor(index, { bindABAccount: true })}>绑定 AB 账号</Button>
                             <Button variant={!author.bindABAccount ? 'default' : 'outline'} size="sm" onClick={() => updateAuthor(index, { bindABAccount: false })}>不绑定</Button>
