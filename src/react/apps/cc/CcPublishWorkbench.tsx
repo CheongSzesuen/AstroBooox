@@ -818,7 +818,7 @@ export function CcPublishWorkbench(props: {
       return []
     })
     setExtraFiles([])
-    setAuthors([{ name: currentUser.trim(), authorUrl: getDefaultV1AuthorUrl(), bindABAccount: true }])
+    setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true }])
     setLinks([])
     setDownloads([])
     setSubmitMode('both')
@@ -875,7 +875,7 @@ export function CcPublishWorkbench(props: {
     if (authors.length !== 1) return
     if (authors[0].name.trim()) return
     if (!currentUser.trim()) return
-    setAuthors([{ name: currentUser.trim(), authorUrl: getDefaultV1AuthorUrl(), bindABAccount: true }])
+    setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true }])
   }, [authors, currentUser, mode])
 
   useEffect(() => {
