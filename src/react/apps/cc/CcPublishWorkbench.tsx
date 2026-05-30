@@ -658,6 +658,7 @@ export function CcPublishWorkbench(props: {
   const downloadsCardRef = useRef<HTMLDivElement | null>(null)
   const downloadsBottomRef = useRef<HTMLDivElement | null>(null)
   const prBodyTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const prAutoFilledRef = useRef(false)
   const repoAutocompleteCloseTimerRef = useRef<number | null>(null)
   const remotePickerLocalInputRef = useRef<HTMLInputElement | null>(null)
   const remotePickerRenameInputRef = useRef<HTMLInputElement | null>(null)
@@ -3990,7 +3991,11 @@ export function CcPublishWorkbench(props: {
   }
 
   useEffect(() => {
-    if (step !== '3') return
+    if (step !== '3') {
+      prAutoFilledRef.current = false
+      return
+    }
+    if (prAutoFilledRef.current) return
     if (!boundRepoOwner.trim() || !boundRepoName.trim() || !existingCommitSha.trim()) return
     const repoUrl = boundRepoUrl.trim() || `https://github.com/${boundRepoOwner}/${boundRepoName}`
     if (!prTitle.trim()) {
@@ -3999,6 +4004,7 @@ export function CcPublishWorkbench(props: {
     if (!prBody.trim()) {
       setPrBody(buildAutoPrBody(repoUrl, existingCommitSha))
     }
+    prAutoFilledRef.current = true
   }, [boundRepoName, boundRepoOwner, boundRepoUrl, existingCommitSha, prBody, prTitle, step])
 
   useEffect(() => {
