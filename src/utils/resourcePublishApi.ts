@@ -248,6 +248,38 @@ export const base64ToText = (base64Text: string): string => {
   return new TextDecoder().decode(bytes)
 }
 
+const splitCsvLine = (line: string): string[] => {
+  const fields: string[] = []
+  let current = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"'
+          i++
+        } else {
+          inQuotes = false
+        }
+      } else {
+        current += ch
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true
+      } else if (ch === ',') {
+        fields.push(current)
+        current = ''
+      } else {
+        current += ch
+      }
+    }
+  }
+  fields.push(current)
+  return fields
+}
+
 export const parseCatalogCsv = (csv: string): CatalogEntry[] => {
   const rows = csv
     .split(/\r?\n/)
@@ -259,7 +291,7 @@ export const parseCatalogCsv = (csv: string): CatalogEntry[] => {
   const entries: CatalogEntry[] = []
 
   for (const row of body) {
-    const cols = row.split(',')
+    const cols = splitCsvLine(row)
     if (cols.length < 12) continue
 
     entries.push({
@@ -294,7 +326,7 @@ const parseLegacyCatalogCsv = (csv: string): LegacyCatalogEntry[] => {
   const entries: LegacyCatalogEntry[] = []
 
   for (const row of rows) {
-    const cols = row.split(',')
+    const cols = splitCsvLine(row)
     if (cols.length < 7) continue
     entries.push({
       name: cols[0] || '',
