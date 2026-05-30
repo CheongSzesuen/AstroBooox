@@ -320,7 +320,7 @@ function CcAuthenticatedApp() {
   useEffect(() => {
     const handlePopState = () => {
       applyRouteState(resolveRouteFromLocation(currentUser), {
-        syncUrl: false,
+        replace: true,
         withProgress: true
       })
     }
