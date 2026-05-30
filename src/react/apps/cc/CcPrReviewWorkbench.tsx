@@ -14,7 +14,7 @@ import {
   UserCircle,
   WarningCircle
 } from '@phosphor-icons/react'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createGitHubClient, normalizeGitHubError } from '@/utils/githubOctokitClient'
 import { escapeHtml, parseReviewCommentBody, renderCommentMarkdownHtml, renderCommentMarkdownInlineHtml } from '@/utils/reviewComment'
 import { Badge } from '@/react/components/ui/badge'
@@ -35,7 +35,8 @@ import { buildRawGithubUrl, getManifestV2Downloads, getManifestV2Ext } from '@/r
 import { ReviewCommentComposer } from '@/react/components/review/ReviewCommentComposer'
 import { ReviewCommentTimeline } from '@/react/components/review/ReviewCommentTimeline'
 import { ReviewDetailHeader } from '@/react/components/review/ReviewDetailHeader'
-import { deviceOptions, normalizeDeviceToken, subscribeToCatalog, fetchAndUpdateCatalog } from '@/react/apps/cc/resourcePublishWorkbenchDeviceCatalog'
+import { deviceOptions, normalizeDeviceToken } from '@/react/apps/cc/resourcePublishWorkbenchDeviceCatalog'
+import { useDeviceCatalog } from '@/react/apps/cc/useDeviceCatalog'
 
 type ReviewState = 'waiting_review' | 'changes_requested' | 'fixed_waiting'
 
@@ -756,10 +757,7 @@ export function CcPrReviewWorkbench(props: {
   const [manifestLoadError, setManifestLoadError] = useState('')
   const [imageMetaMap, setImageMetaMap] = useState<Record<string, { width?: number; height?: number }>>({})
 
-  useSyncExternalStore(subscribeToCatalog, () => deviceOptions, () => deviceOptions)
-  useEffect(() => {
-    fetchAndUpdateCatalog()
-  }, [])
+  useDeviceCatalog()
   const [imageBlobUrlMap, setImageBlobUrlMap] = useState<Record<string, string>>({})
 
   const [commentId, setCommentId] = useState('')

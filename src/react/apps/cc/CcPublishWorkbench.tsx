@@ -12,7 +12,7 @@ import {
   Trash,
   UploadSimple
 } from '@phosphor-icons/react'
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
@@ -33,7 +33,8 @@ import {
 } from '@/utils/resourcePublishApi'
 import { listAuthenticatedRepositories, type GitHubOwnedRepositorySummary } from '@/utils/githubGitApi'
 import { isRpkManifestAutoValidationSupported, readRpkManifestInfo } from '@/utils/rpkManifest'
-import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken, subscribeToCatalog, fetchAndUpdateCatalog } from '@/react/apps/cc/resourcePublishWorkbenchDeviceCatalog'
+import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken } from '@/react/apps/cc/resourcePublishWorkbenchDeviceCatalog'
+import { useDeviceCatalog } from '@/react/apps/cc/useDeviceCatalog'
 import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
 import { LinkIconPickerDialog, PhosphorIconByName } from '@/react/components/cc/LinkIconPickerDialog'
@@ -551,8 +552,7 @@ export function CcPublishWorkbench(props: {
   } = props
   const defaultSubmitMode: SubmitMode = mode === 'publish' ? 'both' : 'v2'
 
-  useSyncExternalStore(subscribeToCatalog, () => deviceOptions, () => deviceOptions)
-  useEffect(() => { fetchAndUpdateCatalog() }, [])
+  useDeviceCatalog()
 
   const [step, setStep] = useState<StepKey>(mode === 'publish' ? '0' : '1')
   const [workspaceBusy, setWorkspaceBusy] = useState(false)
