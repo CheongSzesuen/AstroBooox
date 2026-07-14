@@ -362,6 +362,9 @@ const sanitizeRepoFileName = (name: string, fallback = ''): string => {
   return normalized || fallback
 }
 
+const getPortableFileNameError = (name: string): string =>
+  /[\\/:*?"<>|]/.test(name) ? `文件名 "${name}" 包含跨平台不兼容字符，请重命名后重试` : ''
+
 const sanitizeRepoFolderPath = (folderPath: string): string =>
   folderPath
     .split('/')
@@ -2173,6 +2176,11 @@ export function CcPublishWorkbench(props: {
 
       const picked: PickedWorkspaceFile[] = []
       for (const handle of handles) {
+        const fileNameError = getPortableFileNameError(handle.name)
+        if (fileNameError) {
+          appendLog(fileNameError)
+          return []
+        }
         let path = handle.name
         if (typeof workspace.resolve === 'function') {
           const relative = await workspace.resolve(handle)
@@ -2555,6 +2563,16 @@ export function CcPublishWorkbench(props: {
     }
 
     const fileList = Array.from(files)
+    const invalidFile = fileList.find((file) => getPortableFileNameError(file.name))
+    if (invalidFile) {
+      appendLog(getPortableFileNameError(invalidFile.name))
+      return
+    }
+    const customFileNameError = getPortableFileNameError(remotePickerUploadFileName.trim())
+    if (customFileNameError) {
+      appendLog(customFileNameError)
+      return
+    }
     if (remotePickerUploadFileName.trim() && fileList.length > 1) {
       appendLog('已填写本地导入文件名时，一次只能选择一个文件')
       return
