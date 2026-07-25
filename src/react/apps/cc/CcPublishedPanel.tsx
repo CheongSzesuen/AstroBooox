@@ -114,7 +114,7 @@ export function CcPublishedPanel(props: {
     defaultTargetOwner,
     defaultTargetRepo,
     defaultCatalogPath,
-    ownedDisplayPriority,
+    ownedDisplayPriority: _ownedDisplayPriority,
     showV2FollowUpTag,
     resourceDetailKey,
     onResourceDetailKeyChange,
@@ -125,7 +125,6 @@ export function CcPublishedPanel(props: {
   const [ownedError, setOwnedError] = useState('')
   const [ownedItems, setOwnedItems] = useState<OwnedResourceEntry[]>([])
   const [ownedTypeFilter, setOwnedTypeFilter] = useState<'all' | 'quickapp' | 'watchface'>('all')
-  const [ownedSupportFilter, setOwnedSupportFilter] = useState<'all' | 'v1_only' | 'v2_only' | 'both'>('all')
 
   const [selectedOwnedItem, setSelectedOwnedItem] = useState<OwnedMergedItem | null>(null)
   const [ownedDetailLoading, setOwnedDetailLoading] = useState(false)
@@ -136,7 +135,6 @@ export function CcPublishedPanel(props: {
 
   const ownedMergedItems = useMemo<OwnedMergedItem[]>(() => {
     const grouped = new Map<string, OwnedMergedItem>()
-    const preferredSource = ownedDisplayPriority === 'v1' ? 'v1' : 'v2'
     const isNewerDate = (current: string, previous: string): boolean => {
       if (!current) return false
       if (!previous) return true
@@ -144,6 +142,7 @@ export function CcPublishedPanel(props: {
     }
 
     for (const item of ownedItems) {
+      if (item.source !== 'v2' || item.paid_type.trim()) continue
       const key = [
         item.repo_owner.trim().toLowerCase(),
         item.repo_name.trim().toLowerCase()
@@ -166,8 +165,8 @@ export function CcPublishedPanel(props: {
           paid_type: item.paid_type,
           commitDate: item.commitDate,
           sources: [item.source],
-          v1RepoCommitHash: item.source === 'v1' ? item.repo_commit_hash : '',
-          v2RepoCommitHash: item.source === 'v2' ? item.repo_commit_hash : '',
+          v1RepoCommitHash: '',
+          v2RepoCommitHash: item.repo_commit_hash,
           v2NeedsFollowUp: item.v2NeedsFollowUp
         })
         continue
@@ -176,44 +175,19 @@ export function CcPublishedPanel(props: {
       if (!existing.sources.includes(item.source)) {
         existing.sources.push(item.source)
       }
-      if (item.source === 'v1' && item.repo_commit_hash) {
-        existing.v1RepoCommitHash = item.repo_commit_hash
-      }
-      if (item.source === 'v2' && item.repo_commit_hash) {
-        existing.v2RepoCommitHash = item.repo_commit_hash
-      }
+      if (item.repo_commit_hash) existing.v2RepoCommitHash = item.repo_commit_hash
 
-      const shouldUseCurrent = item.source === preferredSource
-      if (shouldUseCurrent) {
-        const shouldReplacePreferred =
-          !existing.repo_commit_hash || isNewerDate(item.commitDate || '', existing.commitDate || '')
-        if (shouldReplacePreferred) {
-          existing.name = item.name || existing.name
-          existing.restype = item.restype || existing.restype
-          existing.icon = item.icon || existing.icon
-          existing.repo_owner = item.repo_owner || existing.repo_owner
-          existing.repo_name = item.repo_name || existing.repo_name
-          existing.repo_commit_hash = item.repo_commit_hash || existing.repo_commit_hash
-          existing.description = item.description || existing.description
-          existing.tags = item.tags || existing.tags
-          existing.device_vendors = item.device_vendors || existing.device_vendors
-          existing.devices = item.devices || existing.devices
-          existing.paid_type = item.paid_type || existing.paid_type
-          existing.catalogId = item.catalogId || existing.catalogId
-          existing.commitDate = item.commitDate || existing.commitDate
-        }
-      } else {
-        if (!existing.icon && item.icon) existing.icon = item.icon
-        if (!existing.commitDate && item.commitDate) existing.commitDate = item.commitDate
-        if (!existing.tags && item.tags) existing.tags = item.tags
-        if (!existing.device_vendors && item.device_vendors) existing.device_vendors = item.device_vendors
-        if (!existing.devices && item.devices) existing.devices = item.devices
-        if (!existing.paid_type && item.paid_type) existing.paid_type = item.paid_type
-        if (!existing.catalogId && item.catalogId) existing.catalogId = item.catalogId
+      if (isNewerDate(item.commitDate || '', existing.commitDate || '')) {
+        existing.name = item.name || existing.name
+        existing.restype = item.restype || existing.restype
+        existing.icon = item.icon || existing.icon
+        existing.repo_commit_hash = item.repo_commit_hash || existing.repo_commit_hash
+        existing.description = item.description || existing.description
+        existing.tags = item.tags || existing.tags
+        existing.catalogId = item.catalogId || existing.catalogId
+        existing.commitDate = item.commitDate || existing.commitDate
       }
-      if (item.source === 'v2' && item.v2NeedsFollowUp) {
-        existing.v2NeedsFollowUp = true
-      }
+      existing.v2NeedsFollowUp ||= item.v2NeedsFollowUp
     }
 
     return Array.from(grouped.values()).sort((a, b) => {
@@ -221,7 +195,7 @@ export function CcPublishedPanel(props: {
       const bt = b.commitDate || ''
       return bt.localeCompare(at)
     })
-  }, [ownedDisplayPriority, ownedItems])
+  }, [ownedItems])
 
   const filteredOwnedItems = useMemo<OwnedMergedItem[]>(() =>
     ownedMergedItems.filter((item) => {
@@ -231,18 +205,9 @@ export function CcPublishedPanel(props: {
         (ownedTypeFilter === 'quickapp' && restypeKey === 'quickapp') ||
         (ownedTypeFilter === 'watchface' && restypeKey === 'watchface')
 
-      let supportOk = true
-      if (ownedSupportFilter === 'v1_only') {
-        supportOk = item.sources.length === 1 && item.sources.includes('v1')
-      } else if (ownedSupportFilter === 'v2_only') {
-        supportOk = item.sources.length === 1 && item.sources.includes('v2')
-      } else if (ownedSupportFilter === 'both') {
-        supportOk = item.sources.includes('v1') && item.sources.includes('v2')
-      }
-
-      return typeOk && supportOk
+      return typeOk
     }),
-  [ownedMergedItems, ownedSupportFilter, ownedTypeFilter])
+  [ownedMergedItems, ownedTypeFilter])
 
   const requireToken = useCallback((): string => {
     const value = token.trim()
@@ -283,8 +248,7 @@ export function CcPublishedPanel(props: {
         token: requireToken(),
         owner: target.repo_owner,
         repo: target.repo_name,
-        v1Ref: target.sources.includes('v1') ? '' : undefined,
-        v2Ref: target.v2RepoCommitHash
+          v2Ref: target.v2RepoCommitHash
       })
       setOwnedDetail(detail)
     } catch (error: unknown) {
@@ -349,7 +313,7 @@ export function CcPublishedPanel(props: {
 
   const ownedManifestObject = useMemo<Record<string, any>>(() => {
     if (!ownedDetail) return {}
-    const sourceText = ownedDetail.v2ManifestText.trim() || ownedDetail.v1ManifestText.trim()
+    const sourceText = ownedDetail.v2ManifestText.trim()
     if (!sourceText) return {}
     try {
       return JSON.parse(sourceText) as Record<string, any>
@@ -363,7 +327,7 @@ export function CcPublishedPanel(props: {
     const raw = relativePath.trim()
     if (!raw) return ''
     if (/^https?:\/\//i.test(raw)) return raw
-    const ref = selectedOwnedItem.v2RepoCommitHash || selectedOwnedItem.v1RepoCommitHash || selectedOwnedItem.repo_commit_hash
+    const ref = selectedOwnedItem.v2RepoCommitHash || selectedOwnedItem.repo_commit_hash
     const normalizedPath = raw.replace(/^\/+/, '')
     return `https://raw.githubusercontent.com/${selectedOwnedItem.repo_owner}/${selectedOwnedItem.repo_name}/${ref}/${normalizedPath}`
   }, [selectedOwnedItem])
@@ -507,24 +471,13 @@ export function CcPublishedPanel(props: {
                       <SelectItem value="watchface">表盘</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select value={ownedSupportFilter} onValueChange={(value) => setOwnedSupportFilter(value as 'all' | 'v1_only' | 'v2_only' | 'both')}>
-                    <SelectTrigger className="h-8 w-[140px]">
-                      <SelectValue placeholder="支持版本" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">全部版本</SelectItem>
-                      <SelectItem value="v1_only">仅 V1</SelectItem>
-                      <SelectItem value="v2_only">仅 V2</SelectItem>
-                      <SelectItem value="both">V1 + V2</SelectItem>
-                    </SelectContent>
-                  </Select>
                   <Button disabled={ownedLoading || !canLoadList} onClick={() => void loadOwnedList()}>
                     <ArrowsClockwise size={16} weight="duotone" />
                     {ownedLoading ? '加载中...' : '刷新'}
                   </Button>
                 </div>
               </div>
-              <CardDescription>查看当前账号已发布到目录的资源并统一管理。</CardDescription>
+              <CardDescription>仅展示并管理 V2 免费资源；V1 已不再支持。</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
               {ownedError ? (
@@ -578,8 +531,7 @@ export function CcPublishedPanel(props: {
                     <div className="flex max-w-full justify-end">
                       <div className="flex max-w-full flex-nowrap items-center gap-1 overflow-x-auto pb-0.5 text-right [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                         <Badge variant="secondary" className="shrink-0">{formatOwnedRestype(item.restype)}</Badge>
-                        {item.sources.includes('v1') ? <Badge variant="outline" className="shrink-0">V1</Badge> : null}
-                        {item.sources.includes('v2') ? <Badge variant="outline" className="shrink-0">V2</Badge> : null}
+                         <Badge variant="outline" className="shrink-0">V2</Badge>
                         {showV2FollowUpTag && item.v2NeedsFollowUp ? <Badge variant="destructive" className="shrink-0">v2需要跟进</Badge> : null}
                       </div>
                     </div>
@@ -605,8 +557,7 @@ export function CcPublishedPanel(props: {
                           <div className="min-w-0 flex-wrap items-center gap-1.5 sm:flex">
                             <div className="min-w-0 text-sm font-semibold text-foreground">{item.name}</div>
                             <Badge variant="secondary">{formatOwnedRestype(item.restype)}</Badge>
-                            {item.sources.includes('v1') ? <Badge variant="outline">V1</Badge> : null}
-                            {item.sources.includes('v2') ? <Badge variant="outline">V2</Badge> : null}
+                             <Badge variant="outline">V2</Badge>
                             {showV2FollowUpTag && item.v2NeedsFollowUp ? <Badge variant="destructive">v2需要跟进</Badge> : null}
                           </div>
                         </div>
@@ -648,8 +599,7 @@ export function CcPublishedPanel(props: {
             meta={(
               <>
                 <Badge variant="secondary">{formatOwnedRestype(selectedOwnedItem.restype)}</Badge>
-                {selectedOwnedItem.sources.includes('v1') ? <Badge variant="outline">V1</Badge> : null}
-                {selectedOwnedItem.sources.includes('v2') ? <Badge variant="outline">V2</Badge> : null}
+                 <Badge variant="outline">V2</Badge>
                 {showV2FollowUpTag && selectedOwnedItem.v2NeedsFollowUp ? <Badge variant="destructive">v2需要跟进</Badge> : null}
               </>
             )}

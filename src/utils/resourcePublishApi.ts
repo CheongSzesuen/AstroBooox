@@ -343,19 +343,6 @@ const parseLegacyCatalogCsv = (csv: string): LegacyCatalogEntry[] => {
   return entries
 }
 
-const parseGitHubRepoFromUrl = (url: string): { owner: string; repo: string } | null => {
-  const trimmed = url.trim()
-  if (!trimmed) return null
-
-  const matched = trimmed.match(/^https?:\/\/github\.com\/([^/]+)\/([^/#?]+)(?:[/?#].*)?$/i)
-  if (!matched) return null
-
-  return {
-    owner: matched[1],
-    repo: matched[2].replace(/\.git$/i, '')
-  }
-}
-
 const getResourceDescriptionFromManifestText = (text: string): string => {
   try {
     const parsed = JSON.parse(text) as {
@@ -1370,17 +1357,8 @@ export const loadOwnedResources = async (params: {
   catalogPath: string
   legacyCatalogPath?: string
 }): Promise<OwnedResourceEntry[]> => {
-  const {
-    token,
-    username,
-    upstreamOwner,
-    upstreamRepo,
-    upstreamBranch,
-    catalogPath,
-    legacyCatalogPath = 'index.csv'
-  } = params
+  const { token, username, upstreamOwner, upstreamRepo, upstreamBranch, catalogPath } = params
   const items: OwnedResourceEntry[] = []
-  const normalizedUsername = username.trim().toLowerCase()
   const repoDescriptionCache = new Map<string, string>()
   const commitDateCache = new Map<string, string>()
   const v2FollowUpCache = new Map<string, boolean>()
@@ -1412,10 +1390,7 @@ export const loadOwnedResources = async (params: {
     return loaded
   }
 
-  const [v2CatalogFile, v1CatalogFile] = await Promise.all([
-    fetchRepoFileOrNull(token, upstreamOwner, upstreamRepo, catalogPath, upstreamBranch),
-    fetchRepoFileOrNull(token, upstreamOwner, upstreamRepo, legacyCatalogPath, upstreamBranch)
-  ])
+  const v2CatalogFile = await fetchRepoFileOrNull(token, upstreamOwner, upstreamRepo, catalogPath, upstreamBranch)
 
   const v2Entries = v2CatalogFile?.content
     ? parseCatalogCsv(base64ToText(v2CatalogFile.content)).filter(entry => entry.repo_owner === username)
@@ -1452,99 +1427,6 @@ export const loadOwnedResources = async (params: {
     })
   )
   items.push(...v2Items)
-
-  const v1Entries = v1CatalogFile?.content
-    ? parseLegacyCatalogCsv(base64ToText(v1CatalogFile.content))
-    : []
-
-  const containsCurrentUsername = (value: string): boolean =>
-    Boolean(normalizedUsername && value.toLowerCase().includes(normalizedUsername))
-  const likelyAuthorFolders = new Set(
-    v1Entries
-      .filter(entry =>
-        containsCurrentUsername(entry.icon) ||
-        containsCurrentUsername(entry.cover) ||
-        containsCurrentUsername(entry.path)
-      )
-      .map(entry => entry.path.split('/').filter(Boolean)[0] || '')
-      .filter(Boolean)
-  )
-  const v1CandidateEntries = v1Entries.filter(entry => {
-    if (
-      containsCurrentUsername(entry.icon) ||
-      containsCurrentUsername(entry.cover) ||
-      containsCurrentUsername(entry.path)
-    ) {
-      return true
-    }
-    const folder = entry.path.split('/').filter(Boolean)[0] || ''
-    return Boolean(folder && likelyAuthorFolders.has(folder))
-  })
-
-  const v1Items = await Promise.all(
-    v1CandidateEntries.map(async (entry, index) => {
-      const resourceJsonPath = entry.path ? `resources/${entry.path}` : ''
-      if (!resourceJsonPath) return null
-
-      const resourceFile = await fetchRepoFileOrNull(
-        token,
-        upstreamOwner,
-        upstreamRepo,
-        resourceJsonPath,
-        upstreamBranch
-      )
-      if (!resourceFile?.content) return null
-
-      let repoOwner = ''
-      let repoName = ''
-      let repoRef = 'main'
-      try {
-        const parsed = JSON.parse(base64ToText(resourceFile.content)) as {
-          repo_url?: unknown
-          repo_commit_hash?: unknown
-        }
-        const repoUrl = typeof parsed.repo_url === 'string' ? parsed.repo_url.trim() : ''
-        const repoInfo = parseGitHubRepoFromUrl(repoUrl)
-        repoOwner = repoInfo?.owner || ''
-        repoName = repoInfo?.repo || ''
-        repoRef = typeof parsed.repo_commit_hash === 'string' && parsed.repo_commit_hash.trim()
-          ? parsed.repo_commit_hash.trim()
-          : 'main'
-      } catch {
-        return null
-      }
-
-      if (!repoOwner || !repoName) return null
-      if (normalizedUsername && repoOwner.trim().toLowerCase() !== normalizedUsername) return null
-
-      const description = await getCachedRepoDescription(repoOwner, repoName, repoRef)
-
-      return {
-        source: 'v1' as const,
-        key: `v1:${entry.path || entry.name}:${index}`,
-        catalogId: '',
-        name: entry.name,
-        restype: entry.restype,
-        icon: entry.icon,
-        cover: entry.cover,
-        repo_owner: repoOwner,
-        repo_name: repoName,
-        repo_commit_hash: repoRef,
-        description,
-        tags: entry.tags || '',
-        device_vendors: '',
-        devices: entry.devices || '',
-        paid_type: entry.paid_type || '',
-        commitDate: '',
-        v2NeedsFollowUp: false
-      }
-    })
-  )
-  for (const entry of v1Items) {
-    if (entry) {
-      items.push(entry)
-    }
-  }
 
   return items
 }

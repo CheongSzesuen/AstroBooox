@@ -17,7 +17,6 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   arrayBufferToBase64,
-  base64ToText,
   createPullRequestWithHead,
   ensureUserRepository,
   fetchRepoFileOrNull,
@@ -25,11 +24,9 @@ import {
   loadOwnedResources,
   loadRepositoryTree,
   putRepoFile,
-  type LegacyCatalogEntry,
   type RepoTreeItem,
   textToBase64,
-  updateCatalogInForkBranch,
-  updateLegacyCatalogAndResourceJsonInForkBranch
+  updateCatalogInForkBranch
 } from '@/utils/resourcePublishApi'
 import { listAuthenticatedRepositories, type GitHubOwnedRepositorySummary } from '@/utils/githubGitApi'
 import { isRpkManifestAutoValidationSupported, readRpkManifestInfo } from '@/utils/rpkManifest'
@@ -53,7 +50,6 @@ import { Popover, PopoverAnchor, PopoverContent } from '@/react/components/ui/po
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/react/components/ui/sheet'
 import { Skeleton } from '@/react/components/ui/skeleton'
-import { Switch } from '@/react/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/react/components/ui/tabs'
 import { Textarea } from '@/react/components/ui/textarea'
 
@@ -104,7 +100,7 @@ type QuickappPackageCheckResult = {
 }
 
 type RemotePickerMode = 'icon' | 'cover' | 'preview' | 'download'
-type SubmitMode = 'v2' | 'v1' | 'both'
+type SubmitMode = 'v2'
 
 type ResourceEditContext = {
   resourceId: string
@@ -120,12 +116,8 @@ const canEnableAstroBoxCreatorFeatures = (paidType: string): boolean => {
   const normalized = paidType.trim()
   return normalized === 'paid' || normalized === 'force_paid'
 }
-const EXT_FIELDS_TEMP_DISABLED = true
 const MAIN_BRANCH = 'main'
 const MANIFEST_FILE = 'manifest_v2.json'
-const LEGACY_MANIFEST_FILE = 'manifest.json'
-const LEGACY_CATALOG_PATH = 'index.csv'
-const LEGACY_RESOURCES_DIR = 'resources'
 const PREVIEW_UNDO_LIMIT = 12
 const REMOTE_PICKER_LOCAL_OPFS_ROOT = 'astrobooox-local'
 const IMAGE_FILE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.avif']
@@ -205,10 +197,6 @@ const normalizeRestype = (value: string): Restype => {
 
 const RELEASE_FOLDER_SUFFIX = '_AstroBox_Release'
 
-const getDefaultV1AuthorUrl = (): string => {
-  if (typeof window === 'undefined') return ''
-  return `${window.location.origin}/publish`
-}
 const MAX_GITHUB_REPO_NAME_LENGTH = 100
 const MAX_RELEASE_REPO_PREFIX_LENGTH = MAX_GITHUB_REPO_NAME_LENGTH - RELEASE_FOLDER_SUFFIX.length
 const REPO_AUTOCOMPLETE_LIMIT = 8
@@ -445,7 +433,6 @@ const collectDraftFolderPaths = (folderPaths: string[], filePaths: string[]): st
 }
 
 const formatCatalogRestype = (value: Restype): string => (value === 'watchface' ? 'watchface' : 'quick_app')
-const formatLegacyRestype = (value: Restype): string => (value === 'watchface' ? 'watchface' : 'quickapp')
 
 const normalizeWatchfaceIdInput = (value: string): string =>
   value
@@ -553,7 +540,7 @@ export function CcPublishWorkbench(props: {
     defaultCatalogPath,
     editContext
   } = props
-  const defaultSubmitMode: SubmitMode = mode === 'publish' ? 'both' : 'v2'
+  const defaultSubmitMode: SubmitMode = 'v2'
 
   useDeviceCatalog()
 
@@ -614,9 +601,6 @@ export function CcPublishWorkbench(props: {
   const [boundRepoUrl, setBoundRepoUrl] = useState('')
   const [existingCommitSha, setExistingCommitSha] = useState('')
   const [baselineCatalogId, setBaselineCatalogId] = useState('')
-  const [baselineV1Path, setBaselineV1Path] = useState('')
-  const [hasV1Manifest, setHasV1Manifest] = useState<boolean | null>(null)
-  const [hasV2Manifest, setHasV2Manifest] = useState<boolean | null>(null)
   const [updateChangeBaseline, setUpdateChangeBaseline] = useState<UpdateChangeBaseline | null>(null)
   const [showDeviceSelector, setShowDeviceSelector] = useState(false)
   const [showResourceIdGuide, setShowResourceIdGuide] = useState(false)
@@ -829,7 +813,7 @@ export function CcPublishWorkbench(props: {
     setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true, isPurchaseLink: false }])
     setLinks([])
     setDownloads([])
-    setSubmitMode('both')
+    setSubmitMode('v2')
     setBootstrapError('')
     setSubmitError('')
     setSubmitLogs([])
@@ -843,7 +827,6 @@ export function CcPublishWorkbench(props: {
     setBoundRepoUrl('')
     setExistingCommitSha('')
     setBaselineCatalogId('')
-    setBaselineV1Path('')
     setUpdateChangeBaseline(null)
     setShowDeviceSelector(false)
     setShowResourceIdGuide(false)
@@ -954,28 +937,20 @@ export function CcPublishWorkbench(props: {
           throw new Error('未找到要更新的资源，请检查 edit 参数')
         }
 
-        const matchedV1Entry = matchedByRepo.find((item) => item.source === 'v1' && item.repo_owner === target.repo_owner && item.repo_name === target.repo_name)
-        const extractedV1Path = matchedV1Entry?.key.startsWith('v1:') ? matchedV1Entry.key.slice(3).split(':')[0] : ''
-        setBaselineV1Path(extractedV1Path)
-
-        const v1Ref = target.source === 'v1' ? target.repo_commit_hash : undefined
         const v2Ref = target.source === 'v2' ? target.repo_commit_hash : undefined
 
         const detail = await loadOwnedResourceDetail({
           token: resolvedToken,
           owner: target.repo_owner,
           repo: target.repo_name,
-          ...(v1Ref ? { v1Ref } : {}),
           ...(v2Ref ? { v2Ref } : {})
         })
 
-        const hasV1 = Boolean(detail.v1ManifestText)
         const hasV2 = Boolean(detail.v2ManifestText)
-        setHasV1Manifest(hasV1)
-        setHasV2Manifest(hasV2)
+        if (!hasV2) throw new Error('该资源仅有 V1 数据，V1 已不再支持，无法更新')
         const defaultRepoBranch = detail.defaultBranch?.trim() || MAIN_BRANCH
-        const activeRef = hasV2 ? (detail.v2Ref || defaultRepoBranch) : (detail.v1Ref || defaultRepoBranch)
-        const activeManifestText = hasV2 ? detail.v2ManifestText : detail.v1ManifestText
+        const activeRef = detail.v2Ref || defaultRepoBranch
+        const activeManifestText = detail.v2ManifestText
         const parsed = parseManifestDraft(activeManifestText)
         const manifestRoot = asRecord(parsed.rawObject)
         const manifestItem = asRecord(manifestRoot.item)
@@ -990,31 +965,6 @@ export function CcPublishWorkbench(props: {
             }
           })
           .filter((entry) => Boolean(entry.name))
-        if (detail.v1ManifestText) {
-          try {
-            const v1Root = asRecord(JSON.parse(detail.v1ManifestText))
-            const v1Item = asRecord(v1Root.item)
-            const v1Authors = (Array.isArray(v1Item.author) ? v1Item.author : [])
-              .map((entry) => {
-                const row = asRecord(entry)
-                const url = toString(row.author_url)
-                return { name: toString(row.name), authorUrl: url, isPurchaseLink: Boolean(url) }
-              })
-              .filter((entry) => entry.name)
-            if (parsedAuthors.length === 0 && v1Authors.length > 0) {
-              for (const a of v1Authors) {
-                parsedAuthors.push({ name: a.name, authorUrl: a.authorUrl, bindABAccount: true, isPurchaseLink: a.isPurchaseLink })
-              }
-            } else if (parsedAuthors.length > 0 && hasV2) {
-              const v1AuthorMap = new Map(v1Authors.map((a) => [a.name, a.authorUrl]))
-              for (const author of parsedAuthors) {
-                if (!author.authorUrl && v1AuthorMap.has(author.name)) {
-                  author.authorUrl = v1AuthorMap.get(author.name) || ''
-                }
-              }
-            }
-          } catch {}
-        }
         const parsedLinks = (Array.isArray(manifestRoot.links) ? manifestRoot.links : [])
           .map((entry) => {
             const row = asRecord(entry)
@@ -1034,7 +984,6 @@ export function CcPublishWorkbench(props: {
             }
           })
           .filter((entry) => Boolean(entry.device))
-        const parsedExt = getManifestV2Ext(manifestRoot)
 
         if (cancelled) return
 
@@ -1055,10 +1004,8 @@ export function CcPublishWorkbench(props: {
         setTags(nextTags)
         setTagInput('')
         setDeviceVendorsText(target.device_vendors || '')
-        const nextPaidType = target.paid_type || ''
-        const nextEnableAstroBoxCreatorFeatures = Boolean(parsedExt.enableAstroBoxCreatorFeatures) && canEnableAstroBoxCreatorFeatures(nextPaidType)
-        setPaidType(nextPaidType)
-        setEnableAstroBoxCreatorFeatures(nextEnableAstroBoxCreatorFeatures)
+        setPaidType('')
+        setEnableAstroBoxCreatorFeatures(false)
         setRepoNameInput(target.repo_name || '')
         setRepoDescription(`AstroBooox resource ${target.catalogId || target.name}`)
         setBoundRepoOwner(target.repo_owner || '')
@@ -1071,8 +1018,8 @@ export function CcPublishWorkbench(props: {
           name: (parsed.name || target.name).trim(),
           description: (parsed.description || target.description || '').trim(),
           restype: nextRestype.trim(),
-          paidType: (target.paid_type || '').trim(),
-          enableAstroBoxCreatorFeatures: Boolean(nextEnableAstroBoxCreatorFeatures),
+          paidType: '',
+          enableAstroBoxCreatorFeatures: false,
           icon: (parsed.icon || target.icon || '').trim(),
           cover: (parsed.cover || target.cover || '').trim(),
           previews: parsed.previewPaths.map((path) => path.trim()).filter(Boolean),
@@ -1095,7 +1042,7 @@ export function CcPublishWorkbench(props: {
           }))
         })
         setHasUploadedInFlow(false)
-        setSubmitMode(hasV1 && hasV2 ? 'both' : hasV2 ? 'v2' : 'v1')
+        setSubmitMode('v2')
         setFileTreeTab('remote')
         setAuthors(nextAuthors)
         setLinks(nextLinks)
@@ -1167,12 +1114,7 @@ export function CcPublishWorkbench(props: {
 
   const selectedUploadPaths = useMemo(() => {
     const paths = new Set<string>()
-    if (submitMode === 'v2' || submitMode === 'both') {
-      paths.add(MANIFEST_FILE)
-    }
-    if (submitMode === 'v1' || submitMode === 'both') {
-      paths.add(LEGACY_MANIFEST_FILE)
-    }
+    paths.add(MANIFEST_FILE)
     if (iconPath.trim()) paths.add(normalizeRepoPath(iconPath))
     if (coverPath.trim()) paths.add(normalizeRepoPath(coverPath))
     previewItems.forEach((item) => {
@@ -1471,39 +1413,7 @@ export function CcPublishWorkbench(props: {
     return getResourceIdValidationMessage(resourceId, restype)
   }, [resourceId, restype])
 
-  const v1AuthorValidationMessage = useMemo(() => {
-    if (!(submitMode === 'v1' || submitMode === 'both')) return ''
-
-    const rows = authors
-      .map((author, index) => ({
-        index,
-        name: author.name.trim(),
-        authorUrl: author.authorUrl.trim()
-      }))
-      .filter((row) => row.name || row.authorUrl)
-
-    if (rows.length === 0) return '提交 v1 时，至少要填写 1 条作者信息（name + author_url）'
-
-    for (const row of rows) {
-      if (!row.name) return `第 ${row.index + 1} 个作者缺少名称`
-      if (!row.authorUrl) return `第 ${row.index + 1} 个作者缺少 author_url`
-      try {
-        const parsed = new URL(row.authorUrl)
-        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-          return `第 ${row.index + 1} 个作者的 author_url 仅支持 http/https`
-        }
-      } catch {
-        return `第 ${row.index + 1} 个作者的 author_url 格式不合法`
-      }
-    }
-    return ''
-  }, [authors, submitMode])
-
-  const submitModeLabel = useMemo(() => {
-    if (submitMode === 'both') return 'v1 + v2'
-    if (submitMode === 'v1') return '仅 v1'
-    return '仅 v2'
-  }, [submitMode])
+  const submitModeLabel = '仅 V2（V1 已不再支持）'
 
   const scrollToDownloadsSection = (): void => {
     const target = downloadsBottomRef.current ?? downloadsCardRef.current
@@ -1513,25 +1423,9 @@ export function CcPublishWorkbench(props: {
     })
   }
 
-  const submitModeOptions = useMemo<Array<{ value: SubmitMode; label: string; variant: 'default' | 'outline'; disabled?: boolean }>>(
-    () => {
-      if (mode === 'resource_edit') {
-        const v1Available = hasV1Manifest === true
-        const v2Available = hasV2Manifest === true
-        return [
-          { value: 'both', label: '同时更新 v1 + v2（推荐）', variant: 'default', disabled: !v1Available || !v2Available },
-          { value: 'v2', label: '仅更新 v2', variant: 'outline', disabled: !v2Available },
-          { value: 'v1', label: '仅更新 v1', variant: 'outline', disabled: !v1Available }
-        ]
-      }
-      return [
-        { value: 'both', label: '同时提交 v1 + v2（推荐）', variant: 'default' },
-        { value: 'v2', label: '仅提交 v2', variant: 'outline' },
-        { value: 'v1', label: '仅提交 v1', variant: 'outline' }
-      ]
-    },
-    [mode, hasV1Manifest, hasV2Manifest]
-  )
+  const submitModeOptions: Array<{ value: SubmitMode; label: string; variant: 'default'; disabled?: boolean }> = [
+    { value: 'v2', label: mode === 'resource_edit' ? '确认更新 V2' : '确认提交 V2', variant: 'default' }
+  ]
 
   const isWorkspaceStepDone = mode === 'resource_edit'
     ? true
@@ -1601,7 +1495,6 @@ export function CcPublishWorkbench(props: {
   }, [quickappDownloadEntries, quickappPackageChecks, quickappPackageValidationUnavailable, resourceId, restype])
 
   const canUpload = useMemo(() => {
-    const needV2Catalog = submitMode === 'v2' || submitMode === 'both'
     const baseReady = Boolean(
       token.trim() &&
       currentUser.trim() &&
@@ -1612,9 +1505,9 @@ export function CcPublishWorkbench(props: {
       coverPath.trim() &&
       defaultTargetOwner.trim() &&
       defaultTargetRepo.trim() &&
-      (!needV2Catalog || defaultCatalogPath.trim())
+      defaultCatalogPath.trim()
     )
-    if (!baseReady || bootstrapLoading || isSubmitting || Boolean(linksValidationMessage) || Boolean(v1AuthorValidationMessage)) return false
+    if (!baseReady || bootstrapLoading || isSubmitting || Boolean(linksValidationMessage)) return false
 
     if (mode === 'resource_edit') {
       return Boolean(boundRepoOwner.trim() && boundRepoName.trim())
@@ -1637,10 +1530,8 @@ export function CcPublishWorkbench(props: {
     resolvedRepoName,
     resourceIdValidationMessage,
     quickappPackageValidationMessage,
-    submitMode,
     token,
-    linksValidationMessage,
-    v1AuthorValidationMessage
+    linksValidationMessage
   ])
 
   const canCreatePr = useMemo(
@@ -1652,7 +1543,7 @@ export function CcPublishWorkbench(props: {
       existingCommitSha.trim() &&
       defaultTargetOwner.trim() &&
       defaultTargetRepo.trim() &&
-      (submitMode === 'v1' || defaultCatalogPath.trim()) &&
+      defaultCatalogPath.trim() &&
       prTitle.trim()
     ),
     [
@@ -1664,8 +1555,7 @@ export function CcPublishWorkbench(props: {
       defaultTargetRepo,
       existingCommitSha,
       hasUploadedInFlow,
-      prTitle,
-      submitMode
+      prTitle
     ]
   )
 
@@ -1786,38 +1676,6 @@ export function CcPublishWorkbench(props: {
   const confirmSubmitMode = (modeValue: SubmitMode) => {
     setSubmitMode(modeValue)
     setShowSubmitVersionDialog(false)
-    if (modeValue === 'v1' || modeValue === 'both') {
-      const rows = authors
-        .map((author, index) => ({
-          index,
-          name: author.name.trim(),
-          authorUrl: author.authorUrl.trim()
-        }))
-        .filter((row) => row.name || row.authorUrl)
-      let msg = ''
-      if (rows.length === 0) {
-        msg = '提交 v1 时，至少要填写 1 条作者信息（name + author_url）'
-      } else {
-        for (const row of rows) {
-          if (!row.name) { msg = `第 ${row.index + 1} 个作者缺少名称`; break }
-          if (!row.authorUrl) { msg = `第 ${row.index + 1} 个作者缺少 author_url`; break }
-          try {
-            const parsed = new URL(row.authorUrl)
-            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-              msg = `第 ${row.index + 1} 个作者的 author_url 仅支持 http/https`; break
-            }
-          } catch {
-            msg = `第 ${row.index + 1} 个作者的 author_url 格式不合法`; break
-          }
-        }
-      }
-      if (msg) {
-        setResourceInfoValidationIssues([msg])
-        setShowResourceInfoValidationDialog(true)
-        appendLog(`请先完成资源信息：${msg}`)
-        return
-      }
-    }
     goToStep('2')
   }
 
@@ -2844,21 +2702,6 @@ export function CcPublishWorkbench(props: {
     })
   }
 
-  const copyAuthorUrlToLinks = (authorIndex: number) => {
-    const author = authors[authorIndex]
-    if (!author || !author.authorUrl.trim()) return
-    const normalizedUrl = author.authorUrl.trim()
-    const exists = links.some((link) => link.url.trim() === normalizedUrl)
-    if (exists) {
-      appendLog('该链接已在「相关链接」中，无需重复添加')
-      return
-    }
-    const matchedIcon = normalizedUrl.includes('github.com') ? 'github-logo' : ''
-    const suggestedTitle = author.isPurchaseLink ? '购买链接' : '相关链接'
-    setLinks((prev) => [...prev, { icon: matchedIcon, title: suggestedTitle, url: normalizedUrl }])
-    appendLog(`已将链接复制到「相关链接」: ${normalizedUrl}`)
-  }
-
   const openLinkIconPicker = (index: number) => {
     setLinkIconPickerIndex(index)
     setLinkPickerInitialQuery(links[index]?.icon || '')
@@ -2923,13 +2766,6 @@ export function CcPublishWorkbench(props: {
     return `${device.name} (${device.id})`
   }
 
-  const getLegacyDeviceCode = (deviceId: string): string => {
-    const device = getDeviceById(deviceId)
-    if (!device) return deviceId
-    const preferred = device.aliases.find((alias) => /^[a-z]\d+([a-z]+)?$/i.test(alias))
-    return preferred || device.id
-  }
-
   const getDownloadEntry = (deviceId: string): ManifestDownloadDraft =>
     downloads.find((item) => item.device === deviceId) || { device: deviceId, version: '1.0.0', file_name: '' }
 
@@ -2944,11 +2780,6 @@ export function CcPublishWorkbench(props: {
       .filter(Boolean)
     return [...new Set(vendors)].join(';')
   }, [selectedDeviceIds])
-
-  const normalizedLegacyDevicesText = useMemo(
-    () => selectedDeviceIds.map(getLegacyDeviceCode).filter(Boolean).join(';'),
-    [selectedDeviceIds]
-  )
 
   const watchfaceEditorFileOptions = useMemo<WatchfaceEditorFileOption[]>(() => {
     if (restype !== 'watchface') return []
@@ -3117,11 +2948,6 @@ export function CcPublishWorkbench(props: {
       }
       return acc
     }, {})
-    const normalizedExt: Record<string, unknown> = {}
-    if (enableAstroBoxCreatorFeatures && canEnableAstroBoxCreatorFeatures(paidType)) {
-      normalizedExt.enableAstroBoxCreatorFeatures = true
-    }
-
     const manifestObject: Record<string, unknown> = {
       item: {
         id: normalizedResourceId,
@@ -3137,7 +2963,7 @@ export function CcPublishWorkbench(props: {
       },
       links: normalizedLinks,
       downloads: normalizedDownloads,
-      ext: normalizedExt
+      ext: {}
     }
 
     return JSON.stringify(manifestObject, null, 2)
@@ -3160,133 +2986,6 @@ export function CcPublishWorkbench(props: {
       .map((segment) => encodeURIComponent(segment))
       .join('/')
     return `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/main/${encodedPath}`
-  }
-
-  const buildManifestV1Text = (repoUrl: string): string => {
-    const normalizedResourceId = ensureValidResourceId(resourceId, restype)
-    const defaultAuthorUrl = getDefaultV1AuthorUrl()
-    const normalizedAuthors = authors
-      .map((author) => {
-        const authorName = author.name.trim()
-        const authorUrl = author.authorUrl.trim() || defaultAuthorUrl
-        return {
-          name: authorName,
-          author_url: authorUrl
-        }
-      })
-      .filter((author) => author.name)
-
-    const normalizedDownloads = selectedDeviceIds.reduce<Record<string, { version: string; file_name: string }>>((acc, deviceId) => {
-      const row = downloads.find((item) => item.device.trim() === deviceId)
-      if (!row) return acc
-      const legacyCode = getLegacyDeviceCode(deviceId)
-      acc[legacyCode] = {
-        version: row.version.trim(),
-        file_name: normalizeRepoPath(row.file_name)
-      }
-      return acc
-    }, {})
-
-    const manifestObject = {
-      item: {
-        id: normalizedResourceId,
-        name: name.trim(),
-        description: description.trim(),
-        preview: normalizedPreviewPaths,
-        icon: normalizeRepoPath(iconPath),
-        cover: normalizeRepoPath(coverPath),
-        source_url: repoUrl,
-        author: normalizedAuthors.length > 0
-          ? normalizedAuthors
-          : [{ name: currentUser.trim(), author_url: defaultAuthorUrl }]
-      },
-      downloads: normalizedDownloads
-    }
-    return JSON.stringify(manifestObject, null, 2)
-  }
-
-  const buildLegacyResourceJsonFileName = (): string => {
-    const rawBase = resourceId.trim() || name.trim()
-    const base = rawBase
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '')
-    return `${base || 'resource'}.json`
-  }
-
-  const splitCsvLine = (line: string): string[] => {
-    const result: string[] = []
-    let current = ''
-    let inQuotes = false
-
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i]
-      if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          current += '"'
-          i += 1
-          continue
-        }
-        inQuotes = !inQuotes
-        continue
-      }
-      if (char === ',' && !inQuotes) {
-        result.push(current)
-        current = ''
-        continue
-      }
-      current += char
-    }
-    result.push(current)
-    return result.map((item) => item.trim())
-  }
-
-  const resolveLegacyAuthorFolder = async (accessToken: string): Promise<string> => {
-    const fallback = boundRepoOwner.trim() || normalizeLower(currentUser)
-    const usernameCandidates = [boundRepoOwner.trim(), currentUser.trim()]
-      .map((item) => item.toLowerCase())
-      .filter(Boolean)
-
-    if (usernameCandidates.length === 0) return fallback
-
-    try {
-      const legacyCsvFile = await fetchRepoFileOrNull(
-        accessToken,
-        defaultTargetOwner.trim(),
-        defaultTargetRepo.trim(),
-        LEGACY_CATALOG_PATH,
-        MAIN_BRANCH
-      )
-      if (!legacyCsvFile?.content) return fallback
-
-      const csvText = base64ToText(legacyCsvFile.content || '')
-      const rows = csvText
-        .split(/\r?\n/)
-        .map((row) => row.trim())
-        .filter(Boolean)
-
-      for (let i = rows.length - 1; i >= 1; i--) {
-        const cols = splitCsvLine(rows[i])
-        if (cols.length < 7) continue
-        const icon = (cols[1] || '').toLowerCase()
-        const cover = (cols[2] || '').toLowerCase()
-        const matched = usernameCandidates.some((username) => icon.includes(username) || cover.includes(username))
-        if (!matched) continue
-        const resourcePath = (cols[6] || '').replace(/^"+|"+$/g, '').trim()
-        const segments = resourcePath.split('/').filter(Boolean)
-        if (segments.length < 2) continue
-        const folder = segments[segments.length - 2]
-        if (folder) {
-          appendLog(`已按 index.csv 历史记录复用 v1 作者目录: ${folder}`)
-          return folder
-        }
-      }
-    } catch (cause: unknown) {
-      appendLog(`读取 index.csv 复用目录失败: ${cause instanceof Error ? cause.message : '未知错误'}`)
-    }
-
-    return fallback
   }
 
   const normalizeTextValue = (value: string): string => value.trim()
@@ -3523,7 +3222,7 @@ export function CcPublishWorkbench(props: {
     const shortHash = commitSha.trim() ? commitSha.trim().slice(0, 7) : '--'
     if (mode === 'publish') {
       const resourceTypeText = restype === 'watchface' ? '表盘（watch_face）' : '快应用（quick_app）'
-      const submitVersionText = submitMode === 'both' ? 'v1 + v2' : submitMode === 'v1' ? 'v1' : 'v2'
+      const submitVersionText = 'V2（V1 已不再支持）'
       const tagsText = tags.map((tag) => tag.trim()).filter(Boolean).join(' / ') || '--'
       const paidTypeText = paidType.trim() || '免费'
       const creatorFeatureText = enableAstroBoxCreatorFeatures ? '开启' : '关闭'
@@ -3703,9 +3402,6 @@ export function CcPublishWorkbench(props: {
       if (linksValidationMessage) {
         throw new Error(linksValidationMessage)
       }
-      if (v1AuthorValidationMessage) {
-        throw new Error(v1AuthorValidationMessage)
-      }
       if (mode === 'publish') {
         for (const path of selectedUploadPaths) {
           const invalid = findInvalidFolderSegmentFromPath(path)
@@ -3747,12 +3443,7 @@ export function CcPublishWorkbench(props: {
       }
 
       const uploadQueue: Array<{ path: string; file?: File; text?: string }> = []
-      if (submitMode === 'v2' || submitMode === 'both') {
-        uploadQueue.push({ path: MANIFEST_FILE, text: buildManifestV2Text() })
-      }
-      if (submitMode === 'v1' || submitMode === 'both') {
-        uploadQueue.push({ path: LEGACY_MANIFEST_FILE, text: buildManifestV1Text(repoUrl) })
-      }
+      uploadQueue.push({ path: MANIFEST_FILE, text: buildManifestV2Text() })
 
       const localFileMap = new Map<string, File>()
       previewItems.forEach((item) => {
@@ -3766,7 +3457,7 @@ export function CcPublishWorkbench(props: {
         localFileMap.set(path, item.fileObject)
       })
       for (const path of selectedUploadPaths) {
-        if (path === MANIFEST_FILE || path === LEGACY_MANIFEST_FILE) continue
+        if (path === MANIFEST_FILE) continue
         if (opfsLocalPathSet[path]) {
           const opfsFile = await readFileFromOpfs(path)
           if (!opfsFile) {
@@ -3903,83 +3594,36 @@ export function CcPublishWorkbench(props: {
       let forkResult: { forkOwner: string; forkRepo: string; branch: string } | null = null
       const normalizedTags = normalizedTagsText
       const normalizedV2Devices = normalizedDevicesText
-      const normalizedV1Devices = normalizedLegacyDevicesText || normalizedDevicesText
       const normalizedVendors = deviceVendorsText.trim() || normalizedDeviceVendorsText
 
-      if (submitMode === 'v2' || submitMode === 'both') {
-        const matchId = mode === 'resource_edit' ? (baselineCatalogId || catalogId).trim() : catalogId
-        const v2Result = await updateCatalogInForkBranch({
-          token: accessToken,
-          upstreamOwner: defaultTargetOwner.trim(),
-          upstreamRepo: defaultTargetRepo.trim(),
-          upstreamBranch: MAIN_BRANCH,
-          catalogPath: defaultCatalogPath.trim(),
-          currentUser: username,
-          branchName,
-          matchId,
-          requireExisting: mode === 'resource_edit',
-          entry: {
-            id: catalogId,
-            name: name.trim(),
-            restype: formatCatalogRestype(restype),
-            repo_owner: repoOwner,
-            repo_name: repoName,
-            repo_commit_hash: latestCommitSha.slice(0, 7),
-            icon: normalizeRepoPath(iconPath),
-            cover: normalizeRepoPath(coverPath),
-            tags: normalizedTags,
-            device_vendors: normalizedVendors,
-            devices: normalizedV2Devices,
-            paid_type: paidType.trim()
-          }
-        })
-        forkResult = v2Result
-        appendLog(`v2 Catalog 更新完成: ${v2Result.forkOwner}/${v2Result.forkRepo}@${v2Result.branch}`)
-      }
-
-      if (submitMode === 'v1' || submitMode === 'both') {
-        const legacyFileName = buildLegacyResourceJsonFileName()
-        const legacyAuthorFolder = await resolveLegacyAuthorFolder(accessToken)
-        const legacyEntry: LegacyCatalogEntry = {
+      const matchId = mode === 'resource_edit' ? (baselineCatalogId || catalogId).trim() : catalogId
+      const v2Result = await updateCatalogInForkBranch({
+        token: accessToken,
+        upstreamOwner: defaultTargetOwner.trim(),
+        upstreamRepo: defaultTargetRepo.trim(),
+        upstreamBranch: MAIN_BRANCH,
+        catalogPath: defaultCatalogPath.trim(),
+        currentUser: username,
+        branchName,
+        matchId,
+        requireExisting: mode === 'resource_edit',
+        entry: {
+          id: catalogId,
           name: name.trim(),
-          icon: getRawUrl(normalizeRepoPath(iconPath)),
-          cover: getRawUrl(normalizeRepoPath(coverPath)),
-          restype: formatLegacyRestype(restype),
+          restype: formatCatalogRestype(restype),
+          repo_owner: repoOwner,
+          repo_name: repoName,
+          repo_commit_hash: latestCommitSha.slice(0, 7),
+          icon: normalizeRepoPath(iconPath),
+          cover: normalizeRepoPath(coverPath),
           tags: normalizedTags,
-          devices: normalizedV1Devices,
-          path: `${legacyAuthorFolder}/${legacyFileName}`,
-          paid_type: paidType.trim()
+          device_vendors: normalizedVendors,
+          devices: normalizedV2Devices,
+          paid_type: ''
         }
-        const legacyManifestRef = JSON.stringify(
-          {
-            manifest_ver: 1,
-            repo_url: repoUrl
-          },
-          null,
-          2
-        )
-        const legacyRelativePath = `${legacyAuthorFolder}/${legacyFileName}`
-        const v1Result = await updateLegacyCatalogAndResourceJsonInForkBranch({
-          token: accessToken,
-          upstreamOwner: defaultTargetOwner.trim(),
-          upstreamRepo: defaultTargetRepo.trim(),
-          upstreamBranch: MAIN_BRANCH,
-          currentUser: username,
-          branchName,
-          catalogPath: LEGACY_CATALOG_PATH,
-          resourceJsonPath: `${LEGACY_RESOURCES_DIR}/${legacyRelativePath}`,
-          legacyEntry,
-          resourceManifestJson: legacyManifestRef,
-          matchPath: mode === 'resource_edit' && baselineV1Path ? baselineV1Path : legacyRelativePath,
-          requireExisting: mode === 'resource_edit'
-        })
-        if (!forkResult) forkResult = v1Result
-        appendLog(`v1 Catalog 更新完成: ${v1Result.forkOwner}/${v1Result.forkRepo}@${v1Result.branch}`)
-      }
-
-      if (!forkResult) {
-        throw new Error('未选择提交流程（v1/v2）')
-      }
+      })
+      forkResult = v2Result
+      appendLog(`V2 Catalog 更新完成: ${v2Result.forkOwner}/${v2Result.forkRepo}@${v2Result.branch}`)
 
       const pr = await createPullRequestWithHead({
         token: accessToken,
@@ -4647,47 +4291,11 @@ export function CcPublishWorkbench(props: {
                           </Select>
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="paid-type">付费类型</Label>
-                          <Select value={paidType || 'free'} onValueChange={(value) => setPaidType(value === 'free' ? '' : value)}>
-                            <SelectTrigger id="paid-type">
-                              <SelectValue placeholder="免费（留空）" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="free">免费(感谢你作出的贡献)</SelectItem>
-                              <SelectItem value="paid">应用内付费(paid，体验版请选择此项)</SelectItem>
-                              <SelectItem value="force_paid">强制付费(force_paid)</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <Label>付费类型</Label>
+                          <div className="flex h-10 items-center rounded-md border border-border bg-muted/40 px-3 text-sm text-muted-foreground">仅支持免费资源</div>
                         </div>
                       </div>
 
-                      <div className="space-y-1.5 rounded-lg border border-border bg-muted/20 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <Label htmlFor="creator-feature-switch" className="text-sm font-medium">
-                              是否开启 AstroBoxCreator 加密功能
-                            </Label>
-                            <p className="text-xs text-muted-foreground">
-                              `ext` 字段暂未开放编辑，当前仅保留展示。后续补齐详细规则后再开放配置。
-                            </p>
-                          </div>
-                          <Switch
-                            id="creator-feature-switch"
-                            checked={enableAstroBoxCreatorFeatures}
-                            disabled={EXT_FIELDS_TEMP_DISABLED || !canEnableAstroBoxCreatorFeatures(paidType)}
-                            onCheckedChange={EXT_FIELDS_TEMP_DISABLED ? undefined : (value) => setEnableAstroBoxCreatorFeatures(Boolean(value))}
-                          />
-                        </div>
-                        {EXT_FIELDS_TEMP_DISABLED ? (
-                          <p className="text-xs text-amber-600">
-                            `ext` 相关配置已临时禁用，当前不可操作。
-                          </p>
-                        ) : !canEnableAstroBoxCreatorFeatures(paidType) ? (
-                          <p className="text-xs text-amber-600">
-                            当前付费类型不支持该功能，开关已禁用。
-                          </p>
-                        ) : null}
-                      </div>
 
                       <div className="space-y-1.5">
                         <Label htmlFor="item-description">资源描述</Label>
@@ -4801,35 +4409,8 @@ export function CcPublishWorkbench(props: {
                             <Button variant="outline" onClick={() => removeAuthor(index)}>删除作者</Button>
                           </div>
                           <div className="space-y-1.5">
-                            <Label htmlFor={`author-url-${index}`}>作者链接（仅 v1）</Label>
-                            <Input id={`author-url-${index}`} value={author.authorUrl} onChange={(event) => updateAuthor(index, { authorUrl: event.target.value })} placeholder="https://github.com/yourname" />
-                            <p className="text-xs text-muted-foreground">该字段仅用于生成 v1 的 `manifest.json`（author_url），不会出现在 v2 的 author 字段中。</p>
+                            <p className="text-xs text-muted-foreground">V2 仅保存作者名称及 AB 账号绑定状态。</p>
                           </div>
-                          <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-background/40 px-3 py-2">
-                            <div className="space-y-0.5">
-                              <Label className="text-sm font-normal">购买链接</Label>
-                              <p className="text-xs text-muted-foreground">开启后提示将链接添加到「相关链接」</p>
-                            </div>
-                            <Switch
-                              checked={author.isPurchaseLink}
-                              onCheckedChange={(checked) => updateAuthor(index, { isPurchaseLink: checked })}
-                              aria-label="标记为购买链接"
-                            />
-                          </div>
-                          {author.isPurchaseLink && author.authorUrl.trim() ? (
-                            <div className="space-y-1.5 rounded-md border border-amber-500/30 bg-amber-50/10 px-3 py-2 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-950/20 dark:text-amber-400">
-                              <p>购买链接不会出现在 v2 manifest 中，请将其添加到下方「相关链接」。如果已添加完毕，可在此保留该链接以用于 v1 或清空。</p>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="mt-1 h-7 text-xs"
-                                onClick={() => copyAuthorUrlToLinks(index)}
-                                disabled={!author.authorUrl.trim()}
-                              >
-                                复制到相关链接
-                              </Button>
-                            </div>
-                          ) : null}
                           <div className="flex flex-wrap gap-2">
                             <Button variant={author.bindABAccount ? 'default' : 'outline'} size="sm" onClick={() => updateAuthor(index, { bindABAccount: true })}>绑定 AB 账号</Button>
                             <Button variant={!author.bindABAccount ? 'default' : 'outline'} size="sm" onClick={() => updateAuthor(index, { bindABAccount: false })}>不绑定</Button>
@@ -5084,12 +4665,7 @@ export function CcPublishWorkbench(props: {
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="rounded-md border border-border bg-muted/20 px-3 py-2">提交流程：{submitModeLabel}</div>
                   <div className="rounded-md border border-border bg-muted/20 px-3 py-2">目标仓库：{defaultTargetOwner}/{defaultTargetRepo}</div>
-                  {(submitMode === 'v2' || submitMode === 'both') ? (
-                    <div className="rounded-md border border-border bg-muted/20 px-3 py-2">Catalog(v2)：{defaultCatalogPath}</div>
-                  ) : null}
-                  {(submitMode === 'v1' || submitMode === 'both') ? (
-                    <div className="rounded-md border border-border bg-muted/20 px-3 py-2">Catalog(v1)：{LEGACY_CATALOG_PATH}</div>
-                  ) : null}
+                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">Catalog(V2)：{defaultCatalogPath}</div>
                   <div className="rounded-md border border-border bg-muted/20 px-3 py-2">资源仓库：{boundRepoOwner || '-'}/{boundRepoName || '-'}</div>
                   <div className="space-y-1.5">
                     <Label htmlFor="publish-pr-title">PR 标题</Label>
@@ -5379,7 +4955,7 @@ export function CcPublishWorkbench(props: {
           <DialogHeader>
             <DialogTitle>选择提交流程</DialogTitle>
             <DialogDescription>
-              {mode === 'resource_edit' ? '请选择本次要更新到 v1、v2，或同时更新。' : '请选择本次要提交到 v1、v2，或同时提交。'}
+              V1 已不再支持。本次仅会提交或更新 V2。
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2 py-1">

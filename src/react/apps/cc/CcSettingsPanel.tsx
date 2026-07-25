@@ -377,20 +377,8 @@ export function CcSettingsPanel(props: {
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="cc-setting-owned-priority">资源管理展示优先版本</Label>
-                  <Select
-                    value={form.ownedDisplayPriority}
-                    onValueChange={(value: 'v1' | 'v2') => setForm((prev) => ({ ...prev, ownedDisplayPriority: value }))}
-                  >
-                    <SelectTrigger id="cc-setting-owned-priority">
-                      <SelectValue placeholder="选择优先版本" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="v2">V2 优先</SelectItem>
-                      <SelectItem value="v1">V1 优先</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                  资源管理仅展示 V2 免费资源，V1 已不再支持。
                 </div>
 
                 <div className="space-y-1.5">
