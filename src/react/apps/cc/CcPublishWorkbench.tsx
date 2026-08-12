@@ -984,6 +984,7 @@ export function CcPublishWorkbench(props: {
             }
           })
           .filter((entry) => Boolean(entry.device))
+        const parsedExt = getManifestV2Ext(manifestRoot)
 
         if (cancelled) return
 
@@ -994,6 +995,9 @@ export function CcPublishWorkbench(props: {
           : [{ name: target.repo_owner || '', authorUrl: '', bindABAccount: true, isPurchaseLink: false }]
         const nextLinks = parsedLinks
         const nextDownloads = parsedDownloads
+        const nextPaidType = (target.paid_type || '').trim()
+        const nextEnableAstroBoxCreatorFeatures =
+          Boolean(parsedExt.enableAstroBoxCreatorFeatures) && canEnableAstroBoxCreatorFeatures(nextPaidType)
 
         setResourceId(parsed.id || target.catalogId || targetResourceId)
         setName(parsed.name || target.name)
@@ -1004,8 +1008,8 @@ export function CcPublishWorkbench(props: {
         setTags(nextTags)
         setTagInput('')
         setDeviceVendorsText(target.device_vendors || '')
-        setPaidType('')
-        setEnableAstroBoxCreatorFeatures(false)
+        setPaidType(nextPaidType)
+        setEnableAstroBoxCreatorFeatures(nextEnableAstroBoxCreatorFeatures)
         setRepoNameInput(target.repo_name || '')
         setRepoDescription(`AstroBooox resource ${target.catalogId || target.name}`)
         setBoundRepoOwner(target.repo_owner || '')
@@ -1018,8 +1022,8 @@ export function CcPublishWorkbench(props: {
           name: (parsed.name || target.name).trim(),
           description: (parsed.description || target.description || '').trim(),
           restype: nextRestype.trim(),
-          paidType: '',
-          enableAstroBoxCreatorFeatures: false,
+          paidType: nextPaidType,
+          enableAstroBoxCreatorFeatures: nextEnableAstroBoxCreatorFeatures,
           icon: (parsed.icon || target.icon || '').trim(),
           cover: (parsed.cover || target.cover || '').trim(),
           previews: parsed.previewPaths.map((path) => path.trim()).filter(Boolean),
@@ -2948,6 +2952,11 @@ export function CcPublishWorkbench(props: {
       }
       return acc
     }, {})
+    const normalizedExt: Record<string, unknown> = {}
+    if (enableAstroBoxCreatorFeatures && canEnableAstroBoxCreatorFeatures(paidType)) {
+      normalizedExt.enableAstroBoxCreatorFeatures = true
+    }
+
     const manifestObject: Record<string, unknown> = {
       item: {
         id: normalizedResourceId,
@@ -2963,7 +2972,7 @@ export function CcPublishWorkbench(props: {
       },
       links: normalizedLinks,
       downloads: normalizedDownloads,
-      ext: {}
+      ext: normalizedExt
     }
 
     return JSON.stringify(manifestObject, null, 2)
@@ -3619,7 +3628,7 @@ export function CcPublishWorkbench(props: {
           tags: normalizedTags,
           device_vendors: normalizedVendors,
           devices: normalizedV2Devices,
-          paid_type: ''
+          paid_type: paidType.trim()
         }
       })
       forkResult = v2Result
@@ -4291,8 +4300,17 @@ export function CcPublishWorkbench(props: {
                           </Select>
                         </div>
                         <div className="space-y-1.5">
-                          <Label>付费类型</Label>
-                          <div className="flex h-10 items-center rounded-md border border-border bg-muted/40 px-3 text-sm text-muted-foreground">仅支持免费资源</div>
+                          <Label htmlFor="paid-type">付费类型</Label>
+                          <Select value={paidType || 'free'} onValueChange={(value) => setPaidType(value === 'free' ? '' : value)}>
+                            <SelectTrigger id="paid-type">
+                              <SelectValue placeholder="免费（留空）" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="free">免费(感谢你作出的贡献)</SelectItem>
+                              <SelectItem value="paid">应用内付费(paid，体验版请选择此项)</SelectItem>
+                              <SelectItem value="force_paid">强制付费(force_paid)</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 

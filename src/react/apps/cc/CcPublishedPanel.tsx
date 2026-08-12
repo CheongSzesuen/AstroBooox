@@ -142,7 +142,7 @@ export function CcPublishedPanel(props: {
     }
 
     for (const item of ownedItems) {
-      if (item.source !== 'v2' || item.paid_type.trim()) continue
+      if (item.source !== 'v2') continue
       const key = [
         item.repo_owner.trim().toLowerCase(),
         item.repo_name.trim().toLowerCase()
@@ -181,9 +181,14 @@ export function CcPublishedPanel(props: {
         existing.name = item.name || existing.name
         existing.restype = item.restype || existing.restype
         existing.icon = item.icon || existing.icon
+        existing.repo_owner = item.repo_owner || existing.repo_owner
+        existing.repo_name = item.repo_name || existing.repo_name
         existing.repo_commit_hash = item.repo_commit_hash || existing.repo_commit_hash
         existing.description = item.description || existing.description
         existing.tags = item.tags || existing.tags
+        existing.device_vendors = item.device_vendors || existing.device_vendors
+        existing.devices = item.devices || existing.devices
+        existing.paid_type = item.paid_type || existing.paid_type
         existing.catalogId = item.catalogId || existing.catalogId
         existing.commitDate = item.commitDate || existing.commitDate
       }
@@ -477,7 +482,7 @@ export function CcPublishedPanel(props: {
                   </Button>
                 </div>
               </div>
-              <CardDescription>仅展示并管理 V2 免费资源；V1 已不再支持。</CardDescription>
+              <CardDescription>仅展示并管理 V2 资源；V1 已不再支持。</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 pt-0">
               {ownedError ? (

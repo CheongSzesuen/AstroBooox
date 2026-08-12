@@ -378,7 +378,7 @@ export function CcSettingsPanel(props: {
                 </div>
 
                 <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-                  资源管理仅展示 V2 免费资源，V1 已不再支持。
+                  资源管理仅展示 V2 资源，V1 已不再支持。
                 </div>
 
                 <div className="space-y-1.5">
