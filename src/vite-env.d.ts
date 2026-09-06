@@ -7,6 +7,7 @@ declare const __BUILD_COMMIT_REF__: string
 declare const __BUILD_TIMESTAMP__: string
 declare const __BUILD_BRANCH__: string
 declare const __BUILD_TIME_UTC8__: string
+declare const __BUILD_TIME_RFC3339__: string
 
 // 添加FileSystem API类型声明
 interface FileSystemFileHandle {

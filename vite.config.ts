@@ -34,6 +34,17 @@ const formatUtc8DateTime = (date: Date): string => {
   return `${y}-${m}-${d} ${hh}:${mm}:${ss}`
 }
 
+const formatRfc3339Utc8 = (date: Date): string => {
+  const shifted = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+  const y = shifted.getUTCFullYear()
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(shifted.getUTCDate()).padStart(2, '0')
+  const hh = String(shifted.getUTCHours()).padStart(2, '0')
+  const mm = String(shifted.getUTCMinutes()).padStart(2, '0')
+  const ss = String(shifted.getUTCSeconds()).padStart(2, '0')
+  return `${y}-${m}-${d}T${hh}:${mm}:${ss}+08:00`
+}
+
 const commitSha =
   process.env.CF_PAGES_COMMIT_SHA ||
   process.env.GITHUB_SHA ||
@@ -63,7 +74,8 @@ export default defineConfig({
     __BUILD_COMMIT_REF__: JSON.stringify(commitSha),
     __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
     __BUILD_BRANCH__: JSON.stringify(buildBranch),
-    __BUILD_TIME_UTC8__: JSON.stringify(buildTimeUtc8)
+    __BUILD_TIME_UTC8__: JSON.stringify(buildTimeUtc8),
+    __BUILD_TIME_RFC3339__: JSON.stringify(formatRfc3339Utc8(new Date()))
   },
   resolve: {
     alias: {

@@ -1,4 +1,21 @@
 import { createGitHubClient, normalizeGitHubError } from '@/utils/githubOctokitClient'
+import {
+  buildClientInfo,
+  buildCreateSubmissionRequest,
+  buildEditSubmissionRequest,
+  buildSubmissionCsv,
+  buildSubmissionPath,
+  buildSubmissionRequest,
+  canonicalCatalogEntryDigest,
+  isSubmissionCsvFilePath,
+  isSubmissionFilePath,
+  parseSubmissionRequestJson,
+  parseSubmissionCsv,
+  submissionCsvPath,
+  submissionRequestPath,
+  type CatalogWriteIntent,
+  type SubmissionRequest
+} from '@/cc/submission-protocol'
 
 export type ReviewState = 'waiting_review' | 'changes_requested' | 'fixed_waiting'
 
@@ -63,17 +80,6 @@ export interface CollaboratorPermissionRequest {
 export interface RepoFileData {
   sha: string
   content?: string
-}
-
-export interface LegacyCatalogEntry {
-  name: string
-  icon: string
-  cover: string
-  restype: string
-  tags: string
-  devices: string
-  path: string
-  paid_type: string
 }
 
 export interface OwnedResourceEntry {
@@ -318,31 +324,6 @@ const parseCatalogRow = (row: string): CatalogEntry | null => {
   return parsed[0] || null
 }
 
-const parseLegacyCatalogCsv = (csv: string): LegacyCatalogEntry[] => {
-  const rows = csv
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(Boolean)
-  const entries: LegacyCatalogEntry[] = []
-
-  for (const row of rows) {
-    const cols = splitCsvLine(row)
-    if (cols.length < 7) continue
-    entries.push({
-      name: cols[0] || '',
-      icon: cols[1] || '',
-      cover: cols[2] || '',
-      restype: cols[3] || '',
-      tags: cols[4] || '',
-      devices: cols[5] || '',
-      path: cols[6] || '',
-      paid_type: cols[7] || ''
-    })
-  }
-
-  return entries
-}
-
 const getResourceDescriptionFromManifestText = (text: string): string => {
   try {
     const parsed = JSON.parse(text) as {
@@ -573,7 +554,7 @@ export const ensureUserRepository = async (params: {
         name: repoName,
         description,
         private: false,
-        auto_init: false
+        auto_init: true
       })
     })
 
@@ -617,31 +598,6 @@ export const getRefSha = async (
   return data.object.sha
 }
 
-export const createBranchIfMissing = async (params: {
-  token: string
-  owner: string
-  repo: string
-  branch: string
-  baseSha: string
-}): Promise<void> => {
-  const { token, owner, repo, branch, baseSha } = params
-
-  try {
-    await githubFetch<{ ref: string }>(`/repos/${owner}/${repo}/git/refs`, token, {
-      method: 'POST',
-      body: JSON.stringify({
-        ref: `refs/heads/${branch}`,
-        sha: baseSha
-      })
-    })
-  } catch (error: unknown) {
-    if ((error as GitHubApiError)?.status === 422) {
-      return
-    }
-    throw error
-  }
-}
-
 export const loadRepositoryTree = async (params: {
   token: string
   owner: string
@@ -661,334 +617,479 @@ export const loadRepositoryTree = async (params: {
   return buildFlatTreeFromFilePaths(filePaths)
 }
 
-export const ensureFork = async (params: {
+// ===== Git Data API 批量提交 =====
+
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+
+export const getBranchHead = async (params: {
   token: string
-  currentUser: string
+  owner: string
+  repo: string
+  branch: string
+}): Promise<{ commitSha: string; treeSha: string }> => {
+  const { token, owner, repo, branch } = params
+  const refSha = await getRefSha(token, owner, repo, `heads/${branch}`)
+  const commit = await githubFetch<{ tree: { sha: string } }>(
+    `/repos/${owner}/${repo}/git/commits/${refSha}`,
+    token
+  )
+  return { commitSha: refSha, treeSha: commit.tree.sha }
+}
+
+export const createForkAndWaitReady = async (params: {
+  token: string
   upstreamOwner: string
   upstreamRepo: string
-}): Promise<{ owner: string; repo: string }> => {
-  const { token, currentUser, upstreamOwner, upstreamRepo } = params
+}): Promise<{ owner: string; repo: string; defaultBranch: string }> => {
+  const { token, upstreamOwner, upstreamRepo } = params
+
+  const fork = await githubFetch<{
+    owner: { login: string }
+    name: string
+    default_branch?: string
+  }>(`/repos/${upstreamOwner}/${upstreamRepo}/forks`, token, {
+    method: 'POST'
+  })
+  const forkOwner = fork.owner.login
+  const forkRepo = fork.name
+  const defaultBranch = fork.default_branch?.trim() || 'main'
+
+  // POST /forks 返回 202 时 fork 是异步创建的，轮询默认分支 ref 直到真正可用。
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      await getRefSha(token, forkOwner, forkRepo, `heads/${defaultBranch}`)
+      return { owner: forkOwner, repo: forkRepo, defaultBranch }
+    } catch (error: unknown) {
+      const status = (error as GitHubApiError)?.status
+      if (status !== 404 && status !== 409) throw error
+    }
+    await sleep(1500)
+  }
+  throw new Error(`Fork ${forkOwner}/${forkRepo} 创建后迟迟未就绪，请稍后重试。`)
+}
+
+/**
+ * 让用户 fork 的默认分支与上游 HEAD 完全对齐（等同于 GitHub「Sync fork → discard commits」）。
+ * 策略：先 merge-upstream fast-forward；没追平则 force 对齐。任何一步失败都不抛出。
+ */
+export const syncForkDefaultBranch = async (params: {
+  token: string
+  forkOwner: string
+  forkRepo: string
+  branch: string
+  upstreamOwner: string
+  upstreamRepo: string
+}): Promise<void> => {
+  const { token, forkOwner, forkRepo, branch, upstreamOwner, upstreamRepo } = params
 
   try {
-    const ownFork = await githubFetch<{ owner: { login: string }; name: string }>(
-      `/repos/${currentUser}/${upstreamRepo}`,
-      token
-    )
-    return {
-      owner: ownFork.owner.login,
-      repo: ownFork.name
-    }
-  } catch (error: unknown) {
-    if ((error as GitHubApiError)?.status !== 404) {
-      throw error
-    }
+    await githubFetch<unknown>(`/repos/${forkOwner}/${forkRepo}/merge-upstream`, token, {
+      method: 'POST',
+      body: JSON.stringify({ branch })
+    })
+  } catch {
+    // merge-upstream 失败（可能已分叉），继续尝试强制对齐
   }
 
-  await githubFetch<{ owner: { login: string }; name: string }>(
-    `/repos/${upstreamOwner}/${upstreamRepo}/forks`,
+  try {
+    const [upstreamSha, forkSha] = await Promise.all([
+      getRefSha(token, upstreamOwner, upstreamRepo, `heads/${branch}`),
+      getRefSha(token, forkOwner, forkRepo, `heads/${branch}`)
+    ])
+    if (forkSha === upstreamSha) return
+
+    await githubFetch<unknown>(
+      `/repos/${forkOwner}/${forkRepo}/git/refs/heads/${encodeURIComponent(branch)}`,
+      token,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ sha: upstreamSha, force: true })
+      }
+    )
+  } catch {
+    // 强制对齐失败时使用 fork 当前状态继续
+  }
+}
+
+export const commitFilesToBranch = async (params: {
+  token: string
+  owner: string
+  repo: string
+  branch: string
+  files: Array<{ path: string; contentBase64: string }>
+  message: string
+}): Promise<string> => {
+  const { token, owner, repo, branch, files, message } = params
+  const head = await getBranchHead({ token, owner, repo, branch })
+
+  const treeEntries: Array<{ path: string; sha: string; mode: '100644'; type: 'blob' }> = []
+  for (const file of files) {
+    const blob = await githubFetch<{ sha: string }>(`/repos/${owner}/${repo}/git/blobs`, token, {
+      method: 'POST',
+      body: JSON.stringify({ content: file.contentBase64, encoding: 'base64' })
+    })
+    treeEntries.push({ path: file.path, sha: blob.sha, mode: '100644', type: 'blob' })
+  }
+
+  const tree = await githubFetch<{ sha: string }>(`/repos/${owner}/${repo}/git/trees`, token, {
+    method: 'POST',
+    body: JSON.stringify({ base_tree: head.treeSha, tree: treeEntries })
+  })
+
+  const commit = await githubFetch<{ sha: string }>(`/repos/${owner}/${repo}/git/commits`, token, {
+    method: 'POST',
+    body: JSON.stringify({ message, tree: tree.sha, parents: [head.commitSha] })
+  })
+
+  await githubFetch<unknown>(
+    `/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,
     token,
     {
-      method: 'POST'
+      method: 'PATCH',
+      body: JSON.stringify({ sha: commit.sha, force: false })
     }
   )
+  return commit.sha
+}
 
-  for (let i = 0; i < 8; i++) {
-    await new Promise(resolve => setTimeout(resolve, 1200))
-    try {
-      const ownFork = await githubFetch<{ owner: { login: string }; name: string }>(
-        `/repos/${currentUser}/${upstreamRepo}`,
-        token
-      )
-      return {
-        owner: ownFork.owner.login,
-        repo: ownFork.name
+/**
+ * 批量上传资源仓库文件（Git Data API 单 commit）。
+ * 空仓库（无默认分支）兜底：首个文件走 Contents API 初始化，其余走批量提交。
+ */
+export const batchUploadResourceFiles = async (params: {
+  token: string
+  owner: string
+  repo: string
+  branch: string
+  files: Array<{ path: string; contentBase64: string }>
+  message: string
+}): Promise<{ commitSha: string }> => {
+  const { token, owner, repo, branch, files, message } = params
+
+  try {
+    const commitSha = await commitFilesToBranch({ token, owner, repo, branch, files, message })
+    return { commitSha }
+  } catch (error: unknown) {
+    if ((error as GitHubApiError)?.status !== 404) throw error
+  }
+
+  const [first, ...rest] = files
+  if (!first) throw new Error('没有可上传文件')
+
+  const initialized = await putRepoFile({
+    token,
+    owner,
+    repo,
+    path: first.path,
+    branch,
+    message: `初始化仓库：添加 ${first.path}`,
+    contentBase64: first.contentBase64
+  })
+
+  let commitSha = initialized.commit.sha
+  if (rest.length > 0) {
+    commitSha = await commitFilesToBranch({ token, owner, repo, branch, files: rest, message })
+  }
+  return { commitSha }
+}
+
+// ===== Staging 提发协议提交 =====
+
+export interface PendingSubmissionConflict {
+  prNumber: number
+  prTitle: string
+  samePath: boolean
+}
+
+const sameResourceId = (left: string, right: string): boolean =>
+  left.trim().toLowerCase() === right.trim().toLowerCase()
+
+export const listOpenPullRequests = async (params: {
+  token: string
+  owner: string
+  repo: string
+}): Promise<Array<{ number: number; title: string }>> => {
+  const { token, owner, repo } = params
+  const pulls = await githubFetch<Array<{ number: number; title?: string }>>(
+    `/repos/${owner}/${repo}/pulls?state=open&per_page=100`,
+    token
+  )
+  return pulls.map(pull => ({ number: pull.number, title: pull.title ?? '' }))
+}
+
+/** 经 Git Blobs API 读取文件内容（pull files 端点对大文件只给 sha，不给 patch）。 */
+export const fetchPullRequestBlobText = async (params: {
+  token: string
+  owner: string
+  repo: string
+  sha: string
+}): Promise<string> => {
+  const { token, owner, repo, sha } = params
+  const blob = await githubFetch<{ content?: string; encoding?: string }>(
+    `/repos/${owner}/${repo}/git/blobs/${sha}`,
+    token
+  )
+  if (blob.encoding !== 'base64' || !blob.content) return ''
+  return base64ToText(blob.content)
+}
+
+/**
+ * 扫描所有开放 PR，检测与本次提交的冲突：
+ * - 同路径：同一 tmp/{login}/{repo} 路径已有未处理请求（含解析失败兜底）；
+ * - 跨用户：任何开放 PR 的提交明细指向同一资源 ID（edit 的 original_id 或 csv 行 id）。
+ */
+const findPendingSubmissionConflicts = async (params: {
+  token: string
+  targetOwner: string
+  targetRepo: string
+  submissionPath: string
+  entry: CatalogEntry
+}): Promise<PendingSubmissionConflict | null> => {
+  const { token, targetOwner, targetRepo, submissionPath, entry } = params
+  const pulls = await listOpenPullRequests({ token, owner: targetOwner, repo: targetRepo })
+
+  for (const pull of pulls) {
+    const files = await githubFetch<Array<{ filename?: string; sha?: string }>>(
+      `/repos/${targetOwner}/${targetRepo}/pulls/${pull.number}/files?per_page=100`,
+      token
+    )
+
+    let samePath = false
+    let idConflict = false
+    for (const file of files) {
+      const filePath = file.filename ?? ''
+      if (!isSubmissionFilePath(filePath)) continue
+      if (filePath.startsWith(`${submissionPath}/`)) {
+        samePath = true
       }
-    } catch (error: unknown) {
-      if ((error as GitHubApiError)?.status === 404) {
+      if (!file.sha) continue
+      try {
+        const text = await fetchPullRequestBlobText({ token, owner: targetOwner, repo: targetRepo, sha: file.sha })
+        if (!text) continue
+        if (filePath.endsWith('.json')) {
+          const request = parseSubmissionRequestJson(text)
+          if (
+            request.mode === 'edit' &&
+            typeof request.original_id === 'string' &&
+            sameResourceId(request.original_id, entry.id)
+          ) {
+            idConflict = true
+          }
+        } else {
+          const parsed = parseSubmissionCsv(text)
+          if (sameResourceId(parsed.id, entry.id)) {
+            idConflict = true
+          }
+        }
+      } catch {
+        // 历史/脏数据解析失败：跳过该文件，不中断提交流程
         continue
       }
-      throw error
+    }
+
+    // 内容确认不了但同路径已存在 → 保守视为待处理请求
+    if (idConflict || samePath) {
+      return { prNumber: pull.number, prTitle: pull.title, samePath }
     }
   }
-
-  throw new Error('Fork 创建超时，请稍后重试')
+  return null
 }
 
-const appendOrReplaceCatalogRow = (
-  existingCsv: string,
-  entry: CatalogEntry,
-  options?: {
-    matchId?: string
-    requireExisting?: boolean
-  }
-): string => {
-  const targetId = (options?.matchId || entry.id).trim()
-  const nextEntryId = entry.id.trim()
-  const rows = existingCsv.split(/\r?\n/).filter(line => line.trim().length > 0)
-  const header = rows[0] || CATALOG_CSV_HEADER
-  const body = rows.slice(1)
-
-  const rowString = [
-    entry.id,
-    entry.name,
-    entry.restype,
-    entry.repo_owner,
-    entry.repo_name,
-    entry.repo_commit_hash,
-    entry.icon,
-    entry.cover,
-    entry.tags,
-    entry.device_vendors,
-    entry.devices,
-    entry.paid_type
-  ].join(',')
-
-  const parsedRows = body
-    .map((row, index) => ({
-      row,
-      index,
-      parsed: parseCatalogRow(row)
-    }))
-    .filter((item): item is { row: string; index: number; parsed: CatalogEntry } => Boolean(item.parsed))
-
-  const targetMatches = parsedRows.filter((item) => item.parsed.id.trim() === targetId)
-  const entryMatches = parsedRows.filter((item) => item.parsed.id.trim() === nextEntryId)
-
-  if (options?.requireExisting) {
-    if (!targetMatches.length) {
-      throw new Error(`未在 catalog 中找到待更新的资源行: ${targetId}`)
-    }
-    if (targetMatches.length > 1) {
-      throw new Error(`index_v2.csv 中资源 ID 存在重复，无法安全更新: ${targetId}`)
-    }
-    if (nextEntryId !== targetId && entryMatches.length > 0) {
-      throw new Error(`index_v2.csv 中已存在重复资源 ID: ${nextEntryId}`)
-    }
-    body[targetMatches[0].index] = rowString
-    return [header, ...body].join('\n')
-  }
-
-  if (entryMatches.length > 0) {
-    throw new Error(`index_v2.csv 中已存在重复资源 ID: ${nextEntryId}`)
-  }
-
-  body.push(rowString)
-  return [header, ...body].join('\n')
-}
-
-const appendLegacyCatalogRow = (
-  existingCsv: string,
-  entry: LegacyCatalogEntry,
-  options?: {
-    matchPath?: string
-    requireExisting?: boolean
-  }
-): string => {
-  const targetPath = (options?.matchPath || entry.path || '').trim()
-  const rows = existingCsv.split(/\r?\n/).filter(line => line.trim().length > 0)
-  const row = [
-    entry.name,
-    entry.icon,
-    entry.cover,
-    entry.restype,
-    entry.tags,
-    entry.devices,
-    entry.path,
-    entry.paid_type
-  ].join(',')
-
-  let replaced = false
-  const nextRows = rows.map(line => {
-    const parsed = parseLegacyCatalogCsv(line)[0]
-    if (!parsed) return line
-    if (!targetPath || parsed.path.trim() !== targetPath) return line
-    replaced = true
-    return row
-  })
-
-  if (!replaced) {
-    if (options?.requireExisting) {
-      throw new Error(`未在 index.csv 中找到待更新的资源行: ${targetPath}`)
-    }
-    nextRows.push(row)
-  }
-
-  const newline = existingCsv.includes('\r\n') ? '\r\n' : '\n'
-  return nextRows.join(newline)
-}
-
-export const updateCatalogInForkBranch = async (params: {
+/**
+ * 扫描所有开放 PR，返回第一个已引用该资源 ID 的提交。
+ * 供编辑入口预检：已有进行中 PR 时提示用户直接在原 PR 上继续。
+ */
+export const findOpenSubmissionForResourceId = async (params: {
   token: string
+  targetOwner: string
+  targetRepo: string
+  resourceId: string
+}): Promise<{ prNumber: number; prTitle: string } | null> => {
+  const { token, targetOwner, targetRepo, resourceId } = params
+  const pulls = await listOpenPullRequests({ token, owner: targetOwner, repo: targetRepo })
+
+  for (const pull of pulls) {
+    const files = await githubFetch<Array<{ filename?: string; sha?: string }>>(
+      `/repos/${targetOwner}/${targetRepo}/pulls/${pull.number}/files?per_page=100`,
+      token
+    )
+    for (const file of files) {
+      const filePath = file.filename ?? ''
+      if (!isSubmissionFilePath(filePath)) continue
+      if (!file.sha) continue
+      try {
+        const text = await fetchPullRequestBlobText({ token, owner: targetOwner, repo: targetRepo, sha: file.sha })
+        if (!text) continue
+        if (filePath.endsWith('.json')) {
+          const request = parseSubmissionRequestJson(text)
+          if (
+            request.mode === 'edit' &&
+            typeof request.original_id === 'string' &&
+            sameResourceId(request.original_id, resourceId)
+          ) {
+            return { prNumber: pull.number, prTitle: pull.title }
+          }
+        } else {
+          const parsed = parseSubmissionCsv(text)
+          if (sameResourceId(parsed.id, resourceId)) {
+            return { prNumber: pull.number, prTitle: pull.title }
+          }
+        }
+      } catch {
+        // 历史/脏数据解析失败：跳过该文件，不误判为冲突
+        continue
+      }
+    }
+  }
+  return null
+}
+
+export const createStagingSubmissionBranch = async (params: {
+  token: string
+  currentUser: string
   upstreamOwner: string
   upstreamRepo: string
   upstreamBranch: string
   catalogPath: string
-  currentUser: string
-  branchName: string
   entry: CatalogEntry
-  matchId?: string
-  requireExisting?: boolean
-}): Promise<{ forkOwner: string; forkRepo: string; branch: string }> => {
+  intent: CatalogWriteIntent
+}): Promise<{ forkOwner: string; forkRepo: string; branch: string; submissionPath: string }> => {
   const {
     token,
+    currentUser,
     upstreamOwner,
     upstreamRepo,
     upstreamBranch,
     catalogPath,
-    currentUser,
-    branchName,
     entry,
-    matchId = '',
-    requireExisting = false
+    intent
   } = params
 
-  const fork = await ensureFork({
+  const catalogFile = await fetchRepoFileOrNull(token, upstreamOwner, upstreamRepo, catalogPath, upstreamBranch)
+  const catalogEntries = catalogFile?.content
+    ? parseCatalogCsv(base64ToText(catalogFile.content))
+    : []
+
+  const upstreamCommit = await getRefSha(token, upstreamOwner, upstreamRepo, `heads/${upstreamBranch}`)
+
+  if (intent.mode === 'create') {
+    const duplicateId = catalogEntries.find(item => item.id.trim() === entry.id.trim())
+    if (duplicateId) {
+      throw new Error(`资源 ID "${entry.id}" 已被「${duplicateId.name || duplicateId.id}」占用。`)
+    }
+    const duplicateRepo = catalogEntries.find(
+      item =>
+        item.repo_owner.toLowerCase() === entry.repo_owner.toLowerCase() &&
+        item.repo_name.toLowerCase() === entry.repo_name.toLowerCase()
+    )
+    if (duplicateRepo) {
+      throw new Error(
+        `仓库 ${entry.repo_owner}/${entry.repo_name} 已经在 AstroBox 的软件索引里，被资源「${duplicateRepo.name || duplicateRepo.id}」占用，请更换仓库名。`
+      )
+    }
+  } else {
+    const originalId = intent.originalId.trim()
+    const original = catalogEntries.find(item => item.id.trim() === originalId)
+    if (!original) {
+      throw new Error(`未在目录中找到原资源 ID "${originalId}"。`)
+    }
+  }
+
+  const submissionPath = buildSubmissionPath(currentUser, entry.repo_name)
+
+  // 重复提交守卫：create/edit 都要查。同路径 = 同用户重复开 PR；跨用户 = 别人正开着另一个 PR 改同一资源。
+  const conflict = await findPendingSubmissionConflicts({
     token,
-    currentUser,
+    targetOwner: upstreamOwner,
+    targetRepo: upstreamRepo,
+    submissionPath,
+    entry
+  })
+  if (conflict) {
+    if (conflict.samePath) {
+      throw new Error(
+        `路径 ${submissionPath} 已有未处理请求（PR #${conflict.prNumber}），请等待处理或继续编辑原 PR。`
+      )
+    }
+    throw new Error(
+      `资源 "${entry.id}" 已有进行中的提交 PR #${conflict.prNumber}《${conflict.prTitle}》，请等待其处理完成。`
+    )
+  }
+
+  const fork = await createForkAndWaitReady({ token, upstreamOwner, upstreamRepo })
+  await syncForkDefaultBranch({
+    token,
+    forkOwner: fork.owner,
+    forkRepo: fork.repo,
+    branch: fork.defaultBranch,
     upstreamOwner,
     upstreamRepo
   })
+  const forkHeadSha = await getRefSha(token, fork.owner, fork.repo, `heads/${fork.defaultBranch}`)
+  const branchName = `astrobox-submit-${Date.now()}`
 
-  const upstreamSha = await getRefSha(
-    token,
-    upstreamOwner,
-    upstreamRepo,
-    `heads/${upstreamBranch}`
-  )
-
-  await createBranchIfMissing({
-    token,
-    owner: fork.owner,
-    repo: fork.repo,
-    branch: branchName,
-    baseSha: upstreamSha
+  await githubFetch<unknown>(`/repos/${fork.owner}/${fork.repo}/git/refs`, token, {
+    method: 'POST',
+    body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: forkHeadSha })
   })
 
-  const fileData = await fetchRepoFile(
-    token,
-    fork.owner,
-    fork.repo,
-    catalogPath,
-    branchName
-  )
-
-  const csvContent = base64ToText(fileData.content || '')
-  const updatedCsv = appendOrReplaceCatalogRow(csvContent, entry, {
-    matchId,
-    requireExisting
-  })
-
-  await putRepoFile({
-    token,
-    owner: fork.owner,
-    repo: fork.repo,
-    path: catalogPath,
-    branch: branchName,
-    message: `Update catalog for ${entry.id}`,
-    contentBase64: textToBase64(updatedCsv),
-    sha: fileData.sha
-  })
-
-  return {
-    forkOwner: fork.owner,
-    forkRepo: fork.repo,
-    branch: branchName
+  let request: SubmissionRequest
+  if (intent.mode === 'create') {
+    request = await buildCreateSubmissionRequest(upstreamCommit)
+  } else {
+    const original = catalogEntries.find(item => item.id.trim() === intent.originalId.trim())
+    if (!original) throw new Error(`未在目录中找到原资源 ID "${intent.originalId}"。`)
+    request = await buildEditSubmissionRequest({
+      originalId: intent.originalId.trim(),
+      baseEntryDigest: await canonicalCatalogEntryDigest(original),
+      baseCatalogCommit: upstreamCommit
+    })
   }
+
+  await commitFilesToBranch({
+    token,
+    owner: fork.owner,
+    repo: fork.repo,
+    branch: branchName,
+    message: `Submit resource ${entry.id}`,
+    files: [
+      { path: submissionCsvPath(submissionPath), contentBase64: textToBase64(buildSubmissionCsv(entry)) },
+      {
+        path: submissionRequestPath(submissionPath),
+        contentBase64: textToBase64(buildSubmissionRequest(request))
+      }
+    ]
+  })
+
+  return { forkOwner: fork.owner, forkRepo: fork.repo, branch: branchName, submissionPath }
 }
 
-export const updateLegacyCatalogAndResourceJsonInForkBranch = async (params: {
+/** 在已有提交分支上更新提发明细（每次写入都刷新 client 信息）。 */
+export const updateSubmissionEntryOnBranch = async (params: {
   token: string
-  upstreamOwner: string
-  upstreamRepo: string
-  upstreamBranch: string
-  currentUser: string
-  branchName: string
-  catalogPath: string
-  resourceJsonPath: string
-  legacyEntry: LegacyCatalogEntry
-  resourceManifestJson: string
-  matchPath?: string
-  requireExisting?: boolean
-}): Promise<{ forkOwner: string; forkRepo: string; branch: string }> => {
-  const {
+  owner: string
+  repo: string
+  branch: string
+  entry: CatalogEntry
+  request: SubmissionRequest
+  submissionPath: string
+}): Promise<void> => {
+  const { token, owner, repo, branch, entry, request, submissionPath } = params
+  const refreshed: SubmissionRequest = { ...request, client: buildClientInfo() }
+  await commitFilesToBranch({
     token,
-    upstreamOwner,
-    upstreamRepo,
-    upstreamBranch,
-    currentUser,
-    branchName,
-    catalogPath,
-    resourceJsonPath,
-    legacyEntry,
-    resourceManifestJson,
-    matchPath = '',
-    requireExisting = false
-  } = params
-
-  const fork = await ensureFork({
-    token,
-    currentUser,
-    upstreamOwner,
-    upstreamRepo
+    owner,
+    repo,
+    branch,
+    message: `Update resource submission ${entry.id}`,
+    files: [
+      { path: submissionCsvPath(submissionPath), contentBase64: textToBase64(buildSubmissionCsv(entry)) },
+      {
+        path: submissionRequestPath(submissionPath),
+        contentBase64: textToBase64(buildSubmissionRequest(refreshed))
+      }
+    ]
   })
-
-  const upstreamSha = await getRefSha(
-    token,
-    upstreamOwner,
-    upstreamRepo,
-    `heads/${upstreamBranch}`
-  )
-
-  await createBranchIfMissing({
-    token,
-    owner: fork.owner,
-    repo: fork.repo,
-    branch: branchName,
-    baseSha: upstreamSha
-  })
-
-  const legacyFile = await fetchRepoFile(token, fork.owner, fork.repo, catalogPath, branchName)
-  const legacyCsvContent = base64ToText(legacyFile.content || '')
-  const nextLegacyCsv = appendLegacyCatalogRow(legacyCsvContent, legacyEntry, {
-    matchPath,
-    requireExisting
-  })
-
-  await putRepoFile({
-    token,
-    owner: fork.owner,
-    repo: fork.repo,
-    path: catalogPath,
-    branch: branchName,
-    message: `${requireExisting ? 'Update' : 'Append'} legacy catalog for ${legacyEntry.name}`,
-    contentBase64: textToBase64(nextLegacyCsv),
-    sha: legacyFile.sha
-  })
-
-  const oldResourceJson = await fetchRepoFileOrNull(
-    token,
-    fork.owner,
-    fork.repo,
-    resourceJsonPath,
-    branchName
-  )
-
-  await putRepoFile({
-    token,
-    owner: fork.owner,
-    repo: fork.repo,
-    path: resourceJsonPath,
-    branch: branchName,
-    message: `Add legacy resource manifest for ${legacyEntry.name}`,
-    contentBase64: textToBase64(resourceManifestJson),
-    sha: oldResourceJson?.sha
-  })
-
-  return {
-    forkOwner: fork.owner,
-    forkRepo: fork.repo,
-    branch: branchName
-  }
 }
 
 export const createPullRequestWithHead = async (params: {
@@ -1025,7 +1126,11 @@ export const createPullRequestWithHead = async (params: {
 
 const isCatalogFile = (filename: string | undefined, catalogPath: string): boolean => {
   if (!filename) return false
-  return filename === catalogPath || filename.endsWith(`/${catalogPath}`)
+  return (
+    filename === catalogPath ||
+    filename.endsWith(`/${catalogPath}`) ||
+    isSubmissionCsvFilePath(filename)
+  )
 }
 
 const ABCC_TAG_PATTERN = /\[ABCC_(NEEDFIX|FIXED)_([^\]]+)\]/ig

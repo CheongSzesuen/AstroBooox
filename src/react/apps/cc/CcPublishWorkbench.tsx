@@ -17,21 +17,22 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   arrayBufferToBase64,
+  batchUploadResourceFiles,
   createPullRequestWithHead,
+  createStagingSubmissionBranch,
   ensureUserRepository,
-  fetchRepoFileOrNull,
+  findOpenSubmissionForResourceId,
   loadOwnedResourceDetail,
   loadOwnedResources,
   loadRepositoryTree,
-  putRepoFile,
   type RepoTreeItem,
-  textToBase64,
-  updateCatalogInForkBranch
+  textToBase64
 } from '@/utils/resourcePublishApi'
 import { listAuthenticatedRepositories, type GitHubOwnedRepositorySummary } from '@/utils/githubGitApi'
 import { isRpkManifestAutoValidationSupported, readRpkManifestInfo } from '@/utils/rpkManifest'
 import { deviceSelectorEntries, deviceOptions, normalizeDeviceToken } from '@/react/apps/cc/resourcePublishWorkbenchDeviceCatalog'
 import { useDeviceCatalog } from '@/react/apps/cc/useDeviceCatalog'
+import { buildSubmissionPrTitle } from '@/cc/submission-protocol'
 import { buildRawGithubUrl } from '@/react/components/cc/resource-manifest'
 import { PreviewImageCarousel, type PreviewImageItem } from '@/react/components/cc/PreviewImageCarousel'
 import { LinkIconPickerDialog, PhosphorIconByName } from '@/react/components/cc/LinkIconPickerDialog'
@@ -100,7 +101,6 @@ type QuickappPackageCheckResult = {
 }
 
 type RemotePickerMode = 'icon' | 'cover' | 'preview' | 'download'
-type SubmitMode = 'v2'
 
 type ResourceEditContext = {
   resourceId: string
@@ -138,21 +138,6 @@ type ManifestDraft = {
   icon: string
   cover: string
   previewPaths: string[]
-}
-
-type UpdateChangeBaseline = {
-  name: string
-  description: string
-  restype: string
-  paidType: string
-  enableAstroBoxCreatorFeatures: boolean
-  icon: string
-  cover: string
-  previews: string[]
-  tags: string[]
-  links: ManifestLinkDraft[]
-  authors: ManifestAuthorDraft[]
-  downloads: ManifestDownloadDraft[]
 }
 
 type WorkspaceFileHandle = {
@@ -461,15 +446,6 @@ const formatQuickappValidationDeviceLabel = (deviceId: string): string => {
   return `${device.name} (${device.id})`
 }
 
-const formatResourceTypeForTitle = (value: Restype): string => (value === 'watchface' ? '表盘' : '快应用')
-const formatPaidTypeLabel = (value: string): string => {
-  const normalized = value.trim()
-  if (!normalized) return '免费'
-  if (normalized === 'paid') return '应用内付费（paid）'
-  if (normalized === 'force_paid') return '强制付费（force_paid）'
-  return normalized
-}
-
 const basenameFromPath = (path: string): string => {
   const normalized = path.split('/').filter(Boolean)
   return normalized[normalized.length - 1] || path
@@ -540,7 +516,6 @@ export function CcPublishWorkbench(props: {
     defaultCatalogPath,
     editContext
   } = props
-  const defaultSubmitMode: SubmitMode = 'v2'
 
   useDeviceCatalog()
 
@@ -584,7 +559,6 @@ export function CcPublishWorkbench(props: {
   const [links, setLinks] = useState<ManifestLinkDraft[]>([])
   const [downloads, setDownloads] = useState<ManifestDownloadDraft[]>([])
   const [deletedStack, setDeletedStack] = useState<DeletedPreviewEntry[]>([])
-  const [submitMode, setSubmitMode] = useState<SubmitMode>(defaultSubmitMode)
   const [bootstrapLoading, setBootstrapLoading] = useState(false)
   const [bootstrapError, setBootstrapError] = useState('')
   const [submitError, setSubmitError] = useState('')
@@ -593,7 +567,6 @@ export function CcPublishWorkbench(props: {
   const [creatingPr, setCreatingPr] = useState(false)
   const [hasUploadedInFlow, setHasUploadedInFlow] = useState(false)
   const [latestPrUrl, setLatestPrUrl] = useState('')
-  const [prTitle, setPrTitle] = useState('')
   const [prBody, setPrBody] = useState('')
   const [boundRepoOwner, setBoundRepoOwner] = useState('')
   const [boundRepoName, setBoundRepoName] = useState('')
@@ -601,7 +574,6 @@ export function CcPublishWorkbench(props: {
   const [boundRepoUrl, setBoundRepoUrl] = useState('')
   const [existingCommitSha, setExistingCommitSha] = useState('')
   const [baselineCatalogId, setBaselineCatalogId] = useState('')
-  const [updateChangeBaseline, setUpdateChangeBaseline] = useState<UpdateChangeBaseline | null>(null)
   const [showDeviceSelector, setShowDeviceSelector] = useState(false)
   const [showResourceIdGuide, setShowResourceIdGuide] = useState(false)
   const [showOutOfWorkspaceFileDialog, setShowOutOfWorkspaceFileDialog] = useState(false)
@@ -616,7 +588,6 @@ export function CcPublishWorkbench(props: {
   const [fileNameConflictMessage, setFileNameConflictMessage] = useState('')
   const [showResourceInfoValidationDialog, setShowResourceInfoValidationDialog] = useState(false)
   const [resourceInfoValidationIssues, setResourceInfoValidationIssues] = useState<string[]>([])
-  const [showSubmitVersionDialog, setShowSubmitVersionDialog] = useState(false)
   const [showUploadCompleteDialog, setShowUploadCompleteDialog] = useState(false)
   const [showRemoteFilePickerDialog, setShowRemoteFilePickerDialog] = useState(false)
   const [showLinkIconPicker, setShowLinkIconPicker] = useState(false)
@@ -645,7 +616,6 @@ export function CcPublishWorkbench(props: {
   const downloadsCardRef = useRef<HTMLDivElement | null>(null)
   const downloadsBottomRef = useRef<HTMLDivElement | null>(null)
   const prBodyTextareaRef = useRef<HTMLTextAreaElement | null>(null)
-  const prAutoFilledRef = useRef(false)
   const repoAutocompleteCloseTimerRef = useRef<number | null>(null)
   const remotePickerLocalInputRef = useRef<HTMLInputElement | null>(null)
   const remotePickerRenameInputRef = useRef<HTMLInputElement | null>(null)
@@ -813,12 +783,10 @@ export function CcPublishWorkbench(props: {
     setAuthors([{ name: currentUser.trim(), authorUrl: '', bindABAccount: true, isPurchaseLink: false }])
     setLinks([])
     setDownloads([])
-    setSubmitMode('v2')
     setBootstrapError('')
     setSubmitError('')
     setSubmitLogs([])
     setLatestPrUrl('')
-    setPrTitle('')
     setPrBody('')
     setHasUploadedInFlow(false)
     setBoundRepoOwner('')
@@ -827,7 +795,6 @@ export function CcPublishWorkbench(props: {
     setBoundRepoUrl('')
     setExistingCommitSha('')
     setBaselineCatalogId('')
-    setUpdateChangeBaseline(null)
     setShowDeviceSelector(false)
     setShowResourceIdGuide(false)
     setShowOutOfWorkspaceFileDialog(false)
@@ -839,7 +806,6 @@ export function CcPublishWorkbench(props: {
     setFileNameConflictMessage('')
     setShowResourceInfoValidationDialog(false)
     setResourceInfoValidationIssues([])
-    setShowSubmitVersionDialog(false)
     setShowUploadCompleteDialog(false)
     setShowRemoteFilePickerDialog(false)
     setShowLinkIconPicker(false)
@@ -877,7 +843,6 @@ export function CcPublishWorkbench(props: {
       setBootstrapLoading(false)
       setBootstrapError('')
       setBaselineCatalogId('')
-      setUpdateChangeBaseline(null)
       setBoundRepoOwner('')
       setBoundRepoName('')
       setBoundRepoBranch('')
@@ -1018,35 +983,7 @@ export function CcPublishWorkbench(props: {
         setBoundRepoUrl(`https://github.com/${target.repo_owner}/${target.repo_name}`)
         setExistingCommitSha(detail.latestCommitSha || target.repo_commit_hash || '')
         setBaselineCatalogId(target.catalogId || targetResourceId)
-        setUpdateChangeBaseline({
-          name: (parsed.name || target.name).trim(),
-          description: (parsed.description || target.description || '').trim(),
-          restype: nextRestype.trim(),
-          paidType: nextPaidType,
-          enableAstroBoxCreatorFeatures: nextEnableAstroBoxCreatorFeatures,
-          icon: (parsed.icon || target.icon || '').trim(),
-          cover: (parsed.cover || target.cover || '').trim(),
-          previews: parsed.previewPaths.map((path) => path.trim()).filter(Boolean),
-          tags: nextTags.map((tag) => tag.trim()).filter(Boolean),
-          links: nextLinks.map((link) => ({
-            icon: link.icon.trim(),
-            title: link.title.trim(),
-            url: link.url.trim()
-          })),
-          authors: nextAuthors.map((author) => ({
-            name: author.name.trim(),
-            authorUrl: author.authorUrl.trim(),
-            bindABAccount: Boolean(author.bindABAccount),
-            isPurchaseLink: Boolean(author.isPurchaseLink)
-          })),
-          downloads: nextDownloads.map((entry) => ({
-            device: entry.device.trim(),
-            version: entry.version.trim(),
-            file_name: normalizeRepoPath(entry.file_name)
-          }))
-        })
         setHasUploadedInFlow(false)
-        setSubmitMode('v2')
         setFileTreeTab('remote')
         setAuthors(nextAuthors)
         setLinks(nextLinks)
@@ -1054,7 +991,6 @@ export function CcPublishWorkbench(props: {
         setExtraFiles([])
         setSubmitError('')
         setLatestPrUrl('')
-        setPrTitle('')
         setPrBody('')
         setSubmitLogs([])
         setRemotePickerDraftFolders([])
@@ -1083,6 +1019,22 @@ export function CcPublishWorkbench(props: {
         })
 
         void syncRemoteWorkspace(target.repo_owner, target.repo_name, defaultRepoBranch, true)
+
+        try {
+          const openSubmission = await findOpenSubmissionForResourceId({
+            token: resolvedToken,
+            targetOwner: defaultTargetOwner.trim(),
+            targetRepo: defaultTargetRepo.trim(),
+            resourceId: target.catalogId || targetResourceId
+          })
+          if (!cancelled && openSubmission) {
+            appendLog(
+              `注意：该资源已有进行中的提交 PR #${openSubmission.prNumber}《${openSubmission.prTitle}》，待其处理前无法再次提交。`
+            )
+          }
+        } catch {
+          // 预检失败不阻塞编辑流程
+        }
       } catch (cause: unknown) {
         if (cancelled) return
         setBootstrapError(cause instanceof Error ? cause.message : '加载更新资源信息失败')
@@ -1138,7 +1090,7 @@ export function CcPublishWorkbench(props: {
       }
     })
     return [...paths].sort((a, b) => a.localeCompare(b, 'zh-CN'))
-  }, [coverPath, downloads, extraFiles, iconPath, previewItems, submitMode])
+  }, [coverPath, downloads, extraFiles, iconPath, previewItems])
 
   const visibleWorkspaceItems = useMemo(
     () => getVisibleTreeItems(workspaceTree, collapsedWorkspaceFolders),
@@ -1417,8 +1369,6 @@ export function CcPublishWorkbench(props: {
     return getResourceIdValidationMessage(resourceId, restype)
   }, [resourceId, restype])
 
-  const submitModeLabel = '仅 V2（V1 已不再支持）'
-
   const scrollToDownloadsSection = (): void => {
     const target = downloadsBottomRef.current ?? downloadsCardRef.current
     target?.scrollIntoView({
@@ -1426,10 +1376,6 @@ export function CcPublishWorkbench(props: {
       block: downloadsBottomRef.current ? 'end' : 'start'
     })
   }
-
-  const submitModeOptions: Array<{ value: SubmitMode; label: string; variant: 'default'; disabled?: boolean }> = [
-    { value: 'v2', label: mode === 'resource_edit' ? '确认更新 V2' : '确认提交 V2', variant: 'default' }
-  ]
 
   const isWorkspaceStepDone = mode === 'resource_edit'
     ? true
@@ -1547,8 +1493,7 @@ export function CcPublishWorkbench(props: {
       existingCommitSha.trim() &&
       defaultTargetOwner.trim() &&
       defaultTargetRepo.trim() &&
-      defaultCatalogPath.trim() &&
-      prTitle.trim()
+      defaultCatalogPath.trim()
     ),
     [
       boundRepoName,
@@ -1558,8 +1503,7 @@ export function CcPublishWorkbench(props: {
       defaultTargetOwner,
       defaultTargetRepo,
       existingCommitSha,
-      hasUploadedInFlow,
-      prTitle
+      hasUploadedInFlow
     ]
   )
 
@@ -1631,7 +1575,7 @@ export function CcPublishWorkbench(props: {
 
   const goNextStep = () => {
     if (step === '1') {
-      openSubmitVersionDialog()
+      validateResourceInfoStep()
       return
     }
     const index = stepItems.findIndex((item) => item.value === step)
@@ -1639,7 +1583,7 @@ export function CcPublishWorkbench(props: {
     goToStep(stepItems[index + 1].value)
   }
 
-  const openSubmitVersionDialog = () => {
+  const validateResourceInfoStep = () => {
     const issues: string[] = []
     if (resourceIdValidationMessage) issues.push(resourceIdValidationMessage)
     if (quickappPackageValidationMessage) issues.push(quickappPackageValidationMessage)
@@ -1674,12 +1618,6 @@ export function CcPublishWorkbench(props: {
       appendLog(`请先完成资源信息：${issues[0]}`)
       return
     }
-    setShowSubmitVersionDialog(true)
-  }
-
-  const confirmSubmitMode = (modeValue: SubmitMode) => {
-    setSubmitMode(modeValue)
-    setShowSubmitVersionDialog(false)
     goToStep('2')
   }
 
@@ -2978,417 +2916,6 @@ export function CcPublishWorkbench(props: {
     return JSON.stringify(manifestObject, null, 2)
   }
 
-  const resolveRepoNameForSubmit = (): string => {
-    const value = resolvedRepoName.trim()
-    if (!value) {
-      throw new Error('无法生成仓库名，请填写资源 ID 或手动输入仓库名')
-    }
-    return value
-  }
-
-  const getRawUrl = (path: string): string => {
-    const owner = boundRepoOwner.trim() || normalizeLower(currentUser)
-    const repo = boundRepoName.trim() || resolveRepoNameForSubmit()
-    const encodedPath = normalizeRepoPath(path)
-      .split('/')
-      .filter(Boolean)
-      .map((segment) => encodeURIComponent(segment))
-      .join('/')
-    return `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/main/${encodedPath}`
-  }
-
-  const normalizeTextValue = (value: string): string => value.trim()
-
-  const normalizeStringArray = (values: string[]): string[] =>
-    values.map((item) => item.trim()).filter(Boolean)
-
-  const formatTagListForPr = (values: string[]): string =>
-    values.length > 0 ? values.map((tag) => `\`${tag}\``).join('、') : '--'
-
-  const getNormalizedLinksForPr = (values: ManifestLinkDraft[]): Array<{ icon: string; title: string; url: string }> =>
-    values
-      .map((link) => ({
-        icon: link.icon.trim(),
-        title: link.title.trim(),
-        url: link.url.trim()
-      }))
-      .filter((link) => link.icon || link.title || link.url)
-      .sort((a, b) => `${a.title}|${a.url}|${a.icon}`.localeCompare(`${b.title}|${b.url}|${b.icon}`, 'zh-CN'))
-
-  const serializeLinksForPr = (values: ManifestLinkDraft[]): string =>
-    JSON.stringify(getNormalizedLinksForPr(values))
-
-  const getNormalizedAuthorsForPr = (values: ManifestAuthorDraft[]): Array<{ name: string; authorUrl: string; bindABAccount: boolean }> =>
-    values
-      .map((author) => ({
-        name: author.name.trim(),
-        authorUrl: author.authorUrl.trim(),
-        bindABAccount: Boolean(author.bindABAccount)
-      }))
-      .filter((author) => author.name || author.authorUrl)
-      .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
-
-  const serializeAuthorsForPr = (values: ManifestAuthorDraft[]): string =>
-    JSON.stringify(getNormalizedAuthorsForPr(values))
-
-  const getNormalizedDownloadsForPr = (values: ManifestDownloadDraft[]): Array<{ device: string; version: string; file_name: string }> =>
-    values
-      .map((entry) => ({
-        device: entry.device.trim(),
-        version: entry.version.trim(),
-        file_name: normalizeRepoPath(entry.file_name)
-      }))
-      .filter((entry) => entry.device || entry.version || entry.file_name)
-      .sort((a, b) => a.device.localeCompare(b.device, 'zh-CN'))
-
-  const serializeDownloadsForPr = (values: ManifestDownloadDraft[]): string =>
-    JSON.stringify(getNormalizedDownloadsForPr(values))
-
-  const formatLinkEntryForPr = (entry: { icon: string; title: string; url: string }): string =>
-    `${entry.title || '--'}（${entry.icon || '--'}）：${entry.url || '--'}`
-
-  const formatAuthorEntryForPr = (entry: { name: string; authorUrl: string; bindABAccount: boolean }): string =>
-    `${entry.name || '--'} / author_url=${entry.authorUrl || '--'} / bindABAccount=${entry.bindABAccount ? 'true' : 'false'}`
-
-  const formatDeviceForPr = (deviceId: string): string => {
-    const normalized = deviceId.trim()
-    if (!normalized) return '--'
-    const device = getDeviceById(normalized)
-    if (!device) return normalized
-    return `${device.name}（device_id: ${device.id}）`
-  }
-
-  const formatDownloadEntryForPr = (entry: { device: string; version: string; file_name: string }): string =>
-    `device=\`${formatDeviceForPr(entry.device)}\` / version=\`${entry.version || '--'}\` / file=\`${entry.file_name || '--'}\``
-
-  const collectUpdateChangeLines = (): string[] => {
-    const baseline = updateChangeBaseline
-    if (!baseline) return []
-
-    const lines: string[] = []
-    const pushIfChanged = (label: string, before: string, after: string): void => {
-      if (before === after) return
-      lines.push(`- ${label}：\`${before || '--'}\` -> \`${after || '--'}\``)
-    }
-
-    pushIfChanged('资源名称', normalizeTextValue(baseline.name), normalizeTextValue(name))
-    pushIfChanged('资源描述', normalizeTextValue(baseline.description), normalizeTextValue(description))
-    pushIfChanged('资源类型', normalizeTextValue(baseline.restype), normalizeTextValue(restype))
-    pushIfChanged('付费类型', normalizeTextValue(baseline.paidType), normalizeTextValue(paidType))
-    pushIfChanged(
-      'AstroBoxCreator 加密功能',
-      baseline.enableAstroBoxCreatorFeatures ? '开启' : '关闭',
-      enableAstroBoxCreatorFeatures ? '开启' : '关闭'
-    )
-    pushIfChanged('图标', normalizeTextValue(baseline.icon), normalizeTextValue(iconPath))
-    pushIfChanged('封面', normalizeTextValue(baseline.cover), normalizeTextValue(coverPath))
-
-    const beforePreviewList = normalizeStringArray(baseline.previews)
-    const afterPreviewList = normalizeStringArray(previewItems.map((item) => item.path))
-    const beforePreview = beforePreviewList.join('|')
-    const afterPreview = afterPreviewList.join('|')
-    if (beforePreview !== afterPreview) {
-      const beforeSet = new Set(beforePreviewList)
-      const afterSet = new Set(afterPreviewList)
-      const added = afterPreviewList.filter((path) => !beforeSet.has(path))
-      const removed = beforePreviewList.filter((path) => !afterSet.has(path))
-      if (added.length > 0) {
-        lines.push(`- 预览图：新增 ${added.length} 张`)
-        for (const path of added) {
-          lines.push(`  - \`${path}\``)
-          lines.push(`    ${getRawUrl(path)}`)
-        }
-      }
-      if (removed.length > 0) {
-        lines.push(`- 预览图：移除 ${removed.length} 张`)
-        for (const path of removed) {
-          lines.push(`  - \`${path}\``)
-        }
-      }
-      if (added.length === 0 && removed.length === 0) {
-        lines.push(`- 预览图：顺序已调整（${beforePreviewList.length} 张）`)
-      }
-    }
-
-    const beforeTagList = normalizeStringArray(baseline.tags)
-    const afterTagList = normalizeStringArray(tags)
-    const beforeTags = beforeTagList.join('|')
-    const afterTags = afterTagList.join('|')
-    if (beforeTags !== afterTags) {
-      lines.push(`- 标签：${formatTagListForPr(beforeTagList)} -> ${formatTagListForPr(afterTagList)}`)
-    }
-
-    const beforeLinks = serializeLinksForPr(baseline.links)
-    const afterLinks = serializeLinksForPr(links)
-    if (beforeLinks !== afterLinks) {
-      const beforeLinkList = getNormalizedLinksForPr(baseline.links)
-      const afterLinkList = getNormalizedLinksForPr(links)
-      const makeLinkKey = (entry: { icon: string; title: string; url: string }): string => `${entry.title}|${entry.icon}|${entry.url}`
-      const beforeSet = new Set(beforeLinkList.map(makeLinkKey))
-      const afterSet = new Set(afterLinkList.map(makeLinkKey))
-      const addedLinks = afterLinkList.filter((entry) => !beforeSet.has(makeLinkKey(entry)))
-      const removedLinks = beforeLinkList.filter((entry) => !afterSet.has(makeLinkKey(entry)))
-      if (addedLinks.length > 0) {
-        lines.push(`- 相关链接：新增 ${addedLinks.length} 条`)
-        addedLinks.forEach((entry) => lines.push(`  - ${formatLinkEntryForPr(entry)}`))
-      }
-      if (removedLinks.length > 0) {
-        lines.push(`- 相关链接：移除 ${removedLinks.length} 条`)
-        removedLinks.forEach((entry) => lines.push(`  - ${formatLinkEntryForPr(entry)}`))
-      }
-      if (addedLinks.length === 0 && removedLinks.length === 0) {
-        lines.push(`- 相关链接：顺序已调整（${afterLinkList.length} 条）`)
-      }
-    }
-
-    const beforeAuthors = serializeAuthorsForPr(baseline.authors)
-    const afterAuthors = serializeAuthorsForPr(authors)
-    if (beforeAuthors !== afterAuthors) {
-      const beforeAuthorList = getNormalizedAuthorsForPr(baseline.authors)
-      const afterAuthorList = getNormalizedAuthorsForPr(authors)
-      const makeAuthorKey = (entry: { name: string; authorUrl: string; bindABAccount: boolean }): string => `${entry.name}|${entry.authorUrl}|${entry.bindABAccount ? '1' : '0'}`
-      const beforeSet = new Set(beforeAuthorList.map(makeAuthorKey))
-      const afterSet = new Set(afterAuthorList.map(makeAuthorKey))
-      const addedAuthors = afterAuthorList.filter((entry) => !beforeSet.has(makeAuthorKey(entry)))
-      const removedAuthors = beforeAuthorList.filter((entry) => !afterSet.has(makeAuthorKey(entry)))
-      if (addedAuthors.length > 0) {
-        lines.push(`- 作者信息：新增 ${addedAuthors.length} 条`)
-        addedAuthors.forEach((entry) => lines.push(`  - ${formatAuthorEntryForPr(entry)}`))
-      }
-      if (removedAuthors.length > 0) {
-        lines.push(`- 作者信息：移除 ${removedAuthors.length} 条`)
-        removedAuthors.forEach((entry) => lines.push(`  - ${formatAuthorEntryForPr(entry)}`))
-      }
-      if (addedAuthors.length === 0 && removedAuthors.length === 0) {
-        lines.push(`- 作者信息：顺序已调整（${afterAuthorList.length} 条）`)
-      }
-    }
-
-    const beforeDownloads = serializeDownloadsForPr(baseline.downloads)
-    const afterDownloads = serializeDownloadsForPr(downloads)
-    if (beforeDownloads !== afterDownloads) {
-      const beforeDownloadList = getNormalizedDownloadsForPr(baseline.downloads)
-      const afterDownloadList = getNormalizedDownloadsForPr(downloads)
-      const beforeDownloadMap = new Map(beforeDownloadList.map((entry) => [entry.device, entry]))
-      const afterDownloadMap = new Map(afterDownloadList.map((entry) => [entry.device, entry]))
-
-      const addedDownloads = afterDownloadList.filter((entry) => !beforeDownloadMap.has(entry.device))
-      const removedDownloads = beforeDownloadList.filter((entry) => !afterDownloadMap.has(entry.device))
-      const updatedDownloads = afterDownloadList.filter((entry) => {
-        const beforeEntry = beforeDownloadMap.get(entry.device)
-        if (!beforeEntry) return false
-        return beforeEntry.version !== entry.version || beforeEntry.file_name !== entry.file_name
-      })
-
-      if (addedDownloads.length > 0) {
-        lines.push(`- 下载资源（downloads）：新增 ${addedDownloads.length} 条`)
-        addedDownloads.forEach((entry) => {
-          lines.push(`  - ${formatDownloadEntryForPr(entry)}`)
-          if (entry.file_name) {
-            lines.push(`    ${getRawUrl(entry.file_name)}`)
-          }
-        })
-      }
-      if (removedDownloads.length > 0) {
-        lines.push(`- 下载资源（downloads）：移除 ${removedDownloads.length} 条`)
-        removedDownloads.forEach((entry) => lines.push(`  - ${formatDownloadEntryForPr(entry)}`))
-      }
-      if (updatedDownloads.length > 0) {
-        lines.push(`- 下载资源（downloads）：更新 ${updatedDownloads.length} 条`)
-        updatedDownloads.forEach((entry) => {
-          const beforeEntry = beforeDownloadMap.get(entry.device)
-          if (!beforeEntry) return
-          lines.push(`  - 设备：${formatDeviceForPr(entry.device)}`)
-          if (beforeEntry.version !== entry.version) {
-            lines.push(`    - version：\`${beforeEntry.version || '--'}\` -> \`${entry.version || '--'}\``)
-          }
-          if (beforeEntry.file_name !== entry.file_name) {
-            lines.push(`    - file：\`${beforeEntry.file_name || '--'}\` -> \`${entry.file_name || '--'}\``)
-            if (entry.file_name) {
-              lines.push(`      ${getRawUrl(entry.file_name)}`)
-            }
-          }
-        })
-      }
-      if (addedDownloads.length === 0 && removedDownloads.length === 0 && updatedDownloads.length === 0) {
-        lines.push(`- 下载资源（downloads）：顺序已调整（${afterDownloadList.length} 条）`)
-      }
-    }
-
-    return lines
-  }
-
-  const buildAutoPrTitle = (): string => {
-    const resourceName = name.trim() || '未命名资源'
-    const resourceType = formatResourceTypeForTitle(restype)
-    if (mode === 'publish') {
-      return `[ABoooxCC] 发布 ${resourceName} ${resourceType}`
-    }
-    return `[ABoooxCC] 更新 ${resourceName} ${resourceType}`
-  }
-
-  const buildAutoPrBody = (repoUrl: string, commitSha: string): string => {
-    const shortHash = commitSha.trim() ? commitSha.trim().slice(0, 7) : '--'
-    if (mode === 'publish') {
-      const resourceTypeText = restype === 'watchface' ? '表盘（watch_face）' : '快应用（quick_app）'
-      const submitVersionText = 'V2（V1 已不再支持）'
-      const tagsText = tags.map((tag) => tag.trim()).filter(Boolean).join(' / ') || '--'
-      const paidTypeText = paidType.trim() || '免费'
-      const creatorFeatureText = enableAstroBoxCreatorFeatures ? '开启' : '关闭'
-
-      const deviceLines = selectedDeviceIds.length > 0
-        ? selectedDeviceIds.map((deviceId) => `- ${formatDeviceForPr(deviceId)}`)
-        : ['- --']
-
-      const normalizedIconPath = normalizeRepoPath(iconPath)
-      const normalizedCoverPath = normalizeRepoPath(coverPath)
-
-      const imageLines: string[] = []
-      if (normalizedIconPath) {
-        imageLines.push(`- Icon：\`${normalizedIconPath}\`  `)
-        imageLines.push(getRawUrl(normalizedIconPath))
-      } else {
-        imageLines.push('- Icon：--')
-      }
-      if (normalizedCoverPath) {
-        imageLines.push(`- Cover：\`${normalizedCoverPath}\`  `)
-        imageLines.push(getRawUrl(normalizedCoverPath))
-      } else {
-        imageLines.push('- Cover：--')
-      }
-      if (normalizedPreviewPaths.length > 0) {
-        imageLines.push('- Preview：')
-        normalizedPreviewPaths.forEach((path) => {
-          imageLines.push(`- \`${path}\``)
-          imageLines.push(`  ${getRawUrl(path)}`)
-        })
-      } else {
-        imageLines.push('- Preview：--')
-      }
-
-      const downloadLines = selectedDeviceIds.length > 0
-        ? selectedDeviceIds.flatMap((deviceId) => {
-            const entry = getDownloadEntry(deviceId)
-            const version = entry.version.trim() || '--'
-            const file = normalizeRepoPath(entry.file_name)
-            const raw = file ? getRawUrl(file) : '--'
-            return [
-              `- ${formatDeviceForPr(deviceId)}`,
-              `  - version: \`${version}\``,
-              `  - file: \`${file || '--'}\``,
-              `  - raw: ${raw}`
-            ]
-          })
-        : ['- --']
-
-      const normalizedLinks = links
-        .map((link) => ({
-          title: link.title.trim(),
-          icon: link.icon.trim(),
-          url: link.url.trim()
-        }))
-        .filter((link) => link.title || link.icon || link.url)
-
-      const linkLines = normalizedLinks.length > 0
-        ? normalizedLinks.map((link) => `- ${link.title || '--'}（${link.icon || '--'}）：${link.url || '--'}`)
-        : ['- 为空']
-
-      const quickappValidationLines = quickappPackageValidationUnavailable
-        ? [
-            '## 自动校验说明',
-            '',
-            '- 用户的浏览器不支持解析 RPK，因此无法实现自动校验 CSV 的资源 ID 和实际包名是否对应'
-          ]
-        : []
-      const watchfaceValidationLines = watchfaceIdValidationNotice
-        ? [
-            ...(quickappValidationLines.length === 0 ? ['## 自动校验说明', ''] : []),
-            `- 表盘文件无法完成 ID 自动校验：${watchfaceIdValidationNotice}`
-          ]
-        : []
-
-      return [
-        '## 资源信息',
-        '',
-        `- 资源名称：${name.trim()}`,
-        `- 资源 ID：${resourceId.trim()}`,
-        `- 资源类型：${resourceTypeText}`,
-        `- 提交版本：${submitVersionText}`,
-        `- 付费类型：${paidTypeText}`,
-        `- AstroBoxCreator 加密功能：${creatorFeatureText}`,
-        `- 标签：${tagsText}`,
-        '',
-        '## 支持设备',
-        '',
-        ...deviceLines,
-        '',
-        '## 仓库信息',
-        '',
-        `- 资源仓库：${repoUrl}`,
-        `- 提交短哈希：\`${shortHash}\``,
-        '',
-        '## 图片资源（Raw）',
-        '',
-        ...imageLines,
-        '',
-        '## 下载资源（downloads）',
-        '',
-        ...downloadLines,
-        ...quickappValidationLines,
-        ...watchfaceValidationLines,
-        ...(quickappValidationLines.length > 0 || watchfaceValidationLines.length > 0 ? [''] : []),
-        '## 链接（manifest_v2.links）',
-        '',
-        ...linkLines,
-        '',
-        '---',
-        '此 PR 由 [AstroBooox Creator Console](https://astrobooox-ng.waijade.cn/) 生成，如有问题前往 [AstroBooox 仓库](https://github.com/CheongSzesuen/AstroBooox) 提交 [Issue](https://github.com/CheongSzesuen/AstroBooox/issues)。'
-      ].join('\n')
-    }
-
-    const changeLines = collectUpdateChangeLines()
-    const resourceTypeText = restype === 'watchface' ? '表盘（watch_face）' : '快应用（quick_app）'
-    const tagsText = tags.map((tag) => tag.trim()).filter(Boolean).join(' / ') || '--'
-    const paidTypeText = formatPaidTypeLabel(paidType)
-    const quickappValidationLines = quickappPackageValidationUnavailable
-      ? [
-          '## 自动校验说明',
-          '',
-          '- 用户的浏览器不支持解析 RPK，因此无法实现自动校验 CSV 的资源 ID 和实际包名是否对应'
-        ]
-      : []
-    const watchfaceValidationLines = watchfaceIdValidationNotice
-      ? [
-          ...(quickappValidationLines.length === 0 ? ['## 自动校验说明', ''] : []),
-          `- 表盘文件无法完成 ID 自动校验：${watchfaceIdValidationNotice}`
-        ]
-      : []
-    return [
-      '## 资源信息',
-      '',
-      `- 资源名称：${name.trim() || '--'}`,
-      `- 资源 ID：${resourceId.trim() || '--'}`,
-      `- 资源类型：${resourceTypeText}`,
-      `- 付费类型：${paidTypeText}`,
-      `- 标签：${tagsText}`,
-      '',
-      '## 本次变更',
-      '',
-      ...(changeLines.length > 0 ? changeLines : ['- 未检测到字段变化（仅同步仓库文件）']),
-      '',
-      ...quickappValidationLines,
-      ...watchfaceValidationLines,
-      ...(quickappValidationLines.length > 0 || watchfaceValidationLines.length > 0 ? [''] : []),
-      '## 仓库信息',
-      '',
-      `- 资源仓库：${repoUrl}`,
-      `- 提交短哈希：\`${shortHash}\``,
-      '',
-      '---',
-      '此 PR 由 [AstroBooox Creator Console](https://astrobooox-ng.waijade.cn/) 生成，如有问题前往 [AstroBooox 仓库](https://github.com/CheongSzesuen/AstroBooox) 提交 [Issue](https://github.com/CheongSzesuen/AstroBooox/issues)。'
-    ].join('\n')
-  }
-
   const handleUploadResources = async () => {
     if (!canUpload) return
 
@@ -3398,7 +2925,6 @@ export function CcPublishWorkbench(props: {
 
     setSubmitError('')
     setLatestPrUrl('')
-    setPrTitle('')
     setPrBody('')
     setHasUploadedInFlow(false)
     setSubmitLogs([])
@@ -3502,50 +3028,28 @@ export function CcPublishWorkbench(props: {
         throw new Error('没有可上传文件，请先选择资源文件')
       }
 
-      let latestCommitSha = existingCommitSha.trim()
-
+      const uploadFiles: Array<{ path: string; contentBase64: string }> = []
       for (const item of uploadQueue) {
-        const contentBase64 = item.file
-          ? arrayBufferToBase64(await item.file.arrayBuffer())
-          : textToBase64(item.text || '')
-
-        let result: { commit: { sha: string; html_url: string } }
-        try {
-          result = await putRepoFile({
-            token: accessToken,
-            owner: repoOwner,
-            repo: repoName,
-            path: item.path,
-            branch: repoBranch,
-            message: `sync: ${item.path}`,
-            contentBase64
-          })
-        } catch (cause: unknown) {
-          const error = cause as { status?: number; message?: string }
-          const message = error.message || ''
-          const canRetry =
-            error.status === 422 &&
-            (message.includes('sha') || message.includes('already exists') || message.includes('does not match'))
-          if (!canRetry) throw cause
-
-          const oldFile = await fetchRepoFileOrNull(accessToken, repoOwner, repoName, item.path, repoBranch)
-          if (!oldFile?.sha) throw cause
-
-          result = await putRepoFile({
-            token: accessToken,
-            owner: repoOwner,
-            repo: repoName,
-            path: item.path,
-            branch: repoBranch,
-            message: `sync: ${item.path}`,
-            contentBase64,
-            sha: oldFile.sha
-          })
-        }
-
-        latestCommitSha = result.commit.sha
-        appendLog(`上传完成: ${item.path}`)
+        uploadFiles.push({
+          path: item.path,
+          contentBase64: item.file
+            ? arrayBufferToBase64(await item.file.arrayBuffer())
+            : textToBase64(item.text || '')
+        })
+        appendLog(`待上传: ${item.path}`)
       }
+
+      // 对齐官方提发协议：资源仓库整批单 commit（Publish/Update <资源名>）
+      const uploadMessage = `${mode === 'resource_edit' ? 'Update' : 'Publish'} ${name.trim() || catalogId}`
+      const { commitSha: latestCommitSha } = await batchUploadResourceFiles({
+        token: accessToken,
+        owner: repoOwner,
+        repo: repoName,
+        branch: repoBranch,
+        files: uploadFiles,
+        message: uploadMessage
+      })
+      appendLog(`已提交: ${uploadMessage}`)
 
       if (!latestCommitSha) {
         throw new Error('上传完成但未获得 commit sha')
@@ -3557,14 +3061,13 @@ export function CcPublishWorkbench(props: {
       setBoundRepoBranch(repoBranch)
       setBoundRepoUrl(repoUrl)
       setHasUploadedInFlow(true)
+      setPrBody('')
       void syncRemoteWorkspace(repoOwner, repoName, repoBranch, false)
 
-      const autoTitle = buildAutoPrTitle()
-      const autoBody = buildAutoPrBody(repoUrl, latestCommitSha)
-      setPrTitle(autoTitle)
-      setPrBody(autoBody)
-
       appendLog(`仓库上传完成，commit=${latestCommitSha.slice(0, 7)}`)
+      if (watchfaceIdValidationNotice.trim()) {
+        appendLog(`表盘文件无法完成 ID 自动校验：${watchfaceIdValidationNotice.trim()}`)
+      }
       toast('上传成功', {
         description: `${repoOwner}/${repoName}@${latestCommitSha.slice(0, 7)}`
       })
@@ -3588,61 +3091,57 @@ export function CcPublishWorkbench(props: {
     const username = normalizeLower(currentUser)
     const repoOwner = boundRepoOwner.trim()
     const repoName = boundRepoName.trim()
-    const repoUrl = boundRepoUrl.trim() || `https://github.com/${repoOwner}/${repoName}`
-    const latestCommitSha = existingCommitSha.trim()
 
-    if (!accessToken || !username || !repoOwner || !repoName || !latestCommitSha) return
+    if (!accessToken || !username || !repoOwner || !repoName || !existingCommitSha.trim()) return
 
     try {
       const catalogId = ensureValidResourceId(resourceId, restype)
       setSubmitError('')
       setCreatingPr(true)
-      appendLog('开始更新 catalog 并创建 PR')
+      appendLog('开始提交资源提发请求并创建 PR')
 
-      const branchName = `astrobooox-submit-${Date.now()}`
-      let forkResult: { forkOwner: string; forkRepo: string; branch: string } | null = null
-      const normalizedTags = normalizedTagsText
-      const normalizedV2Devices = normalizedDevicesText
-      const normalizedVendors = deviceVendorsText.trim() || normalizedDeviceVendorsText
+      const intent = mode === 'resource_edit'
+        ? { mode: 'edit' as const, originalId: (baselineCatalogId || catalogId).trim() }
+        : { mode: 'create' as const }
 
-      const matchId = mode === 'resource_edit' ? (baselineCatalogId || catalogId).trim() : catalogId
-      const v2Result = await updateCatalogInForkBranch({
+      const submission = await createStagingSubmissionBranch({
         token: accessToken,
+        currentUser: username,
         upstreamOwner: defaultTargetOwner.trim(),
         upstreamRepo: defaultTargetRepo.trim(),
         upstreamBranch: MAIN_BRANCH,
         catalogPath: defaultCatalogPath.trim(),
-        currentUser: username,
-        branchName,
-        matchId,
-        requireExisting: mode === 'resource_edit',
+        intent,
         entry: {
           id: catalogId,
           name: name.trim(),
           restype: formatCatalogRestype(restype),
           repo_owner: repoOwner,
           repo_name: repoName,
-          repo_commit_hash: latestCommitSha.slice(0, 7),
+          repo_commit_hash: existingCommitSha.trim().slice(0, 7),
           icon: normalizeRepoPath(iconPath),
           cover: normalizeRepoPath(coverPath),
-          tags: normalizedTags,
-          device_vendors: normalizedVendors,
-          devices: normalizedV2Devices,
+          tags: normalizedTagsText,
+          device_vendors: deviceVendorsText.trim() || normalizedDeviceVendorsText,
+          devices: normalizedDevicesText,
           paid_type: paidType.trim()
         }
       })
-      forkResult = v2Result
-      appendLog(`V2 Catalog 更新完成: ${v2Result.forkOwner}/${v2Result.forkRepo}@${v2Result.branch}`)
+      appendLog(`提发明细已提交: ${submission.submissionPath}/ @${submission.branch}`)
 
       const pr = await createPullRequestWithHead({
         token: accessToken,
         baseOwner: defaultTargetOwner.trim(),
         baseRepo: defaultTargetRepo.trim(),
         baseBranch: MAIN_BRANCH,
-        headOwner: forkResult.forkOwner,
-        headBranch: forkResult.branch,
-        title: prTitle.trim(),
-        body: prBody.trim() || buildAutoPrBody(repoUrl, latestCommitSha)
+        headOwner: submission.forkOwner,
+        headBranch: submission.branch,
+        title: buildSubmissionPrTitle({
+          mode: intent.mode,
+          itemName: name.trim(),
+          itemId: catalogId
+        }),
+        body: prBody.trim() || undefined
       })
 
       setLatestPrUrl(pr.htmlUrl)
@@ -3661,23 +3160,6 @@ export function CcPublishWorkbench(props: {
       setCreatingPr(false)
     }
   }
-
-  useEffect(() => {
-    if (step !== '3') {
-      prAutoFilledRef.current = false
-      return
-    }
-    if (prAutoFilledRef.current) return
-    if (!boundRepoOwner.trim() || !boundRepoName.trim() || !existingCommitSha.trim()) return
-    const repoUrl = boundRepoUrl.trim() || `https://github.com/${boundRepoOwner}/${boundRepoName}`
-    if (!prTitle.trim()) {
-      setPrTitle(buildAutoPrTitle())
-    }
-    if (!prBody.trim()) {
-      setPrBody(buildAutoPrBody(repoUrl, existingCommitSha))
-    }
-    prAutoFilledRef.current = true
-  }, [boundRepoName, boundRepoOwner, boundRepoUrl, existingCommitSha, prBody, prTitle, step])
 
   useEffect(() => {
     if (mode !== 'publish' && step === '0') {
@@ -4546,7 +4028,7 @@ export function CcPublishWorkbench(props: {
               {step === '2' ? (
                 <div className="space-y-4 text-sm text-muted-foreground">
                   <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
-                    提交流程：<span className="font-semibold text-foreground">{submitModeLabel}</span>
+                    提交流程：<span className="font-semibold text-foreground">Staging 提发协议（V2）</span>
                   </div>
                   {mode !== 'resource_edit' ? (
                     <div className="grid gap-3 md:grid-cols-2">
@@ -4681,13 +4163,19 @@ export function CcPublishWorkbench(props: {
 
               {step === '3' ? (
                 <div className="space-y-2 text-sm text-muted-foreground">
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">提交流程：{submitModeLabel}</div>
+                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">提交流程：Staging 提发协议（V2）</div>
                   <div className="rounded-md border border-border bg-muted/20 px-3 py-2">目标仓库：{defaultTargetOwner}/{defaultTargetRepo}</div>
-                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">Catalog(V2)：{defaultCatalogPath}</div>
+                  <div className="rounded-md border border-border bg-muted/20 px-3 py-2">
+                    提发明细：tmp/{normalizeLower(currentUser) || '<用户>'}/{(boundRepoName || '-').toLowerCase()}/（resource.csv + request.json）
+                  </div>
                   <div className="rounded-md border border-border bg-muted/20 px-3 py-2">资源仓库：{boundRepoOwner || '-'}/{boundRepoName || '-'}</div>
                   <div className="space-y-1.5">
                     <Label htmlFor="publish-pr-title">PR 标题</Label>
-                    <Input id="publish-pr-title" value={prTitle} onChange={(event) => setPrTitle(event.target.value)} placeholder="[ABoooxCC] 更新 ..." />
+                    <Input id="publish-pr-title" value={buildSubmissionPrTitle({
+                      mode: mode === 'resource_edit' ? 'edit' : 'create',
+                      itemName: name.trim(),
+                      itemId: resourceId.trim()
+                    })} readOnly className="bg-muted/30" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="publish-pr-body">PR 描述</Label>
@@ -4696,6 +4184,7 @@ export function CcPublishWorkbench(props: {
                       id="publish-pr-body"
                       value={prBody}
                       onChange={(event) => setPrBody(event.target.value)}
+                      placeholder="可填写说明、变更摘要或备注"
                       className="min-h-[120px]"
                       style={!isMobileViewport ? { minHeight: `${desktopPrBodyMinHeight}px` } : undefined}
                     />
@@ -4964,33 +4453,6 @@ export function CcPublishWorkbench(props: {
           </DialogHeader>
           <DialogFooter>
             <Button onClick={() => setShowUploadCompleteDialog(false)}>我知道了</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showSubmitVersionDialog} onOpenChange={setShowSubmitVersionDialog}>
-        <DialogContent className="max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle>选择提交流程</DialogTitle>
-            <DialogDescription>
-              V1 已不再支持。本次仅会提交或更新 V2。
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-2 py-1">
-            {submitModeOptions.map((option) => (
-              <Button
-                key={`submit-mode-option-${option.value}`}
-                variant={option.variant}
-                className="justify-start"
-                disabled={option.disabled}
-                onClick={() => confirmSubmitMode(option.value)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSubmitVersionDialog(false)}>取消</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
