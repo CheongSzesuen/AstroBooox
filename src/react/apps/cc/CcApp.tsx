@@ -28,7 +28,7 @@ import {
   type CcTab
 } from '@/cc/route-config'
 import { CcTokenGate } from '@/react/cc/CcTokenGate'
-import { CcFreeResourceNotice } from '@/react/components/cc/CcFreeResourceNotice'
+import { CcDeprecationNotice } from '@/react/components/cc/CcDeprecationNotice'
 import { Button } from '@/react/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/react/components/ui/card'
 import { Sheet, SheetClose, SheetContent } from '@/react/components/ui/sheet'
@@ -728,7 +728,7 @@ function CcAuthenticatedApp() {
           </div>
         </div>
       </header>
-      <CcFreeResourceNotice />
+      <CcDeprecationNotice />
 
       <Sheet open={showMobileNavSheet} onOpenChange={setShowMobileNavSheet}>
         <SheetContent side="left" hideClose className="!w-[max(61.8vw,max-content)] max-w-[calc(100vw-1.5rem)] p-0 sm:hidden">

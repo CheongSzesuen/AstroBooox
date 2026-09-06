@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/rea
 import { Input } from '@/react/components/ui/input'
 import { verifyToken } from '@/utils/githubGitApi'
 import { CcInteractiveGrid } from '@/react/cc/CcInteractiveGrid'
-import { CcFreeResourceNotice } from '@/react/components/cc/CcFreeResourceNotice'
+import { CcDeprecationNotice } from '@/react/components/cc/CcDeprecationNotice'
 import { useCcSession } from '@/react/hooks/useCcSession'
 import '@/react/cc/cc-token-gate.css'
 
@@ -33,7 +33,7 @@ export function CcTokenGate({ onAuthenticated }: { onAuthenticated?: () => void 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background lg:grid lg:min-h-[100dvh] lg:grid-cols-[1.28fr_0.72fr]">
       <div className="absolute inset-x-0 top-0 z-50">
-        <CcFreeResourceNotice />
+        <CcDeprecationNotice />
       </div>
       <div className="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex lg:min-h-[100dvh]">
         <div className="absolute inset-0 bg-zinc-900" />
