@@ -279,6 +279,6 @@ export function buildSubmissionPrTitle(params: {
   itemName: string
   itemId: string
 }): string {
-  const label = params.mode === 'create' ? '[ABCC] Add new resource' : '[ABCC] Update resource'
+  const label = params.mode === 'create' ? '[ABOOOX] Add new resource' : '[ABOOOX] Update resource'
   return `${label}: ${params.itemName || params.itemId || '资源'}`
 }
